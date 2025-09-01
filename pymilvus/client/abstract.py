@@ -1,6 +1,6 @@
 import abc
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, NoReturn, Optional, Union
 
 import ujson
 
@@ -100,7 +100,7 @@ class FieldSchema:
 
         self.indexes.extend([index_dict])
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         _dict = {
             "field_id": self.field_id,
             "name": self.name,
@@ -164,7 +164,7 @@ class FunctionSchema:
         self.output_field_names = raw.output_field_names
         self.output_field_ids = raw.output_field_ids
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         return {
             "name": self.name,
             "id": self.id,
@@ -236,7 +236,7 @@ class CollectionSchema:
             self.properties[p.key] = p.value
 
     @classmethod
-    def _rewrite_schema_dict(cls, schema_dict: Dict):
+    def _rewrite_schema_dict(cls, schema_dict: Dict) -> None:
         fields = schema_dict.get("fields", [])
         if not fields:
             return
@@ -246,7 +246,7 @@ class CollectionSchema:
                 schema_dict["auto_id"] = field_dict["auto_id"]
                 return
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         if not self._raw:
             return {}
         _dict = {
@@ -290,44 +290,44 @@ class MutationResult:
         self._pack(raw)
 
     @property
-    def primary_keys(self):
+    def primary_keys(self) -> List[Union[int, str]]:
         return self._primary_keys
 
     @property
-    def insert_count(self):
+    def insert_count(self) -> int:
         return self._insert_cnt
 
     @property
-    def delete_count(self):
+    def delete_count(self) -> int:
         return self._delete_cnt
 
     @property
-    def upsert_count(self):
+    def upsert_count(self) -> int:
         return self._upsert_cnt
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> int:
         return self._timestamp
 
     @property
-    def succ_count(self):
+    def succ_count(self) -> int:
         return len(self._succ_index)
 
     @property
-    def err_count(self):
+    def err_count(self) -> int:
         return len(self._err_index)
 
     @property
-    def succ_index(self):
+    def succ_index(self) -> List[int]:
         return self._succ_index
 
     @property
-    def err_index(self):
+    def err_index(self) -> List[int]:
         return self._err_index
 
     # The unit of this cost is vcu, similar to token
     @property
-    def cost(self):
+    def cost(self) -> int:
         return self._cost
 
     def __str__(self):
@@ -373,7 +373,7 @@ class BaseRanker:
     def __int__(self):
         return
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         return {}
 
     def __str__(self):
@@ -388,7 +388,7 @@ class RRFRanker(BaseRanker):
         self._strategy = RANKER_TYPE_RRF
         self._k = k
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         params = {
             "k": self._k,
         }
@@ -411,7 +411,7 @@ class WeightedRanker(BaseRanker):
         self._weights = weights
         self._norm_score = norm_score
 
-    def dict(self):
+    def dict(self) -> Dict[str, Any]:
         params = {
             "weights": self._weights,
             "norm_score": self._norm_score,
@@ -443,27 +443,27 @@ class AnnSearchRequest:
         self._expr_params = expr_params
 
     @property
-    def data(self):
+    def data(self) -> Any:
         return self._data
 
     @property
-    def anns_field(self):
+    def anns_field(self) -> Any:
         return self._anns_field
 
     @property
-    def param(self):
+    def param(self) -> Any:
         return self._param
 
     @property
-    def limit(self):
+    def limit(self) -> int:
         return self._limit
 
     @property
-    def expr(self):
+    def expr(self) -> str:
         return self._expr
 
     @property
-    def expr_params(self):
+    def expr_params(self) -> Any:
         return self._expr_params
 
     def __str__(self):
@@ -509,5 +509,5 @@ class LoopBase:
         return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     @abc.abstractmethod
-    def get__item(self, item: Any):
+    def get__item(self, item: Any) -> NoReturn:
         raise NotImplementedError

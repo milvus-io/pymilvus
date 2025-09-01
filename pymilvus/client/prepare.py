@@ -1,7 +1,7 @@
 import base64
 import datetime
 import json
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Union
 
 import numpy as np
 import ujson
@@ -326,11 +326,13 @@ class Prepare:
         )
 
     @classmethod
-    def collection_stats_request(cls, collection_name: str):
-        return milvus_types.CollectionStatsRequest(collection_name=collection_name)
+    def collection_stats_request(cls, collection_name: str) -> milvus_types.GetCollectionStatisticsRequest:
+        return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def show_collections_request(cls, collection_names: Optional[List[str]] = None):
+    def show_collections_request(
+        cls, collection_names: Optional[List[str]] = None
+    ) -> milvus_types.ShowCollectionsRequest:
         req = milvus_types.ShowCollectionsRequest()
         if collection_names:
             if not isinstance(collection_names, (list,)):
@@ -343,32 +345,42 @@ class Prepare:
         return req
 
     @classmethod
-    def rename_collections_request(cls, old_name: str, new_name: str, new_db_name: str):
+    def rename_collections_request(
+        cls, old_name: str, new_name: str, new_db_name: str
+    ) -> milvus_types.RenameCollectionRequest:
         return milvus_types.RenameCollectionRequest(
             oldName=old_name, newName=new_name, newDBName=new_db_name
         )
 
     @classmethod
-    def create_partition_request(cls, collection_name: str, partition_name: str):
+    def create_partition_request(
+        cls, collection_name: str, partition_name: str
+    ) -> milvus_types.CreatePartitionRequest:
         return milvus_types.CreatePartitionRequest(
             collection_name=collection_name, partition_name=partition_name
         )
 
     @classmethod
-    def drop_partition_request(cls, collection_name: str, partition_name: str):
+    def drop_partition_request(
+        cls, collection_name: str, partition_name: str
+    ) -> milvus_types.DropPartitionRequest:
         return milvus_types.DropPartitionRequest(
             collection_name=collection_name, partition_name=partition_name
         )
 
     @classmethod
-    def has_partition_request(cls, collection_name: str, partition_name: str):
+    def has_partition_request(
+        cls, collection_name: str, partition_name: str
+    ) -> milvus_types.HasPartitionRequest:
         return milvus_types.HasPartitionRequest(
             collection_name=collection_name, partition_name=partition_name
         )
 
     @classmethod
-    def partition_stats_request(cls, collection_name: str, partition_name: str):
-        return milvus_types.PartitionStatsRequest(
+    def partition_stats_request(
+        cls, collection_name: str, partition_name: str
+    ) -> milvus_types.GetPartitionStatisticsRequest:
+        return milvus_types.GetPartitionStatisticsRequest(
             collection_name=collection_name, partition_name=partition_name
         )
 
@@ -378,7 +390,7 @@ class Prepare:
         collection_name: str,
         partition_names: Optional[List[str]] = None,
         type_in_memory: bool = False,
-    ):
+    ) -> milvus_types.ShowPartitionsRequest:
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
@@ -397,7 +409,7 @@ class Prepare:
     @classmethod
     def get_loading_progress(
         cls, collection_name: str, partition_names: Optional[List[str]] = None
-    ):
+    ) -> milvus_types.GetLoadingProgressRequest:
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.GetLoadingProgressRequest(collection_name=collection_name)
         if partition_names:
@@ -405,7 +417,9 @@ class Prepare:
         return req
 
     @classmethod
-    def get_load_state(cls, collection_name: str, partition_names: Optional[List[str]] = None):
+    def get_load_state(
+        cls, collection_name: str, partition_names: Optional[List[str]] = None
+    ) -> milvus_types.GetLoadStateRequest:
         check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
         req = milvus_types.GetLoadStateRequest(collection_name=collection_name)
         if partition_names:
@@ -413,34 +427,26 @@ class Prepare:
         return req
 
     @classmethod
-    def empty(cls):
+    def empty(cls) -> NoReturn:
         msg = "no empty request later"
         raise DeprecationWarning(msg)
 
     @classmethod
-    def register_link_request(cls):
+    def register_link_request(cls) -> milvus_types.RegisterLinkRequest:
         return milvus_types.RegisterLinkRequest()
 
-    @classmethod
-    def partition_name(cls, collection_name: str, partition_name: str):
-        if not isinstance(collection_name, str):
-            raise ParamError(message="collection_name must be of str type")
-        if not isinstance(partition_name, str):
-            raise ParamError(message="partition_name must be of str type")
-        return milvus_types.PartitionName(collection_name=collection_name, tag=partition_name)
-
     @staticmethod
-    def _is_input_field(field: Dict, is_upsert: bool):
+    def _is_input_field(field: Dict, is_upsert: bool) -> bool:
         return (not field.get("auto_id", False) or is_upsert) and not field.get(
             "is_function_output", False
         )
 
     @staticmethod
-    def _function_output_field_names(fields_info: List[Dict]):
+    def _function_output_field_names(fields_info: List[Dict]) -> List[str]:
         return [field["name"] for field in fields_info if field.get("is_function_output", False)]
 
     @staticmethod
-    def _num_input_fields(fields_info: List[Dict], is_upsert: bool):
+    def _num_input_fields(fields_info: List[Dict], is_upsert: bool) -> int:
         return len([field for field in fields_info if Prepare._is_input_field(field, is_upsert)])
 
     @staticmethod
@@ -449,7 +455,7 @@ class Prepare:
         fields_info: List[Dict],
         enable_dynamic: bool,
         entities: List,
-    ):
+    ) -> Union[milvus_types.InsertRequest, milvus_types.UpsertRequest]:
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=False)
         ]
@@ -532,7 +538,7 @@ class Prepare:
         enable_dynamic: bool,
         entities: List,
         partial_update: bool = False,
-    ):
+    ) -> Union[milvus_types.InsertRequest, milvus_types.UpsertRequest]:
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=True)
         ]
@@ -648,7 +654,7 @@ class Prepare:
         fields_info: Dict,
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
-    ):
+    ) -> milvus_types.InsertRequest:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
@@ -673,7 +679,7 @@ class Prepare:
         enable_dynamic: bool = False,
         schema_timestamp: int = 0,
         partial_update: bool = False,
-    ):
+    ) -> milvus_types.UpsertRequest:
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
@@ -695,7 +701,7 @@ class Prepare:
     def _pre_insert_batch_check(
         entities: List,
         fields_info: Any,
-    ):
+    ) -> Dict:
         for entity in entities:
             if (
                 entity.get("name") is None
@@ -727,7 +733,7 @@ class Prepare:
         entities: List,
         fields_info: Any,
         partial_update: bool = False,
-    ):
+    ) -> Dict:
         for entity in entities:
             if (
                 entity.get("name") is None
@@ -762,7 +768,7 @@ class Prepare:
         entities: List,
         fields_info: Any,
         location: Dict,
-    ):
+    ) -> Union[milvus_types.InsertRequest, milvus_types.UpsertRequest]:
         pre_field_size = 0
         try:
             for entity in entities:
@@ -801,7 +807,7 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Any,
-    ):
+    ) -> milvus_types.InsertRequest:
         location = cls._pre_insert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
@@ -821,7 +827,7 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
         partial_update: bool = False,
-    ):
+    ) -> milvus_types.UpsertRequest:
         location = cls._pre_upsert_batch_check(entities, fields_info, partial_update)
         tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.UpsertRequest(
@@ -840,7 +846,7 @@ class Prepare:
         partition_name: Optional[str] = None,
         consistency_level: Optional[Union[int, str]] = None,
         **kwargs,
-    ):
+    ) -> milvus_types.DeleteRequest:
         check.validate_strs(
             collection_name=collection_name,
             filter=filter,
@@ -856,7 +862,7 @@ class Prepare:
         )
 
     @classmethod
-    def _prepare_placeholder_str(cls, data: Any):
+    def _prepare_placeholder_str(cls, data: Any) -> bytes:
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
             pl_type = PlaceholderType.SparseFloatVector
@@ -1227,27 +1233,35 @@ class Prepare:
         return function_score
 
     @classmethod
-    def create_alias_request(cls, collection_name: str, alias: str):
+    def create_alias_request(
+        cls, collection_name: str, alias: str
+    ) -> milvus_types.CreateAliasRequest:
         return milvus_types.CreateAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def drop_alias_request(cls, alias: str):
+    def drop_alias_request(cls, alias: str) -> milvus_types.DropAliasRequest:
         return milvus_types.DropAliasRequest(alias=alias)
 
     @classmethod
-    def alter_alias_request(cls, collection_name: str, alias: str):
+    def alter_alias_request(
+        cls, collection_name: str, alias: str
+    ) -> milvus_types.AlterAliasRequest:
         return milvus_types.AlterAliasRequest(collection_name=collection_name, alias=alias)
 
     @classmethod
-    def describe_alias_request(cls, alias: str):
+    def describe_alias_request(cls, alias: str) -> milvus_types.DescribeAliasRequest:
         return milvus_types.DescribeAliasRequest(alias=alias)
 
     @classmethod
-    def list_aliases_request(cls, collection_name: str, db_name: str = ""):
+    def list_aliases_request(
+        cls, collection_name: str, db_name: str = ""
+    ) -> milvus_types.ListAliasesRequest:
         return milvus_types.ListAliasesRequest(collection_name=collection_name, db_name=db_name)
 
     @classmethod
-    def create_index_request(cls, collection_name: str, field_name: str, params: Dict, **kwargs):
+    def create_index_request(
+        cls, collection_name: str, field_name: str, params: Dict, **kwargs
+    ) -> milvus_types.CreateIndexRequest:
         index_params = milvus_types.CreateIndexRequest(
             collection_name=collection_name,
             field_name=field_name,
@@ -1267,7 +1281,7 @@ class Prepare:
     @classmethod
     def alter_index_properties_request(
         cls, collection_name: str, index_name: str, properties: dict
-    ):
+    ) -> milvus_types.AlterIndexRequest:
         params = []
         for k, v in properties.items():
             params.append(common_types.KeyValuePair(key=str(k), value=utils.dumps(v)))
@@ -1278,7 +1292,7 @@ class Prepare:
     @classmethod
     def drop_index_properties_request(
         cls, collection_name: str, index_name: str, delete_keys: List[str]
-    ):
+    ) -> milvus_types.AlterIndexRequest:
         return milvus_types.AlterIndexRequest(
             collection_name=collection_name, index_name=index_name, delete_keys=delete_keys
         )
@@ -1286,19 +1300,23 @@ class Prepare:
     @classmethod
     def describe_index_request(
         cls, collection_name: str, index_name: str, timestamp: Optional[int] = None
-    ):
+    ) -> milvus_types.DescribeIndexRequest:
         return milvus_types.DescribeIndexRequest(
             collection_name=collection_name, index_name=index_name, timestamp=timestamp
         )
 
     @classmethod
-    def get_index_build_progress(cls, collection_name: str, index_name: str):
+    def get_index_build_progress(
+        cls, collection_name: str, index_name: str
+    ) -> milvus_types.GetIndexBuildProgressRequest:
         return milvus_types.GetIndexBuildProgressRequest(
             collection_name=collection_name, index_name=index_name
         )
 
     @classmethod
-    def get_index_state_request(cls, collection_name: str, index_name: str):
+    def get_index_state_request(
+        cls, collection_name: str, index_name: str
+    ) -> milvus_types.GetIndexStateRequest:
         return milvus_types.GetIndexStateRequest(
             collection_name=collection_name, index_name=index_name
         )
@@ -1309,7 +1327,7 @@ class Prepare:
         collection_name: str,
         replica_number: Optional[int] = None,
         **kwargs,
-    ):
+    ) -> milvus_types.LoadCollectionRequest:
         check_pass_param(collection_name=collection_name)
         req = milvus_types.LoadCollectionRequest(
             collection_name=collection_name,
@@ -1345,7 +1363,9 @@ class Prepare:
         return req
 
     @classmethod
-    def release_collection(cls, db_name: str, collection_name: str):
+    def release_collection(
+        cls, db_name: str, collection_name: str
+    ) -> milvus_types.ReleaseCollectionRequest:
         return milvus_types.ReleaseCollectionRequest(
             db_name=db_name, collection_name=collection_name
         )
@@ -1357,7 +1377,7 @@ class Prepare:
         partition_names: List[str],
         replica_number: Optional[int] = None,
         **kwargs,
-    ):
+    ) -> milvus_types.LoadPartitionsRequest:
         check_pass_param(collection_name=collection_name)
         req = milvus_types.LoadPartitionsRequest(
             collection_name=collection_name,
@@ -1396,35 +1416,47 @@ class Prepare:
         return req
 
     @classmethod
-    def release_partitions(cls, db_name: str, collection_name: str, partition_names: List[str]):
+    def release_partitions(
+        cls, db_name: str, collection_name: str, partition_names: List[str]
+    ) -> milvus_types.ReleasePartitionsRequest:
         return milvus_types.ReleasePartitionsRequest(
             db_name=db_name, collection_name=collection_name, partition_names=partition_names
         )
 
     @classmethod
-    def get_collection_stats_request(cls, collection_name: str):
+    def get_collection_stats_request(
+        cls, collection_name: str
+    ) -> milvus_types.GetCollectionStatisticsRequest:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name: str):
+    def get_persistent_segment_info_request(
+        cls, collection_name: str
+    ) -> milvus_types.GetPersistentSegmentInfoRequest:
         return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
 
     @classmethod
-    def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
+    def get_flush_state_request(
+        cls, segment_ids: List[int], collection_name: str, flush_ts: int
+    ) -> milvus_types.GetFlushStateRequest:
         return milvus_types.GetFlushStateRequest(
             segmentIDs=segment_ids, collection_name=collection_name, flush_ts=flush_ts
         )
 
     @classmethod
-    def get_query_segment_info_request(cls, collection_name: str):
+    def get_query_segment_info_request(
+        cls, collection_name: str
+    ) -> milvus_types.GetQuerySegmentInfoRequest:
         return milvus_types.GetQuerySegmentInfoRequest(collectionName=collection_name)
 
     @classmethod
-    def flush_param(cls, collection_names: List[str]):
+    def flush_param(cls, collection_names: List[str]) -> milvus_types.FlushRequest:
         return milvus_types.FlushRequest(collection_names=collection_names)
 
     @classmethod
-    def drop_index_request(cls, collection_name: str, field_name: str, index_name: str):
+    def drop_index_request(
+        cls, collection_name: str, field_name: str, index_name: str
+    ) -> milvus_types.DropIndexRequest:
         return milvus_types.DropIndexRequest(
             db_name="",
             collection_name=collection_name,
@@ -1433,31 +1465,16 @@ class Prepare:
         )
 
     @classmethod
-    def get_partition_stats_request(cls, collection_name: str, partition_name: str):
+    def get_partition_stats_request(
+        cls, collection_name: str, partition_name: str
+    ) -> milvus_types.GetPartitionStatisticsRequest:
         return milvus_types.GetPartitionStatisticsRequest(
             db_name="", collection_name=collection_name, partition_name=partition_name
         )
 
     @classmethod
-    def dummy_request(cls, request_type: Any):
+    def dummy_request(cls, request_type: Any) -> milvus_types.DummyRequest:
         return milvus_types.DummyRequest(request_type=request_type)
-
-    @classmethod
-    def retrieve_request(
-        cls,
-        collection_name: str,
-        ids: List[str],
-        output_fields: List[str],
-        partition_names: List[str],
-    ):
-        ids = schema_types.IDs(int_id=schema_types.LongArray(data=ids))
-        return milvus_types.RetrieveRequest(
-            db_name="",
-            collection_name=collection_name,
-            ids=ids,
-            output_fields=output_fields,
-            partition_names=partition_names,
-        )
 
     @classmethod
     def query_request(
@@ -1467,7 +1484,7 @@ class Prepare:
         output_fields: List[str],
         partition_names: List[str],
         **kwargs,
-    ):
+    ) -> milvus_types.QueryRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         req = milvus_types.QueryRequest(
             db_name="",
@@ -1517,7 +1534,7 @@ class Prepare:
         src_node_id: int,
         dst_node_ids: List[int],
         sealed_segment_ids: List[int],
-    ):
+    ) -> milvus_types.LoadBalanceRequest:
         return milvus_types.LoadBalanceRequest(
             collectionName=collection_name,
             src_nodeID=src_node_id,
@@ -1528,7 +1545,7 @@ class Prepare:
     @classmethod
     def manual_compaction(
         cls, collection_name: str, is_clustering: bool, collection_id: Optional[int] = None
-    ):
+    ) -> milvus_types.ManualCompactionRequest:
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
 
@@ -1541,7 +1558,7 @@ class Prepare:
         return request
 
     @classmethod
-    def get_compaction_state(cls, compaction_id: int):
+    def get_compaction_state(cls, compaction_id: int) -> milvus_types.GetCompactionStateRequest:
         if compaction_id is None or not isinstance(compaction_id, int):
             raise ParamError(message=f"compaction_id value {compaction_id} is illegal")
 
@@ -1550,7 +1567,9 @@ class Prepare:
         return request
 
     @classmethod
-    def get_compaction_state_with_plans(cls, compaction_id: int):
+    def get_compaction_state_with_plans(
+        cls, compaction_id: int
+    ) -> milvus_types.GetCompactionPlansRequest:
         if compaction_id is None or not isinstance(compaction_id, int):
             raise ParamError(message=f"compaction_id value {compaction_id} is illegal")
 
@@ -1559,7 +1578,7 @@ class Prepare:
         return request
 
     @classmethod
-    def get_replicas(cls, collection_id: int):
+    def get_replicas(cls, collection_id: int) -> milvus_types.GetReplicasRequest:
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
 
@@ -1569,7 +1588,9 @@ class Prepare:
         )
 
     @classmethod
-    def do_bulk_insert(cls, collection_name: str, partition_name: str, files: list, **kwargs):
+    def do_bulk_insert(
+        cls, collection_name: str, partition_name: str, files: list, **kwargs
+    ) -> milvus_types.ImportRequest:
         channel_names = kwargs.get("channel_names")
         req = milvus_types.ImportRequest(
             collection_name=collection_name,
@@ -1587,7 +1608,7 @@ class Prepare:
         return req
 
     @classmethod
-    def get_bulk_insert_state(cls, task_id: int):
+    def get_bulk_insert_state(cls, task_id: int) -> milvus_types.GetImportStateRequest:
         if task_id is None or not isinstance(task_id, int):
             msg = f"task_id value {task_id} is not an integer"
             raise ParamError(message=msg)
@@ -1595,7 +1616,9 @@ class Prepare:
         return milvus_types.GetImportStateRequest(task=task_id)
 
     @classmethod
-    def list_bulk_insert_tasks(cls, limit: int, collection_name: str):
+    def list_bulk_insert_tasks(
+        cls, limit: int, collection_name: str
+    ) -> milvus_types.ListImportTasksRequest:
         if limit is None or not isinstance(limit, int):
             msg = f"limit value {limit} is not an integer"
             raise ParamError(message=msg)
@@ -1606,14 +1629,16 @@ class Prepare:
         )
 
     @classmethod
-    def create_user_request(cls, user: str, password: str):
+    def create_user_request(cls, user: str, password: str) -> milvus_types.CreateCredentialRequest:
         check_pass_param(user=user, password=password)
         return milvus_types.CreateCredentialRequest(
             username=user, password=base64.b64encode(password.encode("utf-8"))
         )
 
     @classmethod
-    def update_password_request(cls, user: str, old_password: str, new_password: str):
+    def update_password_request(
+        cls, user: str, old_password: str, new_password: str
+    ) -> milvus_types.UpdateCredentialRequest:
         check_pass_param(user=user)
         check_pass_param(password=old_password)
         check_pass_param(password=new_password)
@@ -1624,27 +1649,31 @@ class Prepare:
         )
 
     @classmethod
-    def delete_user_request(cls, user: str):
+    def delete_user_request(cls, user: str) -> milvus_types.DeleteCredentialRequest:
         if not isinstance(user, str):
             raise ParamError(message=f"invalid user {user}")
         return milvus_types.DeleteCredentialRequest(username=user)
 
     @classmethod
-    def list_usernames_request(cls):
+    def list_usernames_request(cls) -> milvus_types.ListCredUsersRequest:
         return milvus_types.ListCredUsersRequest()
 
     @classmethod
-    def create_role_request(cls, role_name: str):
+    def create_role_request(cls, role_name: str) -> milvus_types.CreateRoleRequest:
         check_pass_param(role_name=role_name)
         return milvus_types.CreateRoleRequest(entity=milvus_types.RoleEntity(name=role_name))
 
     @classmethod
-    def drop_role_request(cls, role_name: str, force_drop: bool = False):
+    def drop_role_request(
+        cls, role_name: str, force_drop: bool = False
+    ) -> milvus_types.DropRoleRequest:
         check_pass_param(role_name=role_name)
         return milvus_types.DropRoleRequest(role_name=role_name, force_drop=force_drop)
 
     @classmethod
-    def operate_user_role_request(cls, username: str, role_name: str, operate_user_role_type: Any):
+    def operate_user_role_request(
+        cls, username: str, role_name: str, operate_user_role_type: Any
+    ) -> milvus_types.OperateUserRoleRequest:
         check_pass_param(user=username)
         check_pass_param(role_name=role_name)
         check_pass_param(operate_user_role_type=operate_user_role_type)
@@ -1653,7 +1682,9 @@ class Prepare:
         )
 
     @classmethod
-    def select_role_request(cls, role_name: str, include_user_info: bool):
+    def select_role_request(
+        cls, role_name: str, include_user_info: bool
+    ) -> milvus_types.SelectRoleRequest:
         if role_name:
             check_pass_param(role_name=role_name)
         check_pass_param(include_user_info=include_user_info)
@@ -1663,7 +1694,9 @@ class Prepare:
         )
 
     @classmethod
-    def select_user_request(cls, username: str, include_role_info: bool):
+    def select_user_request(
+        cls, username: str, include_role_info: bool
+    ) -> milvus_types.SelectUserRequest:
         if username:
             check_pass_param(user=username)
         check_pass_param(include_role_info=include_role_info)
@@ -1681,7 +1714,7 @@ class Prepare:
         privilege: str,
         db_name: str,
         operate_privilege_type: Any,
-    ):
+    ) -> milvus_types.OperatePrivilegeRequest:
         check_pass_param(role_name=role_name)
         check_pass_param(object=object)
         check_pass_param(object_name=object_name)
@@ -1708,7 +1741,7 @@ class Prepare:
         operate_privilege_type: Any,
         db_name: str,
         collection_name: str,
-    ):
+    ) -> milvus_types.OperatePrivilegeV2Request:
         check_pass_param(
             role_name=role_name,
             privilege=privilege,
@@ -1728,7 +1761,9 @@ class Prepare:
         )
 
     @classmethod
-    def select_grant_request(cls, role_name: str, object: str, object_name: str, db_name: str):
+    def select_grant_request(
+        cls, role_name: str, object: str, object_name: str, db_name: str
+    ) -> milvus_types.SelectGrantRequest:
         check_pass_param(role_name=role_name)
         if object:
             check_pass_param(object=object)
@@ -1744,11 +1779,11 @@ class Prepare:
         )
 
     @classmethod
-    def get_server_version(cls):
+    def get_server_version(cls) -> milvus_types.GetVersionRequest:
         return milvus_types.GetVersionRequest()
 
     @classmethod
-    def create_resource_group(cls, name: str, **kwargs):
+    def create_resource_group(cls, name: str, **kwargs) -> milvus_types.CreateResourceGroupRequest:
         check_pass_param(resource_group_name=name)
         return milvus_types.CreateResourceGroupRequest(
             resource_group=name,
@@ -1756,27 +1791,31 @@ class Prepare:
         )
 
     @classmethod
-    def update_resource_groups(cls, configs: Mapping[str, ResourceGroupConfig]):
+    def update_resource_groups(
+        cls, configs: Mapping[str, ResourceGroupConfig]
+    ) -> milvus_types.UpdateResourceGroupsRequest:
         return milvus_types.UpdateResourceGroupsRequest(
             resource_groups=configs,
         )
 
     @classmethod
-    def drop_resource_group(cls, name: str):
+    def drop_resource_group(cls, name: str) -> milvus_types.DropResourceGroupRequest:
         check_pass_param(resource_group_name=name)
         return milvus_types.DropResourceGroupRequest(resource_group=name)
 
     @classmethod
-    def list_resource_groups(cls):
+    def list_resource_groups(cls) -> milvus_types.ListResourceGroupsRequest:
         return milvus_types.ListResourceGroupsRequest()
 
     @classmethod
-    def describe_resource_group(cls, name: str):
+    def describe_resource_group(cls, name: str) -> milvus_types.DescribeResourceGroupRequest:
         check_pass_param(resource_group_name=name)
         return milvus_types.DescribeResourceGroupRequest(resource_group=name)
 
     @classmethod
-    def transfer_node(cls, source: str, target: str, num_node: int):
+    def transfer_node(
+        cls, source: str, target: str, num_node: int
+    ) -> milvus_types.TransferNodeRequest:
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
         return milvus_types.TransferNodeRequest(
@@ -1784,7 +1823,9 @@ class Prepare:
         )
 
     @classmethod
-    def transfer_replica(cls, source: str, target: str, collection_name: str, num_replica: int):
+    def transfer_replica(
+        cls, source: str, target: str, collection_name: str, num_replica: int
+    ) -> milvus_types.TransferReplicaRequest:
         check_pass_param(resource_group_name=source)
         check_pass_param(resource_group_name=target)
         return milvus_types.TransferReplicaRequest(
@@ -1795,15 +1836,17 @@ class Prepare:
         )
 
     @classmethod
-    def flush_all_request(cls, db_name: str):
+    def flush_all_request(cls, db_name: str) -> milvus_types.FlushAllRequest:
         return milvus_types.FlushAllRequest(db_name=db_name)
 
     @classmethod
-    def get_flush_all_state_request(cls, flush_all_ts: int, db_name: str):
+    def get_flush_all_state_request(
+        cls, flush_all_ts: int, db_name: str
+    ) -> milvus_types.GetFlushAllStateRequest:
         return milvus_types.GetFlushAllStateRequest(flush_all_ts=flush_all_ts, db_name=db_name)
 
     @classmethod
-    def register_request(cls, user: str, host: str, **kwargs):
+    def register_request(cls, user: str, host: str, **kwargs) -> milvus_types.ConnectRequest:
         reserved = {}
         for k, v in kwargs.items():
             reserved[k] = v
@@ -1823,7 +1866,9 @@ class Prepare:
         )
 
     @classmethod
-    def create_database_req(cls, db_name: str, properties: Optional[dict] = None):
+    def create_database_req(
+        cls, db_name: str, properties: Optional[dict] = None
+    ) -> milvus_types.CreateDatabaseRequest:
         req = milvus_types.CreateDatabaseRequest(db_name=db_name)
 
         if is_legal_collection_properties(properties):
@@ -1834,48 +1879,56 @@ class Prepare:
         return req
 
     @classmethod
-    def drop_database_req(cls, db_name: str):
+    def drop_database_req(cls, db_name: str) -> milvus_types.DropDatabaseRequest:
         check_pass_param(db_name=db_name)
         return milvus_types.DropDatabaseRequest(db_name=db_name)
 
     @classmethod
-    def list_database_req(cls):
+    def list_database_req(cls) -> milvus_types.ListDatabasesRequest:
         return milvus_types.ListDatabasesRequest()
 
     @classmethod
-    def alter_database_properties_req(cls, db_name: str, properties: Dict):
+    def alter_database_properties_req(
+        cls, db_name: str, properties: Dict
+    ) -> milvus_types.AlterDatabaseRequest:
         check_pass_param(db_name=db_name)
         kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
         return milvus_types.AlterDatabaseRequest(db_name=db_name, properties=kvs)
 
     @classmethod
-    def drop_database_properties_req(cls, db_name: str, property_keys: List[str]):
+    def drop_database_properties_req(
+        cls, db_name: str, property_keys: List[str]
+    ) -> milvus_types.AlterDatabaseRequest:
         check_pass_param(db_name=db_name)
         return milvus_types.AlterDatabaseRequest(db_name=db_name, delete_keys=property_keys)
 
     @classmethod
-    def describe_database_req(cls, db_name: str):
+    def describe_database_req(cls, db_name: str) -> milvus_types.DescribeDatabaseRequest:
         check_pass_param(db_name=db_name)
         return milvus_types.DescribeDatabaseRequest(db_name=db_name)
 
     @classmethod
-    def create_privilege_group_req(cls, privilege_group: str):
+    def create_privilege_group_req(
+        cls, privilege_group: str
+    ) -> milvus_types.CreatePrivilegeGroupRequest:
         check_pass_param(privilege_group=privilege_group)
         return milvus_types.CreatePrivilegeGroupRequest(group_name=privilege_group)
 
     @classmethod
-    def drop_privilege_group_req(cls, privilege_group: str):
+    def drop_privilege_group_req(
+        cls, privilege_group: str
+    ) -> milvus_types.DropPrivilegeGroupRequest:
         check_pass_param(privilege_group=privilege_group)
         return milvus_types.DropPrivilegeGroupRequest(group_name=privilege_group)
 
     @classmethod
-    def list_privilege_groups_req(cls):
+    def list_privilege_groups_req(cls) -> milvus_types.ListPrivilegeGroupsRequest:
         return milvus_types.ListPrivilegeGroupsRequest()
 
     @classmethod
     def operate_privilege_group_req(
         cls, privilege_group: str, privileges: List[str], operate_privilege_group_type: Any
-    ):
+    ) -> milvus_types.OperatePrivilegeGroupRequest:
         check_pass_param(privilege_group=privilege_group)
         check_pass_param(privileges=privileges)
         check_pass_param(operate_privilege_group_type=operate_privilege_group_type)
@@ -1895,7 +1948,7 @@ class Prepare:
         collection_name: Optional[str] = None,
         field_name: Optional[str] = None,
         analyzer_names: Optional[Union[str, List[str]]] = None,
-    ):
+    ) -> milvus_types.RunAnalyzerRequest:
         req = milvus_types.RunAnalyzerRequest(with_hash=with_hash, with_detail=with_detail)
         if isinstance(texts, str):
             req.placeholder.append(texts.encode("utf-8"))

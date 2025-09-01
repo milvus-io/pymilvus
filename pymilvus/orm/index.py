@@ -113,7 +113,7 @@ class Index:
         """The order of the fields of index must be consistent."""
         return self.to_dict() == other.to_dict()
 
-    def to_dict(self):
+    def to_dict(self) -> Dict:
         """Put collection name, field name and index params into dict."""
         return {
             "collection": self._collection._name,
@@ -122,7 +122,7 @@ class Index:
             "index_param": self.params,
         }
 
-    def drop(self, timeout: Optional[float] = None, **kwargs):
+    def drop(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Drop an index and its corresponding index files.
 
         Args:

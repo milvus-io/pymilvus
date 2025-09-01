@@ -13,7 +13,7 @@ LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
 
 
-def deprecated(func: Any):
+def deprecated(func: Any) -> Any:
     @functools.wraps(func)
     def inner(*args, **kwargs):
         LOGGER.warning(
@@ -45,7 +45,7 @@ def retry_on_rpc_failure(
     initial_back_off: float = 0.01,
     max_back_off: float = 3,
     back_off_multiplier: int = 3,
-):
+) -> Any:
     def wrapper(func: Any):
         @functools.wraps(func)
         @error_handler(func_name=func.__name__)
@@ -124,7 +124,7 @@ def retry_on_rpc_failure(
     return wrapper
 
 
-def error_handler(func_name: str = ""):
+def error_handler(func_name: str = "") -> Any:
     def wrapper(func: Callable):
         @functools.wraps(func)
         def handler(*args, **kwargs):
@@ -163,7 +163,7 @@ def error_handler(func_name: str = ""):
     return wrapper
 
 
-def tracing_request():
+def tracing_request() -> Any:
     def wrapper(func: Callable):
         @functools.wraps(func)
         def handler(self: Callable, *args, **kwargs):
@@ -177,7 +177,7 @@ def tracing_request():
     return wrapper
 
 
-def ignore_unimplemented(default_return_value: Any):
+def ignore_unimplemented(default_return_value: Any) -> Any:
     def wrapper(func: Callable):
         @functools.wraps(func)
         def handler(*args, **kwargs):
@@ -196,7 +196,7 @@ def ignore_unimplemented(default_return_value: Any):
     return wrapper
 
 
-def upgrade_reminder(func: Callable):
+def upgrade_reminder(func: Callable) -> Any:
     @functools.wraps(func)
     def handler(*args, **kwargs):
         try:

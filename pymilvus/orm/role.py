@@ -10,7 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from typing import Optional
+from typing import Any, List, Optional
 
 from .connections import connections
 
@@ -33,10 +33,10 @@ class Role:
         return connections._fetch_handler(self._using)
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
-    def create(self):
+    def create(self) -> None:
         """Create a role
             It will success if the role isn't existed, otherwise fail.
 
@@ -51,7 +51,7 @@ class Role:
         """
         return self._get_connection().create_role(self._name)
 
-    def drop(self):
+    def drop(self) -> None:
         """Drop a role
             It will success if the role is existed, otherwise fail.
 
@@ -66,7 +66,7 @@ class Role:
         """
         return self._get_connection().drop_role(self._name)
 
-    def add_user(self, username: str):
+    def add_user(self, username: str) -> None:
         """Add user to role
             The user will get permissions that the role are allowed to perform operations.
             :param username: user name.
@@ -83,7 +83,7 @@ class Role:
         """
         return self._get_connection().add_user_to_role(username, self._name)
 
-    def remove_user(self, username: str):
+    def remove_user(self, username: str) -> None:
         """Remove user from role
             The user will remove permissions that the role are allowed to perform operations.
             :param username: user name.
@@ -100,7 +100,7 @@ class Role:
         """
         return self._get_connection().remove_user_from_role(username, self._name)
 
-    def get_users(self):
+    def get_users(self) -> List:
         """Get all users who are added to the role.
             :return a RoleInfo object which contains a RoleItem group
                 According to the RoleItem, you can get a list of usernames.
@@ -121,7 +121,7 @@ class Role:
             return []
         return roles.groups[0].users
 
-    def is_exist(self):
+    def is_exist(self) -> bool:
         """Check whether the role is existed.
             :return a bool value
                 It will be True if the role is existed, otherwise False.
@@ -137,7 +137,7 @@ class Role:
         roles = self._get_connection().select_one_role(self._name, NOT_INCLUDE_USER_INFO)
         return len(roles.groups) != 0
 
-    def grant(self, object: str, object_name: str, privilege: str, db_name: str = ""):
+    def grant(self, object: str, object_name: str, privilege: str, db_name: str = "") -> None:
         """Grant a privilege for the role
             :param object: object type.
             :type  object: str
@@ -159,7 +159,7 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def revoke(self, object: str, object_name: str, privilege: str, db_name: str = ""):
+    def revoke(self, object: str, object_name: str, privilege: str, db_name: str = "") -> None:
         """Revoke a privilege for the role
         Args:
             object(str): object type.
@@ -178,7 +178,7 @@ class Role:
             self._name, object, object_name, privilege, db_name
         )
 
-    def grant_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
+    def grant_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None) -> None:
         """Grant a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
@@ -201,7 +201,9 @@ class Role:
             db_name=db_name,
         )
 
-    def revoke_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
+    def revoke_v2(
+        self, privilege: str, collection_name: str, db_name: Optional[str] = None
+    ) -> None:
         """Revoke a privilege for the role
             :param privilege: privilege name.
             :type  privilege: str
@@ -224,7 +226,7 @@ class Role:
             db_name=db_name,
         )
 
-    def list_grant(self, object: str, object_name: str, db_name: str = ""):
+    def list_grant(self, object: str, object_name: str, db_name: str = "") -> Any:
         """List a grant info for the role and the specific object
             :param object: object type.
             :type  object: str
@@ -250,7 +252,7 @@ class Role:
             self._name, object, object_name, db_name
         )
 
-    def list_grants(self, db_name: str = ""):
+    def list_grants(self, db_name: str = "") -> Any:
         """List a grant info for the role
             :param db_name: db name.
             :type  db_name: str
@@ -270,7 +272,7 @@ class Role:
         """
         return self._get_connection().select_grant_for_one_role(self._name, db_name)
 
-    def create_privilege_group(self, privilege_group: str):
+    def create_privilege_group(self, privilege_group: str) -> None:
         """Create a privilege group for the role
             :param privilege_group: privilege group name.
             :type  privilege_group: str
@@ -284,7 +286,7 @@ class Role:
         """
         return self._get_connection().create_privilege_group(privilege_group)
 
-    def drop_privilege_group(self, privilege_group: str):
+    def drop_privilege_group(self, privilege_group: str) -> None:
         """Drop a privilege group for the role
             :param privilege_group: privilege group name.
             :type  privilege_group: str
@@ -298,7 +300,7 @@ class Role:
         """
         return self._get_connection().drop_privilege_group(privilege_group)
 
-    def list_privilege_groups(self):
+    def list_privilege_groups(self) -> Any:
         """List all privilege groups for the role
             :return a PrivilegeGroupInfo object
             :rtype PrivilegeGroupInfo
@@ -315,7 +317,7 @@ class Role:
         """
         return self._get_connection().list_privilege_groups()
 
-    def add_privileges_to_group(self, privilege_group: str, privileges: list):
+    def add_privileges_to_group(self, privilege_group: str, privileges: list) -> None:
         """Add privileges to a privilege group for the role
             :param privilege_group: privilege group name.
             :type  privilege_group: str
@@ -332,7 +334,7 @@ class Role:
         """
         return self._get_connection().add_privileges_to_group(privilege_group, privileges)
 
-    def remove_privileges_from_group(self, privilege_group: str, privileges: list):
+    def remove_privileges_from_group(self, privilege_group: str, privileges: list) -> None:
         """Remove privileges from a privilege group for the role
             :param privilege_group: privilege group name.
             :type  privilege_group: str

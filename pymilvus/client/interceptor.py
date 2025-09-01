@@ -97,7 +97,7 @@ class _ClientCallDetails(ClientCallDetailsTuple, grpc.ClientCallDetails):
     pass
 
 
-def header_adder_interceptor(headers: List, values: List):
+def header_adder_interceptor(headers: List, values: List) -> _GenericClientInterceptor:
     def intercept_call(
         client_call_details: Any,
         request_iterator: Any,

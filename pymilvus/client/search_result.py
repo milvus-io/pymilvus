@@ -100,7 +100,7 @@ class HybridHits(list):
         self.materialize()
         return super().__getitem__(key)
 
-    def get_raw_item(self, idx: int):
+    def get_raw_item(self, idx: int) -> Any:
         """Get the item at index without triggering materialization"""
         return list.__getitem__(self, idx)
 
@@ -108,7 +108,7 @@ class HybridHits(list):
         self.materialize()
         return super().__iter__()
 
-    def materialize(self):
+    def materialize(self) -> None:
         if not self.has_materialized:
             for field_data in self.lazy_field_data:
                 field_name = field_data.field_name
@@ -240,7 +240,7 @@ class SearchResult(list):
 
     __repr__ = __str__
 
-    def materialize(self):
+    def materialize(self) -> None:
         for i in range(len(self)):
             self[i].materialize()
 
@@ -439,18 +439,18 @@ class SearchResult(list):
                 continue
         return field2data
 
-    def get_session_ts(self):
+    def get_session_ts(self) -> int:
         """Iterator related inner method"""
         # TODO(Goose): change it into properties
         return self._session_ts
 
-    def get_search_iterator_v2_results_info(self):
+    def get_search_iterator_v2_results_info(self) -> schema_pb2.SearchIteratorV2Results:
         """Iterator related inner method"""
         # TODO(Goose): Change it into properties
         return self._search_iterator_v2_results
 
 
-def get_field_data(field_data: FieldData):
+def get_field_data(field_data: FieldData) -> Union[FieldData, schema_pb2.FieldData]:
     if field_data.type == DataType.BOOL:
         return field_data.scalars.bool_data.data
     if field_data.type in {DataType.INT8, DataType.INT16, DataType.INT32}:
@@ -662,7 +662,7 @@ class Hit(UserDict):
             pass
         return self.data["entity"][key]
 
-    def get(self, key: Any, default: Any = None):
+    def get(self, key: Any, default: Any = None) -> Any:
         try:
             return self.__getitem__(key)
         except KeyError:

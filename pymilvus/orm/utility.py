@@ -11,7 +11,7 @@
 # the License.
 
 from datetime import datetime, timedelta, timezone
-from typing import List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from pymilvus.client.types import (
     BulkInsertState,
@@ -26,7 +26,9 @@ from pymilvus.exceptions import MilvusException
 from .connections import connections
 
 
-def mkts_from_hybridts(hybridts: int, milliseconds: float = 0.0, delta: Optional[timedelta] = None):
+def mkts_from_hybridts(
+    hybridts: int, milliseconds: float = 0.0, delta: Optional[timedelta] = None
+) -> Any:
     """Generate a hybrid timestamp based on an existing hybrid timestamp,
     timedelta and incremental time internval.
 
@@ -61,7 +63,9 @@ def mkts_from_hybridts(hybridts: int, milliseconds: float = 0.0, delta: Optional
     return _mkts_from_hybridts(hybridts, milliseconds=milliseconds, delta=delta)
 
 
-def mkts_from_unixtime(epoch: float, milliseconds: float = 0.0, delta: Optional[timedelta] = None):
+def mkts_from_unixtime(
+    epoch: float, milliseconds: float = 0.0, delta: Optional[timedelta] = None
+) -> Any:
     """
     Generate a hybrid timestamp based on Unix Epoch time, timedelta and incremental time internval.
 
@@ -91,7 +95,7 @@ def mkts_from_unixtime(epoch: float, milliseconds: float = 0.0, delta: Optional[
 
 def mkts_from_datetime(
     d_time: datetime, milliseconds: float = 0.0, delta: Optional[timedelta] = None
-):
+) -> None:
     """
     Generate a hybrid timestamp based on datetime, timedelta and incremental time internval.
 
@@ -117,7 +121,7 @@ def mkts_from_datetime(
     return _mkts_from_datetime(d_time, milliseconds=milliseconds, delta=delta)
 
 
-def hybridts_to_datetime(hybridts: int, tz: Optional[timezone] = None):
+def hybridts_to_datetime(hybridts: int, tz: Optional[timezone] = None) -> datetime:
     """
     Convert a hybrid timestamp to the datetime according to timezone.
 
@@ -148,7 +152,7 @@ def hybridts_to_datetime(hybridts: int, tz: Optional[timezone] = None):
     return datetime.fromtimestamp(epoch, tz=tz)
 
 
-def hybridts_to_unixtime(hybridts: int):
+def hybridts_to_unixtime(hybridts: int) -> float:
     """
     Convert a hybrid timestamp to UNIX Epoch time ignoring the logic part.
 
@@ -180,7 +184,7 @@ def loading_progress(
     partition_names: Optional[List[str]] = None,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> Any:
     """Show loading progress of sealed segments in percentage.
 
     :param collection_name: The name of collection is loading
@@ -227,7 +231,7 @@ def load_state(
     partition_names: Optional[List[str]] = None,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> Any:
     """Show load state of collection or partitions.
     :param collection_name: The name of collection is loading
     :type  collection_name: str
@@ -270,7 +274,7 @@ def wait_for_loading_complete(
     partition_names: Optional[List[str]] = None,
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """
     Block until loading is done or Raise Exception after timeout.
 
@@ -312,7 +316,7 @@ def index_building_progress(
     index_name: str = "",
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> Dict[str, int]:
     """
     Show # indexed entities vs. # total entities.
 
@@ -365,7 +369,7 @@ def wait_for_index_building_complete(
     index_name: str = "",
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """
     Block until building is done or Raise Exception after timeout.
 
@@ -412,7 +416,9 @@ def wait_for_index_building_complete(
     )[0]
 
 
-def has_collection(collection_name: str, using: str = "default", timeout: Optional[float] = None):
+def has_collection(
+    collection_name: str, using: str = "default", timeout: Optional[float] = None
+) -> bool:
     """
     Checks whether a specified collection exists.
 
@@ -464,7 +470,9 @@ def has_partition(
     return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
 
 
-def drop_collection(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
+def drop_collection(
+    collection_name: str, timeout: Optional[float] = None, using: str = "default"
+) -> None:
     """
     Drop a collection by name
 
@@ -496,7 +504,7 @@ def rename_collection(
     new_db_name: str = "",
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """
     Rename a collection to new collection name
 
@@ -564,7 +572,7 @@ def load_balance(
     sealed_segment_ids: Optional[List[int]] = None,
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """Do load balancing operation from source query node to destination query node.
 
     :param collection_name: The collection to balance.
@@ -608,7 +616,7 @@ def get_query_segment_info(
     collection_name: str,
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> Any:
     """
     Notifies Proxy to return segments information from query nodes.
 
@@ -644,7 +652,7 @@ def create_alias(
     alias: str,
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """Specify alias for a collection.
     Alias cannot be duplicated, you can't assign the same alias to different collections.
     But you can specify multiple aliases for a collection, for example:
@@ -676,7 +684,7 @@ def create_alias(
     return _get_connection(using).create_alias(collection_name, alias, timeout=timeout)
 
 
-def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "default"):
+def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "default") -> None:
     """Delete the alias.
     No need to provide collection name because an alias can only be assigned to one collection
     and the server knows which collection it belongs.
@@ -715,7 +723,7 @@ def alter_alias(
     alias: str,
     timeout: Optional[float] = None,
     using: str = "default",
-):
+) -> None:
     """Change the alias of a collection to another collection.
     Raise error if the alias doesn't exist.
     Alias cannot be duplicated, you can't assign same alias to different collections.
@@ -754,7 +762,9 @@ def alter_alias(
     return _get_connection(using).alter_alias(collection_name, alias, timeout=timeout)
 
 
-def list_aliases(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
+def list_aliases(
+    collection_name: str, timeout: Optional[float] = None, using: str = "default"
+) -> List[str]:
     """Returns alias list of the collection.
 
     :return list of str:
@@ -904,7 +914,7 @@ def reset_password(
     new_password: str,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """
         Reset the user & password of the connection.
         You must provide the original password to check if the operation is valid.
@@ -932,7 +942,7 @@ def create_user(
     password: str,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """Create User using the given user and password.
     :param user: the user name.
     :type  user: str
@@ -956,7 +966,7 @@ def update_password(
     new_password: str,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """
         Update user password using the given user and password.
         You must provide the original password to check if the operation is valid.
@@ -981,7 +991,7 @@ def update_password(
     return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
 
 
-def delete_user(user: str, using: str = "default", timeout: Optional[float] = None):
+def delete_user(user: str, using: str = "default", timeout: Optional[float] = None) -> None:
     """Delete User corresponding to the username.
     :param user: the user name.
     :type  user: str
@@ -996,7 +1006,7 @@ def delete_user(user: str, using: str = "default", timeout: Optional[float] = No
     return _get_connection(using).delete_user(user, timeout=timeout)
 
 
-def list_usernames(using: str = "default", timeout: Optional[float] = None):
+def list_usernames(using: str = "default", timeout: Optional[float] = None) -> List[str]:
     """List all usernames.
     :return list of str:
         The usernames in Milvus instances.
@@ -1010,7 +1020,9 @@ def list_usernames(using: str = "default", timeout: Optional[float] = None):
     return _get_connection(using).list_usernames(timeout=timeout)
 
 
-def list_roles(include_user_info: bool, using: str = "default", timeout: Optional[float] = None):
+def list_roles(
+    include_user_info: bool, using: str = "default", timeout: Optional[float] = None
+) -> Any:
     """List All Role Info
     :param include_user_info: whether to obtain the user information associated with roles
     :type  include_user_info: bool
@@ -1030,7 +1042,7 @@ def list_user(
     include_role_info: bool,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> Any:
     """List One User Info
     :param username: user name.
     :type  username: str
@@ -1047,7 +1059,9 @@ def list_user(
     return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
 
 
-def list_users(include_role_info: bool, using: str = "default", timeout: Optional[float] = None):
+def list_users(
+    include_role_info: bool, using: str = "default", timeout: Optional[float] = None
+) -> Any:
     """List All User Info
     :param include_role_info: whether to obtain the role information associated with users
     :type  include_role_info: bool
@@ -1079,7 +1093,7 @@ def get_server_version(using: str = "default", timeout: Optional[float] = None) 
 
 def create_resource_group(
     name: str, using: str = "default", timeout: Optional[float] = None, **kwargs
-):
+) -> None:
     """Create a resource group
         It will success whether or not the resource group exists.
 
@@ -1097,7 +1111,7 @@ def update_resource_groups(
     configs: Mapping[str, ResourceGroupConfig],
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """Update resource groups.
         This function updates the resource groups based on the provided configurations.
 
@@ -1130,7 +1144,7 @@ def update_resource_groups(
     return _get_connection(using).update_resource_groups(configs, timeout)
 
 
-def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None) -> None:
     """Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
 
@@ -1144,7 +1158,9 @@ def drop_resource_group(name: str, using: str = "default", timeout: Optional[flo
     return _get_connection(using).drop_resource_group(name, timeout)
 
 
-def describe_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
+def describe_resource_group(
+    name: str, using: str = "default", timeout: Optional[float] = None
+) -> Any:
     """Drop a resource group
         It will success if the resource group is existed and empty, otherwise fail.
 
@@ -1157,7 +1173,7 @@ def describe_resource_group(name: str, using: str = "default", timeout: Optional
     return _get_connection(using).describe_resource_group(name, timeout)
 
 
-def list_resource_groups(using: str = "default", timeout: Optional[float] = None):
+def list_resource_groups(using: str = "default", timeout: Optional[float] = None) -> Any:
     """list all resource group names
 
     :return: all resource group names
@@ -1177,7 +1193,7 @@ def transfer_node(
     num_nodes: int,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """transfer num_node from source resource group to target resource_group
 
     :param source_group: source resource group name
@@ -1202,7 +1218,7 @@ def transfer_replica(
     num_replicas: int,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """transfer num_replica from source resource group to target resource group
 
     :param source_group: source resource group name
@@ -1224,7 +1240,7 @@ def transfer_replica(
     )
 
 
-def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs):
+def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs) -> None:
     """Flush all collections. All insertions, deletions, and upserts before
         `flush_all` will be synced.
 
@@ -1255,7 +1271,7 @@ def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs)
     return _get_connection(using).flush_all(timeout=timeout, **kwargs)
 
 
-def get_server_type(using: str = "default"):
+def get_server_type(using: str = "default") -> str:
     """Get the server type. Now, it will return "zilliz" if the connection related to
         an instance on the zilliz cloud, otherwise "milvus" will be returned.
 
@@ -1273,7 +1289,7 @@ def list_indexes(
     using: str = "default",
     timeout: Optional[float] = None,
     **kwargs,
-):
+) -> List[str]:
     """List all indexes of collection. If `field_name` is not specified,
         return all the indexes of this collection, otherwise this interface will return
         all indexes on this field of the collection.

@@ -72,7 +72,9 @@ class _GenericAsyncClientInterceptor(
         return await continuation(new_details, new_request_iterator)
 
 
-def async_header_adder_interceptor(headers: List[str], values: Union[List[str], List[bytes]]):
+def async_header_adder_interceptor(
+    headers: List[str], values: Union[List[str], List[bytes]]
+) -> _GenericAsyncClientInterceptor:
     def intercept_call(client_call_details: ClientCallDetails, request: Any):
         metadata = []
         if client_call_details.metadata:

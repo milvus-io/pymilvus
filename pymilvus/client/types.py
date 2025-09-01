@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # OmitZeroDict: ignore the key-value pairs with value as 0 when printing
 class OmitZeroDict(dict):
-    def omit_zero_len(self):
+    def omit_zero_len(self) -> int:
         return len(dict(filter(lambda x: x[1], self.items())))
 
     # filter the key-value pairs with value as 0
@@ -87,7 +87,7 @@ class Status:
 
         return isinstance(other, self.__class__) and self.code == other.code
 
-    def OK(self):
+    def OK(self) -> bool:
         return self.code == Status.SUCCESS
 
 
@@ -214,7 +214,7 @@ class State(IntEnum):
     Completed = 2
 
     @staticmethod
-    def new(s: int):
+    def new(s: int) -> Any:
         if s == State.Executing:
             return State.Executing
         if s == State.Completed:
@@ -270,7 +270,7 @@ class CompactionState:
         self.completed = completed
 
     @property
-    def state_name(self):
+    def state_name(self) -> str:
         return self.state.name
 
     def __repr__(self) -> str:
@@ -312,7 +312,7 @@ Compaction Plans:
  """
 
 
-def cmp_consistency_level(l1: Union[str, int], l2: Union[str, int]):
+def cmp_consistency_level(l1: Union[str, int], l2: Union[str, int]) -> bool:
     if isinstance(l1, str):
         try:
             l1 = ConsistencyLevel.Value(l1)
@@ -334,7 +334,7 @@ def cmp_consistency_level(l1: Union[str, int], l2: Union[str, int]):
     return l1 == l2
 
 
-def get_consistency_level(consistency_level: Union[str, int]):
+def get_consistency_level(consistency_level: Union[str, int]) -> int:
     if isinstance(consistency_level, int):
         if consistency_level in ConsistencyLevel.values():
             return consistency_level
@@ -366,7 +366,7 @@ class Shard:
         return self._channel_name
 
     @property
-    def shard_nodes(self):
+    def shard_nodes(self) -> Any:
         return self._shard_nodes
 
     @property
@@ -402,23 +402,23 @@ class Group:
         )
 
     @property
-    def id(self):
+    def id(self) -> int:
         return self._id
 
     @property
-    def group_nodes(self):
+    def group_nodes(self) -> Any:
         return self._group_nodes
 
     @property
-    def shards(self):
+    def shards(self) -> Any:
         return self._shards
 
     @property
-    def resource_group(self):
+    def resource_group(self) -> Any:
         return self._resource_group
 
     @property
-    def num_outbound_node(self):
+    def num_outbound_node(self) -> Any:
         return self._num_outbound_node
 
 
@@ -452,7 +452,7 @@ class Replica:
         return s
 
     @property
-    def groups(self):
+    def groups(self) -> Any:
         return self._groups
 
 
@@ -479,23 +479,23 @@ class ReplicaInfo:
         )
 
     @property
-    def id(self):
+    def id(self) -> int:
         return self._id
 
     @property
-    def group_nodes(self):
+    def group_nodes(self) -> Any:
         return self._nodes
 
     @property
-    def shards(self):
+    def shards(self) -> Any:
         return self._shards
 
     @property
-    def resource_group(self):
+    def resource_group(self) -> Any:
         return self._resource_group
 
     @property
-    def num_outbound_node(self):
+    def num_outbound_node(self) -> Any:
         return self._num_outbound_node
 
 
@@ -585,14 +585,14 @@ class BulkInsertState:
         )
 
     @property
-    def task_id(self):
+    def task_id(self) -> int:
         """
         Return unique id of this task.
         """
         return self._task_id
 
     @property
-    def row_count(self):
+    def row_count(self) -> int:
         """
         If the task is finished, this value is the number of rows imported.
         If the task is not finished, this value is the number of rows parsed.
@@ -600,7 +600,7 @@ class BulkInsertState:
         return self._row_count
 
     @property
-    def state(self):
+    def state(self) -> Any:
         return self.state_2_state.get(self._state, BulkInsertState.ImportUnknownState)
 
     @property
@@ -608,7 +608,7 @@ class BulkInsertState:
         return self.state_2_name.get(self._state, "unknown state")
 
     @property
-    def id_ranges(self):
+    def id_ranges(self) -> List:
         """
         auto generated id ranges if the primary key is auto generated
 
@@ -619,7 +619,7 @@ class BulkInsertState:
         return self._id_ranges
 
     @property
-    def ids(self):
+    def ids(self) -> List:
         """
         auto generated ids if the primary key is auto generated
 
@@ -641,43 +641,43 @@ class BulkInsertState:
         return ids
 
     @property
-    def infos(self):
+    def infos(self) -> Dict:
         """more informations about the task, progress percentage, file path, failed reason, etc."""
         return self._infos
 
     @property
-    def failed_reason(self):
+    def failed_reason(self) -> str:
         """failed reason of the bulk insert task."""
         return self._infos.get(BulkInsertState.FAILED_REASON, "")
 
     @property
-    def files(self):
+    def files(self) -> Any:
         """data files of the bulk insert task."""
         return self._infos.get(BulkInsertState.IMPORT_FILES, "")
 
     @property
-    def collection_name(self):
+    def collection_name(self) -> str:
         """target collection's name of the bulk insert task."""
         return self._infos.get(BulkInsertState.IMPORT_COLLECTION, "")
 
     @property
-    def partition_name(self):
+    def partition_name(self) -> str:
         """target partition's name of the bulk insert task."""
         return self._infos.get(BulkInsertState.IMPORT_PARTITION, "")
 
     @property
-    def create_timestamp(self):
+    def create_timestamp(self) -> int:
         """the integer timestamp when this task is created."""
         return self._create_ts
 
     @property
-    def create_time_str(self):
+    def create_time_str(self) -> str:
         """A readable string converted from the timestamp when this task is created."""
         ts = time.localtime(self._create_ts)
         return time.strftime("%Y-%m-%d %H:%M:%S", ts)
 
     @property
-    def progress(self):
+    def progress(self) -> int:
         """working progress percent value."""
         percent = self._infos.get(BulkInsertState.IMPORT_PROGRESS, "0")
         return int(percent)
@@ -701,27 +701,27 @@ class GrantItem:
         )
 
     @property
-    def object(self):
+    def object(self) -> str:
         return self._object
 
     @property
-    def object_name(self):
+    def object_name(self) -> str:
         return self._object_name
 
     @property
-    def db_name(self):
+    def db_name(self) -> str:
         return self._db_name
 
     @property
-    def role_name(self):
+    def role_name(self) -> str:
         return self._role_name
 
     @property
-    def grantor_name(self):
+    def grantor_name(self) -> str:
         return self._grantor_name
 
     @property
-    def privilege(self):
+    def privilege(self) -> str:
         return self._privilege
 
     def __iter__(self):
@@ -760,7 +760,7 @@ class GrantInfo:
         return s
 
     @property
-    def groups(self):
+    def groups(self) -> Any:
         return self._groups
 
 
@@ -777,11 +777,11 @@ class PrivilegeGroupItem:
         return f"PrivilegeGroupItem: <privilege_group:{self.privilege_group}>, <privileges:{self.privileges}>"
 
     @property
-    def privilege_group(self):
+    def privilege_group(self) -> Any:
         return self._privilege_group
 
     @property
-    def privileges(self):
+    def privileges(self) -> Any:
         return self._privileges
 
 
@@ -805,7 +805,7 @@ class PrivilegeGroupInfo:
         return s
 
     @property
-    def groups(self):
+    def groups(self) -> Any:
         return self._groups
 
 
@@ -822,11 +822,11 @@ class UserItem:
         return f"UserItem: <username:{self.username}>, <roles:{self.roles}>"
 
     @property
-    def username(self):
+    def username(self) -> str:
         return self._username
 
     @property
-    def roles(self):
+    def roles(self) -> Any:
         return self._roles
 
 
@@ -851,7 +851,7 @@ class UserInfo:
         return s
 
     @property
-    def groups(self):
+    def groups(self) -> Any:
         return self._groups
 
 
@@ -868,11 +868,11 @@ class RoleItem:
         return f"RoleItem: <role_name:{self.role_name}>, <users:{self.users}>"
 
     @property
-    def role_name(self):
+    def role_name(self) -> str:
         return self._role_name
 
     @property
-    def users(self):
+    def users(self) -> Any:
         return self._users
 
 
@@ -897,7 +897,7 @@ class RoleInfo:
         return s
 
     @property
-    def groups(self):
+    def groups(self) -> Any:
         return self._groups
 
 
@@ -924,35 +924,35 @@ class ResourceGroupInfo:
 <nodes:{self.nodes}>"""
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def capacity(self):
+    def capacity(self) -> int:
         return self._capacity
 
     @property
-    def num_available_node(self):
+    def num_available_node(self) -> int:
         return self._num_available_node
 
     @property
-    def num_loaded_replica(self):
+    def num_loaded_replica(self) -> int:
         return self._num_loaded_replica
 
     @property
-    def num_outgoing_node(self):
+    def num_outgoing_node(self) -> int:
         return self._num_outgoing_node
 
     @property
-    def num_incoming_node(self):
+    def num_incoming_node(self) -> int:
         return self._num_incoming_node
 
     @property
-    def config(self):
+    def config(self) -> Any:
         return self._config
 
     @property
-    def nodes(self):
+    def nodes(self) -> Any:
         return self._nodes
 
 
@@ -1178,7 +1178,7 @@ class HybridExtraList(list):
                 )
         self._has_materialized_float_vector = True
 
-    def materialize(self):
+    def materialize(self) -> "HybridExtraList":
         """Materializes all lazy-loaded fields for all rows."""
         for i in range(len(self)):
             # By simply accessing the item, __getitem__ will trigger
@@ -1211,11 +1211,11 @@ class ExtraList(list):
     __repr__ = __str__
 
 
-def get_cost_from_status(status: Optional[common_pb2.Status] = None):
+def get_cost_from_status(status: Optional[common_pb2.Status] = None) -> int:
     return int(status.extra_info["report_value"] if status and status.extra_info else "0")
 
 
-def get_cost_extra(status: Optional[common_pb2.Status] = None):
+def get_cost_extra(status: Optional[common_pb2.Status] = None) -> Dict:
     return {"cost": get_cost_from_status(status)}
 
 
@@ -1268,27 +1268,27 @@ class AnalyzeToken:
             self.dict["hash"] = token.hash
 
     @property
-    def token(self):
+    def token(self) -> str:
         return self.dict["token"]
 
     @property
-    def start_offset(self):
+    def start_offset(self) -> int:
         return self.dict["start_offset"]
 
     @property
-    def end_offset(self):
+    def end_offset(self) -> int:
         return self.dict["end_offset"]
 
     @property
-    def position(self):
+    def position(self) -> int:
         return self.dict["position"]
 
     @property
-    def position_length(self):
+    def position_length(self) -> int:
         return self.dict["position_length"]
 
     @property
-    def hash(self):
+    def hash(self) -> Any:
         return self.dict["hash"]
 
     def __getitem__(self, key: str):

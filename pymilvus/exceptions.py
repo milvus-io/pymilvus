@@ -38,15 +38,15 @@ class MilvusException(Exception):
         self._compatible_code = compatible_code
 
     @property
-    def code(self):
+    def code(self) -> int:
         return self._code
 
     @property
-    def message(self):
+    def message(self) -> str:
         return self._message
 
     @property
-    def compatible_code(self):
+    def compatible_code(self) -> int:
         return self._compatible_code
 
     def __str__(self) -> str:

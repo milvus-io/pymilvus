@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from pymilvus.bulk_writer.stage_restful import create_stage, delete_stage, list_stages
 
@@ -20,19 +21,19 @@ class StageManager:
         self.cloud_endpoint = cloud_endpoint
         self.api_key = api_key
 
-    def create_stage(self, project_id: str, region_id: str, stage_name: str):
+    def create_stage(self, project_id: str, region_id: str, stage_name: str) -> None:
         """
         Create a stage under the specified project and regionId.
         """
         create_stage(self.cloud_endpoint, self.api_key, project_id, region_id, stage_name)
 
-    def delete_stage(self, stage_name: str):
+    def delete_stage(self, stage_name: str) -> None:
         """
         Delete a stage.
         """
         delete_stage(self.cloud_endpoint, self.api_key, stage_name)
 
-    def list_stages(self, project_id: str, current_page: int = 1, page_size: int = 10):
+    def list_stages(self, project_id: str, current_page: int = 1, page_size: int = 10) -> Any:
         """
         Paginated query of the stage list under a specified projectId.
         """

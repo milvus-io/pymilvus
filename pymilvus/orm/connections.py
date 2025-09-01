@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 VIRTUAL_PORT = 443
 
 
-def synchronized(func: Callable):
+def synchronized(func: Callable) -> None:
     """
     Decorator in order to achieve thread-safe singleton class.
     """
@@ -72,7 +72,7 @@ class ReconnectHandler:
         self.is_idle_state = False
         self.reconnect_lock = threading.Lock()
 
-    def check_state_and_reconnect_later(self):
+    def check_state_and_reconnect_later(self) -> None:
         check_after_seconds = 3
         logger.debug(f"state is idle, schedule reconnect in {check_after_seconds} seconds")
         time.sleep(check_after_seconds)
@@ -101,7 +101,7 @@ class ReconnectHandler:
                         time.sleep(check_after_seconds)
             logger.info("reconnected")
 
-    def reconnect_on_idle(self, state: object):
+    def reconnect_on_idle(self, state: object) -> None:
         logger.debug(f"state change to: {state}")
         with self.reconnect_lock:
             if state.value[1] != "idle":
@@ -189,7 +189,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return addr, parsed_uri
 
-    def add_connection(self, **kwargs):
+    def add_connection(self, **kwargs) -> None:
         """Configures a milvus connection.
 
         Addresses priority in kwargs: address, uri, host and port
@@ -273,7 +273,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return addr, None
 
-    def disconnect(self, alias: str):
+    def disconnect(self, alias: str) -> None:
         """Disconnects connection from the registry.
 
         :param alias: The name of milvus connection
@@ -285,18 +285,18 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if alias in self._alias_handlers:
             self._alias_handlers.pop(alias).close()
 
-    async def async_disconnect(self, alias: str):
+    async def async_disconnect(self, alias: str) -> None:
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
         if alias in self._alias_handlers:
             await self._alias_handlers.pop(alias).close()
 
-    async def async_remove_connection(self, alias: str):
+    async def async_remove_connection(self, alias: str) -> None:
         await self.async_disconnect(alias)
         self._alias_config.pop(alias, None)
 
-    def remove_connection(self, alias: str):
+    def remove_connection(self, alias: str) -> None:
         """Removes connection from the registry.
 
         :param alias: The name of milvus connection
@@ -504,7 +504,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         return [(k, self._alias_handlers.get(k, None)) for k in self._alias_config]
 
-    def get_connection_addr(self, alias: str):
+    def get_connection_addr(self, alias: str) -> dict:
         """
         Retrieves connection configure by alias.
 

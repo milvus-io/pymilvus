@@ -3,7 +3,7 @@ from typing import Any, Dict, Tuple, Union
 from pymilvus.exceptions import ParamError
 
 
-def validate_params(params: Dict[str, Any], expected_type: Union[type, Tuple[type, ...]]):
+def validate_params(params: Dict[str, Any], expected_type: Union[type, Tuple[type, ...]]) -> None:
     validate_param("params", params, Dict)
     for param_name, param in params.items():
         validate_param(param_name, param, expected_type)
@@ -27,7 +27,7 @@ def validate_param(
 
 def validate_noneable_param(
     param_name: str, param: Any, expected_type: Union[type, Tuple[type, ...]]
-):
+) -> None:
     if param is None:
         return
 

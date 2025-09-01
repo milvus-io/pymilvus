@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 CHECK_STR_ARRAY = True
 
 
-def entity_is_sparse_matrix(entity: Any):
+def entity_is_sparse_matrix(entity: Any) -> bool:
     if SciPyHelper.is_scipy_sparse(entity):
         return True
     try:
@@ -140,7 +140,7 @@ def get_input_num_rows(entity: Any) -> int:
     return len(entity)
 
 
-def entity_type_to_dtype(entity_type: Any):
+def entity_type_to_dtype(entity_type: Any) -> schema_types.DataType:
     if isinstance(entity_type, int):
         return entity_type
     if isinstance(entity_type, str):
@@ -155,7 +155,7 @@ def get_max_len_of_var_char(field_info: Dict) -> int:
     return field_info.get("params", {}).get(k, v)
 
 
-def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True):
+def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True) -> List[str]:
     arr = []
     if Config.EncodeProtocol.lower() != "utf-8".lower():
         for s in orig_str_arr:
@@ -177,11 +177,11 @@ def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True
     return arr
 
 
-def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True):
+def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True) -> List[str]:
     return convert_to_str_array(entity_values, field_info, check=check)
 
 
-def convert_to_json(obj: object):
+def convert_to_json(obj: object) -> bytes:
     def preprocess_numpy_types(obj: Any):
         if isinstance(obj, dict):
             return {k: preprocess_numpy_types(v) for k, v in obj.items()}
@@ -207,7 +207,7 @@ def convert_to_json(obj: object):
     return ujson.dumps(processed_obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
-def convert_to_json_arr(objs: List[object], field_info: Any):
+def convert_to_json_arr(objs: List[object], field_info: Any) -> List[bytes]:
     arr = []
     for obj in objs:
         if obj is None:
@@ -216,15 +216,15 @@ def convert_to_json_arr(objs: List[object], field_info: Any):
     return arr
 
 
-def entity_to_json_arr(entity_values: Dict, field_info: Any):
+def entity_to_json_arr(entity_values: Dict, field_info: Any) -> List[bytes]:
     return convert_to_json_arr(entity_values, field_info)
 
 
-def convert_to_array_arr(objs: List[Any], field_info: Any):
+def convert_to_array_arr(objs: List[Any], field_info: Any) -> List[schema_types.ScalarField]:
     return [convert_to_array(obj, field_info) for obj in objs]
 
 
-def convert_to_array(obj: List[Any], field_info: Any):
+def convert_to_array(obj: List[Any], field_info: Any) -> schema_types.ScalarField:
     field_data = schema_types.ScalarField()
     element_type = field_info.get("element_type", None)
     if element_type == DataType.BOOL:
@@ -250,13 +250,15 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
-def entity_to_array_arr(entity_values: List[Any], field_info: Any):
+def entity_to_array_arr(
+    entity_values: List[Any], field_info: Any
+) -> List[schema_types.ScalarField]:
     return convert_to_array_arr(entity_values, field_info)
 
 
 def pack_field_value_to_field_data(
     field_value: Any, field_data: schema_types.FieldData, field_info: Any
-):
+) -> None:
     field_type = field_data.type
     field_name = field_info["name"]
     if field_type == DataType.BOOL:
@@ -564,7 +566,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
     return field_data
 
 
-def extract_dynamic_field_from_result(raw: Any):
+def extract_dynamic_field_from_result(raw: Any) -> Any:
     dynamic_field_name = None
     field_names = set()
     if raw.fields_data:
@@ -583,7 +585,9 @@ def extract_dynamic_field_from_result(raw: Any):
     return dynamic_field_name, dynamic_fields
 
 
-def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+def extract_array_row_data_with_validity(
+    field_data: Any, entity_rows: List[Dict], row_count: int
+) -> None:
     field_name = field_data.field_name
     data = field_data.scalars.array_data.data
     element_type = field_data.scalars.array_data.element_type
@@ -640,7 +644,9 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
 
-def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+def extract_array_row_data_no_validity(
+    field_data: Any, entity_rows: List[Dict], row_count: int
+) -> None:
     field_name = field_data.field_name
     data = field_data.scalars.array_data.data
     element_type = field_data.scalars.array_data.element_type
@@ -667,7 +673,7 @@ def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict],
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
 
-def extract_array_row_data(field_data: Any, index: int):
+def extract_array_row_data(field_data: Any, index: int) -> Any:
     array = field_data.scalars.array_data.data[index]
     if field_data.scalars.array_data.element_type == DataType.INT64:
         return array.long_data.data
@@ -773,7 +779,7 @@ def extract_row_data_from_fields_data(
     fields_data: Any,
     index: Any,
     dynamic_output_fields: Optional[List] = None,
-):
+) -> Dict:
     if not fields_data:
         return {}
 

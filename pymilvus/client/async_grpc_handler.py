@@ -5,13 +5,20 @@ import json
 import socket
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse
 
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.client.types import GrantInfo, ResourceGroupConfig
+from pymilvus.client.types import (
+    GrantInfo,
+    PrivilegeGroupInfo,
+    ResourceGroupConfig,
+    ResourceGroupInfo,
+    RoleInfo,
+    UserInfo,
+)
 from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure
 from pymilvus.exceptions import (
     AmbiguousIndexName,
@@ -112,7 +119,7 @@ class AsyncGrpcHandler:
     def __exit__(self: object, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
-    async def close(self):
+    async def close(self) -> None:
         await self._async_channel.close()
         self._async_channel = None
 
@@ -209,13 +216,13 @@ class AsyncGrpcHandler:
         self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
 
     @property
-    def server_address(self):
+    def server_address(self) -> str:
         return self._address
 
-    def get_server_type(self):
+    def get_server_type(self) -> str:
         return get_server_type(self.server_address.split(":")[0])
 
-    async def ensure_channel_ready(self):
+    async def ensure_channel_ready(self) -> None:
         try:
             if not self._is_channel_ready:
                 # wait for channel ready
@@ -243,7 +250,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_collection(
         self, collection_name: str, fields: List, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
@@ -255,7 +262,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def drop_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
@@ -271,7 +278,7 @@ class AsyncGrpcHandler:
         replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
 
         check_pass_param(timeout=timeout)
@@ -295,7 +302,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         is_refresh: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         start = time.time()
 
         def can_loop(t: int) -> bool:
@@ -323,7 +330,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         is_refresh: bool = False,
         **kwargs,
-    ):
+    ) -> Any:
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = await self._async_stub.GetLoadingProgress(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -336,7 +343,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def describe_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> Dict:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
@@ -392,7 +399,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def get_collection_stats(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> Any:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         index_param = Prepare.get_collection_stats_request(collection_name)
@@ -406,7 +413,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> Any:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
@@ -424,7 +431,7 @@ class AsyncGrpcHandler:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> LoadState:
         await self.ensure_channel_ready()
         request = Prepare.get_load_state(collection_name, partition_names)
         response = await self._async_stub.GetLoadState(
@@ -440,7 +447,7 @@ class AsyncGrpcHandler:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> Any:
         await self.ensure_channel_ready()
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = await self._async_stub.GetLoadingProgress(
@@ -499,7 +506,7 @@ class AsyncGrpcHandler:
         new_db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=new_name, timeout=timeout)
         check_pass_param(collection_name=old_name)
@@ -524,7 +531,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def release_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
@@ -542,7 +549,7 @@ class AsyncGrpcHandler:
         schema: Optional[dict] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> MutationResult:
         # TODO impl schema change cache policy here
         await self.ensure_channel_ready()
         request = await self._prepare_row_insert_request(
@@ -589,7 +596,7 @@ class AsyncGrpcHandler:
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> MutationResult:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         try:
@@ -655,7 +662,7 @@ class AsyncGrpcHandler:
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> MutationResult:
         await self.ensure_channel_ready()
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
@@ -703,7 +710,7 @@ class AsyncGrpcHandler:
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> MutationResult:
         # TODO impl schema change cache policy here
         await self.ensure_channel_ready()
         if isinstance(entities, dict):
@@ -759,7 +766,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         ranker: Optional[Function] = None,
         **kwargs,
-    ):
+    ) -> SearchResult:
         await self.ensure_channel_ready()
         check_pass_param(
             limit=limit,
@@ -798,7 +805,7 @@ class AsyncGrpcHandler:
         round_decimal: int = -1,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> SearchResult:
         await self.ensure_channel_ready()
         check_pass_param(
             limit=limit,
@@ -847,7 +854,7 @@ class AsyncGrpcHandler:
         params: Dict,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> Status:
         index_name = kwargs.pop("index_name", Config.IndexName)
         copy_kwargs = copy.deepcopy(kwargs)
 
@@ -898,7 +905,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def wait_for_creating_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> Tuple[bool, str]:
         timestamp = await self.alloc_timestamp()
         start = time.time()
         while True:
@@ -926,7 +933,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         timestamp: Optional[int] = None,
         **kwargs,
-    ):
+    ) -> Tuple[IndexState, str]:
         request = Prepare.describe_index_request(collection_name, index_name, timestamp)
         response = await self._async_stub.DescribeIndex(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -953,7 +960,7 @@ class AsyncGrpcHandler:
         index_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
@@ -965,7 +972,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
@@ -979,7 +986,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def drop_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
@@ -999,7 +1006,7 @@ class AsyncGrpcHandler:
         replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(timeout=timeout)
 
@@ -1030,7 +1037,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         is_refresh: bool = False,
         **kwargs,
-    ):
+    ) -> None:
         start = time.time()
 
         def can_loop(t: int) -> bool:
@@ -1054,7 +1061,7 @@ class AsyncGrpcHandler:
         partition_names: List[str],
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
@@ -1102,7 +1109,7 @@ class AsyncGrpcHandler:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> Any:
         # TODO: some check
         await self.ensure_channel_ready()
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
@@ -1120,7 +1127,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         strict_float32: bool = False,
         **kwargs,
-    ):
+    ) -> HybridExtraList:
         await self.ensure_channel_ready()
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
@@ -1177,7 +1184,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def alter_collection_properties(
         self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties=properties)
@@ -1193,7 +1200,7 @@ class AsyncGrpcHandler:
         property_keys: List[str],
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
@@ -1210,7 +1217,7 @@ class AsyncGrpcHandler:
         field_params: dict,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
         request = Prepare.alter_collection_field_request(
@@ -1228,7 +1235,7 @@ class AsyncGrpcHandler:
         field_schema: FieldSchema,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.add_collection_field_request(collection_name, field_schema)
@@ -1238,7 +1245,9 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    async def list_indexes(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    async def list_indexes(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, "")
@@ -1261,7 +1270,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         timestamp: Optional[int] = None,
         **kwargs,
-    ):
+    ) -> Dict:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
@@ -1295,7 +1304,7 @@ class AsyncGrpcHandler:
         properties: dict,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         if properties is None:
@@ -1315,7 +1324,7 @@ class AsyncGrpcHandler:
         property_keys: List[str],
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         request = Prepare.drop_index_properties_request(
@@ -1329,7 +1338,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_alias_request(collection_name, alias)
@@ -1339,7 +1348,7 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+    async def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> None:
         await self.ensure_channel_ready()
         request = Prepare.drop_alias_request(alias)
         response = await self._async_stub.DropAlias(
@@ -1350,7 +1359,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def alter_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_alias_request(collection_name, alias)
@@ -1360,7 +1369,7 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
-    async def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+    async def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         await self.ensure_channel_ready()
         check_pass_param(alias=alias, timeout=timeout)
         request = Prepare.describe_alias_request(alias)
@@ -1378,7 +1387,9 @@ class AsyncGrpcHandler:
         return ret
 
     @retry_on_rpc_failure()
-    async def list_aliases(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    async def list_aliases(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
         await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.list_aliases_request(collection_name)
@@ -1388,7 +1399,7 @@ class AsyncGrpcHandler:
         check_status(response.status)
         return response.aliases
 
-    def reset_db_name(self, db_name: str):
+    def reset_db_name(self, db_name: str) -> None:
         self._setup_db_name(db_name)
         self._setup_grpc_channel()
 
@@ -1399,7 +1410,7 @@ class AsyncGrpcHandler:
         properties: Optional[dict] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.create_database_req(db_name, properties=properties)
@@ -1409,7 +1420,7 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    async def drop_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
+    async def drop_database(self, db_name: str, timeout: Optional[float] = None, **kwargs) -> None:
         await self.ensure_channel_ready()
         request = Prepare.drop_database_req(db_name)
         status = await self._async_stub.DropDatabase(
@@ -1418,7 +1429,7 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    async def list_database(self, timeout: Optional[float] = None, **kwargs):
+    async def list_database(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         await self.ensure_channel_ready()
         check_pass_param(timeout=timeout)
         request = Prepare.list_database_req()
@@ -1431,7 +1442,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def alter_database(
         self, db_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         request = Prepare.alter_database_properties_req(db_name, properties)
         status = await self._async_stub.AlterDatabase(
@@ -1442,7 +1453,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def drop_database_properties(
         self, db_name: str, property_keys: List[str], timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = await self._async_stub.AlterDatabase(
@@ -1451,7 +1462,9 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    async def describe_database(self, db_name: str, timeout: Optional[float] = None, **kwargs):
+    async def describe_database(
+        self, db_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
         await self.ensure_channel_ready()
         request = Prepare.describe_database_req(db_name=db_name)
         resp = await self._async_stub.DescribeDatabase(
@@ -1463,7 +1476,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_privilege_group(
         self, privilege_group: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.create_privilege_group_req(privilege_group)
         resp = await self._async_stub.CreatePrivilegeGroup(
@@ -1474,7 +1487,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def drop_privilege_group(
         self, privilege_group: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.drop_privilege_group_req(privilege_group)
         resp = await self._async_stub.DropPrivilegeGroup(
@@ -1483,7 +1496,9 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def list_privilege_groups(self, timeout: Optional[float] = None, **kwargs):
+    async def list_privilege_groups(
+        self, timeout: Optional[float] = None, **kwargs
+    ) -> List[PrivilegeGroupInfo]:
         await self.ensure_channel_ready()
         req = Prepare.list_privilege_groups_req()
         resp = await self._async_stub.ListPrivilegeGroups(
@@ -1495,7 +1510,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def add_privileges_to_group(
         self, privilege_group: str, privileges: List[str], timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_group_req(
             privilege_group, privileges, milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup
@@ -1508,7 +1523,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def remove_privileges_from_group(
         self, privilege_group: str, privileges: List[str], timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_group_req(
             privilege_group,
@@ -1523,7 +1538,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_user(
         self, user: str, password: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         check_pass_param(user=user, password=password, timeout=timeout)
         req = Prepare.create_user_request(user, password)
         resp = await self._async_stub.CreateCredential(
@@ -1532,7 +1547,7 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def drop_user(self, user: str, timeout: Optional[float] = None, **kwargs):
+    async def drop_user(self, user: str, timeout: Optional[float] = None, **kwargs) -> None:
         req = Prepare.delete_user_request(user)
         resp = await self._async_stub.DeleteCredential(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1547,7 +1562,7 @@ class AsyncGrpcHandler:
         new_password: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         req = Prepare.update_password_request(user, old_password, new_password)
         resp = await self._async_stub.UpdateCredential(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1555,7 +1570,7 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def list_users(self, timeout: Optional[float] = None, **kwargs):
+    async def list_users(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         req = Prepare.list_usernames_request()
         resp = await self._async_stub.ListCredUsers(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1566,7 +1581,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def describe_user(
         self, username: str, include_role_info: bool, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> UserInfo:
         req = Prepare.select_user_request(username, include_role_info)
         resp = await self._async_stub.SelectUser(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1575,7 +1590,7 @@ class AsyncGrpcHandler:
         return resp
 
     @retry_on_rpc_failure()
-    async def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+    async def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> None:
         await self.ensure_channel_ready()
         req = Prepare.create_role_request(role_name)
         resp = await self._async_stub.CreateRole(
@@ -1586,7 +1601,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def drop_role(
         self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.drop_role_request(role_name, force_drop=force_drop)
         resp = await self._async_stub.DropRole(
@@ -1597,7 +1612,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def grant_role(
         self, username: str, role_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_user_role_request(
             username, role_name, milvus_types.OperateUserRoleType.AddUserToRole
@@ -1610,7 +1625,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def revoke_role(
         self, username: str, role_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_user_role_request(
             username, role_name, milvus_types.OperateUserRoleType.RemoveUserFromRole
@@ -1623,7 +1638,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def describe_role(
         self, role_name: str, include_user_info: bool, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> RoleInfo:
         await self.ensure_channel_ready()
         req = Prepare.select_role_request(role_name, include_user_info)
         resp = await self._async_stub.SelectRole(
@@ -1633,7 +1648,9 @@ class AsyncGrpcHandler:
         return resp.results
 
     @retry_on_rpc_failure()
-    async def list_roles(self, include_user_info: bool, timeout: Optional[float] = None, **kwargs):
+    async def list_roles(
+        self, include_user_info: bool, timeout: Optional[float] = None, **kwargs
+    ) -> RoleInfo:
         await self.ensure_channel_ready()
         req = Prepare.select_role_request(None, include_user_info)
         resp = await self._async_stub.SelectRole(
@@ -1645,7 +1662,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def select_grant_for_one_role(
         self, role_name: str, db_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> GrantInfo:
         await self.ensure_channel_ready()
         req = Prepare.select_grant_request(role_name, None, None, db_name)
         resp = await self._async_stub.SelectGrant(
@@ -1665,7 +1682,7 @@ class AsyncGrpcHandler:
         db_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_request(
             role_name,
@@ -1690,7 +1707,7 @@ class AsyncGrpcHandler:
         db_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_request(
             role_name,
@@ -1714,7 +1731,7 @@ class AsyncGrpcHandler:
         db_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_v2_request(
             role_name,
@@ -1737,7 +1754,7 @@ class AsyncGrpcHandler:
         db_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         await self.ensure_channel_ready()
         req = Prepare.operate_privilege_v2_request(
             role_name,
@@ -1752,7 +1769,9 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+    async def create_resource_group(
+        self, name: str, timeout: Optional[float] = None, **kwargs
+    ) -> None:
         req = Prepare.create_resource_group(name, **kwargs)
         resp = await self._async_stub.CreateResourceGroup(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1760,7 +1779,9 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def drop_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+    async def drop_resource_group(
+        self, name: str, timeout: Optional[float] = None, **kwargs
+    ) -> None:
         req = Prepare.drop_resource_group(name)
         resp = await self._async_stub.DropResourceGroup(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1770,7 +1791,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def update_resource_groups(
         self, configs: Dict[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         req = Prepare.update_resource_groups(configs)
         resp = await self._async_stub.UpdateResourceGroups(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1778,7 +1799,9 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def describe_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+    async def describe_resource_group(
+        self, name: str, timeout: Optional[float] = None, **kwargs
+    ) -> ResourceGroupInfo:
         req = Prepare.describe_resource_group(name)
         resp = await self._async_stub.DescribeResourceGroup(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1787,7 +1810,7 @@ class AsyncGrpcHandler:
         return resp.resource_group
 
     @retry_on_rpc_failure()
-    async def list_resource_groups(self, timeout: Optional[float] = None, **kwargs):
+    async def list_resource_groups(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         req = Prepare.list_resource_groups()
         resp = await self._async_stub.ListResourceGroups(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1804,7 +1827,7 @@ class AsyncGrpcHandler:
         num_replica: int,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         req = Prepare.transfer_replica(source, target, collection_name, num_replica)
         resp = await self._async_stub.TransferReplica(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1812,13 +1835,14 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
-    async def flush(self, collection_names: List[str], timeout: Optional[float] = None, **kwargs):
+    async def flush(
+        self, collection_names: List[str], timeout: Optional[float] = None, **kwargs
+    ) -> None:
         req = Prepare.flush_param(collection_names)
         response = await self._async_stub.Flush(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response.status)
-        return response
 
     @retry_on_rpc_failure()
     async def compact(
@@ -1844,7 +1868,7 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def get_compaction_state(
         self, compaction_id: int, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> CompactionState:
         req = Prepare.get_compaction_state(compaction_id)
         response = await self._async_stub.GetCompactionState(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -1871,7 +1895,7 @@ class AsyncGrpcHandler:
         analyzer_names: Optional[Union[str, List[str]]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> Union[AnalyzeResult, List[AnalyzeResult]]:
         req = Prepare.run_analyzer(
             texts,
             analyzer_params=analyzer_params,

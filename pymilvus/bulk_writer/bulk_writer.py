@@ -67,19 +67,19 @@ class BulkWriter:
         self._new_buffer()
 
     @property
-    def buffer_size(self):
+    def buffer_size(self) -> int:
         return self._buffer_size
 
     @property
-    def buffer_row_count(self):
+    def buffer_row_count(self) -> int:
         return self._buffer_row_count
 
     @property
-    def total_row_count(self):
+    def total_row_count(self) -> int:
         return self._total_row_count
 
     @property
-    def chunk_size(self):
+    def chunk_size(self) -> int:
         return self._chunk_size
 
     def _new_buffer(self):
@@ -88,18 +88,18 @@ class BulkWriter:
             self._buffer = Buffer(self._schema, self._file_type, self._config)
         return old_buffer
 
-    def append_row(self, row: dict, **kwargs):
+    def append_row(self, row: dict, **kwargs) -> None:
         self._verify_row(row)
         with self._buffer_lock:
             self._buffer.append_row(row)
 
-    def commit(self, **kwargs):
+    def commit(self, **kwargs) -> None:
         with self._buffer_lock:
             self._buffer_size = 0
             self._buffer_row_count = 0
 
     @property
-    def data_path(self):
+    def data_path(self) -> str:
         return ""
 
     def _try_convert_json(self, field_name: str, obj: object):

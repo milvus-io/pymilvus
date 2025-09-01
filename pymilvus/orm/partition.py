@@ -140,7 +140,7 @@ class Partition:
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
 
-    def flush(self, timeout: Optional[float] = None, **kwargs):
+    def flush(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Seal all segment in the collection of this partition.
             Inserts after flushing will be written into new segments.
             Only sealed segments can be indexed.
@@ -153,7 +153,7 @@ class Partition:
         conn = self._get_connection()
         conn.flush([self._collection.name], timeout=timeout, **kwargs)
 
-    def drop(self, timeout: Optional[float] = None, **kwargs):
+    def drop(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Drop the partition, the same as Collection.drop_partition
 
         Args:
@@ -174,7 +174,9 @@ class Partition:
         conn = self._get_connection()
         return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
 
-    def load(self, replica_number: Optional[int] = None, timeout: Optional[float] = None, **kwargs):
+    def load(
+        self, replica_number: Optional[int] = None, timeout: Optional[float] = None, **kwargs
+    ) -> None:
         """Load the partition data into memory.
 
         Args:
@@ -207,7 +209,7 @@ class Partition:
             **kwargs,
         )
 
-    def release(self, timeout: Optional[float] = None, **kwargs):
+    def release(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Release the partition data from memory.
 
         Args:
@@ -281,7 +283,7 @@ class Partition:
         """
         return self._collection.insert(data, self.name, timeout=timeout, **kwargs)
 
-    def delete(self, expr: str, timeout: Optional[float] = None, **kwargs):
+    def delete(self, expr: str, timeout: Optional[float] = None, **kwargs) -> MutationResult:
         """Delete entities with an expression condition.
 
         Args:
@@ -520,7 +522,7 @@ class Partition:
         timeout: Optional[float] = None,
         round_decimal: int = -1,
         **kwargs,
-    ):
+    ) -> List[SearchResult]:
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
@@ -653,7 +655,7 @@ class Partition:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> List[dict]:
         """Query with expressions
 
         Args:

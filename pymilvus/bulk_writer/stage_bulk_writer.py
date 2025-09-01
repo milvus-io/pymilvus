@@ -43,10 +43,10 @@ class StageBulkWriter(LocalBulkWriter):
     def __enter__(self):
         return self
 
-    def append_row(self, row: Dict[str, Any], **kwargs):
+    def append_row(self, row: Dict[str, Any], **kwargs) -> None:
         super().append_row(row, **kwargs)
 
-    def commit(self, **kwargs):
+    def commit(self, **kwargs) -> None:
         """Commit local bulk files and upload to remote stage."""
         super().commit(call_back=self._upload)
 
