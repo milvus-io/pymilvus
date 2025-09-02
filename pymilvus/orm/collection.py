@@ -1260,6 +1260,7 @@ class Collection:
             False
         """
         conn = self._get_connection()
+        conn.release_partitions(self._name, [partition_name])
         return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     @property
