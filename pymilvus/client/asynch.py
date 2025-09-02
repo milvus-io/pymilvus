@@ -1,7 +1,7 @@
 import abc
 import inspect
 import threading
-from typing import Any, Callable, NoReturn, Optional
+from typing import Any, Callable, Optional
 
 from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import milvus_pb2
@@ -26,7 +26,7 @@ def _parameter_is_empty(func: Callable):
 
 class AbstractFuture:
     @abc.abstractmethod
-    def result(self, **kwargs) -> NoReturn:
+    def result(self, **kwargs) -> Any:
         """Return deserialized result.
 
         It's a synchronous interface. It will wait executing until
@@ -37,7 +37,7 @@ class AbstractFuture:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def cancel(self) -> NoReturn:
+    def cancel(self) -> None:
         """Cancle gRPC future.
 
         This API is thread-safe.
@@ -45,7 +45,7 @@ class AbstractFuture:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def done(self) -> NoReturn:
+    def done(self) -> None:
         """Wait for request done.
 
         This API is thread-safe.
@@ -82,7 +82,7 @@ class Future(AbstractFuture):
         self._future = None
 
     @abc.abstractmethod
-    def on_response(self, response: Callable) -> NoReturn:
+    def on_response(self, response: Callable) -> None:
         """Parse response from gRPC server and return results."""
         raise NotImplementedError
 

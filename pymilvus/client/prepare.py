@@ -1,7 +1,7 @@
 import base64
 import datetime
 import json
-from typing import Any, Dict, Iterable, List, Mapping, NoReturn, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
 import ujson
@@ -429,7 +429,7 @@ class Prepare:
         return req
 
     @classmethod
-    def empty(cls) -> NoReturn:
+    def empty(cls) -> None:
         msg = "no empty request later"
         raise DeprecationWarning(msg)
 
