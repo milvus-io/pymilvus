@@ -1,6 +1,6 @@
 import abc
 import logging
-from typing import Any, Dict, List, NoReturn, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import ujson
 
@@ -509,5 +509,5 @@ class LoopBase:
         return str(list(map(str, self.__getitem__(slice(0, 10)))))
 
     @abc.abstractmethod
-    def get__item(self, item: Any) -> NoReturn:
+    def get__item(self, item: Any) -> Any:
         raise NotImplementedError
