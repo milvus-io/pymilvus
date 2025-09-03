@@ -1,9 +1,12 @@
-from pymilvus.client.abstract import Hits
-from pymilvus.milvus_client.milvus_client import MilvusClient
-from pymilvus import (
-    FieldSchema, CollectionSchema, DataType,
-)
 import numpy as np
+
+from pymilvus import (
+    CollectionSchema,
+    DataType,
+    FieldSchema,
+    Hits,
+    MilvusClient,
+)
 
 collection_name = "test_milvus_client_iterator"
 prepare_new_data = True
