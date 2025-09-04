@@ -16,7 +16,7 @@ import time
 import uuid
 from pathlib import Path
 from threading import Lock, Thread
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 from pymilvus.orm.schema import CollectionSchema
 
@@ -50,7 +50,7 @@ class LocalBulkWriter(BulkWriter):
         self._make_dir()
 
     @property
-    def uuid(self):
+    def uuid(self) -> str:
         return self._uuid
 
     def __enter__(self):
@@ -86,7 +86,7 @@ class LocalBulkWriter(BulkWriter):
             Path(self._local_path).rmdir()
             logger.info(f"Delete local directory '{self._local_path}'")
 
-    def append_row(self, row: dict, **kwargs):
+    def append_row(self, row: dict, **kwargs) -> None:
         super().append_row(row, **kwargs)
 
         # only one thread can enter this section to persist data,
@@ -97,7 +97,7 @@ class LocalBulkWriter(BulkWriter):
             if self.buffer_size > self.chunk_size:
                 self.commit(_async=True)
 
-    def commit(self, **kwargs):
+    def commit(self, **kwargs) -> None:
         # _async=True, the flush thread is asynchronously
         while len(self._working_thread) > 0:
             logger.info(
@@ -145,9 +145,9 @@ class LocalBulkWriter(BulkWriter):
             logger.info(f"Flush thread finished, name: {threading.current_thread().name}")
 
     @property
-    def data_path(self):
+    def data_path(self) -> str:
         return self._local_path
 
     @property
-    def batch_files(self):
+    def batch_files(self) -> List[List[str]]:
         return self._local_files

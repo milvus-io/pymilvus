@@ -44,7 +44,7 @@ from .types import (
 )
 
 
-def validate_primary_key(primary_field: Any):
+def validate_primary_key(primary_field: Any) -> None:
     if primary_field is None:
         raise PrimaryKeyException(message=ExceptionsMessage.NoPrimaryKey)
 
@@ -54,7 +54,7 @@ def validate_primary_key(primary_field: Any):
 
 def validate_partition_key(
     partition_key_field_name: Any, partition_key_field: Any, primary_field_name: Any
-):
+) -> None:
     # not allow partition_key field is primary key field
     if partition_key_field is not None:
         if partition_key_field.name == primary_field_name:
@@ -68,7 +68,7 @@ def validate_partition_key(
         )
 
 
-def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field: Any):
+def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field: Any) -> None:
     if clustering_key_field is not None:
         if clustering_key_field.dtype not in [
             DataType.INT8,
@@ -243,7 +243,7 @@ class CollectionSchema:
         return self.to_dict() == other.to_dict()
 
     @classmethod
-    def construct_from_dict(cls, raw: Dict):
+    def construct_from_dict(cls, raw: Dict) -> Any:
         fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
         if "functions" in raw:
             functions = [
@@ -257,15 +257,15 @@ class CollectionSchema:
         )
 
     @property
-    def primary_field(self):
+    def primary_field(self) -> Any:
         return self._primary_field
 
     @property
-    def partition_key_field(self):
+    def partition_key_field(self) -> Any:
         return self._partition_key_field
 
     @property
-    def fields(self):
+    def fields(self) -> List[Any]:
         """
         Returns the fields about the CollectionSchema.
 
@@ -282,7 +282,7 @@ class CollectionSchema:
         return self._fields
 
     @property
-    def functions(self):
+    def functions(self) -> Any:
         """
         Returns the functions of the CollectionSchema.
 
@@ -292,7 +292,7 @@ class CollectionSchema:
         return self._functions
 
     @property
-    def description(self):
+    def description(self) -> str:
         """
         Returns a text description of the CollectionSchema.
 
@@ -309,7 +309,7 @@ class CollectionSchema:
         return self._description
 
     @property
-    def auto_id(self):
+    def auto_id(self) -> bool:
         """
         Whether the primary keys are automatically generated.
 
@@ -334,14 +334,14 @@ class CollectionSchema:
             self.primary_field.auto_id = bool(value)
 
     @property
-    def enable_dynamic_field(self):
+    def enable_dynamic_field(self) -> bool:
         return bool(self._enable_dynamic_field)
 
     @enable_dynamic_field.setter
     def enable_dynamic_field(self, value: bool):
         self._enable_dynamic_field = bool(value)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         res = {
             "auto_id": self.auto_id,
             "description": self._description,
@@ -352,17 +352,17 @@ class CollectionSchema:
             res["functions"] = [s.to_dict() for s in self._functions]
         return res
 
-    def verify(self):
+    def verify(self) -> None:
         # final check, detect obvious problems
         self._check()
 
-    def add_field(self, field_name: str, datatype: DataType, **kwargs):
+    def add_field(self, field_name: str, datatype: DataType, **kwargs) -> "CollectionSchema":
         field = FieldSchema(field_name, datatype, **kwargs)
         self._fields.append(field)
         self._mark_output_fields()
         return self
 
-    def add_function(self, function: "Function"):
+    def add_function(self, function: "Function") -> "CollectionSchema":
         if not isinstance(function, Function):
             raise ParamError(message=ExceptionsMessage.FunctionIncorrectType)
         self._functions.append(function)
@@ -458,7 +458,7 @@ class FieldSchema:
                     self._type_params[k] = self._kwargs[k]
 
     @classmethod
-    def construct_from_dict(cls, raw: Dict):
+    def construct_from_dict(cls, raw: Dict) -> Any:
         kwargs = {}
         kwargs.update(raw.get("params", {}))
         kwargs["is_primary"] = raw.get("is_primary", False)
@@ -476,7 +476,7 @@ class FieldSchema:
         fs.is_function_output = is_function_output
         return fs
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         _dict = {
             "name": self.name,
             "description": self._description,
@@ -516,7 +516,7 @@ class FieldSchema:
         return self.to_dict() == other.to_dict()
 
     @property
-    def description(self):
+    def description(self) -> str:
         """
         Returns the text description of the FieldSchema.
 
@@ -532,7 +532,7 @@ class FieldSchema:
         return self._description
 
     @property
-    def params(self):
+    def params(self) -> Dict:
         """
         Returns the parameters of the field.
 
@@ -614,27 +614,27 @@ class Function:
             raise ParamError(message="The parameters of the function should be a dictionary.")
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @property
-    def description(self):
+    def description(self) -> str:
         return self._description
 
     @property
-    def type(self):
+    def type(self) -> Any:
         return self._type
 
     @property
-    def input_field_names(self):
+    def input_field_names(self) -> List[str]:
         return self._input_field_names
 
     @property
-    def output_field_names(self):
+    def output_field_names(self) -> List[str]:
         return self._output_field_names
 
     @property
-    def params(self):
+    def params(self) -> Any:
         return self._params
 
     def _check_bm25_function(self, schema: CollectionSchema):
@@ -669,7 +669,7 @@ class Function:
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectOutputFieldType
                 )
 
-    def verify(self, schema: CollectionSchema):
+    def verify(self, schema: CollectionSchema) -> None:
         if self._type == FunctionType.BM25:
             self._check_bm25_function(schema)
         elif self._type == FunctionType.TEXTEMBEDDING:
@@ -681,7 +681,7 @@ class Function:
             raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
 
     @classmethod
-    def construct_from_dict(cls, raw: Dict):
+    def construct_from_dict(cls, raw: Dict) -> Any:
         return Function(
             raw["name"],
             raw["type"],
@@ -694,7 +694,7 @@ class Function:
     def __repr__(self) -> str:
         return str(self.to_dict())
 
-    def to_dict(self):
+    def to_dict(self) -> Dict:
         return {
             "name": self._name,
             "description": self._description,
@@ -777,7 +777,7 @@ def _check_data_schema_cnt(fields: List, data: Union[List[List], pd.DataFrame]):
                 )
 
 
-def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]) -> None:
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if schema.auto_id and isinstance(data, pd.DataFrame) and schema.primary_field.name in data:
@@ -799,7 +799,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
     _check_insert_data(data)
 
 
-def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]):
+def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.DataFrame]) -> None:
     if schema is None:
         raise SchemaNotReadyException(message="Schema shouldn't be None")
     if isinstance(data, pd.DataFrame):
@@ -823,7 +823,7 @@ def construct_fields_from_dataframe(df: pd.DataFrame) -> List[FieldSchema]:
     return fields
 
 
-def prepare_fields_from_dataframe(df: pd.DataFrame):
+def prepare_fields_from_dataframe(df: pd.DataFrame) -> Any:
     # TODO: infer pd.SparseDtype as DataType.SPARSE_FLOAT_VECTOR
     d_types = list(df.dtypes)
     data_types = list(map(map_numpy_dtype_to_datatype, d_types))
@@ -863,7 +863,7 @@ def prepare_fields_from_dataframe(df: pd.DataFrame):
     return col_names, data_types, column_params_map
 
 
-def check_schema(schema: CollectionSchema):
+def check_schema(schema: CollectionSchema) -> None:
     if schema is None:
         raise SchemaNotReadyException(message=ExceptionsMessage.NoSchema)
     if len(schema.fields) < 1:
@@ -883,7 +883,7 @@ def check_schema(schema: CollectionSchema):
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
 
-def infer_default_value_bydata(data: Any):
+def infer_default_value_bydata(data: Any) -> Any:
     if data is None:
         return None
     default_data = schema_types.ValueField()

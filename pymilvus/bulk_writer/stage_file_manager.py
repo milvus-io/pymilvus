@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict
 
 import urllib3
 from minio import Minio
@@ -73,7 +74,7 @@ class StageFileManager:
             )
             raise ValueError(error_message)
 
-    def upload_file_to_stage(self, source_file_path: str, target_stage_path: str):
+    def upload_file_to_stage(self, source_file_path: str, target_stage_path: str) -> Dict:
         """
         uploads a local file or directory to the specified path within the Stage.
 

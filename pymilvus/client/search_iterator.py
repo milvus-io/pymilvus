@@ -1,6 +1,6 @@
 import logging
 from copy import deepcopy
-from typing import Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pymilvus.client import entity_helper, utils
 from pymilvus.client.constants import (
@@ -114,7 +114,7 @@ class SearchIteratorV2:
                 self._params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
         return res
 
-    def next(self):
+    def next(self) -> Any:
         if self._left_res_cnt is not None and self._left_res_cnt <= 0:
             return None
 
@@ -152,7 +152,7 @@ class SearchIteratorV2:
         # return SearchPage for compability
         return self._wrap_return_res(ret)
 
-    def close(self):
+    def close(self) -> None:
         pass
 
     def _check_params(

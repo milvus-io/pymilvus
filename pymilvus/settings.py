@@ -46,20 +46,20 @@ COLORS = {
 
 
 class ColorFulFormatColMixin:
-    def format_col(self, message_str: str, level_name: str):
+    def format_col(self, message_str: str, level_name: str) -> str:
         if level_name in COLORS:
             message_str = COLORS.get(level_name) + message_str + COLORS.get("ENDC")
         return message_str
 
 
 class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
-    def format(self, record: str):
+    def format(self, record: str) -> str:
         message_str = super().format(record)
 
         return self.format_col(message_str, level_name=record.levelname)
 
 
-def init_log(log_level: str):
+def init_log(log_level: str) -> None:
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,

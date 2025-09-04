@@ -27,15 +27,15 @@ class IndexParam:
         self._configs.update(kwargs)
 
     @property
-    def field_name(self):
+    def field_name(self) -> str:
         return self._field_name
 
     @property
-    def index_name(self):
+    def index_name(self) -> str:
         return self._index_name
 
     @property
-    def index_type(self):
+    def index_type(self) -> str:
         return self._index_type
 
     def get_index_configs(self) -> Dict:
@@ -85,6 +85,8 @@ class IndexParams(list):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def add_index(self, field_name: str, index_type: str = "", index_name: str = "", **kwargs):
+    def add_index(
+        self, field_name: str, index_type: str = "", index_name: str = "", **kwargs
+    ) -> None:
         index_param = IndexParam(field_name, index_type, index_name, **kwargs)
         super().append(index_param)

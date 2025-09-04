@@ -110,6 +110,9 @@ lint.select = [
     "B", "C", "G",
     "A",
     "ANN001",
+    "ANN201",  # Missing return type annotation for public function
+    "ANN205",  # Missing return type annotation for staticmethod
+    "ANN206",  # Missing return type annotation for classmethod
     "S", "T", "W", "ARG", "BLE", "COM", "DJ", "EM", "ERA", "EXE", "FBT", "ICN", "INP", "ISC", "NPY", "PD", "PGH", "PIE", "PL", "PT", "PTH", "PYI", "RET", "RSE", "RUF", "SIM", "SLF", "TCH", "TID", "TRY", "UP", "YTT"
 ]
 lint.ignore = [
@@ -212,3 +215,13 @@ builtins-ignorelist = [
     "filter",
 ]
 builtins-allowed-modules = ["types"]
+
+[tool.ruff.format]
+# Configure formatter to put each parameter on a new line when line is too long
+indent-style = "space"
+quote-style = "double"
+line-ending = "auto"
+skip-magic-trailing-comma = false
+# This ensures parameters are placed on separate lines when the line is too long
+docstring-code-format = true
+docstring-code-line-length = 100

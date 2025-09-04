@@ -26,7 +26,7 @@ def _parameter_is_empty(func: Callable):
 
 class AbstractFuture:
     @abc.abstractmethod
-    def result(self, **kwargs):
+    def result(self, **kwargs) -> Any:
         """Return deserialized result.
 
         It's a synchronous interface. It will wait executing until
@@ -37,7 +37,7 @@ class AbstractFuture:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def cancel(self):
+    def cancel(self) -> None:
         """Cancle gRPC future.
 
         This API is thread-safe.
@@ -45,7 +45,7 @@ class AbstractFuture:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def done(self):
+    def done(self) -> None:
         """Wait for request done.
 
         This API is thread-safe.
@@ -75,14 +75,14 @@ class Future(AbstractFuture):
         self._callback_called = False  # callback function should be called only once
         self._kwargs = kwargs
 
-    def add_callback(self, func: Callable):
+    def add_callback(self, func: Callable) -> None:
         self._done_cb_list.append(func)
 
     def __del__(self) -> None:
         self._future = None
 
     @abc.abstractmethod
-    def on_response(self, response: Callable):
+    def on_response(self, response: Callable) -> None:
         """Parse response from gRPC server and return results."""
         raise NotImplementedError
 
@@ -101,7 +101,7 @@ class Future(AbstractFuture):
                         raise MilvusException(message="callback function is not legal!")
         self._callback_called = True
 
-    def result(self, **kwargs):
+    def result(self, **kwargs) -> Any:
         self.exception()
         with self._condition:
             # future not finished. wait callback being called.
@@ -131,16 +131,16 @@ class Future(AbstractFuture):
             return self._results
         return self.on_response(self._response)
 
-    def cancel(self):
+    def cancel(self) -> None:
         with self._condition:
             if self._future:
                 self._future.cancel()
             self._condition.notify_all()
 
-    def is_done(self):
+    def is_done(self) -> bool:
         return self._done
 
-    def done(self):
+    def done(self) -> None:
         with self._condition:
             if self._future and self._results is None:
                 try:
@@ -154,7 +154,7 @@ class Future(AbstractFuture):
 
             self._condition.notify_all()
 
-    def exception(self):
+    def exception(self) -> None:
         if self._exception:
             raise self._exception
         if self._future:
@@ -162,19 +162,19 @@ class Future(AbstractFuture):
 
 
 class SearchFuture(Future):
-    def on_response(self, response: milvus_pb2.SearchResults):
+    def on_response(self, response: milvus_pb2.SearchResults) -> SearchResult:
         check_status(response.status)
         return SearchResult(response.results, status=response.status)
 
 
 class MutationFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> MutationResult:
         check_status(response.status)
         return MutationResult(response)
 
 
 class CreateIndexFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> Status:
         check_status(response)
         return Status(response.code, response.reason)
 
@@ -193,16 +193,16 @@ class CreateFlatIndexFuture(AbstractFuture):
         self._condition = threading.Condition()
         self._exception = pre_exception
 
-    def add_callback(self, func: Callable):
+    def add_callback(self, func: Callable) -> None:
         self._done_cb_list.append(func)
 
     def __del__(self) -> None:
         self._results = None
 
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> None:
         pass
 
-    def result(self):
+    def result(self) -> Any:
         self.exception()
         with self._condition:
             for cb in self._done_cb_list:
@@ -218,32 +218,32 @@ class CreateFlatIndexFuture(AbstractFuture):
                         raise MilvusException(message="callback function is not legal!")
             return self._results
 
-    def cancel(self):
+    def cancel(self) -> None:
         with self._condition:
             self._condition.notify_all()
 
-    def is_done(self):
+    def is_done(self) -> bool:
         return True
 
-    def done(self):
+    def done(self) -> None:
         with self._condition:
             self._condition.notify_all()
 
-    def exception(self):
+    def exception(self) -> None:
         if self._exception:
             raise self._exception
 
 
 class FlushFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> None:
         check_status(response.status)
 
 
 class LoadCollectionFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> None:
         check_status(response.status)
 
 
 class LoadPartitionsFuture(Future):
-    def on_response(self, response: Any):
+    def on_response(self, response: Any) -> None:
         check_status(response.status)

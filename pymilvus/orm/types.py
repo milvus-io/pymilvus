@@ -59,19 +59,19 @@ numpy_dtype_str_map = {
 }
 
 
-def is_integer_datatype(data_type: DataType):
+def is_integer_datatype(data_type: DataType) -> bool:
     return data_type in (DataType.INT8, DataType.INT16, DataType.INT32, DataType.INT64)
 
 
-def is_float_datatype(data_type: DataType):
+def is_float_datatype(data_type: DataType) -> bool:
     return data_type in (DataType.FLOAT,)
 
 
-def is_numeric_datatype(data_type: DataType):
+def is_numeric_datatype(data_type: DataType) -> bool:
     return is_float_datatype(data_type) or is_integer_datatype(data_type)
 
 
-def infer_dtype_by_scalar_data(data: Any):
+def infer_dtype_by_scalar_data(data: Any) -> DataType:
     if isinstance(data, list):
         return DataType.ARRAY
     if isinstance(data, np.float32):
@@ -96,7 +96,7 @@ def infer_dtype_by_scalar_data(data: Any):
     return DataType.UNKNOWN
 
 
-def infer_dtype_bydata(data: Any):
+def infer_dtype_bydata(data: Any) -> Any:
     d_type = DataType.UNKNOWN
     if is_scalar(data):
         return infer_dtype_by_scalar_data(data)
@@ -132,7 +132,7 @@ def infer_dtype_bydata(data: Any):
     return d_type
 
 
-def map_numpy_dtype_to_datatype(d_type: DataType):
+def map_numpy_dtype_to_datatype(d_type: DataType) -> Any:
     d_type_str = str(d_type)
     return numpy_dtype_str_map.get(d_type_str, DataType.UNKNOWN)
 

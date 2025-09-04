@@ -11,7 +11,7 @@ from . import entity_helper
 from .singleton_utils import Singleton
 
 
-def validate_strs(**kwargs):
+def validate_strs(**kwargs) -> None:
     """validate if all values are legal non-emtpy str"""
     invalid_pair = {k: v for k, v in kwargs.items() if not validate_str(v)}
     if invalid_pair:
@@ -19,7 +19,7 @@ def validate_strs(**kwargs):
         raise ParamError(message=msg)
 
 
-def validate_nullable_strs(**kwargs):
+def validate_nullable_strs(**kwargs) -> None:
     """validate if all values are either None or legal non-empty str"""
     invalid_pair = {k: v for k, v in kwargs.items() if v is not None and not validate_str(v)}
     if invalid_pair:
@@ -365,7 +365,7 @@ class ParamChecker(metaclass=Singleton):
             "operate_privilege_group_type": is_legal_operate_privilege_group_type,
         }
 
-    def check(self, key: str, value: Callable):
+    def check(self, key: str, value: Callable) -> None:
         if key in self.check_dict:
             if not self.check_dict[key](value):
                 _raise_param_error(key, value)

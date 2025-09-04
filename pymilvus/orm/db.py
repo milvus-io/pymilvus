@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Optional
 
 from .connections import connections
 
@@ -7,7 +7,7 @@ def _get_connection(alias: str):
     return connections._fetch_handler(alias)
 
 
-def using_database(db_name: str, using: str = "default"):
+def using_database(db_name: str, using: str = "default") -> None:
     """Using a database as a default database name within this connection
 
     :param db_name: Database name
@@ -19,7 +19,7 @@ def using_database(db_name: str, using: str = "default"):
 
 def create_database(
     db_name: str, using: str = "default", timeout: Optional[float] = None, **kwargs
-):
+) -> None:
     """Create a database using provided database name
     Args:
         db_name (``str``): Database name
@@ -30,7 +30,7 @@ def create_database(
     _get_connection(using).create_database(db_name, timeout=timeout, **kwargs)
 
 
-def drop_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
+def drop_database(db_name: str, using: str = "default", timeout: Optional[float] = None) -> None:
     """Drop a database using provided database name
 
     :param db_name: Database name
@@ -54,7 +54,7 @@ def set_properties(
     properties: dict,
     using: str = "default",
     timeout: Optional[float] = None,
-):
+) -> None:
     """Set properties for a database using provided database name
     Args:
         db_name (``str``): Database name
@@ -65,7 +65,9 @@ def set_properties(
     _get_connection(using).alter_database(db_name, properties=properties, timeout=timeout)
 
 
-def describe_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
+def describe_database(
+    db_name: str, using: str = "default", timeout: Optional[float] = None
+) -> Dict:
     """Describe a database using provided database name
 
     :param db_name: Database name

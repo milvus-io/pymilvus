@@ -1,9 +1,11 @@
+from typing import Any
+
 import numpy as np
 
 from pymilvus.exceptions import MilvusException
 
 
-def float_vector_validator(x: object, dim: int):
+def float_vector_validator(x: object, dim: int) -> Any:
     if isinstance(x, list):  # accepts list of float
         if len(x) != dim:
             raise MilvusException(message="array's length must be equal to vector dimension")
@@ -37,7 +39,7 @@ def float_vector_validator(x: object, dim: int):
     )
 
 
-def binary_vector_validator(x: object, dim: int):
+def binary_vector_validator(x: object, dim: int) -> Any:
     if isinstance(x, list):  # accepts list such as [1, 0, 1, 1, 0, 0, 1, 0]
         if len(x) != dim:
             raise MilvusException(message="length of the list must be equal to vector dimension")
@@ -71,7 +73,7 @@ def binary_vector_validator(x: object, dim: int):
     )
 
 
-def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
+def float16_vector_validator(x: object, dim: int, is_bfloat: bool) -> Any:
     if isinstance(x, list):  # accepts list of float
         if len(x) != dim:
             raise MilvusException(message="array's length must be equal to vector dimension")
@@ -108,7 +110,7 @@ def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
     )
 
 
-def int8_vector_validator(x: object, dim: int):
+def int8_vector_validator(x: object, dim: int) -> Any:
     if isinstance(x, list):  # accepts list of int
         if len(x) != dim:
             raise MilvusException(message="array's length must be equal to vector dimension")
@@ -138,7 +140,7 @@ def int8_vector_validator(x: object, dim: int):
     )
 
 
-def sparse_vector_validator(x: object):
+def sparse_vector_validator(x: object) -> Any:
     if not isinstance(x, dict):
         raise MilvusException(message="only accept dict for SPARSE_FLOAT_VECTOR type field")
 

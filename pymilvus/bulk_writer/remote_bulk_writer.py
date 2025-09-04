@@ -13,7 +13,7 @@
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from azure.core.exceptions import AzureError
 from azure.storage.blob import BlobServiceClient
@@ -255,10 +255,10 @@ class RemoteBulkWriter(LocalBulkWriter):
 
         logger.info(f"Upload file '{file_path}' to '{object_name}'")
 
-    def append_row(self, row: dict, **kwargs):
+    def append_row(self, row: dict, **kwargs) -> None:
         super().append_row(row, **kwargs)
 
-    def commit(self, **kwargs):
+    def commit(self, **kwargs) -> None:
         super().commit(call_back=self._upload)
 
     def _local_rm(self, file: str):
@@ -304,9 +304,9 @@ class RemoteBulkWriter(LocalBulkWriter):
         return remote_files
 
     @property
-    def data_path(self):
+    def data_path(self) -> str:
         return self._remote_path
 
     @property
-    def batch_files(self):
+    def batch_files(self) -> List[List[str]]:
         return self._remote_files

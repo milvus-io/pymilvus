@@ -12,7 +12,7 @@
 
 import copy
 import json
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -175,7 +175,7 @@ class Collection:
 
     # TODO(SPARSE): support pd.SparseDtype
     @classmethod
-    def construct_from_dataframe(cls, name: str, dataframe: pd.DataFrame, **kwargs):
+    def construct_from_dataframe(cls, name: str, dataframe: pd.DataFrame, **kwargs) -> Any:
         if not isinstance(dataframe, pd.DataFrame):
             raise SchemaNotReadyException(message=ExceptionsMessage.DataFrameType)
         primary_field = kwargs.pop("primary_field", None)
@@ -294,7 +294,7 @@ class Collection:
         """FieldSchema: the primary field of the collection."""
         return self.schema.primary_field
 
-    def flush(self, timeout: Optional[float] = None, **kwargs):
+    def flush(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Seal all segments in the collection. Inserts after flushing will be written into
             new segments. Only sealed segments can be indexed.
 
@@ -319,7 +319,7 @@ class Collection:
         conn = self._get_connection()
         conn.flush([self.name], timeout=timeout, **kwargs)
 
-    def drop(self, timeout: Optional[float] = None, **kwargs):
+    def drop(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Drops the collection. The same as `utility.drop_collection()`
 
         Args:
@@ -343,7 +343,7 @@ class Collection:
         conn = self._get_connection()
         conn.drop_collection(self._name, timeout=timeout, **kwargs)
 
-    def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
+    def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs) -> None:
         """Set properties for the collection
         Args:
             properties (``dict``): collection properties.
@@ -377,7 +377,7 @@ class Collection:
         replica_number: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         """Load the data into memory.
 
         Args:
@@ -433,7 +433,7 @@ class Collection:
                 **kwargs,
             )
 
-    def release(self, timeout: Optional[float] = None, **kwargs):
+    def release(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Releases the collection data from memory.
 
         Args:
@@ -530,7 +530,7 @@ class Collection:
         partition_name: Optional[str] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> MutationResult:
         """Delete entities with an expression condition.
 
         Args:
@@ -674,7 +674,7 @@ class Collection:
         round_decimal: int = -1,
         ranker: Optional[Function] = None,
         **kwargs,
-    ):
+    ) -> SearchResult:
         """Conducts a vector similarity search with an optional boolean expression as filter.
 
         Args:
@@ -835,7 +835,7 @@ class Collection:
         round_decimal: int = -1,
         ranker: Optional[Function] = None,
         **kwargs,
-    ):
+    ) -> List[List[dict]]:
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
@@ -982,7 +982,7 @@ class Collection:
         timeout: Optional[float] = None,
         round_decimal: int = -1,
         **kwargs,
-    ):
+    ) -> SearchIterator:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         param["params"] = utils.get_params(param)
@@ -1010,7 +1010,7 @@ class Collection:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> List[dict]:
         """Query with expressions
 
         Args:
@@ -1105,7 +1105,7 @@ class Collection:
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> QueryIterator:
         if expr is not None and not isinstance(expr, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         return QueryIterator(
@@ -1232,7 +1232,9 @@ class Collection:
         conn = self._get_connection()
         return conn.has_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
-    def drop_partition(self, partition_name: str, timeout: Optional[float] = None, **kwargs):
+    def drop_partition(
+        self, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> None:
         """Drop the partition in this collection.
 
         Args:
@@ -1260,7 +1262,7 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
+        conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
 
     @property
     def indexes(self) -> List[Index]:
@@ -1344,7 +1346,7 @@ class Collection:
         index_params: Optional[Dict] = None,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         """Creates index for a specified field, with a index name.
 
         Args:
@@ -1390,7 +1392,7 @@ class Collection:
         index_name: str,
         extra_params: dict,
         timeout: Optional[float] = None,
-    ):
+    ) -> None:
         """Alter index for a specified field, with a index name.
         Args:
             index_name (``str``): The name of the index to alter
@@ -1458,7 +1460,7 @@ class Collection:
             conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is not None
         )
 
-    def drop_index(self, timeout: Optional[float] = None, **kwargs):
+    def drop_index(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Drop index and its corresponding index files.
         Args:
             timeout (``float``, optional): An optional duration of time in seconds to allow
@@ -1502,7 +1504,7 @@ class Collection:
 
     def compact(
         self, is_clustering: Optional[bool] = False, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         """Compact merge the small segments in a collection
 
         Args:
@@ -1607,6 +1609,6 @@ class Collection:
         conn = self._get_connection()
         return conn.get_replicas(self.name, timeout=timeout, **kwargs)
 
-    def describe(self, timeout: Optional[float] = None):
+    def describe(self, timeout: Optional[float] = None) -> Dict:
         conn = self._get_connection()
         return conn.describe_collection(self.name, timeout=timeout)

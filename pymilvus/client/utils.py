@@ -60,16 +60,16 @@ valid_binary_metric_types = [
 ]
 
 
-def check_status(status: Status):
+def check_status(status: Status) -> None:
     if status.code != 0 or status.error_code != 0:
         raise MilvusException(status.code, status.reason, status.error_code)
 
 
-def is_successful(status: Status):
+def is_successful(status: Status) -> bool:
     return status.code == 0 and status.error_code == 0
 
 
-def hybridts_to_unixtime(ts: int):
+def hybridts_to_unixtime(ts: int) -> float:
     physical = ts >> LOGICAL_BITS
     return physical / 1000.0
 
@@ -215,7 +215,7 @@ def len_of(field_data: Any) -> int:
     raise MilvusException(message="Unknown data type")
 
 
-def traverse_rows_info(fields_info: Any, entities: List):
+def traverse_rows_info(fields_info: Any, entities: List) -> Tuple:
     location, primary_key_loc, auto_id_loc = {}, None, None
 
     for i, field in enumerate(fields_info):
@@ -255,7 +255,7 @@ def traverse_rows_info(fields_info: Any, entities: List):
     return location, primary_key_loc, auto_id_loc
 
 
-def traverse_info(fields_info: Any):
+def traverse_info(fields_info: Any) -> Tuple:
     location, primary_key_loc, auto_id_loc = {}, None, None
     for i, field in enumerate(fields_info):
         if field.get("is_primary", False):
@@ -269,7 +269,7 @@ def traverse_info(fields_info: Any):
     return location, primary_key_loc, auto_id_loc
 
 
-def traverse_upsert_info(fields_info: Any):
+def traverse_upsert_info(fields_info: Any) -> Tuple:
     location, primary_key_loc = {}, None
     for i, field in enumerate(fields_info):
         if field.get("is_primary", False):
@@ -280,7 +280,7 @@ def traverse_upsert_info(fields_info: Any):
     return location, primary_key_loc
 
 
-def get_params(search_params: Dict):
+def get_params(search_params: Dict) -> Dict:
     # after 2.5.2, all parameters of search_params can be written into one layer
     # no more parameters will be written searchParams.params
     # to ensure compatibility and milvus can still get a json format parameter
@@ -298,7 +298,7 @@ def get_params(search_params: Dict):
     return params
 
 
-def get_server_type(host: str):
+def get_server_type(host: str) -> str:
     return ZILLIZ if (isinstance(host, str) and "zilliz" in host.lower()) else MILVUS
 
 
@@ -315,7 +315,7 @@ class SciPyHelper:
     _array_available = False
 
     @classmethod
-    def _init(cls):
+    def _init(cls) -> None:
         if cls._checked:
             return
         scipy_spec = importlib.util.find_spec("scipy")
@@ -336,7 +336,7 @@ class SciPyHelper:
         cls._checked = True
 
     @classmethod
-    def is_spmatrix(cls, data: Any):
+    def is_spmatrix(cls, data: Any) -> bool:
         cls._init()
         if not cls._matrix_available:
             return False
@@ -347,7 +347,7 @@ class SciPyHelper:
         return isspmatrix(data)
 
     @classmethod
-    def is_sparray(cls, data: Any):
+    def is_sparray(cls, data: Any) -> bool:
         cls._init()
         if not cls._array_available:
             return False
@@ -358,7 +358,7 @@ class SciPyHelper:
         return issparse(data) and not isspmatrix(data)
 
     @classmethod
-    def is_scipy_sparse(cls, data: Any):
+    def is_scipy_sparse(cls, data: Any) -> bool:
         return cls.is_spmatrix(data) or cls.is_sparray(data)
 
 
@@ -428,19 +428,19 @@ def is_dense_float_vector_type(data_type: DataType) -> bool:
     return data_type in dense_float_vector_type_set
 
 
-def is_float_vector_type(data_type: DataType):
+def is_float_vector_type(data_type: DataType) -> bool:
     return is_sparse_vector_type(data_type) or is_dense_float_vector_type(data_type)
 
 
-def is_binary_vector_type(data_type: DataType):
+def is_binary_vector_type(data_type: DataType) -> bool:
     return data_type == DataType.BINARY_VECTOR
 
 
-def is_int_vector_type(data_type: DataType):
+def is_int_vector_type(data_type: DataType) -> bool:
     return data_type == DataType.INT8_VECTOR
 
 
-def is_vector_type(data_type: DataType):
+def is_vector_type(data_type: DataType) -> bool:
     return (
         is_float_vector_type(data_type)
         or is_binary_vector_type(data_type)

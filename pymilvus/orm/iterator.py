@@ -55,17 +55,17 @@ QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
 
 
-def fall_back_to_latest_session_ts():
+def fall_back_to_latest_session_ts() -> int:
     d = datetime.datetime.now()
     return mkts_from_datetime(d, milliseconds=1000.0)
 
 
-def assert_info(condition: bool, message: str):
+def assert_info(condition: bool, message: str) -> None:
     if not condition:
         raise MilvusException(message)
 
 
-def io_operation(io_func: Callable[[Any], None], message: str):
+def io_operation(io_func: Callable[[Any], None], message: str) -> None:
     try:
         io_func()
     except OSError as ose:
@@ -81,7 +81,7 @@ def extend_batch_size(batch_size: int, next_param: dict, to_extend_batch_size: b
     return min(MAX_BATCH_SIZE, batch_size * extend_rate)
 
 
-def check_set_flag(obj: Any, flag_name: str, kwargs: Dict[str, Any], key: str):
+def check_set_flag(obj: Any, flag_name: str, kwargs: Dict[str, Any], key: str) -> None:
     setattr(obj, flag_name, kwargs.get(key, False))
 
 
@@ -317,7 +317,7 @@ class QueryIterator:
             cursor.int_pk = self._next_id
         return cursor
 
-    def next(self):
+    def next(self) -> Any:
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
         ret = None
         if self.__is_res_sufficient(cached_res):
@@ -419,10 +419,10 @@ class SearchPage(LoopBase):
         if res is not None:
             self._results.append(res)
 
-    def get_session_ts(self):
+    def get_session_ts(self) -> int:
         return self._session_ts
 
-    def get_res(self):
+    def get_res(self) -> Any:
         return self._results
 
     def __len__(self):
@@ -431,7 +431,7 @@ class SearchPage(LoopBase):
             length += len(res)
         return length
 
-    def get__item(self, idx: Any):
+    def get__item(self, idx: Any) -> Any:
         if len(self._results) == 0:
             return None
         if idx >= self.__len__():
@@ -447,19 +447,19 @@ class SearchPage(LoopBase):
                 break
         return ret
 
-    def merge(self, others: List[Hits]):
+    def merge(self, others: List[Hits]) -> None:
         if others is not None:
             for other in others:
                 self._results.append(other)
 
-    def ids(self):
+    def ids(self) -> List:
         ids = []
         for res in self._results:
             for hit in res:
                 ids.append(hit.id)
         return ids
 
-    def distances(self):
+    def distances(self) -> List:
         distances = []
         for res in self._results:
             for hit in res:
@@ -680,7 +680,7 @@ class SearchIterator:
             cached_page.merge(page.get_res())
         return len(cached_page)
 
-    def next(self):
+    def next(self) -> Any:
         # 0. check reached limit
         if not self._init_success or self.__check_reached_limit():
             return SearchPage(None)
@@ -797,7 +797,7 @@ class SearchIterator:
 
         return next_params
 
-    def close(self):
+    def close(self) -> None:
         iterator_cache.release_cache(self._cache_id)
 
 
@@ -806,17 +806,17 @@ class IteratorCache:
         self._cache_id = 0
         self._cache_map = {}
 
-    def cache(self, result: Any, cache_id: int):
+    def cache(self, result: Any, cache_id: int) -> int:
         if cache_id == NO_CACHE_ID:
             self._cache_id += 1
             cache_id = self._cache_id
         self._cache_map[cache_id] = result
         return cache_id
 
-    def fetch_cache(self, cache_id: int):
+    def fetch_cache(self, cache_id: int) -> Any:
         return self._cache_map.get(cache_id, None)
 
-    def release_cache(self, cache_id: int):
+    def release_cache(self, cache_id: int) -> None:
         if self._cache_map.get(cache_id, None) is not None:
             self._cache_map.pop(cache_id)
 

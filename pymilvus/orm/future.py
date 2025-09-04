@@ -31,14 +31,14 @@ class BaseFuture:
         """
         return self.on_response(self._f.result())
 
-    def on_response(self, res: Any):
+    def on_response(self, res: Any) -> Any:
         return res
 
-    def cancel(self):
+    def cancel(self) -> None:
         """Cancel the request."""
         return self._f.cancel()
 
-    def done(self):
+    def done(self) -> None:
         """Wait for request done."""
         return self._f.done()
 
@@ -55,7 +55,7 @@ class _EmptySearchFuture:
 
 
 class MutationFuture(BaseFuture):
-    def on_response(self, res: Any):
+    def on_response(self, res: Any) -> Any:
         return MutationResult(res)
 
 

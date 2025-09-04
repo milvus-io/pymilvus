@@ -87,7 +87,7 @@ class Buffer:
 
         return x
 
-    def append_row(self, row: dict):
+    def append_row(self, row: dict) -> None:
         dynamic_values = {}
         if DYNAMIC_FIELD_NAME in row and not isinstance(row[DYNAMIC_FIELD_NAME], dict):
             self._throw(f"Dynamic field '{DYNAMIC_FIELD_NAME}' value should be JSON format")

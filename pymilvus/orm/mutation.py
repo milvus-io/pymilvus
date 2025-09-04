@@ -10,7 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from typing import Any
+from typing import Any, List
 
 
 class MutationResult:
@@ -18,44 +18,44 @@ class MutationResult:
         self._mr = mr
 
     @property
-    def primary_keys(self):
+    def primary_keys(self) -> List:
         return self._mr.primary_keys if self._mr else []
 
     @property
-    def insert_count(self):
+    def insert_count(self) -> int:
         return self._mr.insert_count if self._mr else 0
 
     @property
-    def delete_count(self):
+    def delete_count(self) -> int:
         return self._mr.delete_count if self._mr else 0
 
     @property
-    def upsert_count(self):
+    def upsert_count(self) -> int:
         return self._mr.upsert_count if self._mr else 0
 
     @property
-    def timestamp(self):
+    def timestamp(self) -> int:
         return self._mr.timestamp if self._mr else 0
 
     @property
-    def succ_count(self):
+    def succ_count(self) -> int:
         return self._mr.succ_count if self._mr else 0
 
     @property
-    def err_count(self):
+    def err_count(self) -> int:
         return self._mr.err_count if self._mr else 0
 
     @property
-    def succ_index(self):
+    def succ_index(self) -> List[int]:
         return self._mr.succ_index if self._mr else []
 
     @property
-    def err_index(self):
+    def err_index(self) -> List[int]:
         return self._mr.err_index if self._mr else []
 
     # The unit of this cost is vcu, similar to token
     @property
-    def cost(self):
+    def cost(self) -> int:
         return self._mr.cost if self._mr else 0
 
     def __str__(self) -> str:
