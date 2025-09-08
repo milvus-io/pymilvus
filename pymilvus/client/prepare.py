@@ -553,17 +553,10 @@ class Prepare:
             field_len[DYNAMIC_FIELD_NAME] = 0
 
         try:
-            fields_num = 0
             for entity in entities:
                 if not isinstance(entity, Dict):
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
-                if partial_update and fields_num != 0 and fields_num != len(entity):
-                    raise DataNotMatchException(
-                        message=ExceptionsMessage.InsertFieldsLenInconsistent
-                        % (len(fields_data), fields_num)
-                    )
-                fields_num = len(entity)
                 for k, v in entity.items():
                     if k not in fields_data:
                         if k in function_output_field_names:
@@ -614,6 +607,16 @@ class Prepare:
 
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
+
+        if partial_update:
+            # cause partial_update won't set null for missing fields,
+            # so the field_len must be the same
+            row_counts = {v for v in field_len.values() if v > 0}
+            if len(row_counts) > 1:
+                counts = list(row_counts)
+                raise DataNotMatchException(
+                    message=ExceptionsMessage.InsertFieldsLenInconsistent % (counts[0], counts[1])
+                )
 
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
         request.fields_data.extend(fields_data.values())
