@@ -255,9 +255,7 @@ class AsyncMilvusClient:
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> bool:
         conn = self._get_connection()
-        return await conn.has_partition(
-            collection_name, partition_name, timeout=timeout, **kwargs
-        )
+        return await conn.has_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
     async def list_partitions(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
@@ -431,9 +429,7 @@ class AsyncMilvusClient:
         conn = self._get_connection()
 
         if ids:
-            schema_dict = await conn.describe_collection(
-                collection_name, timeout=timeout, **kwargs
-            )
+            schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -518,9 +514,7 @@ class AsyncMilvusClient:
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict = await conn.describe_collection(
-                collection_name, timeout=timeout, **kwargs
-            )
+            schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
@@ -603,9 +597,7 @@ class AsyncMilvusClient:
         **kwargs,
     ):
         conn = self._get_connection()
-        return await conn.refresh_load(
-            collection_name, partition_names, timeout=timeout, **kwargs
-        )
+        return await conn.refresh_load(collection_name, partition_names, timeout=timeout, **kwargs)
 
     async def get_server_version(self, timeout: Optional[float] = None, **kwargs) -> str:
         conn = self._get_connection()
@@ -1019,9 +1011,7 @@ class AsyncMilvusClient:
     ) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
-        res = await conn.select_grant_for_one_role(
-            role_name, db_name, timeout=timeout, **kwargs
-        )
+        res = await conn.select_grant_for_one_role(role_name, db_name, timeout=timeout, **kwargs)
         ret = {}
         ret["role"] = role_name
         ret["privileges"] = [dict(i) for i in res.groups]

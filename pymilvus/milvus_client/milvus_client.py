@@ -443,9 +443,7 @@ class MilvusClient:
         conn = self._get_connection()
 
         if ids:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(
-                collection_name, timeout=timeout
-            )
+            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -687,7 +685,6 @@ class MilvusClient:
             **kwargs,
         )
 
-
     def delete(
         self,
         collection_name: str,
@@ -749,9 +746,7 @@ class MilvusClient:
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(
-                collection_name, timeout=timeout
-            )
+            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
