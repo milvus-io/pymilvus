@@ -252,6 +252,9 @@ class ExceptionsMessage:
     InsertMissedField = (
         "Insert missed an field `%s` to collection without set nullable==true or set default_value"
     )
+    InsertFieldsLenInconsistent = (
+        "The data fields length is inconsistent. previous length is %d, current length is %d"
+    )
     UpsertAutoIDTrue = "Upsert don't support autoid == true"
     AmbiguousDeleteFilterParam = (
         "Ambiguous filter parameter, only one deletion condition can be specified."

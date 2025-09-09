@@ -3,7 +3,7 @@ import json
 import socket
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 from urllib import parse
 
 import grpc
@@ -53,9 +53,9 @@ from .types import (
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
-    ExtraList,
     GrantInfo,
     Group,
+    HybridExtraList,
     IndexState,
     LoadState,
     Plan,
@@ -169,8 +169,9 @@ class GrpcHandler:
 
     def close(self):
         self.deregister_state_change_callbacks()
-        self._channel.close()
-        self._channel = None
+        if self._channel:
+            self._channel.close()
+            self._channel = None
 
     def reset_db_name(self, db_name: str):
         self.schema_cache.clear()
@@ -277,7 +278,6 @@ class GrpcHandler:
 
     @property
     def server_address(self):
-        """Server network address"""
         return self._address
 
     def get_server_type(self):
@@ -300,7 +300,11 @@ class GrpcHandler:
 
     @retry_on_rpc_failure()
     def create_collection(
-        self, collection_name: str, fields: List, timeout: Optional[float] = None, **kwargs
+        self,
+        collection_name: str,
+        fields: Union[CollectionSchema, Dict[str, Iterable]],
+        timeout: Optional[float] = None,
+        **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
@@ -355,7 +359,7 @@ class GrpcHandler:
         self,
         collection_name: str,
         field_name: str,
-        field_params: List,
+        field_params: Dict[str, Any],
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -494,23 +498,6 @@ class GrpcHandler:
         check_status(status)
         return response.value
 
-    # TODO: this is not inuse
-    @retry_on_rpc_failure()
-    def get_partition_info(
-        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
-    ):
-        request = Prepare.partition_stats_request(collection_name, partition_name)
-        response = self._stub.DescribePartition(
-            request, timeout=timeout, metadata=_api_level_md(**kwargs)
-        )
-        status = response.status
-        check_status(status)
-        statistics = response.statistics
-        info_dict = {}
-        for kv in statistics:
-            info_dict[kv.key] = kv.value
-        return info_dict
-
     @retry_on_rpc_failure()
     def list_partitions(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -573,11 +560,14 @@ class GrpcHandler:
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if resp.status.error_code == common_pb2.SchemaMismatch:
             schema = self.update_schema(collection_name, timeout, **kwargs)
-            request = self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-            resp = self._stub.Insert(
-                request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
+            # recursively calling `insert_rows` handling another schema change happens during retry
+            return self.insert_rows(
+                collection_name=collection_name,
+                entities=entities,
+                partition_name=partition_name,
+                schema=schema,
+                timeout=timeout,
+                **kwargs,
             )
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
@@ -764,6 +754,9 @@ class GrpcHandler:
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         schema = kwargs.get("schema")
         if not schema:
             schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
@@ -773,7 +766,13 @@ class GrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_upsert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_upsert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                partial_update=partial_update,
+            )
         )
 
     @retry_on_rpc_failure()
@@ -823,6 +822,9 @@ class GrpcHandler:
         if not isinstance(rows, list):
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
+        # Extract partial_update parameter from kwargs
+        partial_update = kwargs.get("partial_update", False)
+
         schema, schema_timestamp = self._get_schema_from_cache_or_remote(
             collection_name, timeout=timeout
         )
@@ -835,6 +837,7 @@ class GrpcHandler:
             fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
+            partial_update=partial_update,
         )
 
     @retry_on_rpc_failure()
@@ -865,11 +868,13 @@ class GrpcHandler:
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         if response.status.error_code == common_pb2.SchemaMismatch:
             self.update_schema(collection_name, timeout)
-            request = self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-            response = self._stub.Upsert(
-                request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
+            # recursively calling `upsert_rows` handling another schema change happens during retry
+            return self.upsert_rows(
+                collection_name=collection_name,
+                entities=entities,
+                partition_name=partition_name,
+                timeout=timeout,
+                **kwargs,
             )
         check_status(response.status)
         m = MutationResult(response)
@@ -1706,6 +1711,7 @@ class GrpcHandler:
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
+        strict_float32: bool = False,
         **kwargs,
     ):
         if output_fields is not None and not isinstance(output_fields, (list,)):
@@ -1732,16 +1738,24 @@ class GrpcHandler:
 
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
-        results = []
-        for index in range(num_entities):
-            entity_row_data = entity_helper.extract_row_data_from_fields_data(
-                response.fields_data, index, dynamic_fields
-            )
-            results.append(entity_row_data)
+        keys = [field_data.field_name for field_data in response.fields_data]
+        filtered_keys = [k for k in keys if k != "$meta"]
+        results = [dict.fromkeys(filtered_keys) for _ in range(num_entities)]
+        lazy_field_data = []
+        for field_data in response.fields_data:
+            lazy_extracted = entity_helper.extract_row_data_from_fields_data_v2(field_data, results)
+            if lazy_extracted:
+                lazy_field_data.append(field_data)
 
         extra_dict = get_cost_extra(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
-        return ExtraList(results, extra=extra_dict)
+        return HybridExtraList(
+            lazy_field_data,
+            results,
+            extra=extra_dict,
+            dynamic_fields=dynamic_fields,
+            strict_float32=strict_float32,
+        )
 
     @retry_on_rpc_failure()
     def load_balance(
@@ -1768,15 +1782,18 @@ class GrpcHandler:
         **kwargs,
     ) -> int:
         meta = _api_level_md(**kwargs)
-        # should be removed, but to be compatible with old milvus server, keep it for now.
-        request = Prepare.describe_collection_request(collection_name)
-        response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
-        check_status(response.status)
-
-        req = Prepare.manual_compaction(response.collectionID, collection_name, is_clustering)
+        # try with only collection_name
+        req = Prepare.manual_compaction(collection_name, is_clustering)
         response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
-        check_status(response.status)
+        if response.status.error_code == common_pb2.CollectionNameNotFound:
+            # should be removed, but to be compatible with old milvus server, keep it for now.
+            request = Prepare.describe_collection_request(collection_name)
+            response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
+            check_status(response.status)
 
+            req = Prepare.manual_compaction(collection_name, is_clustering, response.collectionID)
+            response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
+        check_status(response.status)
         return response.compactionID
 
     @retry_on_rpc_failure()

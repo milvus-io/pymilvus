@@ -66,6 +66,7 @@ class Index:
             fvec
             >>> index.drop()
         """
+        # ruff: noqa: PLC0415
         from .collection import Collection
 
         if not isinstance(collection, Collection):

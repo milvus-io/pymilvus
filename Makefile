@@ -6,10 +6,11 @@ lint:
 	PYTHONPATH=`pwd` python3 -m ruff check pymilvus
 
 format:
+	pip install -e ".[dev]"
 	PYTHONPATH=`pwd` python3 -m black pymilvus
 	PYTHONPATH=`pwd` python3 -m ruff check pymilvus --fix
 
-codecov:
+coverage:
 	PYTHONPATH=`pwd` pytest --cov=pymilvus --cov-report=xml tests -x -v -rxXs
 
 example:

@@ -1,12 +1,10 @@
 import json
-import time
-import math
-import random
 import logging
-import numpy as np
-import tensorflow as tf
-
+import math
+import time
 from typing import List
+
+from examples.bulk_import.data_gengerator import *
 
 logging.basicConfig(level=logging.INFO)
 
@@ -18,7 +16,6 @@ from pymilvus import (
 )
 
 from pymilvus.bulk_writer import (
-    LocalBulkWriter,
     RemoteBulkWriter,
     BulkFileType,
     bulk_import,
@@ -36,35 +33,6 @@ PORT = '19530'
 
 ALL_TYPES_COLLECTION_NAME = "test_bulkwriter"
 DIM = 16
-
-def gen_float_vector(to_numpy_arr):
-    raw_vector = [random.random() for _ in range(DIM)]
-    if to_numpy_arr:
-        return np.array(raw_vector, dtype="float32")
-    return raw_vector
-
-def gen_binary_vector(to_numpy_arr):
-    raw_vector = [random.randint(0, 1) for i in range(DIM)]
-    if to_numpy_arr:
-        return np.packbits(raw_vector, axis=-1)
-    return raw_vector
-
-def gen_bf16_vector(to_numpy_arr):
-    raw_vector = [random.random() for _ in range(DIM)]
-    if to_numpy_arr:
-        return tf.cast(raw_vector, dtype=tf.bfloat16).numpy()
-    return raw_vector
-
-def gen_sparse_vector(pair_dict: bool):
-    raw_vector = {}
-    dim = random.randint(2, 20)
-    if pair_dict:
-        raw_vector["indices"] = [i for i in range(dim)]
-        raw_vector["values"] = [random.random() for _ in range(dim)]
-    else:
-        for i in range(dim):
-            raw_vector[i] = random.random()
-    return raw_vector
 
 def create_connection():
     print(f"\nCreate connection...")
@@ -165,10 +133,10 @@ def gen_nullable_data():
             "array_str": None,
             "array_int": None,
 
-            "float_vector": gen_float_vector(False),
+            "float_vector": gen_float_vector(False, DIM),
             "sparse_vector": gen_sparse_vector(False),
-            "binary_vector": gen_binary_vector(False),
-            "bfloat16_vector": gen_bf16_vector(False),
+            "binary_vector": gen_binary_vector(False, DIM),
+            "bfloat16_vector": gen_bf16_vector(False, DIM),
 
             "dummy1": None, # dynamic field
         },
@@ -186,10 +154,10 @@ def gen_nullable_data():
             "array_str": [f"str_{k}" for k in range(5)],
             "array_int": [k for k in range(10)],
 
-            "float_vector": gen_float_vector(False),
+            "float_vector": gen_float_vector(False, DIM),
             "sparse_vector": gen_sparse_vector(False),
-            "binary_vector": gen_binary_vector(False),
-            "bfloat16_vector": gen_bf16_vector(False),
+            "binary_vector": gen_binary_vector(False, DIM),
+            "bfloat16_vector": gen_bf16_vector(False, DIM),
 
             "dummy2": 2222,  # dynamic field
         },
@@ -207,10 +175,10 @@ def gen_nullable_data():
             "array_str": np.array([f"str_{k}" for k in range(5)], np.dtype("str")),
             "array_int": np.array([k for k in range(10)], np.dtype("int16")),
 
-            "float_vector": gen_float_vector(True),
+            "float_vector": gen_float_vector(True, DIM),
             "sparse_vector": gen_sparse_vector(True),
-            "binary_vector": gen_binary_vector(True),
-            "bfloat16_vector": gen_bf16_vector(True),
+            "binary_vector": gen_binary_vector(True, DIM),
+            "bfloat16_vector": gen_bf16_vector(True, DIM),
         },
     ]
 
@@ -220,7 +188,7 @@ def gen_nullable_default_data():
         {
             "id": 1,
 
-            "float_vector": gen_float_vector(True),
+            "float_vector": gen_float_vector(True, DIM),
         },
         {
             "id": 2,
@@ -233,7 +201,7 @@ def gen_nullable_default_data():
             "double": None,
             "varchar": None,
 
-            "float_vector": gen_float_vector(True),
+            "float_vector": gen_float_vector(True, DIM),
         },
         {
             "id": 3,
@@ -246,7 +214,7 @@ def gen_nullable_default_data():
             "double": 3.333333333,
             "varchar": "333333",
 
-            "float_vector": gen_float_vector(True),
+            "float_vector": gen_float_vector(True, DIM),
         },
     ]
 
@@ -294,8 +262,8 @@ def call_bulkinsert(batch_files: List[List[str]]):
     print(f"Create a bulkinsert job, job id: {job_id}")
 
     while True:
-        print("Wait 1 second to check bulkinsert job state...")
-        time.sleep(1)
+        print("Wait 5 second to check bulkinsert job state...")
+        time.sleep(5)
 
         print(f"\n===================== Get import job progress ====================")
         resp = get_import_progress(

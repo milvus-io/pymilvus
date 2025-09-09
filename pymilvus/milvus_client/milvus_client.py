@@ -1,6 +1,5 @@
 import logging
 from typing import Dict, List, Optional, Union
-from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
@@ -28,6 +27,7 @@ from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
+from ._utils import create_connection
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
@@ -62,8 +62,8 @@ class MilvusClient:
                 to None.
                 Unit: second
         """
-        self._using = self._create_connection(
-            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        self._using = create_connection(
+            uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
         )
         self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
@@ -250,10 +250,17 @@ class MilvusClient:
         """Upsert data into the collection.
 
         Args:
+            collection_name (str): Name of the collection to upsert into.
             data (List[Dict[str, any]]): A list of dicts to pass in. If list not provided, will
                 cast to list.
             timeout (float, optional): The timeout to use, will override init timeout. Defaults
                 to None.
+            partition_name (str, optional): Name of the partition to upsert into.
+            **kwargs (dict): Extra keyword arguments.
+
+                * *partial_update* (bool, optional): Whether this is a partial update operation.
+                    If True, only the specified fields will be updated while others remain unchanged
+                    Default is False.
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
@@ -288,6 +295,9 @@ class MilvusClient:
             {
                 "upsert_count": res.upsert_count,
                 "cost": res.cost,
+                # milvus server supports upsert on autoid=ture from v2.4.15
+                # upsert on autoid=ture will return new ids for user
+                "primary_keys": res.primary_keys,
             }
         )
 
@@ -466,7 +476,9 @@ class MilvusClient:
 
         if ids:
             try:
-                schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+                schema_dict, _ = conn._get_schema_from_cache_or_remote(
+                    collection_name, timeout=timeout
+                )
             except Exception as ex:
                 logger.error("Failed to describe collection: %s", collection_name)
                 raise ex from ex
@@ -933,27 +945,6 @@ class MilvusClient:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
-
-    def _create_connection(
-        self,
-        uri: str,
-        user: str = "",
-        password: str = "",
-        db_name: str = "",
-        token: str = "",
-        **kwargs,
-    ) -> str:
-        """Create the connection to the Milvus server."""
-        # TODO: Implement reuse with new uri style
-        using = kwargs.pop("alias", None) or uuid4().hex
-        try:
-            connections.connect(using, user, password, db_name, token, uri=uri, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to create new connection using: %s", using)
-            raise ex from ex
-        else:
-            logger.debug("Created new connection using: %s", using)
-            return using
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
@@ -1430,8 +1421,7 @@ class MilvusClient:
 
     # deprecated same to use_database
     def using_database(self, db_name: str, **kwargs):
-        conn = self._get_connection()
-        conn.reset_db_name(db_name)
+        self.use_database(db_name, **kwargs)
 
     def use_database(self, db_name: str, **kwargs):
         conn = self._get_connection()

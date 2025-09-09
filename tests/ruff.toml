@@ -1,0 +1,55 @@
+# Ruff configuration specific to tests directory
+# This extends the root configuration but with more relaxed rules for tests
+
+extend = "../pyproject.toml"
+
+[lint]
+# Additional rules to ignore in tests
+extend-ignore = [
+    "S101",     # Use of assert detected - OK in tests
+    "S105",     # Possible hardcoded password - OK in tests
+    "S106",     # Possible hardcoded password - OK in tests
+    "S108",
+    "N806",
+    "SIM118",
+    "SIM117",
+    "ARG001",   # Unused function argument - common in fixtures
+    "ARG002",   # Unused method argument - common in test fixtures
+    "PLR2004",  # Magic value comparisons - common in tests
+    "PLR0913",  # Too many arguments - OK for test fixtures
+    "ANN001",   # Missing type annotation - optional in tests
+    "ANN002",   # Missing type annotation for *args
+    "ANN003",   # Missing type annotation for **kwargs
+    "ANN201",   # Missing return type annotation
+    "ANN202",   # Missing return type annotation
+    "ANN204",   # Missing return type annotation for special method
+    "ANN205",   # Missing return type annotation for staticmethod
+    "ANN206",   # Missing return type annotation for classmethod
+    "D",        # All docstring rules - optional in tests
+    "FBT",      # Boolean trap - OK in tests
+    "PT",       # pytest specific rules if too strict
+    "TRY002",   # Create your own exception - OK in tests
+    "TRY003",   # Long exception messages - OK in tests
+    "EM101",    # Exception must not use string literal - OK in tests
+    "EM102",    # Exception must not use f-string literal - OK in tests
+    "F403",
+    "C901",     # Too complex - complexity is OK in test setup
+    "PLR0912",  # Too many branches - OK in complex test scenarios
+    "PLR0915",  # Too many statements - OK in test setup
+    "W505",
+    "S311",
+]
+
+# You can also be more selective with rules
+# select = [
+#     "E",      # pycodestyle errors
+#     "F",      # pyflakes
+#     "I",      # isort
+#     "N",      # pep8-naming
+#     "UP",     # pyupgrade
+# ]
+
+[lint.per-file-ignores]
+# Specific ignores for certain test files
+"conftest.py" = ["E402", "F401", "F403"]  # Import issues common in conftest
+"test_*.py" = ["S101"]  # assert is expected in test files

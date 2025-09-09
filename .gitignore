@@ -35,3 +35,9 @@ coverage.xml
 
 # Example data
 /examples/bulk_writer
+
+# uv
+uv.lock
+
+# AI rules
+WARP.md

@@ -101,15 +101,14 @@ class CollectionSchema:
         self._partition_key_field = None
         self._clustering_key_field = None
 
-        if functions is None:
-            functions = []
-
-        if not isinstance(functions, list):
-            raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
-        for function in functions:
-            if not isinstance(function, Function):
-                raise SchemaNotReadyException(message=ExceptionsMessage.FunctionIncorrectType)
-        self._functions = [copy.deepcopy(function) for function in functions]
+        self._functions = []
+        if functions:
+            if not isinstance(functions, list):
+                raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
+            for function in functions:
+                if not isinstance(function, Function):
+                    raise SchemaNotReadyException(message=ExceptionsMessage.FunctionIncorrectType)
+            self._functions = functions
 
         if not isinstance(fields, list):
             raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
@@ -125,7 +124,6 @@ class CollectionSchema:
             self._struct_fields = [copy.deepcopy(struct) for struct in struct_fields]
 
         self._mark_output_fields()
-
         self._check_kwargs()
         if kwargs.get("check_fields", True):
             self._check_fields()
@@ -442,6 +440,11 @@ class FieldSchema:
         self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+
+        for key in ["analyzer_params", "multi_analyzer_params"]:
+            if key in self._kwargs and isinstance(self._kwargs[key], dict):
+                self._kwargs[key] = ujson.dumps(self._kwargs[key])
+
         self._parse_type_params()
         self.is_function_output = False
 
@@ -480,12 +483,6 @@ class FieldSchema:
                             continue
                         if self._kwargs[k].lower() == "false":
                             self._type_params[k] = False
-                            continue
-                        if k in ("analyzer_params", "multi_analyzer_params"):
-                            # TODO: a more complicate json may be reordered which
-                            # can still cause server_schema == schema to be False.
-                            # need a better approach.
-                            self._type_params[k] = ujson.dumps(self._kwargs[k])
                             continue
                     self._type_params[k] = self._kwargs[k]
 

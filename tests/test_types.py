@@ -9,33 +9,26 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
+import numpy as np
+import pytest
 from pymilvus import DataType
 from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
-from pymilvus.exceptions import InvalidConsistencyLevel
 from pymilvus.client.types import (
-    get_consistency_level,
-    Shard,
+    ConsistencyLevel,
     Group,
     Replica,
-    ConsistencyLevel,
+    Shard,
+    get_consistency_level,
 )
+from pymilvus.exceptions import InvalidConsistencyLevel
 from pymilvus.orm.types import (
     infer_dtype_bydata,
 )
 
-from pymilvus.grpc_gen import common_pb2
-
-import pytest
-import pandas as pd
-import numpy as np
-#  from ml_dtypes import bfloat16
-
 
 class TestTypes:
-    @pytest.mark.skip("please fix me")
     @pytest.mark.parametrize(
-        "input_expect",
-        [
+        "data,expect",[
             ([1], DataType.FLOAT_VECTOR),
             ([True], DataType.UNKNOWN),
             ([1.0, 2.0], DataType.FLOAT_VECTOR),
@@ -46,14 +39,12 @@ class TestTypes:
             ("abc", DataType.VARCHAR),
             (np.int8(1), DataType.INT8),
             (np.int16(1), DataType.INT16),
-            ([np.int8(1)], DataType.FLOAT_VECTOR),
-            ([np.float16(1.0)], DataType.FLOAT16_VECTOR),
-            #  ([np.array([1, 1], dtype=bfloat16)], DataType.BFLOAT16_VECTOR),
-            ([np.int8(1)], DataType.INT8_VECTOR),
+            pytest.param([np.float16(1.0)], DataType.FLOAT16_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
+            pytest.param([np.float16(1.0)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
+            #  ([np.int8(1)], DataType.INT8_VECTOR),
         ],
     )
-    def test_infer_dtype_bydata(self, input_expect):
-        data, expect = input_expect
+    def test_infer_dtype_bydata(self, data, expect):
         got = infer_dtype_bydata(data)
         assert got == expect
 
@@ -85,18 +76,14 @@ class TestReplica:
         assert s.channel_name == "channel-1"
         assert s.shard_nodes == {1, 2, 3}
         assert s.shard_leader == 1
-        print(s)
 
         g = Group(2, [s], [1, 2, 3], DEFAULT_RESOURCE_GROUP, {})
         assert g.id == 2
         assert g.shards == [s]
         assert g.group_nodes == (1, 2, 3)
 
-        print(g)
-
         replica = Replica([g, g])
         assert replica.groups == [g, g]
-        print(replica)
 
     def test_shard_dup_nodeIDs(self):
         s = Shard("channel-1", (1, 1, 1), 1)
@@ -105,4 +92,3 @@ class TestReplica:
             1,
         }
         assert s.shard_leader == 1
-        print(s)

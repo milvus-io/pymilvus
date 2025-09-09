@@ -2,6 +2,8 @@ import datetime
 import sys
 from typing import Any, Callable, Union
 
+import numpy as np
+
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
@@ -200,8 +202,6 @@ def is_legal_anns_field(field: Any) -> bool:
 
 
 def is_legal_search_data(data: Any) -> bool:
-    import numpy as np
-
     if entity_helper.entity_is_sparse_matrix(data):
         return True
 

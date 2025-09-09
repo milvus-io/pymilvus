@@ -13,16 +13,21 @@
 # limitations under the License.
 """Base class for interceptors that operate on all RPC types."""
 
+import time
 from typing import Any, Callable, List, NamedTuple, Optional, Tuple
 
 import grpc
 
 
+def current_time_ms() -> str:
+    return str(time.time_ns() // 1_000_000)
+
+
 def _api_level_md(**kwargs) -> Optional[List[Tuple]]:
-    metadata = None
+    metadata = []
+    metadata.append(("client-request-unixmsec", current_time_ms()))
     client_request_id = kwargs.get("client-request-id", kwargs.get("client_request_id"))
     if client_request_id:
-        metadata = metadata if metadata else []
         metadata.append(("client-request-id", client_request_id))
     return metadata
 

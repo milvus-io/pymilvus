@@ -1,6 +1,4 @@
-import datetime
 import threading
-import pytest
 
 from pymilvus.client import ts_utils
 
@@ -49,5 +47,3 @@ class TestTsUtils:
     def test_get_eventually_ts(self):
         ts = ts_utils.get_eventually_ts()
         assert ts == ts_utils.EVENTUALLY_TS
-
-

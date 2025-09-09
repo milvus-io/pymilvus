@@ -232,8 +232,8 @@ def call_bulkinsert(batch_files: List[List[str]]):
     print(f"Create a bulkinsert job, job id: {job_id}")
 
     while True:
-        print("Wait 1 second to check bulkinsert job state...")
-        time.sleep(1)
+        print("Wait 5 second to check bulkinsert job state...")
+        time.sleep(5)
 
         print(f"\n===================== Get import job progress ====================")
         resp = get_import_progress(

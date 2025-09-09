@@ -1,3 +1,4 @@
+import logging
 import math
 import struct
 from typing import Any, Dict, Iterable, List, Optional
@@ -15,7 +16,14 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
 from .types import DataType
-from .utils import SciPyHelper, SparseMatrixInputType, SparseRowOutputType
+from .utils import (
+    SciPyHelper,
+    SparseMatrixInputType,
+    SparseRowOutputType,
+    sparse_parse_single_row,
+)
+
+logger = logging.getLogger(__name__)
 
 CHECK_STR_ARRAY = True
 
@@ -56,17 +64,6 @@ def entity_is_sparse_matrix(entity: Any):
     except Exception:
         return False
     return True
-
-
-# parses plain bytes to a sparse float vector(SparseRowOutputType)
-def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
-    if len(data) % 8 != 0:
-        raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
-
-    return {
-        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
-        for i in range(0, len(data), 8)
-    }
 
 
 # converts supported sparse matrix to schemapb.SparseFloatArray proto
@@ -185,13 +182,29 @@ def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True):
 
 
 def convert_to_json(obj: object):
+    def preprocess_numpy_types(obj: Any):
+        if isinstance(obj, dict):
+            return {k: preprocess_numpy_types(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [preprocess_numpy_types(item) for item in obj]
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return obj
+
     if isinstance(obj, dict):
-        for k, v in obj.items():
+        for k in obj:
             if not isinstance(k, str):
                 raise DataNotMatchException(message=ExceptionsMessage.JSONKeyMustBeStr)
-            if isinstance(v, np.ndarray):
-                obj[k] = v.tolist()
-    return ujson.dumps(obj, ensure_ascii=False).encode(Config.EncodeProtocol)
+
+    processed_obj = preprocess_numpy_types(obj)
+
+    return ujson.dumps(processed_obj, ensure_ascii=False).encode(Config.EncodeProtocol)
 
 
 def convert_to_json_arr(objs: List[object], field_info: Any):
@@ -286,6 +299,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "bool", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         try:
@@ -298,6 +312,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "int", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.INT64:
         try:
@@ -309,6 +324,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "int64", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.FLOAT:
         try:
@@ -320,6 +336,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "float", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.DOUBLE:
         try:
@@ -331,6 +348,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "double", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.FLOAT_VECTOR:
         try:
@@ -348,6 +366,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "float_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.BINARY_VECTOR:
         try:
@@ -357,6 +376,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "binary_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.FLOAT16_VECTOR:
         try:
@@ -379,6 +399,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "float16_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.BFLOAT16_VECTOR:
         try:
@@ -401,6 +422,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "bfloat16_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.SPARSE_FLOAT_VECTOR:
         try:
@@ -417,6 +439,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "sparse_float_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.INT8_VECTOR:
         try:
@@ -437,6 +460,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "int8_vector", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.VARCHAR:
         try:
@@ -450,6 +474,20 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "varchar", type(field_value))
+                + f" Detail: {e!s}"
+            ) from e
+    elif field_type == DataType.GEOMETRY:
+        try:
+            if field_value is None:
+                field_data.scalars.geometry_wkt_data.data.extend([])
+            else:
+                field_data.scalars.geometry_wkt_data.data.append(
+                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
+                )
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "geometry", type(field_value))
             ) from e
     elif field_type == DataType.JSON:
         try:
@@ -461,6 +499,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "json", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     elif field_type == DataType.ARRAY:
         try:
@@ -472,6 +511,7 @@ def pack_field_value_to_field_data(
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
                 % (field_name, "array", type(field_value))
+                + f" Detail: {e!s}"
             ) from e
     else:
         raise ParamError(message=f"Unsupported data type: {field_type}")
@@ -539,12 +579,17 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             field_data.scalars.array_data.data.extend(
                 entity_to_array_arr(entity_values, field_info)
             )
+        elif entity_type == DataType.GEOMETRY:
+            field_data.scalars.geometry_wkt_data.data.extend(
+                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
+            )
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
     except (TypeError, ValueError) as e:
         raise DataNotMatchException(
             message=ExceptionsMessage.FieldDataInconsistent
             % (field_name, entity_type.name, type(entity_values[0]))
+            + f" Detail: {e!s}"
         ) from e
     return field_data
 
@@ -568,35 +613,188 @@ def extract_dynamic_field_from_result(raw: Any):
     return dynamic_field_name, dynamic_fields
 
 
+def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    field_name = field_data.field_name
+    data = field_data.scalars.array_data.data
+    element_type = field_data.scalars.array_data.element_type
+    if element_type == DataType.INT64:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].long_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.BOOL:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].bool_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+    ):
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].int_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.FLOAT:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].float_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type == DataType.DOUBLE:
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].double_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    elif element_type in (
+        DataType.STRING,
+        DataType.VARCHAR,
+    ):
+        [
+            entity_rows[i].__setitem__(
+                field_name, data[i].string_data.data if field_data.valid_data[i] else None
+            )
+            for i in range(row_count)
+        ]
+    else:
+        raise MilvusException(message=f"Unsupported data type: {element_type}")
+
+
+def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    field_name = field_data.field_name
+    data = field_data.scalars.array_data.data
+    element_type = field_data.scalars.array_data.element_type
+    if element_type == DataType.INT64:
+        [entity_rows[i].__setitem__(field_name, data[i].long_data.data) for i in range(row_count)]
+    elif element_type == DataType.BOOL:
+        [entity_rows[i].__setitem__(field_name, data[i].bool_data.data) for i in range(row_count)]
+    elif element_type in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+    ):
+        [entity_rows[i].__setitem__(field_name, data[i].int_data.data) for i in range(row_count)]
+    elif element_type == DataType.FLOAT:
+        [entity_rows[i].__setitem__(field_name, data[i].float_data.data) for i in range(row_count)]
+    elif element_type == DataType.DOUBLE:
+        [entity_rows[i].__setitem__(field_name, data[i].double_data.data) for i in range(row_count)]
+    elif element_type in (
+        DataType.STRING,
+        DataType.VARCHAR,
+    ):
+        [entity_rows[i].__setitem__(field_name, data[i].string_data.data) for i in range(row_count)]
+    else:
+        raise MilvusException(message=f"Unsupported data type: {element_type}")
+
+
 def extract_array_row_data(field_data: Any, index: int):
     array = field_data.scalars.array_data.data[index]
-    row = []
     if field_data.scalars.array_data.element_type == DataType.INT64:
-        row.extend(array.long_data.data)
-        return row
+        return array.long_data.data
     if field_data.scalars.array_data.element_type == DataType.BOOL:
-        row.extend(array.bool_data.data)
-        return row
+        return array.bool_data.data
     if field_data.scalars.array_data.element_type in (
         DataType.INT8,
         DataType.INT16,
         DataType.INT32,
     ):
-        row.extend(array.int_data.data)
-        return row
+        return array.int_data.data
     if field_data.scalars.array_data.element_type == DataType.FLOAT:
-        row.extend(array.float_data.data)
-        return row
+        return array.float_data.data
     if field_data.scalars.array_data.element_type == DataType.DOUBLE:
-        row.extend(array.double_data.data)
-        return row
+        return array.double_data.data
     if field_data.scalars.array_data.element_type in (
         DataType.STRING,
         DataType.VARCHAR,
     ):
-        row.extend(array.string_data.data)
-        return row
-    return row
+        return array.string_data.data
+    return None
+
+
+def extract_row_data_from_fields_data_v2(
+    field_data: Any,
+    entity_rows: List[Dict],
+) -> bool:
+    row_count = len(entity_rows)
+    has_valid = len(field_data.valid_data) > 0
+    field_name = field_data.field_name
+    valid_data = field_data.valid_data
+
+    def assign_scalar(data: List[Any]) -> None:
+        if has_valid:
+            [
+                entity_rows[i].__setitem__(field_name, None if not valid_data[i] else data[i])
+                for i in range(row_count)
+            ]
+        else:
+            [entity_rows[i].__setitem__(field_name, data[i]) for i in range(row_count)]
+
+    if field_data.type == DataType.BOOL:
+        data = field_data.scalars.bool_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        data = field_data.scalars.int_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.INT64:
+        data = field_data.scalars.long_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.FLOAT:
+        data = field_data.scalars.float_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.DOUBLE:
+        data = field_data.scalars.double_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.VARCHAR:
+        data = field_data.scalars.string_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.GEOMETRY:
+        data = field_data.scalars.geometry_wkt_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.JSON:
+        return True
+
+    if field_data.type == DataType.ARRAY:
+        if has_valid:
+            extract_array_row_data_with_validity(field_data, entity_rows, row_count)
+        else:
+            extract_array_row_data_no_validity(field_data, entity_rows, row_count)
+        return False
+    if field_data.type in (
+        DataType.FLOAT_VECTOR,
+        DataType.FLOAT16_VECTOR,
+        DataType.BFLOAT16_VECTOR,
+        DataType.BINARY_VECTOR,
+        DataType.SPARSE_FLOAT_VECTOR,
+        DataType.INT8_VECTOR,
+    ):
+        return True
+    if field_data.type == DataType.STRING:
+        raise MilvusException(message="Not support string yet")
+    return False
 
 def extract_vector_array_row_data(field_data: Any, index: int):
     array = field_data.vectors.vector_array.data[index]
@@ -673,11 +871,29 @@ def extract_row_data_from_fields_data(
             row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
             return
 
+        elif (
+            field_data.type == DataType.GEOMETRY
+            and len(field_data.scalars.geometry_wkt_data.data) >= index
+        ):
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                entity_row_data[field_data.field_name] = None
+                return
+            entity_row_data[field_data.field_name] = field_data.scalars.geometry_wkt_data.data[
+                index
+            ]
+            return
+
         elif field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
                 row_data[field_data.field_name] = None
                 return
-            json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            try:
+                json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+            except Exception as e:
+                logger.error(
+                    f"extract_row_data_from_fields_data::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
+                )
+                raise
 
             if not field_data.is_dynamic:
                 row_data[field_data.field_name] = json_dict

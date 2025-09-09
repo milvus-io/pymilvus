@@ -1,5 +1,6 @@
 import datetime
 import importlib.util
+import struct
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -174,6 +175,9 @@ def len_of(field_data: Any) -> int:
         if field_data.scalars.HasField("array_data"):
             return len(field_data.scalars.array_data.data)
 
+        if field_data.scalars.HasField("geometry_wkt_data"):
+            return len(field_data.scalars.geometry_wkt_data.data)
+
         raise MilvusException(message="Unsupported scalar type")
 
     if field_data.HasField("vectors"):
@@ -341,6 +345,8 @@ class SciPyHelper:
         cls._init()
         if not cls._matrix_available:
             return False
+
+        # ruff: noqa: PLC0415
         from scipy.sparse import isspmatrix
 
         return isspmatrix(data)
@@ -350,6 +356,8 @@ class SciPyHelper:
         cls._init()
         if not cls._array_available:
             return False
+
+        # ruff: noqa: PLC0415
         from scipy.sparse import issparse, isspmatrix
 
         return issparse(data) and not isspmatrix(data)
@@ -443,3 +451,14 @@ def is_vector_type(data_type: DataType):
         or is_binary_vector_type(data_type)
         or is_int_vector_type(data_type)
     )
+
+
+# parses plain bytes to a sparse float vector(SparseRowOutputType)
+def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
+    if len(data) % 8 != 0:
+        raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
+
+    return {
+        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
+        for i in range(0, len(data), 8)
+    }

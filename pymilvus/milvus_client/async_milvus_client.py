@@ -1,12 +1,14 @@
 import logging
 from typing import Dict, List, Optional, Union
-from uuid import uuid4
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     ExceptionsMessage,
     OmitZeroDict,
+    ResourceGroupConfig,
+    RoleInfo,
+    UserInfo,
 )
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
@@ -17,8 +19,10 @@ from pymilvus.exceptions import (
 from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema
 from pymilvus.orm.connections import connections
+from pymilvus.orm.schema import FieldSchema
 from pymilvus.orm.types import DataType
 
+from ._utils import create_connection
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
@@ -40,8 +44,15 @@ class AsyncMilvusClient:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
-        self._using = self._create_connection(
-            uri, user, password, db_name, token, timeout=timeout, **kwargs
+        self._using = create_connection(
+            uri,
+            token,
+            db_name,
+            use_async=True,
+            user=user,
+            password=password,
+            timeout=timeout,
+            **kwargs,
         )
         self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
 
@@ -158,6 +169,18 @@ class AsyncMilvusClient:
         await conn.drop_collection(collection_name, timeout=timeout, **kwargs)
         logger.debug("Successfully dropped collection: %s", collection_name)
 
+    async def rename_collection(
+        self,
+        old_name: str,
+        new_name: str,
+        target_db: Optional[str] = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.rename_collection(old_name, new_name, target_db, timeout=timeout, **kwargs)
+        logger.debug("Successfully renamed collection from %s to %s", old_name, new_name)
+
     async def load_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ):
@@ -258,6 +281,30 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         await conn.release_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
+    async def has_partition(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> bool:
+        conn = self._get_connection()
+        try:
+            return await conn.has_partition(
+                collection_name, partition_name, timeout=timeout, **kwargs
+            )
+        except Exception as ex:
+            logger.error(
+                "Failed to check partition existence: %s.%s", collection_name, partition_name
+            )
+            raise ex from ex
+
+    async def list_partitions(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        conn = self._get_connection()
+        try:
+            return await conn.list_partitions(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to list partitions: %s", collection_name)
+            raise ex from ex
+
     async def insert(
         self,
         collection_name: str,
@@ -303,6 +350,28 @@ class AsyncMilvusClient:
         partition_name: Optional[str] = "",
         **kwargs,
     ) -> Dict:
+        """Upsert data into the collection asynchronously.
+
+        Args:
+            collection_name (str): Name of the collection to upsert into.
+            data (List[Dict[str, any]]): A list of dicts to pass in. If list not provided, will
+                cast to list.
+            timeout (float, optional): The timeout to use, will override init timeout. Defaults
+                to None.
+            partition_name (str, optional): Name of the partition to upsert into.
+            **kwargs (dict): Extra keyword arguments.
+
+                * *partial_update* (bool, optional): Whether this is a partial update operation.
+                    If True, only the specified fields will be updated while others remain unchanged
+                    Default is False.
+
+        Raises:
+            DataNotMatchException: If the data has missing fields an exception will be thrown.
+            MilvusException: General Milvus error on upsert.
+
+        Returns:
+            Dict: Number of rows that were upserted.
+        """
         # If no data provided, we cannot input anything
         if isinstance(data, Dict):
             data = [data]
@@ -557,10 +626,210 @@ class AsyncMilvusClient:
 
         return OmitZeroDict({"delete_count": res.delete_count, "cost": res.cost})
 
+    async def describe_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> dict:
+        conn = self._get_connection()
+        try:
+            return await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to describe collection: %s", collection_name)
+            raise ex from ex
+
+    async def has_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> bool:
+        conn = self._get_connection()
+        try:
+            return await conn.has_collection(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to check collection existence: %s", collection_name)
+            raise ex from ex
+
+    async def list_collections(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
+        conn = self._get_connection()
+        try:
+            return await conn.list_collections(timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to list collections")
+            raise ex from ex
+
+    async def get_collection_stats(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
+        conn = self._get_connection()
+        try:
+            stats = await conn.get_collection_stats(collection_name, timeout=timeout, **kwargs)
+            result = {stat.key: stat.value for stat in stats}
+            if "row_count" in result:
+                result["row_count"] = int(result["row_count"])
+        except Exception as ex:
+            logger.error("Failed to get collection stats: %s", collection_name)
+            raise ex from ex
+        else:
+            return result
+
+    async def get_partition_stats(
+        self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
+        conn = self._get_connection()
+        try:
+            stats = await conn.get_partition_stats(
+                collection_name, partition_name, timeout=timeout, **kwargs
+            )
+            result = {stat.key: stat.value for stat in stats}
+            if "row_count" in result:
+                result["row_count"] = int(result["row_count"])
+        except Exception as ex:
+            logger.error("Failed to get partition stats: %s.%s", collection_name, partition_name)
+            raise ex from ex
+        else:
+            return result
+
+    async def get_load_state(
+        self,
+        collection_name: str,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        try:
+            return await conn.get_load_state(
+                collection_name, partition_names, timeout=timeout, **kwargs
+            )
+        except Exception as ex:
+            logger.error("Failed to get load state: %s", collection_name)
+            raise ex from ex
+
+    async def refresh_load(
+        self,
+        collection_name: str,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        try:
+            return await conn.refresh_load(
+                collection_name, partition_names, timeout=timeout, **kwargs
+            )
+        except Exception as ex:
+            logger.error("Failed to refresh load: %s", collection_name)
+            raise ex from ex
+
+    async def get_server_version(self, timeout: Optional[float] = None, **kwargs) -> str:
+        conn = self._get_connection()
+        try:
+            return await conn.get_server_version(timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to get server version")
+            raise ex from ex
+
+    async def describe_replica(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        try:
+            return await conn.describe_replica(collection_name, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to describe replica: %s", collection_name)
+            raise ex from ex
+
+    async def alter_collection_properties(
+        self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        try:
+            await conn.alter_collection_properties(
+                collection_name,
+                properties=properties,
+                timeout=timeout,
+                **kwargs,
+            )
+            logger.debug("Successfully altered collection properties: %s", collection_name)
+        except Exception as ex:
+            logger.error("Failed to alter collection properties: %s", collection_name)
+            raise ex from ex
+
+    async def drop_collection_properties(
+        self,
+        collection_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        try:
+            await conn.drop_collection_properties(
+                collection_name, property_keys=property_keys, timeout=timeout, **kwargs
+            )
+            logger.debug("Successfully dropped collection properties: %s", collection_name)
+        except Exception as ex:
+            logger.error("Failed to drop collection properties: %s", collection_name)
+            raise ex from ex
+
+    async def alter_collection_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        field_params: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        try:
+            await conn.alter_collection_field(
+                collection_name,
+                field_name=field_name,
+                field_params=field_params,
+                timeout=timeout,
+                **kwargs,
+            )
+            logger.debug(
+                "Successfully altered collection field properties: %s.%s",
+                collection_name,
+                field_name,
+            )
+        except Exception as ex:
+            logger.error(
+                "Failed to alter collection field properties: %s.%s", collection_name, field_name
+            )
+            raise ex from ex
+
+    async def add_collection_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        data_type: DataType,
+        desc: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
+        conn = self._get_connection()
+        try:
+            await conn.add_collection_field(
+                collection_name,
+                field_schema,
+                timeout=timeout,
+                **kwargs,
+            )
+            logger.debug("Successfully added collection field: %s.%s", collection_name, field_name)
+        except Exception as ex:
+            logger.error("Failed to add collection field: %s.%s", collection_name, field_name)
+            raise ex from ex
+
     @classmethod
     def create_schema(cls, **kwargs):
         kwargs["check_fields"] = False  # do not check fields for now
         return CollectionSchema([], **kwargs)
+
+    @classmethod
+    def create_field_schema(
+        cls, name: str, data_type: DataType, desc: str = "", **kwargs
+    ) -> FieldSchema:
+        return FieldSchema(name, data_type, desc, **kwargs)
 
     @classmethod
     def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
@@ -575,29 +844,6 @@ class AsyncMilvusClient:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
-
-    def _create_connection(
-        self,
-        uri: str,
-        user: str = "",
-        password: str = "",
-        db_name: str = "",
-        token: str = "",
-        **kwargs,
-    ) -> str:
-        """Create the connection to the Milvus server."""
-        # TODO: Implement reuse with new uri style
-        using = uuid4().hex
-        try:
-            connections.connect(
-                using, user, password, db_name, token, uri=uri, _async=True, **kwargs
-            )
-        except Exception as ex:
-            logger.error("Failed to create new connection using: %s", using)
-            raise ex from ex
-        else:
-            logger.debug("Created new connection using: %s", using)
-            return using
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         fields = schema_dict.get("fields", [])
@@ -623,3 +869,433 @@ class AsyncMilvusClient:
             ids = [str(entry) for entry in pks]
             expr = f"{pk_field_name} in [{','.join(ids)}]"
         return expr
+
+    async def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
+        conn = self._get_connection()
+        indexes = await conn.list_indexes(collection_name, **kwargs)
+        index_name_list = []
+        for index in indexes:
+            if not index:
+                continue
+            if not field_name or index.field_name == field_name:
+                index_name_list.append(index.index_name)
+        return index_name_list
+
+    async def describe_index(
+        self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
+        conn = self._get_connection()
+        return await conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+
+    async def alter_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        properties: dict,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.alter_index_properties(
+            collection_name, index_name, properties=properties, timeout=timeout, **kwargs
+        )
+
+    async def drop_index_properties(
+        self,
+        collection_name: str,
+        index_name: str,
+        property_keys: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.drop_index_properties(
+            collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
+        )
+
+    async def create_alias(
+        self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.create_alias(collection_name, alias, timeout=timeout, **kwargs)
+
+    async def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        await conn.drop_alias(alias, timeout=timeout, **kwargs)
+
+    async def alter_alias(
+        self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.alter_alias(collection_name, alias, timeout=timeout, **kwargs)
+
+    async def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> Dict:
+        conn = self._get_connection()
+        return await conn.describe_alias(alias, timeout=timeout, **kwargs)
+
+    async def list_aliases(
+        self, collection_name: str = "", timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        conn = self._get_connection()
+        return await conn.list_aliases(collection_name, timeout=timeout, **kwargs)
+
+    def using_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.reset_db_name(db_name)
+
+    def use_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        conn.reset_db_name(db_name)
+
+    async def create_database(
+        self,
+        db_name: str,
+        properties: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.create_database(
+            db_name=db_name, properties=properties, timeout=timeout, **kwargs
+        )
+
+    async def drop_database(self, db_name: str, **kwargs):
+        conn = self._get_connection()
+        await conn.drop_database(db_name, **kwargs)
+
+    async def list_databases(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
+        conn = self._get_connection()
+        return await conn.list_database(timeout=timeout, **kwargs)
+
+    async def describe_database(self, db_name: str, **kwargs) -> dict:
+        conn = self._get_connection()
+        return await conn.describe_database(db_name, **kwargs)
+
+    async def alter_database_properties(self, db_name: str, properties: dict, **kwargs):
+        conn = self._get_connection()
+        await conn.alter_database(db_name, properties, **kwargs)
+
+    async def drop_database_properties(self, db_name: str, property_keys: List[str], **kwargs):
+        conn = self._get_connection()
+        await conn.drop_database_properties(db_name, property_keys, **kwargs)
+
+    async def create_user(
+        self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.create_user(user_name, password, timeout=timeout, **kwargs)
+
+    async def drop_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        await conn.drop_user(user_name, timeout=timeout, **kwargs)
+
+    async def update_password(
+        self,
+        user_name: str,
+        old_password: str,
+        new_password: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.update_password(user_name, old_password, new_password, timeout=timeout, **kwargs)
+
+    async def list_users(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
+        conn = self._get_connection()
+        return await conn.list_users(timeout=timeout, **kwargs)
+
+    async def describe_user(
+        self, user_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> dict:
+        conn = self._get_connection()
+        try:
+            res = await conn.describe_user(user_name, True, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to describe user: %s", user_name)
+            raise ex from ex
+        if hasattr(res, "results") and res.results:
+            user_info = UserInfo(res.results)
+            if user_info.groups:
+                item = user_info.groups[0]
+                return {"user_name": user_name, "roles": item.roles}
+        return {}
+
+    async def create_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.create_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    async def drop_privilege_group(
+        self,
+        group_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.drop_privilege_group(group_name, timeout=timeout, **kwargs)
+
+    async def list_privilege_groups(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[Dict[str, Union[str, List[str]]]]:
+        conn = self._get_connection()
+        try:
+            res = await conn.list_privilege_groups(timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to list privilege groups")
+            raise ex from ex
+        ret = []
+        for g in res:
+            privileges = []
+            for p in g.privileges:
+                privileges.append(p.name)
+            ret.append({"privilege_group": g.group_name, "privileges": privileges})
+        return ret
+
+    async def add_privileges_to_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.add_privileges_to_group(group_name, privileges, timeout=timeout, **kwargs)
+
+    async def remove_privileges_from_group(
+        self,
+        group_name: str,
+        privileges: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
+
+    async def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        await conn.create_role(role_name, timeout=timeout, **kwargs)
+
+    async def drop_role(
+        self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.drop_role(role_name, force_drop=force_drop, timeout=timeout, **kwargs)
+
+    async def grant_role(
+        self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.grant_role(user_name, role_name, timeout=timeout, **kwargs)
+
+    async def revoke_role(
+        self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.revoke_role(user_name, role_name, timeout=timeout, **kwargs)
+
+    async def grant_privilege(
+        self,
+        role_name: str,
+        object_type: str,
+        privilege: str,
+        object_name: str,
+        db_name: Optional[str] = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.grant_privilege(
+            role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
+        )
+
+    async def revoke_privilege(
+        self,
+        role_name: str,
+        object_type: str,
+        privilege: str,
+        object_name: str,
+        db_name: Optional[str] = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.revoke_privilege(
+            role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
+        )
+
+    async def grant_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.grant_privilege_v2(
+            role_name,
+            privilege,
+            collection_name,
+            db_name=db_name,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def revoke_privilege_v2(
+        self,
+        role_name: str,
+        privilege: str,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.revoke_privilege_v2(
+            role_name,
+            privilege,
+            collection_name,
+            db_name=db_name,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def describe_role(
+        self, role_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
+        conn = self._get_connection()
+        db_name = kwargs.pop("db_name", "")
+        try:
+            res = await conn.select_grant_for_one_role(
+                role_name, db_name, timeout=timeout, **kwargs
+            )
+        except Exception as ex:
+            logger.error("Failed to describe role: %s", role_name)
+            raise ex from ex
+        ret = {}
+        ret["role"] = role_name
+        ret["privileges"] = [dict(i) for i in res.groups]
+        return ret
+
+    async def list_roles(self, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        try:
+            res = await conn.list_roles(False, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to list roles")
+            raise ex from ex
+
+        role_info = RoleInfo(res)
+        return [g.role_name for g in role_info.groups]
+
+    async def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        await conn.create_resource_group(name, timeout=timeout, **kwargs)
+
+    async def drop_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        await conn.drop_resource_group(name, timeout=timeout, **kwargs)
+
+    async def update_resource_groups(
+        self, configs: Dict[str, ResourceGroupConfig], timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.update_resource_groups(configs, timeout=timeout, **kwargs)
+
+    async def describe_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        return await conn.describe_resource_group(name, timeout=timeout, **kwargs)
+
+    async def list_resource_groups(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
+        conn = self._get_connection()
+        return await conn.list_resource_groups(timeout=timeout, **kwargs)
+
+    async def transfer_replica(
+        self,
+        source: str,
+        target: str,
+        collection_name: str,
+        num_replica: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        await conn.transfer_replica(
+            source, target, collection_name, num_replica, timeout=timeout, **kwargs
+        )
+
+    async def flush(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        try:
+            await conn.flush([collection_name], timeout=timeout, **kwargs)
+            logger.debug("Successfully flushed collection: %s", collection_name)
+        except Exception as ex:
+            logger.error("Failed to flush collection: %s", collection_name)
+            raise ex from ex
+
+    async def compact(
+        self,
+        collection_name: str,
+        is_clustering: Optional[bool] = False,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        conn = self._get_connection()
+        try:
+            compaction_id = await conn.compact(
+                collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs
+            )
+            logger.debug("Successfully started compaction for collection: %s", collection_name)
+        except Exception as ex:
+            logger.error("Failed to compact collection: %s", collection_name)
+            raise ex from ex
+        else:
+            return compaction_id
+
+    async def get_compaction_state(
+        self, job_id: int, timeout: Optional[float] = None, **kwargs
+    ) -> str:
+        conn = self._get_connection()
+        try:
+            result = await conn.get_compaction_state(job_id, timeout=timeout, **kwargs)
+        except Exception as ex:
+            logger.error("Failed to get compaction state for job: %s", job_id)
+            raise ex from ex
+        else:
+            return result.state_name
+
+    async def run_analyzer(
+        self,
+        texts: Union[str, List[str]],
+        analyzer_params: Optional[Union[str, Dict]] = None,
+        with_hash: bool = False,
+        with_detail: bool = False,
+        collection_name: Optional[str] = None,
+        field_name: Optional[str] = None,
+        analyzer_names: Optional[Union[str, List[str]]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        try:
+            return await conn.run_analyzer(
+                texts,
+                analyzer_params=analyzer_params,
+                with_hash=with_hash,
+                with_detail=with_detail,
+                collection_name=collection_name,
+                field_name=field_name,
+                analyzer_names=analyzer_names,
+                timeout=timeout,
+                **kwargs,
+            )
+        except Exception as ex:
+            logger.error("Failed to run analyzer")
+            raise ex from ex

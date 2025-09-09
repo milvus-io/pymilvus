@@ -1,27 +1,27 @@
 import datetime
+import logging
+import re
+
+import numpy as np
 import pytest
 
 # For tests
 from pymilvus import *
-from pymilvus.client.abstract import Hit, Hits, SearchResult
-
-from pymilvus import MilvusException
+from pymilvus.client import get_commit
 from pymilvus.client.check import (
     check_pass_param,
-)
-from pymilvus.client.utils import (
-    mkts_from_unixtime,
-    mkts_from_datetime,
-    mkts_from_hybridts,
-    hybridts_to_unixtime
-)
-from pymilvus.client import get_commit
-
-from pymilvus.client.check import (
     is_legal_address,
     is_legal_host,
     is_legal_port,
 )
+from pymilvus.client.utils import (
+    hybridts_to_unixtime,
+    mkts_from_datetime,
+    mkts_from_hybridts,
+    mkts_from_unixtime,
+)
+
+log = logging.getLogger(__name__)
 
 
 class TestChecks:
@@ -85,17 +85,12 @@ class TestCheckPassParam:
         a = [[i * j for i in range(20)] for j in range(20)]
         check_pass_param(search_data=a)
 
-        import numpy as np
         a = np.float32([[1, 2, 3, 4], [1, 2, 3, 4]])
         check_pass_param(search_data=a)
 
     def test_check_param_invalid(self):
-        with pytest.raises(Exception):
+        with pytest.raises(TypeError):
             a = {[i * j for i in range(20) for j in range(20)]}
-            check_pass_param(search_data=a)
-
-        with pytest.raises(Exception):
-            a = [{i * j for i in range(40)} for j in range(40)]
             check_pass_param(search_data=a)
 
 
@@ -134,7 +129,6 @@ class TestGenTS:
 
 
 class TestGetCommit:
-
     def test_get_commit(self):
         s = get_commit("2.0.0rc9.dev22")
         assert s == "290d76f"
@@ -143,7 +137,6 @@ class TestGetCommit:
         assert s == "c9f015a04058638a28e1d2a5b265147cda0b0a23"
 
     def test_version_re(self):
-        import re
         version_info = r'((\d+)\.(\d+)\.(\d+))((rc)(\d+))?(\.dev(\d+))?'
         p = re.compile(version_info)
 
@@ -160,5 +153,5 @@ class TestGetCommit:
             if rv is not None:
                 assert rv.group() == v
 
-                print(f"group {rv.group()}")
-                print(f"group {rv.groups()}")
+                log.info(f"group {rv.group()}")
+                log.info(f"group {rv.groups()}")

@@ -140,13 +140,12 @@ def hybridts_to_datetime(hybridts: int, tz: Optional[timezone] = None):
         >>> ts = utility.mkts_from_unixtime(epoch_t)
         >>> d = utility.hybridts_to_datetime(ts)
     """
-    import datetime
 
-    if tz is not None and not isinstance(tz, datetime.timezone):
+    if tz is not None and not isinstance(tz, timezone):
         msg = "parameter tz should be type of datetime.timezone"
         raise MilvusException(message=msg)
     epoch = _hybridts_to_unixtime(hybridts)
-    return datetime.datetime.fromtimestamp(epoch, tz=tz)
+    return datetime.fromtimestamp(epoch, tz=tz)
 
 
 def hybridts_to_unixtime(hybridts: int):
