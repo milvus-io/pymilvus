@@ -89,7 +89,7 @@ def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field
 
 class CollectionSchema:
     def __init__(
-        self, fields: List, struct_fields: List, description: str = "", functions: Optional[List] = None, **kwargs
+        self, fields: List, struct_fields: Optional[List] = None, description: str = "", functions: Optional[List] = None, **kwargs
     ):
         self._kwargs = copy.deepcopy(kwargs)
         self._fields = []
@@ -118,10 +118,11 @@ class CollectionSchema:
                 raise FieldTypeException(message=ExceptionsMessage.FieldType)
         self._fields = [copy.deepcopy(field) for field in fields]
 
-        for struct in struct_fields:
-            if not isinstance(struct, StructFieldSchema):
-                raise FieldTypeException(message=ExceptionsMessage.FieldType)
-        self._struct_fields = [copy.deepcopy(struct) for struct in struct_fields]
+        if struct_fields is not None:
+            for struct in struct_fields:
+                if not isinstance(struct, StructFieldSchema):
+                    raise FieldTypeException(message=ExceptionsMessage.FieldType)
+            self._struct_fields = [copy.deepcopy(struct) for struct in struct_fields]
 
         self._mark_output_fields()
 

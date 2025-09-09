@@ -113,20 +113,6 @@ class SearchResult(list):
         self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
     ) -> Dict[str, Tuple[List[Any], schema_pb2.FieldData]]:
         field2data: Dict[str, Tuple[List[Any], schema_pb2.FieldData]] = {}
-        
-        # Debug: Print what fields we received
-        # print(f"DEBUG: Processing fields: {[f.field_name for f in all_fields_data]}")
-        # for field in all_fields_data:
-        #     print(f"DEBUG: Field {field.field_name}, type={field.type}, has_vectors={field.HasField('vectors')}")
-        #     if field.type == DataType.ARRAY_OF_STRUCT:
-        #         print(f"  Has struct_arrays: {hasattr(field, 'struct_arrays')}")
-        #         if hasattr(field, 'struct_arrays') and field.struct_arrays:
-        #             print(f"  struct_arrays.fields: {field.struct_arrays.fields}")
-        #             if field.struct_arrays.fields:
-        #                 for sf in field.struct_arrays.fields:
-        #                     print(f"    Sub-field: {sf.field_name}, type={sf.type}")
-        #                     if sf.type == DataType.FLOAT_VECTOR:
-        #                         print(f"      Vector dim: {sf.vectors.dim}, data len: {len(sf.vectors.float_vector.data)}")
 
         for field in all_fields_data:
             name, scalars, dtype = field.field_name, field.scalars, field.type

@@ -103,12 +103,6 @@ class EmbeddingList:
         if array.dtype == np.float64:
             # Default double precision to single precision for efficiency
             return np.dtype(np.float32)
-        elif array.dtype in [np.int16, np.int32, np.int64]:
-            # For integer types, check if they're meant to be int8 vectors
-            if array.min() >= -128 and array.max() <= 127:
-                return np.dtype(np.int8)
-            else:
-                return np.dtype(np.float32)  # Convert to float if out of int8 range
         else:
             return array.dtype
     
