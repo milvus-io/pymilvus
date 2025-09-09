@@ -87,6 +87,10 @@ class HybridHits(list):
                 DataType.JSON,
             ]:
                 self.lazy_field_data.append(field_data)
+            elif field_data.type == DataType.ARRAY_OF_STRUCT:
+                self.lazy_field_data.append(field_data)
+            elif field_data.type == DataType.ARRAY_OF_VECTOR:
+                self.lazy_field_data.append(field_data)
             else:
                 msg = f"Unsupported field type: {field_data.type}"
                 raise MilvusException(msg)
@@ -170,6 +174,82 @@ class HybridHits(list):
                                     }
                                 )
                         idx += 1
+                elif field_data.type == DataType.ARRAY_OF_STRUCT:
+                    # Process struct arrays
+                    idx = self.start
+                    struct_arrays = get_field_data(field_data)
+                    if struct_arrays and hasattr(struct_arrays, 'fields'):
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            row_struct = {}
+                            
+                            for sub_field in struct_arrays.fields:
+                                sub_field_name = sub_field.field_name
+                                
+                                # Handle Array type (like struct_str)
+                                if sub_field.type == DataType.ARRAY:
+                                    if idx < len(sub_field.scalars.array_data.data):
+                                        array_item = sub_field.scalars.array_data.data[idx]
+                                        if hasattr(array_item, 'string_data'):
+                                            row_struct[sub_field_name] = list(array_item.string_data.data)
+                                        else:
+                                            row_struct[sub_field_name] = []
+                                            
+                                # Handle ArrayOfVector type (like struct_float_vec, struct_float_vec2)
+                                elif sub_field.type == DataType.ARRAY_OF_VECTOR:
+                                    if hasattr(sub_field, 'vectors') and hasattr(sub_field.vectors, 'vector_array'):
+                                        vector_array = sub_field.vectors.vector_array
+                                        if idx < len(vector_array.data):
+                                            vector_data = vector_array.data[idx]
+                                            dim = vector_data.dim
+                                            float_data = vector_data.float_vector.data
+                                            num_vectors = len(float_data) // dim
+                                            row_vectors = []
+                                            for vec_idx in range(num_vectors):
+                                                vec_start = vec_idx * dim
+                                                vec_end = vec_start + dim
+                                                row_vectors.append(list(float_data[vec_start:vec_end]))
+                                            row_struct[sub_field_name] = row_vectors
+                                        else:
+                                            row_struct[sub_field_name] = []
+                                
+                                # Handle other types as needed
+                                elif sub_field.type == DataType.VARCHAR:
+                                    if idx < len(sub_field.scalars.string_data.data):
+                                        row_struct[sub_field_name] = sub_field.scalars.string_data.data[idx]
+                            
+                            item["entity"][field_name] = row_struct
+                            idx += 1
+                    else:
+                        # If no struct_arrays data, set to None
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = None
+                elif field_data.type == DataType.ARRAY_OF_VECTOR:
+                    # Process vector arrays
+                    idx = self.start
+                    if hasattr(field_data, 'vectors') and hasattr(field_data.vectors, 'vector_array'):
+                        vector_array = field_data.vectors.vector_array
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            if idx < len(vector_array.data):
+                                vector_data = vector_array.data[idx]
+                                dim = vector_data.dim
+                                float_data = vector_data.float_vector.data
+                                num_vectors = len(float_data) // dim
+                                row_vectors = []
+                                for vec_idx in range(num_vectors):
+                                    vec_start = vec_idx * dim
+                                    vec_end = vec_start + dim
+                                    row_vectors.append(list(float_data[vec_start:vec_end]))
+                                item["entity"][field_name] = row_vectors
+                            else:
+                                item["entity"][field_name] = []
+                            idx += 1
+                    else:
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = []
                 else:
                     msg = f"Unsupported field type: {field_data.type}"
                     raise MilvusException(msg)
@@ -535,6 +615,10 @@ def get_field_data(field_data: FieldData):
         return field_data.vectors.int8_vector
     if field_data.type == DataType.SPARSE_FLOAT_VECTOR:
         return field_data.vectors.sparse_float_vector
+    if field_data.type == DataType.ARRAY_OF_STRUCT:
+        return field_data.struct_arrays
+    if field_data.type == DataType.ARRAY_OF_VECTOR:
+        return field_data.vectors.vector_array
     msg = f"Unsupported field type: {field_data.type}"
     raise MilvusException(msg)
 
