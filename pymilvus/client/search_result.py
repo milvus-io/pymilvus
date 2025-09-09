@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import ujson
+import numpy as np
 
 from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import common_pb2, schema_pb2
@@ -112,6 +113,20 @@ class SearchResult(list):
         self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
     ) -> Dict[str, Tuple[List[Any], schema_pb2.FieldData]]:
         field2data: Dict[str, Tuple[List[Any], schema_pb2.FieldData]] = {}
+        
+        # Debug: Print what fields we received
+        # print(f"DEBUG: Processing fields: {[f.field_name for f in all_fields_data]}")
+        # for field in all_fields_data:
+        #     print(f"DEBUG: Field {field.field_name}, type={field.type}, has_vectors={field.HasField('vectors')}")
+        #     if field.type == DataType.ARRAY_OF_STRUCT:
+        #         print(f"  Has struct_arrays: {hasattr(field, 'struct_arrays')}")
+        #         if hasattr(field, 'struct_arrays') and field.struct_arrays:
+        #             print(f"  struct_arrays.fields: {field.struct_arrays.fields}")
+        #             if field.struct_arrays.fields:
+        #                 for sf in field.struct_arrays.fields:
+        #                     print(f"    Sub-field: {sf.field_name}, type={sf.type}")
+        #                     if sf.type == DataType.FLOAT_VECTOR:
+        #                         print(f"      Vector dim: {sf.vectors.dim}, data len: {len(sf.vectors.float_vector.data)}")
 
         for field in all_fields_data:
             name, scalars, dtype = field.field_name, field.scalars, field.type
@@ -191,6 +206,59 @@ class SearchResult(list):
                     extract_array_row_data(res, scalars.array_data.element_type),
                     field_meta,
                 )
+                continue
+
+            if dtype == DataType.ARRAY_OF_STRUCT:
+                # Handle struct array fields similar to how query handles them
+                struct_array_data = []
+                
+                # Check if this field has struct_arrays
+                if hasattr(field, 'struct_arrays') and field.struct_arrays:
+                    # Process each row in the range
+                    for row_idx in range(start, end):
+                        row_struct = {}
+                        
+                        for sub_field in field.struct_arrays.fields:
+                            sub_field_name = sub_field.field_name
+                            
+                            # Handle Array type (like struct_str)
+                            if sub_field.type == DataType.ARRAY:
+                                # Each row has an array of strings
+                                if row_idx < len(sub_field.scalars.array_data.data):
+                                    array_item = sub_field.scalars.array_data.data[row_idx]
+                                    if hasattr(array_item, 'string_data'):
+                                        row_struct[sub_field_name] = list(array_item.string_data.data)
+                                    else:
+                                        row_struct[sub_field_name] = []
+                                        
+                            # Handle ArrayOfVector type (like struct_float_vec, struct_float_vec2)
+                            elif sub_field.type == DataType.ARRAY_OF_VECTOR:
+                                # Each row has an array of vectors
+                                if hasattr(sub_field, 'vectors') and hasattr(sub_field.vectors, 'vector_array'):
+                                    vector_array = sub_field.vectors.vector_array
+                                    if row_idx < len(vector_array.data):
+                                        vector_data = vector_array.data[row_idx]
+                                        dim = vector_data.dim
+                                        # Extract all vectors for this row
+                                        float_data = vector_data.float_vector.data
+                                        num_vectors = len(float_data) // dim
+                                        row_vectors = []
+                                        for vec_idx in range(num_vectors):
+                                            vec_start = vec_idx * dim
+                                            vec_end = vec_start + dim
+                                            row_vectors.append(list(float_data[vec_start:vec_end]))
+                                        row_struct[sub_field_name] = row_vectors
+                                    else:
+                                        row_struct[sub_field_name] = []
+                            
+                            # Handle other types as needed
+                            elif sub_field.type == DataType.VARCHAR:
+                                if row_idx < len(sub_field.scalars.string_data.data):
+                                    row_struct[sub_field_name] = sub_field.scalars.string_data.data[row_idx]
+                        
+                        struct_array_data.append(row_struct)
+                
+                field2data[name] = (struct_array_data, field_meta)
                 continue
 
             # vectors
@@ -484,3 +552,41 @@ def apply_valid_data(
             if not valid:
                 data[i] = None
     return data
+
+
+def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> Any:
+    """Extract a single value from a struct field at the given index."""
+    if field_data.type == DataType.BOOL:
+        if index < len(field_data.scalars.bool_data.data):
+            return field_data.scalars.bool_data.data[index]
+    elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        if index < len(field_data.scalars.int_data.data):
+            return field_data.scalars.int_data.data[index]
+    elif field_data.type == DataType.INT64:
+        if index < len(field_data.scalars.long_data.data):
+            return field_data.scalars.long_data.data[index]
+    elif field_data.type == DataType.FLOAT:
+        if index < len(field_data.scalars.float_data.data):
+            return np.single(field_data.scalars.float_data.data[index])
+    elif field_data.type == DataType.DOUBLE:
+        if index < len(field_data.scalars.double_data.data):
+            return field_data.scalars.double_data.data[index]
+    elif field_data.type == DataType.VARCHAR:
+        if index < len(field_data.scalars.string_data.data):
+            return field_data.scalars.string_data.data[index]
+    elif field_data.type == DataType.JSON:
+        if index < len(field_data.scalars.json_data.data):
+            return ujson.loads(field_data.scalars.json_data.data[index])
+    elif field_data.type == DataType.FLOAT_VECTOR:
+        dim = field_data.vectors.dim
+        start_idx = index * dim
+        end_idx = start_idx + dim
+        if end_idx <= len(field_data.vectors.float_vector.data):
+            return field_data.vectors.float_vector.data[start_idx:end_idx]
+    elif field_data.type == DataType.BINARY_VECTOR:
+        dim = field_data.vectors.dim // 8
+        start_idx = index * dim
+        end_idx = start_idx + dim
+        if end_idx <= len(field_data.vectors.binary_vector):
+            return field_data.vectors.binary_vector[start_idx:end_idx]
+    return None

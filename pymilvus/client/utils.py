@@ -204,9 +204,14 @@ def len_of(field_data: Any) -> int:
         if field_data.vectors.HasField("int8_vector"):
             total_len = len(field_data.vectors.int8_vector)
             return int(total_len / dim)
+        if field_data.vectors.HasField("vector_array"):
+            return len(field_data.vectors.vector_array.data)
 
         total_len = len(field_data.vectors.binary_vector)
         return int(total_len / (dim / 8))
+
+    if field_data.HasField("struct_arrays"):
+        return len_of(field_data.struct_arrays.fields[0])
 
     raise MilvusException(message="Unknown data type")
 

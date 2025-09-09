@@ -236,6 +236,36 @@ def convert_to_array(obj: List[Any], field_info: Any):
         message=f"Unsupported element type: {element_type} for Array field: {field_info.get('name')}"
     )
 
+def convert_to_array_of_vector(obj: List[Any], field_info: Any):
+    # Create a single VectorField that contains all vectors flattened
+    field_data = schema_types.VectorField()
+    element_type = field_info.get("element_type", None)
+    
+    if element_type == DataType.FLOAT_VECTOR:
+        dim_value = field_info.get("params", {}).get("dim", 0)
+        # Convert string to int if necessary
+        if isinstance(dim_value, str):
+            dim_value = int(dim_value)
+        
+        # Set dim - this is the dimension of each individual vector
+        field_data.dim = dim_value
+        
+        # Flatten all vectors into a single data array
+        for field_value in obj:
+            f_value = field_value
+            if isinstance(field_value, np.ndarray):
+                if field_value.dtype not in ("float32", "float64"):
+                    raise ParamError(
+                        message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
+                    )
+                f_value = field_value.tolist()
+            field_data.float_vector.data.extend(f_value)
+        
+        return field_data
+        
+    raise ParamError(
+        message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
+    )
 
 def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
@@ -568,6 +598,13 @@ def extract_array_row_data(field_data: Any, index: int):
         return row
     return row
 
+def extract_vector_array_row_data(field_data: Any, index: int):
+    array = field_data.vectors.vector_array.data[index]
+    if field_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR:
+        return list(np.array(array.float_vector.data, dtype=np.float32))
+
+    # unimplemented
+    raise ParamError(message="unimplemented type")
 
 # pylint: disable=R1702 (too-many-nested-blocks)
 # pylint: disable=R0915 (too-many-statements)
@@ -582,83 +619,83 @@ def extract_row_data_from_fields_data(
     entity_row_data = {}
     dynamic_fields = dynamic_output_fields or set()
 
-    def check_append(field_data: Any):
+    def check_append(field_data: Any, row_data: Dict):
         if field_data.type == DataType.STRING:
             raise MilvusException(message="Not support string yet")
 
-        if field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
+        elif field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
             return
 
-        if (
+        elif (
             field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32)
             and len(field_data.scalars.int_data.data) >= index
         ):
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
             return
 
-        if field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
+        elif field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
             return
 
-        if field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
+        elif field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = np.single(
+            row_data[field_data.field_name] = np.single(
                 field_data.scalars.float_data.data[index]
             )
             return
 
-        if field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
+        elif field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
             return
 
-        if (
+        elif (
             field_data.type == DataType.VARCHAR
             and len(field_data.scalars.string_data.data) >= index
         ):
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
             return
 
-        if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
+        elif field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
             json_dict = ujson.loads(field_data.scalars.json_data.data[index])
 
             if not field_data.is_dynamic:
-                entity_row_data[field_data.field_name] = json_dict
+                row_data[field_data.field_name] = json_dict
                 return
 
             if not dynamic_fields:
-                entity_row_data.update(json_dict)
+                row_data.update(json_dict)
                 return
 
-            entity_row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
+            row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
             return
-        if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
+        elif field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = extract_array_row_data(field_data, index)
+            row_data[field_data.field_name] = extract_array_row_data(field_data, index)
 
-        if field_data.type == DataType.FLOAT_VECTOR:
+        elif field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float_vector.data) >= index * dim:
                 start_pos, end_pos = index * dim, (index + 1) * dim
@@ -668,41 +705,47 @@ def extract_row_data_from_fields_data(
                 arr = np.array(
                     field_data.vectors.float_vector.data[start_pos:end_pos], dtype=np.float32
                 )
-                entity_row_data[field_data.field_name] = list(arr)
+                row_data[field_data.field_name] = list(arr)
         elif field_data.type == DataType.BINARY_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.binary_vector) >= index * (dim // 8):
                 start_pos, end_pos = index * (dim // 8), (index + 1) * (dim // 8)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.binary_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.BFLOAT16_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.bfloat16_vector) >= index * (dim * 2):
                 start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.bfloat16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.FLOAT16_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float16_vector) >= index * (dim * 2):
                 start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.float16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-            entity_row_data[field_data.field_name] = sparse_parse_single_row(
+            row_data[field_data.field_name] = sparse_parse_single_row(
                 field_data.vectors.sparse_float_vector.contents[index]
             )
         elif field_data.type == DataType.INT8_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.int8_vector) >= index * dim:
                 start_pos, end_pos = index * dim, (index + 1) * dim
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.int8_vector[start_pos:end_pos]
                 ]
+        elif field_data.type == DataType.ARRAY_OF_VECTOR and len(field_data.vectors.vector_array.data) >= index:
+            row_data[field_data.field_name] = extract_vector_array_row_data(field_data, index)
+        elif field_data.type == DataType.ARRAY_OF_STRUCT:
+            row_data[field_data.field_name] = {}
+            for sub_field_data in field_data.struct_arrays.fields:
+                check_append(sub_field_data, row_data[field_data.field_name])
 
     for field_data in fields_data:
-        check_append(field_data)
+        check_append(field_data, entity_row_data)
 
     return entity_row_data

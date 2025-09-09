@@ -400,6 +400,7 @@ class AsyncGrpcHandler:
             schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
 
         return Prepare.row_insert_param(
@@ -407,6 +408,7 @@ class AsyncGrpcHandler:
             entity_rows,
             partition_name,
             fields_info,
+            struct_fields_info,
             enable_dynamic=enable_dynamic,
         )
 

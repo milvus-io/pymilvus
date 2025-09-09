@@ -111,6 +111,10 @@ class DataType(IntEnum):
     SPARSE_FLOAT_VECTOR = schema_pb2.SparseFloatVector
     INT8_VECTOR = schema_pb2.Int8Vector
 
+    ARRAY_OF_STRUCT = schema_pb2.ArrayOfStruct
+    ARRAY_OF_VECTOR = schema_pb2.ArrayOfVector
+    STRUCT = schema_pb2.Struct
+
     UNKNOWN = 999
 
     def __str__(self) -> str:
@@ -191,6 +195,13 @@ class PlaceholderType(IntEnum):
     SparseFloatVector = 104
     Int8Vector = 105
     VARCHAR = 21
+
+    EmbListBinaryVector = 300
+    EmbListFloatVector = 301
+    EmbListFloat16Vector = 302
+    EmbListBFloat16Vector = 303
+    EmbListSparseFloatVector = 304
+    EmbListInt8Vector = 305
 
 
 class State(IntEnum):

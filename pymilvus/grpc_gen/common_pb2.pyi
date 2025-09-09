@@ -112,6 +112,12 @@ class PlaceholderType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Int8Vector: _ClassVar[PlaceholderType]
     Int64: _ClassVar[PlaceholderType]
     VarChar: _ClassVar[PlaceholderType]
+    EmbListBinaryVector: _ClassVar[PlaceholderType]
+    EmbListFloatVector: _ClassVar[PlaceholderType]
+    EmbListFloat16Vector: _ClassVar[PlaceholderType]
+    EmbListBFloat16Vector: _ClassVar[PlaceholderType]
+    EmbListSparseFloatVector: _ClassVar[PlaceholderType]
+    EmbListInt8Vector: _ClassVar[PlaceholderType]
 
 class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -342,6 +348,9 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeGetImportProgress: _ClassVar[ObjectPrivilege]
     PrivilegeListImport: _ClassVar[ObjectPrivilege]
     PrivilegeAddCollectionField: _ClassVar[ObjectPrivilege]
+    PrivilegeAddFileResource: _ClassVar[ObjectPrivilege]
+    PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
+    PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -362,6 +371,19 @@ class LoadPriority(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     HIGH: _ClassVar[LoadPriority]
     LOW: _ClassVar[LoadPriority]
+
+class FileResourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ANALYZER_DICTIONARY: _ClassVar[FileResourceType]
+
+class WALName(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Unknown: _ClassVar[WALName]
+    RocksMQ: _ClassVar[WALName]
+    Pulsar: _ClassVar[WALName]
+    Kafka: _ClassVar[WALName]
+    WoodPecker: _ClassVar[WALName]
+    Test: _ClassVar[WALName]
 Success: ErrorCode
 UnexpectedError: ErrorCode
 ConnectFailed: ErrorCode
@@ -453,6 +475,12 @@ SparseFloatVector: PlaceholderType
 Int8Vector: PlaceholderType
 Int64: PlaceholderType
 VarChar: PlaceholderType
+EmbListBinaryVector: PlaceholderType
+EmbListFloatVector: PlaceholderType
+EmbListFloat16Vector: PlaceholderType
+EmbListBFloat16Vector: PlaceholderType
+EmbListSparseFloatVector: PlaceholderType
+EmbListInt8Vector: PlaceholderType
 Undefined: MsgType
 CreateCollection: MsgType
 DropCollection: MsgType
@@ -662,6 +690,9 @@ PrivilegeGroupCollectionAdmin: ObjectPrivilege
 PrivilegeGetImportProgress: ObjectPrivilege
 PrivilegeListImport: ObjectPrivilege
 PrivilegeAddCollectionField: ObjectPrivilege
+PrivilegeAddFileResource: ObjectPrivilege
+PrivilegeRemoveFileResource: ObjectPrivilege
+PrivilegeListFileResources: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -673,6 +704,13 @@ LoadStateLoading: LoadState
 LoadStateLoaded: LoadState
 HIGH: LoadPriority
 LOW: LoadPriority
+ANALYZER_DICTIONARY: FileResourceType
+Unknown: WALName
+RocksMQ: WALName
+Pulsar: WALName
+Kafka: WALName
+WoodPecker: WALName
+Test: WALName
 PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
@@ -869,3 +907,74 @@ class NodeInfo(_message.Message):
     address: str
     hostname: str
     def __init__(self, node_id: _Optional[int] = ..., address: _Optional[str] = ..., hostname: _Optional[str] = ...) -> None: ...
+
+class ReplicateConfiguration(_message.Message):
+    __slots__ = ("clusters", "cross_cluster_topology")
+    CLUSTERS_FIELD_NUMBER: _ClassVar[int]
+    CROSS_CLUSTER_TOPOLOGY_FIELD_NUMBER: _ClassVar[int]
+    clusters: _containers.RepeatedCompositeFieldContainer[MilvusCluster]
+    cross_cluster_topology: _containers.RepeatedCompositeFieldContainer[CrossClusterTopology]
+    def __init__(self, clusters: _Optional[_Iterable[_Union[MilvusCluster, _Mapping]]] = ..., cross_cluster_topology: _Optional[_Iterable[_Union[CrossClusterTopology, _Mapping]]] = ...) -> None: ...
+
+class ConnectionParam(_message.Message):
+    __slots__ = ("uri", "token")
+    URI_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_FIELD_NUMBER: _ClassVar[int]
+    uri: str
+    token: str
+    def __init__(self, uri: _Optional[str] = ..., token: _Optional[str] = ...) -> None: ...
+
+class MilvusCluster(_message.Message):
+    __slots__ = ("cluster_id", "connection_param", "pchannels")
+    CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    CONNECTION_PARAM_FIELD_NUMBER: _ClassVar[int]
+    PCHANNELS_FIELD_NUMBER: _ClassVar[int]
+    cluster_id: str
+    connection_param: ConnectionParam
+    pchannels: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, cluster_id: _Optional[str] = ..., connection_param: _Optional[_Union[ConnectionParam, _Mapping]] = ..., pchannels: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class CrossClusterTopology(_message.Message):
+    __slots__ = ("source_cluster_id", "target_cluster_id")
+    SOURCE_CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    source_cluster_id: str
+    target_cluster_id: str
+    def __init__(self, source_cluster_id: _Optional[str] = ..., target_cluster_id: _Optional[str] = ...) -> None: ...
+
+class MessageID(_message.Message):
+    __slots__ = ("id", "WAL_name")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    WAL_NAME_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    WAL_name: WALName
+    def __init__(self, id: _Optional[str] = ..., WAL_name: _Optional[_Union[WALName, str]] = ...) -> None: ...
+
+class ImmutableMessage(_message.Message):
+    __slots__ = ("id", "payload", "properties")
+    class PropertiesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    ID_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    PROPERTIES_FIELD_NUMBER: _ClassVar[int]
+    id: MessageID
+    payload: bytes
+    properties: _containers.ScalarMap[str, str]
+    def __init__(self, id: _Optional[_Union[MessageID, _Mapping]] = ..., payload: _Optional[bytes] = ..., properties: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
+class ReplicateCheckpoint(_message.Message):
+    __slots__ = ("cluster_id", "pchannel", "message_id", "time_tick")
+    CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    PCHANNEL_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    TIME_TICK_FIELD_NUMBER: _ClassVar[int]
+    cluster_id: str
+    pchannel: str
+    message_id: MessageID
+    time_tick: int
+    def __init__(self, cluster_id: _Optional[str] = ..., pchannel: _Optional[str] = ..., message_id: _Optional[_Union[MessageID, _Mapping]] = ..., time_tick: _Optional[int] = ...) -> None: ...
