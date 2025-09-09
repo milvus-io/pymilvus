@@ -792,6 +792,10 @@ def extract_row_data_from_fields_data_v2(
         DataType.INT8_VECTOR,
     ):
         return True
+    if field_data.type == DataType.ARRAY_OF_STRUCT:
+        return True
+    if field_data.type == DataType.ARRAY_OF_VECTOR:
+        return True
     if field_data.type == DataType.STRING:
         raise MilvusException(message="Not support string yet")
     return False

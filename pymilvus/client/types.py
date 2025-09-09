@@ -1151,6 +1151,66 @@ class HybridExtraList(list):
                 row_data[field_data.field_name] = [
                     field_data.vectors.int8_vector[start_pos:end_pos]
                 ]
+        elif field_data.type == DataType.ARRAY_OF_VECTOR:
+            # Handle array of vectors
+            if hasattr(field_data, 'vectors') and hasattr(field_data.vectors, 'vector_array'):
+                if index < len(field_data.vectors.vector_array.data):
+                    vector_data = field_data.vectors.vector_array.data[index]
+                    dim = vector_data.dim
+                    float_data = vector_data.float_vector.data
+                    num_vectors = len(float_data) // dim
+                    row_vectors = []
+                    for vec_idx in range(num_vectors):
+                        vec_start = vec_idx * dim
+                        vec_end = vec_start + dim
+                        row_vectors.append(list(float_data[vec_start:vec_end]))
+                    row_data[field_data.field_name] = row_vectors
+                else:
+                    row_data[field_data.field_name] = []
+            else:
+                row_data[field_data.field_name] = []
+        elif field_data.type == DataType.ARRAY_OF_STRUCT:
+            # Handle struct arrays
+            if hasattr(field_data, 'struct_arrays') and field_data.struct_arrays:
+                row_struct = {}
+                for sub_field in field_data.struct_arrays.fields:
+                    sub_field_name = sub_field.field_name
+                    
+                    # Handle Array type (like struct_str)
+                    if sub_field.type == DataType.ARRAY:
+                        if index < len(sub_field.scalars.array_data.data):
+                            array_item = sub_field.scalars.array_data.data[index]
+                            if hasattr(array_item, 'string_data'):
+                                row_struct[sub_field_name] = list(array_item.string_data.data)
+                            else:
+                                row_struct[sub_field_name] = []
+                                
+                    # Handle ArrayOfVector type (like struct_float_vec, struct_float_vec2)
+                    elif sub_field.type == DataType.ARRAY_OF_VECTOR:
+                        if hasattr(sub_field, 'vectors') and hasattr(sub_field.vectors, 'vector_array'):
+                            vector_array = sub_field.vectors.vector_array
+                            if index < len(vector_array.data):
+                                vector_data = vector_array.data[index]
+                                dim = vector_data.dim
+                                float_data = vector_data.float_vector.data
+                                num_vectors = len(float_data) // dim
+                                row_vectors = []
+                                for vec_idx in range(num_vectors):
+                                    vec_start = vec_idx * dim
+                                    vec_end = vec_start + dim
+                                    row_vectors.append(list(float_data[vec_start:vec_end]))
+                                row_struct[sub_field_name] = row_vectors
+                            else:
+                                row_struct[sub_field_name] = []
+                    
+                    # Handle other types as needed
+                    elif sub_field.type == DataType.VARCHAR:
+                        if index < len(sub_field.scalars.string_data.data):
+                            row_struct[sub_field_name] = sub_field.scalars.string_data.data[index]
+                
+                row_data[field_data.field_name] = row_struct
+            else:
+                row_data[field_data.field_name] = None
 
     def __getitem__(self, index: Union[int, slice]):
         if isinstance(index, slice):
