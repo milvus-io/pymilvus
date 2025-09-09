@@ -175,7 +175,7 @@ class EmbeddingList:
     
     @classmethod
     def from_random_test(cls, num_vectors: int, dim: int, 
-                        dtype: Optional[Union[np.dtype, str, DataType]] = np.float32,
+                        dtype: Optional[Union[np.dtype, str, DataType]] = np.dtype(np.float32),
                         seed: Optional[int] = None) -> 'EmbeddingList':
         """
         Create an EmbeddingList with random vectors for testing purposes.
