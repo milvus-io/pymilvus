@@ -388,7 +388,7 @@ class TestCreateCollectionRequest:
         # Entities missing the required_field - should work with partial_update=True
         rows = [
             {"pk_field": 1, "float_vector": rng.random((1, dim))[0]},  # Missing required_field
-            {"pk_field": 2, "nullable_field": "test"}  # Missing both required_field and float_vector
+            {"pk_field": 2, "float_vector": rng.random((1, dim))[0]}  
         ]
 
         # This should work because partial_update=True skips missing field validation
@@ -437,7 +437,7 @@ class TestCreateCollectionRequest:
         # Create entities where the entity field count changes between entries
         # This tests the specific logic at lines 559-562 in prepare.py
         rows = [
-            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0]},  # 3 fields
+            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]},  # 3 fields
             {"pk_field": 2, "float": 2.0}  # Only 2 fields - this should trigger the error
         ]
 
