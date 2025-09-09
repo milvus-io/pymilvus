@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import ujson
+import numpy as np
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
@@ -86,6 +87,10 @@ class HybridHits(list):
                 DataType.JSON,
             ]:
                 self.lazy_field_data.append(field_data)
+            elif field_data.type == DataType.ARRAY_OF_STRUCT:
+                self.lazy_field_data.append(field_data)
+            elif field_data.type == DataType.ARRAY_OF_VECTOR:
+                self.lazy_field_data.append(field_data)
             else:
                 msg = f"Unsupported field type: {field_data.type}"
                 raise MilvusException(msg)
@@ -169,6 +174,82 @@ class HybridHits(list):
                                     }
                                 )
                         idx += 1
+                elif field_data.type == DataType.ARRAY_OF_STRUCT:
+                    # Process struct arrays
+                    idx = self.start
+                    struct_arrays = get_field_data(field_data)
+                    if struct_arrays and hasattr(struct_arrays, 'fields'):
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            row_struct = {}
+                            
+                            for sub_field in struct_arrays.fields:
+                                sub_field_name = sub_field.field_name
+                                
+                                # Handle Array type (like struct_str)
+                                if sub_field.type == DataType.ARRAY:
+                                    if idx < len(sub_field.scalars.array_data.data):
+                                        array_item = sub_field.scalars.array_data.data[idx]
+                                        if hasattr(array_item, 'string_data'):
+                                            row_struct[sub_field_name] = list(array_item.string_data.data)
+                                        else:
+                                            row_struct[sub_field_name] = []
+                                            
+                                # Handle ArrayOfVector type (like struct_float_vec, struct_float_vec2)
+                                elif sub_field.type == DataType.ARRAY_OF_VECTOR:
+                                    if hasattr(sub_field, 'vectors') and hasattr(sub_field.vectors, 'vector_array'):
+                                        vector_array = sub_field.vectors.vector_array
+                                        if idx < len(vector_array.data):
+                                            vector_data = vector_array.data[idx]
+                                            dim = vector_data.dim
+                                            float_data = vector_data.float_vector.data
+                                            num_vectors = len(float_data) // dim
+                                            row_vectors = []
+                                            for vec_idx in range(num_vectors):
+                                                vec_start = vec_idx * dim
+                                                vec_end = vec_start + dim
+                                                row_vectors.append(list(float_data[vec_start:vec_end]))
+                                            row_struct[sub_field_name] = row_vectors
+                                        else:
+                                            row_struct[sub_field_name] = []
+                                
+                                # Handle other types as needed
+                                elif sub_field.type == DataType.VARCHAR:
+                                    if idx < len(sub_field.scalars.string_data.data):
+                                        row_struct[sub_field_name] = sub_field.scalars.string_data.data[idx]
+                            
+                            item["entity"][field_name] = row_struct
+                            idx += 1
+                    else:
+                        # If no struct_arrays data, set to None
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = None
+                elif field_data.type == DataType.ARRAY_OF_VECTOR:
+                    # Process vector arrays
+                    idx = self.start
+                    if hasattr(field_data, 'vectors') and hasattr(field_data.vectors, 'vector_array'):
+                        vector_array = field_data.vectors.vector_array
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            if idx < len(vector_array.data):
+                                vector_data = vector_array.data[idx]
+                                dim = vector_data.dim
+                                float_data = vector_data.float_vector.data
+                                num_vectors = len(float_data) // dim
+                                row_vectors = []
+                                for vec_idx in range(num_vectors):
+                                    vec_start = vec_idx * dim
+                                    vec_end = vec_start + dim
+                                    row_vectors.append(list(float_data[vec_start:vec_end]))
+                                item["entity"][field_name] = row_vectors
+                            else:
+                                item["entity"][field_name] = []
+                            idx += 1
+                    else:
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = []
                 else:
                     msg = f"Unsupported field type: {field_data.type}"
                     raise MilvusException(msg)
@@ -387,6 +468,59 @@ class SearchResult(list):
                 )
                 continue
 
+            if dtype == DataType.ARRAY_OF_STRUCT:
+                # Handle struct array fields similar to how query handles them
+                struct_array_data = []
+                
+                # Check if this field has struct_arrays
+                if hasattr(field, 'struct_arrays') and field.struct_arrays:
+                    # Process each row in the range
+                    for row_idx in range(start, end):
+                        row_struct = {}
+                        
+                        for sub_field in field.struct_arrays.fields:
+                            sub_field_name = sub_field.field_name
+                            
+                            # Handle Array type (like struct_str)
+                            if sub_field.type == DataType.ARRAY:
+                                # Each row has an array of strings
+                                if row_idx < len(sub_field.scalars.array_data.data):
+                                    array_item = sub_field.scalars.array_data.data[row_idx]
+                                    if hasattr(array_item, 'string_data'):
+                                        row_struct[sub_field_name] = list(array_item.string_data.data)
+                                    else:
+                                        row_struct[sub_field_name] = []
+                                        
+                            # Handle ArrayOfVector type (like struct_float_vec, struct_float_vec2)
+                            elif sub_field.type == DataType.ARRAY_OF_VECTOR:
+                                # Each row has an array of vectors
+                                if hasattr(sub_field, 'vectors') and hasattr(sub_field.vectors, 'vector_array'):
+                                    vector_array = sub_field.vectors.vector_array
+                                    if row_idx < len(vector_array.data):
+                                        vector_data = vector_array.data[row_idx]
+                                        dim = vector_data.dim
+                                        # Extract all vectors for this row
+                                        float_data = vector_data.float_vector.data
+                                        num_vectors = len(float_data) // dim
+                                        row_vectors = []
+                                        for vec_idx in range(num_vectors):
+                                            vec_start = vec_idx * dim
+                                            vec_end = vec_start + dim
+                                            row_vectors.append(list(float_data[vec_start:vec_end]))
+                                        row_struct[sub_field_name] = row_vectors
+                                    else:
+                                        row_struct[sub_field_name] = []
+                            
+                            # Handle other types as needed
+                            elif sub_field.type == DataType.VARCHAR:
+                                if row_idx < len(sub_field.scalars.string_data.data):
+                                    row_struct[sub_field_name] = sub_field.scalars.string_data.data[row_idx]
+                        
+                        struct_array_data.append(row_struct)
+                
+                field2data[name] = (struct_array_data, field_meta)
+                continue
+
             # vectors
             dim, vectors = field.vectors.dim, field.vectors
             field_meta.vectors.dim = dim
@@ -481,6 +615,10 @@ def get_field_data(field_data: FieldData):
         return field_data.vectors.int8_vector
     if field_data.type == DataType.SPARSE_FLOAT_VECTOR:
         return field_data.vectors.sparse_float_vector
+    if field_data.type == DataType.ARRAY_OF_STRUCT:
+        return field_data.struct_arrays
+    if field_data.type == DataType.ARRAY_OF_VECTOR:
+        return field_data.vectors.vector_array
     msg = f"Unsupported field type: {field_data.type}"
     raise MilvusException(msg)
 
@@ -713,3 +851,41 @@ def apply_valid_data(
             if not valid:
                 data[i] = None
     return data
+
+
+def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> Any:
+    """Extract a single value from a struct field at the given index."""
+    if field_data.type == DataType.BOOL:
+        if index < len(field_data.scalars.bool_data.data):
+            return field_data.scalars.bool_data.data[index]
+    elif field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+        if index < len(field_data.scalars.int_data.data):
+            return field_data.scalars.int_data.data[index]
+    elif field_data.type == DataType.INT64:
+        if index < len(field_data.scalars.long_data.data):
+            return field_data.scalars.long_data.data[index]
+    elif field_data.type == DataType.FLOAT:
+        if index < len(field_data.scalars.float_data.data):
+            return np.single(field_data.scalars.float_data.data[index])
+    elif field_data.type == DataType.DOUBLE:
+        if index < len(field_data.scalars.double_data.data):
+            return field_data.scalars.double_data.data[index]
+    elif field_data.type == DataType.VARCHAR:
+        if index < len(field_data.scalars.string_data.data):
+            return field_data.scalars.string_data.data[index]
+    elif field_data.type == DataType.JSON:
+        if index < len(field_data.scalars.json_data.data):
+            return ujson.loads(field_data.scalars.json_data.data[index])
+    elif field_data.type == DataType.FLOAT_VECTOR:
+        dim = field_data.vectors.dim
+        start_idx = index * dim
+        end_idx = start_idx + dim
+        if end_idx <= len(field_data.vectors.float_vector.data):
+            return field_data.vectors.float_vector.data[start_idx:end_idx]
+    elif field_data.type == DataType.BINARY_VECTOR:
+        dim = field_data.vectors.dim // 8
+        start_idx = index * dim
+        end_idx = start_idx + dim
+        if end_idx <= len(field_data.vectors.binary_vector):
+            return field_data.vectors.binary_vector[start_idx:end_idx]
+    return None

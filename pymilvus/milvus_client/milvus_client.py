@@ -21,7 +21,7 @@ from pymilvus.exceptions import (
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
-from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function
+from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function, StructFieldSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
@@ -388,7 +388,9 @@ class MilvusClient:
         at init or data needs to have been inserted.
 
         Args:
-            data (Union[List[list], list]): The vector/vectors to search.
+            data (Union[List[list], list, List[EmbeddingList]]): The vector/vectors to search.
+                Can be a list of vectors, a single vector, or a list of EmbeddingList objects
+                for array-of-vector searches.
             limit (int, optional): How many results to return per search. Defaults to 10.
             filter(str, optional): A filter to use for the search. Defaults to None.
             output_fields (List[str], optional): List of which field values to return. If None
@@ -405,6 +407,14 @@ class MilvusClient:
             List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
                 not included in the result data.
         """
+        # Import here to avoid circular dependency
+        from ..client.embedding_list import EmbeddingList
+        
+        # Convert EmbeddingList objects to flat arrays if present
+        if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
+            data = [emb_list.to_flat_array() for emb_list in data]
+            kwargs["is_embedding_list"] = True
+        
         conn = self._get_connection()
         try:
             res = conn.search(
@@ -874,7 +884,12 @@ class MilvusClient:
     @classmethod
     def create_schema(cls, **kwargs):
         kwargs["check_fields"] = False  # do not check fields for now
-        return CollectionSchema([], **kwargs)
+        return CollectionSchema([], [], **kwargs)
+    
+    @classmethod
+    def create_struct_field_schema(cls, **kwargs) -> StructFieldSchema:
+        kwargs["check_fields"] = False  # do not check fields for now
+        return StructFieldSchema("", [], **kwargs)
 
     @classmethod
     def create_field_schema(
