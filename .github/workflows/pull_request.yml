@@ -1,6 +1,9 @@
 name: Test on pull request
 
 on:
+  push:
+    branches:
+      - 2.6
   pull_request:
     branches:
       - 2.6
