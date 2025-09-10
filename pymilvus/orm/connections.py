@@ -378,9 +378,15 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 )
 
             # ruff: noqa: PLC0415
-            from milvus_lite.server_manager import (
-                server_manager_instance,
-            )
+            try:
+                from milvus_lite.server_manager import (
+                    server_manager_instance,
+                )
+            except ImportError as e:
+                raise ConnectionConfigException(
+                    message="milvus-lite is required for local database connections. "
+                    "Please install it with: pip install pymilvus[milvus_lite]"
+                ) from e
 
             local_uri = server_manager_instance.start_and_get_uri(kwargs["uri"])
             if local_uri is None:
