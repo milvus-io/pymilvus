@@ -2410,3 +2410,32 @@ class GrpcHandler:
         if isinstance(texts, str):
             return AnalyzeResult(resp.results[0], with_hash, with_detail)
         return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
+
+    @retry_on_rpc_failure()
+    def update_replicate_configuration(
+        self,
+        replicate_configuration: common_pb2.ReplicateConfiguration,
+        timeout: Optional[float] = None,
+        **kwargs
+    ):
+        """
+        Update replication configuration across Milvus clusters.
+
+        Args:
+            replicate_configuration: The replication configuration to apply
+            timeout: An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            Status: The status of the operation
+        """
+        request = milvus_types.UpdateReplicateConfigurationRequest(
+            replicate_configuration=replicate_configuration
+        )
+
+        status = self._stub.UpdateReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+        return status
+
