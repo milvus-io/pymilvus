@@ -571,6 +571,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ListRowPoliciesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListRowPoliciesResponse.FromString,
                 _registered_method=True)
+        self.UpdateReplicateConfiguration = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/UpdateReplicateConfiguration',
+                request_serializer=milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.GetReplicateInfo = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetReplicateInfo',
+                request_serializer=milvus__pb2.GetReplicateInfoRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetReplicateInfoResponse.FromString,
+                _registered_method=True)
+        self.CreateReplicateStream = channel.stream_stream(
+                '/milvus.proto.milvus.MilvusService/CreateReplicateStream',
+                request_serializer=milvus__pb2.ReplicateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ReplicateResponse.FromString,
+                _registered_method=True)
 
 
 class MilvusServiceServicer(object):
@@ -1118,7 +1133,8 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ReplicateMessage(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """Deprecated CDC API
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -1222,6 +1238,45 @@ class MilvusServiceServicer(object):
 
     def ListRowPolicies(self, request, context):
         """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateReplicateConfiguration(self, request, context):
+        """CDC v2 APIs
+        UpdateReplicateConfiguration applies a full replacement of the current
+        replication configuration across Milvus clusters.
+
+        Semantics:
+        - The provided ReplicateConfiguration completely replaces any existing
+        configuration persisted in the metadata store.
+        - Passing an empty ReplicateConfiguration is treated as a "clear"
+        operation, effectively removing all replication configuration.
+        - The RPC is expected to be idempotent: submitting the same configuration
+        multiple times must not cause side effects.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetReplicateInfo(self, request, context):
+        """
+        GetReplicateInfo retrieves replication-related metadata from a target Milvus cluster.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateReplicateStream(self, request_iterator, context):
+        """
+        CreateReplicateStream establishes a replication stream on the target Milvus cluster.
+
+        Semantics:
+        - Sets up a continuous data stream that receives replicated messages
+        (DDL, insert, delete, etc.) from the source cluster via CDC.
+        - Once established, the target cluster persists incoming messages into
+        its WAL (Write-Ahead Log) ensuring durability and consistency.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -1763,6 +1818,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ListRowPolicies,
                     request_deserializer=milvus__pb2.ListRowPoliciesRequest.FromString,
                     response_serializer=milvus__pb2.ListRowPoliciesResponse.SerializeToString,
+            ),
+            'UpdateReplicateConfiguration': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateReplicateConfiguration,
+                    request_deserializer=milvus__pb2.UpdateReplicateConfigurationRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'GetReplicateInfo': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReplicateInfo,
+                    request_deserializer=milvus__pb2.GetReplicateInfoRequest.FromString,
+                    response_serializer=milvus__pb2.GetReplicateInfoResponse.SerializeToString,
+            ),
+            'CreateReplicateStream': grpc.stream_stream_rpc_method_handler(
+                    servicer.CreateReplicateStream,
+                    request_deserializer=milvus__pb2.ReplicateRequest.FromString,
+                    response_serializer=milvus__pb2.ReplicateResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -4654,6 +4724,87 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ListRowPolicies',
             milvus__pb2.ListRowPoliciesRequest.SerializeToString,
             milvus__pb2.ListRowPoliciesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateReplicateConfiguration(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/UpdateReplicateConfiguration',
+            milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReplicateInfo(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetReplicateInfo',
+            milvus__pb2.GetReplicateInfoRequest.SerializeToString,
+            milvus__pb2.GetReplicateInfoResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateReplicateStream(request_iterator,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.stream_stream(
+            request_iterator,
+            target,
+            '/milvus.proto.milvus.MilvusService/CreateReplicateStream',
+            milvus__pb2.ReplicateRequest.SerializeToString,
+            milvus__pb2.ReplicateResponse.FromString,
             options,
             channel_credentials,
             insecure,
