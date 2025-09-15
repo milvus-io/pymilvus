@@ -2416,7 +2416,7 @@ class GrpcHandler:
         self,
         replicate_configuration: common_pb2.ReplicateConfiguration,
         timeout: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ):
         """
         Update replication configuration across Milvus clusters.
@@ -2438,4 +2438,3 @@ class GrpcHandler:
         )
         check_status(status)
         return status
-
