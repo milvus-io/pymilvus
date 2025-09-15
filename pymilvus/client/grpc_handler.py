@@ -2414,7 +2414,8 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def update_replicate_configuration(
         self,
-        replicate_configuration: common_pb2.ReplicateConfiguration,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -2422,15 +2423,17 @@ class GrpcHandler:
         Update replication configuration across Milvus clusters.
 
         Args:
-            replicate_configuration: The replication configuration to apply
+            clusters: The replication configuration to apply
+            cross_cluster_topology: The replication configuration to apply
             timeout: An optional duration of time in seconds to allow for the RPC
             **kwargs: Additional arguments
 
         Returns:
             Status: The status of the operation
         """
-        request = milvus_types.UpdateReplicateConfigurationRequest(
-            replicate_configuration=replicate_configuration
+        request = Prepare.update_replicate_configuration_request(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
         )
 
         status = self._stub.UpdateReplicateConfiguration(
