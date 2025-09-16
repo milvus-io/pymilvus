@@ -28,7 +28,6 @@ dependencies=[
     "ujson>=2.0.0",
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
-    "milvus-lite>=2.4.0;sys_platform!='win32'",
 ]
 
 classifiers=[
@@ -58,6 +57,10 @@ bulk_writer = [
 
 model = [
     "pymilvus.model>=0.3.0",
+]
+
+milvus_lite = [
+    "milvus-lite>=2.4.0;sys_platform!='win32'",
 ]
 
 dev = [

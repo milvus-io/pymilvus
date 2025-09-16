@@ -752,7 +752,7 @@ class DropIndexRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_name: _Optional[str] = ..., index_name: _Optional[str] = ...) -> None: ...
 
 class InsertRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp")
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "namespace")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -761,6 +761,7 @@ class InsertRequest(_message.Message):
     HASH_KEYS_FIELD_NUMBER: _ClassVar[int]
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -769,7 +770,8 @@ class InsertRequest(_message.Message):
     hash_keys: _containers.RepeatedScalarFieldContainer[int]
     num_rows: int
     schema_timestamp: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ...) -> None: ...
+    namespace: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., namespace: _Optional[str] = ...) -> None: ...
 
 class AddCollectionFieldRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "schema")
@@ -786,7 +788,7 @@ class AddCollectionFieldRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., schema: _Optional[bytes] = ...) -> None: ...
 
 class UpsertRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update")
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -796,6 +798,7 @@ class UpsertRequest(_message.Message):
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_UPDATE_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -805,7 +808,8 @@ class UpsertRequest(_message.Message):
     num_rows: int
     schema_timestamp: int
     partial_update: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ...) -> None: ...
+    namespace: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ...) -> None: ...
 
 class MutationResult(_message.Message):
     __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp")
@@ -2542,3 +2546,47 @@ class ListRowPoliciesResponse(_message.Message):
     db_name: str
     collection_name: str
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., policies: _Optional[_Iterable[_Union[RowPolicy, _Mapping]]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class UpdateReplicateConfigurationRequest(_message.Message):
+    __slots__ = ("replicate_configuration",)
+    REPLICATE_CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    replicate_configuration: _common_pb2.ReplicateConfiguration
+    def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
+
+class GetReplicateInfoRequest(_message.Message):
+    __slots__ = ("source_cluster_id",)
+    SOURCE_CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    source_cluster_id: str
+    def __init__(self, source_cluster_id: _Optional[str] = ...) -> None: ...
+
+class GetReplicateInfoResponse(_message.Message):
+    __slots__ = ("checkpoints",)
+    CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
+    checkpoints: _containers.RepeatedCompositeFieldContainer[_common_pb2.ReplicateCheckpoint]
+    def __init__(self, checkpoints: _Optional[_Iterable[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]]] = ...) -> None: ...
+
+class ReplicateMessage(_message.Message):
+    __slots__ = ("source_cluster_id", "message")
+    SOURCE_CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    source_cluster_id: str
+    message: _common_pb2.ImmutableMessage
+    def __init__(self, source_cluster_id: _Optional[str] = ..., message: _Optional[_Union[_common_pb2.ImmutableMessage, _Mapping]] = ...) -> None: ...
+
+class ReplicateRequest(_message.Message):
+    __slots__ = ("replicate_message",)
+    REPLICATE_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    replicate_message: ReplicateMessage
+    def __init__(self, replicate_message: _Optional[_Union[ReplicateMessage, _Mapping]] = ...) -> None: ...
+
+class ReplicateConfirmedMessageInfo(_message.Message):
+    __slots__ = ("confirmed_time_tick",)
+    CONFIRMED_TIME_TICK_FIELD_NUMBER: _ClassVar[int]
+    confirmed_time_tick: int
+    def __init__(self, confirmed_time_tick: _Optional[int] = ...) -> None: ...
+
+class ReplicateResponse(_message.Message):
+    __slots__ = ("replicate_confirmed_message_info",)
+    REPLICATE_CONFIRMED_MESSAGE_INFO_FIELD_NUMBER: _ClassVar[int]
+    replicate_confirmed_message_info: ReplicateConfirmedMessageInfo
+    def __init__(self, replicate_confirmed_message_info: _Optional[_Union[ReplicateConfirmedMessageInfo, _Mapping]] = ...) -> None: ...
