@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 import requests
-from pymilvus.bulk_writer.constants import BulkFileType
+from pymilvus.bulk_writer.constants import BulkFileType, ConnectType
 from pymilvus.bulk_writer.stage_bulk_writer import StageBulkWriter
 from pymilvus.bulk_writer.stage_file_manager import StageFileManager
 from pymilvus.bulk_writer.stage_manager import StageManager
@@ -127,6 +127,7 @@ class TestStageRestful:
                 "endpoint": "s3.amazonaws.com",
                 "bucketName": "test-bucket",
                 "region": "us-west-2",
+                "cloud": "aws",
                 "condition": {"maxContentLength": 1073741824},
                 "credentials": {
                     "tmpAK": "test_access_key",
@@ -238,6 +239,7 @@ class TestStageFileManager:
             cloud_endpoint="https://api.cloud.zilliz.com",
             api_key="test_api_key",
             stage_name="test_stage",
+            connect_type=ConnectType.AUTO,
         )
 
     @pytest.fixture
@@ -249,6 +251,7 @@ class TestStageFileManager:
             "endpoint": "s3.amazonaws.com",
             "bucketName": "test-bucket",
             "region": "us-west-2",
+            "cloud": "aws",
             "condition": {"maxContentLength": 1073741824},
             "credentials": {
                 "tmpAK": "test_access_key",
@@ -563,6 +566,7 @@ class TestIntegration:
                     "endpoint": "s3.amazonaws.com",
                     "bucketName": "test-bucket",
                     "region": "us-west-2",
+                    "cloud": "aws",
                     "condition": {"maxContentLength": 1073741824},
                     "credentials": {
                         "tmpAK": "test_access_key",
@@ -614,6 +618,7 @@ class TestIntegration:
             cloud_endpoint="https://api.cloud.zilliz.com",
             api_key="test_api_key",
             stage_name="test_stage",
+            connect_type=ConnectType.AUTO,
         )
 
         # Verify stage info can be refreshed
