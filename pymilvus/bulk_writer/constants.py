@@ -10,7 +10,7 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 import numpy as np
 
@@ -88,3 +88,9 @@ class BulkFileType(IntEnum):
     JSON_RB = 2  # deprecated
     PARQUET = 3
     CSV = 4
+
+
+class ConnectType(Enum):
+    AUTO = "AUTO"
+    INTERNAL = "INTERNAL"
+    PUBLIC = "PUBLIC"
