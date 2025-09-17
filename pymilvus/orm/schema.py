@@ -554,7 +554,6 @@ class FieldSchema:
     def dtype(self) -> DataType:
         return self._dtype
 
-
 class Function:
     def __init__(
         self,
@@ -709,6 +708,27 @@ class Function:
             return False
         return self.to_dict() == value.to_dict()
 
+class FunctionScore:
+    def __init__(
+        self,
+        functions: Union[Function, List[Function]],
+        params: Optional[Dict] = None,
+    ):
+        if isinstance(functions, Function):
+            self.functions_ = [functions]
+        else:
+            self.functions_ = functions
+
+        self.params_ = params
+
+    @property
+    def params(self):
+        return self.params_
+    
+    @property
+    def functions(self):
+        return self.functions_
+        
 
 def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:
     """DataFrame, list, dict are valid insert data"""
