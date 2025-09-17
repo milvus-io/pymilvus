@@ -2,7 +2,7 @@ import abc
 import logging
 from typing import Any, Dict, List, Optional, Union
 
-import ujson
+import orjson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage
 from pymilvus.settings import Config
@@ -60,7 +60,7 @@ class FieldSchema:
         for type_param in raw.type_params:
             if type_param.key == "params":
                 try:
-                    self.params[type_param.key] = ujson.loads(type_param.value)
+                    self.params[type_param.key] = orjson.loads(type_param.value)
                 except Exception as e:
                     logger.error(
                         f"FieldSchema::__pack::65::Failed to load JSON type_param.value: {e}, original data: {type_param.value}"
@@ -89,7 +89,7 @@ class FieldSchema:
         for index_param in raw.index_params:
             if index_param.key == "params":
                 try:
-                    index_dict[index_param.key] = ujson.loads(index_param.value)
+                    index_dict[index_param.key] = orjson.loads(index_param.value)
                 except Exception as e:
                     logger.error(
                         f"FieldSchema::__pack::92::Failed to load JSON index_param.value: {e}, original data: {index_param.value}"

@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import ujson
+import orjson
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
@@ -149,7 +149,7 @@ class HybridHits(list):
                             json_data = field_data.scalars.json_data.data[idx]
                             try:
                                 json_dict_list = (
-                                    ujson.loads(json_data) if json_data is not None else None
+                                    orjson.loads(json_data) if json_data is not None else None
                                 )
                             except Exception as e:
                                 logger.error(
@@ -366,7 +366,7 @@ class SearchResult(list):
                 for item in res:
                     if item is not None:
                         try:
-                            json_dict_list.append(ujson.loads(item))
+                            json_dict_list.append(orjson.loads(item))
                         except Exception as e:
                             logger.error(
                                 f"SearchResult::_get_fields_by_range::Failed to load JSON item: {e}, original item: {item}"
