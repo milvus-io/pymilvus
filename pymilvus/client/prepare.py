@@ -10,7 +10,7 @@ from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamE
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function
+from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema, Function, isVectorDataType
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
@@ -33,8 +33,9 @@ from .constants import (
     PAGE_RETAIN_ORDER_FIELD,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
-    STRICT_GROUP_SIZE,
+    STRICT_GROUP_SIZE, IS_EMBEDDING_LIST,
 )
+from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .types import (
     DataType,
     PlaceholderType,
@@ -156,6 +157,60 @@ class Prepare:
                 field_schema.type_params.append(kv_pair)
 
             schema.fields.append(field_schema)
+            
+        for struct in fields.struct_fields:
+            # Validate that max_capacity is set
+            if struct.max_capacity is None:
+                raise ParamError(message=f"max_capacity not set for struct field: {struct.name}")
+
+            struct_schema = schema_types.StructArrayFieldSchema(
+                name=struct.name,
+                fields=[],
+                description=struct.description,
+            )
+            for f in struct.fields:
+                # Convert struct field types to backend representation
+                # As struct itself only support array type, so all it's fields are array type internally
+                # So we need to convert the fields to array types
+                actual_dtype = f.dtype
+                actual_element_type = None
+
+                # Convert to appropriate array type
+                if isVectorDataType(f.dtype):
+                    actual_dtype = DataType.ARRAY_OF_VECTOR
+                    actual_element_type = f.dtype
+                else:
+                    actual_dtype = DataType.ARRAY
+                    actual_element_type = f.dtype
+
+                field_schema = schema_types.FieldSchema(
+                    name=f.name,
+                    data_type=actual_dtype,
+                    description=f.description,
+                    is_primary_key=f.is_primary,
+                    default_value=f.default_value,
+                    nullable=f.nullable,
+                    autoID=f.auto_id,
+                    is_partition_key=f.is_partition_key,
+                    is_dynamic=f.is_dynamic,
+                    element_type=actual_element_type,
+                    is_clustering_key=f.is_clustering_key,
+                    is_function_output=f.is_function_output,
+                )
+
+                # Copy field params and add max_capacity from struct_schema
+                field_params = dict(f.params) if f.params else {}
+                # max_capacity is required for struct fields
+                field_params["max_capacity"] = struct.max_capacity
+
+                for k, v in field_params.items():
+                    kv_pair = common_types.KeyValuePair(
+                        key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=ujson.dumps(v)
+                    )
+                    field_schema.type_params.append(kv_pair)
+                struct_schema.fields.append(field_schema)
+
+            schema.struct_array_fields.append(struct_schema)
 
         for f in fields.functions:
             function_schema = schema_types.FunctionSchema(
@@ -444,9 +499,100 @@ class Prepare:
         return len([field for field in fields_info if Prepare._is_input_field(field, is_upsert)])
 
     @staticmethod
+    def _process_struct_field(
+        field_name: str, values: Any, struct_info: Dict,
+        struct_sub_field_info: Dict, struct_sub_fields_data: Dict
+    ):
+        """Process a single struct field's data."""
+        if not isinstance(values, list):
+            raise TypeError(f"Expected list, got {type(values).__name__}")
+
+        # Pre-build field info for faster access
+        field_configs = {field["name"]: field for field in struct_info["fields"]}
+        expected_fields = set(field_configs.keys())
+
+        # Handle empty array - create empty data structures
+        if not values:
+            Prepare._add_empty_struct_data(field_configs, struct_sub_field_info, struct_sub_fields_data)
+            return
+
+        # Validate and collect values
+        field_values = Prepare._validate_and_collect_struct_values(values, expected_fields)
+
+        # Process collected values
+        Prepare._process_struct_values(field_values, field_configs,
+                                      struct_sub_field_info, struct_sub_fields_data)
+
+    @staticmethod
+    def _add_empty_struct_data(field_configs: Dict, struct_sub_field_info: Dict,
+                               struct_sub_fields_data: Dict):
+        """Add empty data for struct fields."""
+        for field_name in field_configs:
+            field_info = struct_sub_field_info[field_name]
+            field_data = struct_sub_fields_data[field_name]
+
+            if field_info["type"] == DataType.ARRAY:
+                field_data.scalars.array_data.data.append(schema_types.ScalarField())
+            elif field_info["type"] == DataType.ARRAY_OF_VECTOR:
+                empty_vector = schema_types.VectorField()
+                empty_vector.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.data.append(empty_vector)
+
+    @staticmethod
+    def _validate_and_collect_struct_values(values: List, expected_fields: set) -> Dict[str, List]:
+        """Validate struct items and collect field values."""
+        field_values = {field: [] for field in expected_fields}
+
+        for idx, struct_item in enumerate(values):
+            if not isinstance(struct_item, dict):
+                raise TypeError(f"Element at index {idx} must be dict, got {type(struct_item).__name__}")
+
+            # Validate fields
+            actual_fields = set(struct_item.keys())
+            missing_fields = expected_fields - actual_fields
+            extra_fields = actual_fields - expected_fields
+
+            if missing_fields:
+                raise ValueError(f"Element at index {idx} missing required fields: {missing_fields}")
+            if extra_fields:
+                raise ValueError(f"Element at index {idx} has unexpected fields: {extra_fields}")
+
+            # Collect values
+            for field_name in expected_fields:
+                value = struct_item[field_name]
+                if value is None:
+                    raise ValueError(f"Field '{field_name}' in element at index {idx} cannot be None")
+                field_values[field_name].append(value)
+
+        return field_values
+
+    @staticmethod
+    def _process_struct_values(field_values: Dict[str, List], field_configs: Dict,
+                               struct_sub_field_info: Dict, struct_sub_fields_data: Dict):
+        """Process collected struct field values."""
+        for field_name, values in field_values.items():
+            field_data = struct_sub_fields_data[field_name]
+            field_info = struct_sub_field_info[field_name]
+
+            if field_info["type"] == DataType.ARRAY:
+                field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
+            elif field_info["type"] == DataType.ARRAY_OF_VECTOR:
+                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.data.append(convert_to_array_of_vector(values, field_info))
+            else:
+                raise ParamError(message=f"Unsupported data type: {field_info['type']}")
+
+    @staticmethod
+    def _get_dim_value(field_info: Dict) -> int:
+        """Extract dimension value from field info."""
+        dim_value = field_info.get("params", {}).get("dim", 0)
+        return int(dim_value) if isinstance(dim_value, str) else dim_value
+
+    @staticmethod
     def _parse_row_request(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         fields_info: List[Dict],
+        struct_fields_info: List[Dict],
         enable_dynamic: bool,
         entities: List,
     ):
@@ -459,6 +605,24 @@ class Prepare:
             for field in input_fields_info
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
+        
+        struct_fields_data = {
+            field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+            for field in struct_fields_info
+        }
+        input_struct_field_info = [field for field in struct_fields_info]
+        # Build lookup map for O(1) access
+        struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
+        struct_sub_fields_data = {
+            field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+            for struct_field_info in struct_fields_info
+            for field in struct_field_info["fields"]
+        }
+        struct_sub_field_info = {
+            field["name"]: field
+            for struct_field_info in struct_fields_info
+            for field in struct_field_info["fields"]
+        }
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -473,7 +637,7 @@ class Prepare:
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
                 for k, v in entity.items():
-                    if k not in fields_data:
+                    if k not in fields_data and k not in struct_fields_data:
                         if k in function_output_field_names:
                             raise DataNotMatchException(
                                 message=ExceptionsMessage.InsertUnexpectedFunctionOutputField % k
@@ -491,6 +655,18 @@ class Prepare:
                         ):
                             field_data.valid_data.append(v is not None)
                         entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                    elif k in struct_fields_data:
+                        # Array of structs format
+                        try:
+                            Prepare._process_struct_field(
+                                k, v, struct_info_map[k],
+                                struct_sub_field_info, struct_sub_fields_data
+                            )
+                        except (TypeError, ValueError) as e:
+                            raise DataNotMatchException(
+                                message=f"{ExceptionsMessage.FieldDataInconsistent % (k, 'struct array', type(v))} Detail: {str(e)}"
+                            ) from e
+
                 for field in input_fields_info:
                     key = field["name"]
                     if key in entity:
@@ -505,7 +681,7 @@ class Prepare:
                             message=ExceptionsMessage.InsertMissedField % key
                         )
                 json_dict = {
-                    k: v for k, v in entity.items() if k not in fields_data and enable_dynamic
+                    k: v for k, v in entity.items() if k not in fields_data and k not in struct_fields_data and enable_dynamic
                 }
 
                 if enable_dynamic:
@@ -515,12 +691,20 @@ class Prepare:
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(message=ExceptionsMessage.DataTypeInconsistent) from e
 
+        # reconstruct the struct array fields data
+        for struct in input_struct_field_info:
+            struct_name = struct["name"]
+            struct_field_data = struct_fields_data[struct_name]
+            for field_info in struct["fields"]:
+                struct_field_data.struct_arrays.fields.append(struct_sub_fields_data[field_info["name"]])
+
         request.fields_data.extend(fields_data.values())
+        request.fields_data.extend(struct_fields_data.values())
 
-        expected_num_input_fields = len(input_fields_info) + (1 if enable_dynamic else 0)
+        expected_num_input_fields = len(input_fields_info) + len(input_struct_field_info) + (1 if enable_dynamic else 0)
 
-        if len(fields_data) != expected_num_input_fields:
-            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(fields_data)}"
+        if len(request.fields_data) != expected_num_input_fields:
+            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(request.fields_data)}"
             raise ParamError(message=msg)
 
         return request
@@ -649,6 +833,7 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Dict,
+        struct_fields_info: Dict,
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
     ):
@@ -664,7 +849,7 @@ class Prepare:
             schema_timestamp=schema_timestamp,
         )
 
-        return cls._parse_row_request(request, fields_info, enable_dynamic, entities)
+        return cls._parse_row_request(request, fields_info, struct_fields_info, enable_dynamic, entities)
 
     @classmethod
     def row_upsert_param(
@@ -859,7 +1044,7 @@ class Prepare:
         )
 
     @classmethod
-    def _prepare_placeholder_str(cls, data: Any):
+    def _prepare_placeholder_str(cls, data: Any, is_embedding_list=False):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
             pl_type = PlaceholderType.SparseFloatVector
@@ -869,16 +1054,16 @@ class Prepare:
             dtype = data[0].dtype
 
             if dtype == "bfloat16":
-                pl_type = PlaceholderType.BFLOAT16_VECTOR
+                pl_type = PlaceholderType.BFLOAT16_VECTOR if not is_embedding_list else PlaceholderType.EmbListBFloat16Vector
                 pl_values = (array.tobytes() for array in data)
             elif dtype == "float16":
-                pl_type = PlaceholderType.FLOAT16_VECTOR
+                pl_type = PlaceholderType.FLOAT16_VECTOR if not is_embedding_list else PlaceholderType.EmbListFloat16Vector
                 pl_values = (array.tobytes() for array in data)
             elif dtype in ("float32", "float64"):
-                pl_type = PlaceholderType.FloatVector
+                pl_type = PlaceholderType.FloatVector if not is_embedding_list else PlaceholderType.EmbListFloatVector
                 pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
             elif dtype == "int8":
-                pl_type = PlaceholderType.Int8Vector
+                pl_type = PlaceholderType.Int8Vector if not is_embedding_list else PlaceholderType.EmbListInt8Vector
                 pl_values = (array.tobytes() for array in data)
 
             elif dtype == "byte":
@@ -1102,8 +1287,10 @@ class Prepare:
             common_types.KeyValuePair(key=str(key), value=utils.dumps(value))
             for key, value in search_params.items()
         ]
+
+        is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
         nq = entity_helper.get_input_num_rows(data)
-        plg_str = cls._prepare_placeholder_str(data)
+        plg_str = cls._prepare_placeholder_str(data, is_embedding_list)
 
         request = milvus_types.SearchRequest(
             collection_name=collection_name,

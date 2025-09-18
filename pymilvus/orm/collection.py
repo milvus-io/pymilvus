@@ -50,6 +50,7 @@ from .prepare import Prepare
 from .schema import (
     CollectionSchema,
     FieldSchema,
+    StructFieldSchema,
     Function,
     check_insert_schema,
     check_schema,
