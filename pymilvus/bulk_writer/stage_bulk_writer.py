@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from pymilvus.bulk_writer.stage_file_manager import StageFileManager
 from pymilvus.orm.schema import CollectionSchema
 
-from .constants import MB, BulkFileType
+from .constants import MB, BulkFileType, ConnectType
 from .local_bulk_writer import LocalBulkWriter
 
 logger = logging.getLogger(__name__)
@@ -35,7 +35,10 @@ class StageBulkWriter(LocalBulkWriter):
         self._remote_files: List[List[str]] = []
         self._stage_name = stage_name
         self._stage_file_manager = StageFileManager(
-            cloud_endpoint=cloud_endpoint, api_key=api_key, stage_name=stage_name
+            cloud_endpoint=cloud_endpoint,
+            api_key=api_key,
+            stage_name=stage_name,
+            connect_type=ConnectType.AUTO,
         )
 
         logger.info(f"Remote buffer writer initialized, target path: {self._remote_path}")
