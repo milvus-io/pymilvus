@@ -507,30 +507,28 @@ class Prepare:
     ):
         """Process a single struct field's data."""
         if not isinstance(values, list):
-            raise TypeError(f"Expected list, got {type(values).__name__}")
+            raise TypeError(f"Field '{field_name}': Expected list, got {type(values).__name__}")
 
-        # Pre-build field info for faster access
-        field_configs = {field["name"]: field for field in struct_info["fields"]}
-        expected_fields = set(field_configs.keys())
+        # Get expected fields for this specific struct
+        expected_fields = {field["name"] for field in struct_info["fields"]}
 
         # Handle empty array - create empty data structures
         if not values:
-            Prepare._add_empty_struct_data(field_configs, struct_sub_field_info, struct_sub_fields_data)
+            # Only process fields belonging to this struct
+            relevant_field_info = {name: struct_sub_field_info[name] for name in expected_fields}
+            Prepare._add_empty_struct_data(relevant_field_info, struct_sub_fields_data)
             return
 
         # Validate and collect values
-        field_values = Prepare._validate_and_collect_struct_values(values, expected_fields)
+        field_values = Prepare._validate_and_collect_struct_values(values, expected_fields, field_name)
 
-        # Process collected values
-        Prepare._process_struct_values(field_values, field_configs,
-                                      struct_sub_field_info, struct_sub_fields_data)
+        # Process collected values - use struct_sub_field_info directly
+        Prepare._process_struct_values(field_values, struct_sub_field_info, struct_sub_fields_data)
 
     @staticmethod
-    def _add_empty_struct_data(field_configs: Dict, struct_sub_field_info: Dict,
-                               struct_sub_fields_data: Dict):
+    def _add_empty_struct_data(struct_field_info: Dict, struct_sub_fields_data: Dict):
         """Add empty data for struct fields."""
-        for field_name in field_configs:
-            field_info = struct_sub_field_info[field_name]
+        for field_name, field_info in struct_field_info.items():
             field_data = struct_sub_fields_data[field_name]
 
             if field_info["type"] == DataType.ARRAY:
@@ -541,13 +539,14 @@ class Prepare:
                 field_data.vectors.vector_array.data.append(empty_vector)
 
     @staticmethod
-    def _validate_and_collect_struct_values(values: List, expected_fields: set) -> Dict[str, List]:
+    def _validate_and_collect_struct_values(values: List, expected_fields: set, struct_field_name: str = "") -> Dict[str, List]:
         """Validate struct items and collect field values."""
         field_values = {field: [] for field in expected_fields}
+        field_prefix = f"Field '{struct_field_name}': " if struct_field_name else ""
 
         for idx, struct_item in enumerate(values):
             if not isinstance(struct_item, dict):
-                raise TypeError(f"Element at index {idx} must be dict, got {type(struct_item).__name__}")
+                raise TypeError(f"{field_prefix}Element at index {idx} must be dict, got {type(struct_item).__name__}")
 
             # Validate fields
             actual_fields = set(struct_item.keys())
@@ -555,26 +554,26 @@ class Prepare:
             extra_fields = actual_fields - expected_fields
 
             if missing_fields:
-                raise ValueError(f"Element at index {idx} missing required fields: {missing_fields}")
+                raise ValueError(f"{field_prefix}Element at index {idx} missing required fields: {missing_fields}")
             if extra_fields:
-                raise ValueError(f"Element at index {idx} has unexpected fields: {extra_fields}")
+                raise ValueError(f"{field_prefix}Element at index {idx} has unexpected fields: {extra_fields}")
 
             # Collect values
             for field_name in expected_fields:
                 value = struct_item[field_name]
                 if value is None:
-                    raise ValueError(f"Field '{field_name}' in element at index {idx} cannot be None")
+                    raise ValueError(f"{field_prefix}Field '{field_name}' in element at index {idx} cannot be None")
                 field_values[field_name].append(value)
 
         return field_values
 
     @staticmethod
-    def _process_struct_values(field_values: Dict[str, List], field_configs: Dict,
-                               struct_sub_field_info: Dict, struct_sub_fields_data: Dict):
+    def _process_struct_values(field_values: Dict[str, List], struct_field_info: Dict,
+                               struct_sub_fields_data: Dict):
         """Process collected struct field values."""
         for field_name, values in field_values.items():
             field_data = struct_sub_fields_data[field_name]
-            field_info = struct_sub_field_info[field_name]
+            field_info = struct_field_info[field_name]
 
             if field_info["type"] == DataType.ARRAY:
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
