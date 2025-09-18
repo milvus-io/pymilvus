@@ -9,6 +9,8 @@ import urllib3
 from minio import Minio
 from minio.error import S3Error
 
+from pymilvus.bulk_writer.constants import ConnectType
+from pymilvus.bulk_writer.endpoint_resolver import EndpointResolver
 from pymilvus.bulk_writer.file_utils import FileUtils
 from pymilvus.bulk_writer.stage_restful import apply_stage
 
@@ -17,7 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 class StageFileManager:
-    def __init__(self, cloud_endpoint: str, api_key: str, stage_name: str):
+    def __init__(
+        self,
+        cloud_endpoint: str,
+        api_key: str,
+        stage_name: str,
+        connect_type: ConnectType = ConnectType.AUTO,
+    ):
         """
         private preview feature. Please submit a request and contact us if you need it.
 
@@ -27,10 +35,16 @@ class StageFileManager:
                 - For regions in China: https://api.cloud.zilliz.com.cn
             api_key (str): The API key associated with your organization
             stage_name (str): The name of the Stage.
+            connect_type: Current value is mainly for Aliyun OSS buckets, default is Auto.
+             - Default case, if the OSS bucket is reachable via the internal endpoint,
+               the internal endpoint will be used
+             - otherwise, the public endpoint will be used.
+             - You can also force the use of either the internal or public endpoint.
         """
         self.cloud_endpoint = cloud_endpoint
         self.api_key = api_key
         self.stage_name = stage_name
+        self.connect_type = connect_type
         self.local_file_paths = []
         self.total_bytes = 0
         self.stage_info = {}
@@ -51,8 +65,15 @@ class StageFileManager:
 
         creds = self.stage_info["credentials"]
         http_client = urllib3.PoolManager(maxsize=100)
+
+        endpoint = EndpointResolver.resolve_endpoint(
+            self.stage_info["endpoint"],
+            self.stage_info["cloud"],
+            self.stage_info["region"],
+            self.connect_type,
+        )
         self._client = Minio(
-            endpoint=self.stage_info["endpoint"],
+            endpoint=endpoint,
             access_key=creds["tmpAK"],
             secret_key=creds["tmpSK"],
             session_token=creds["sessionToken"],
