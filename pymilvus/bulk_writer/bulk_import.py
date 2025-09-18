@@ -129,10 +129,9 @@ def bulk_import(
         partition_name (str): name of the target partition
         files (list of list of str): The files that contain the data to import.
              A sub-list contains a single JSON or Parquet file, or a set of Numpy files.
+        api_key (str): API key to authenticate your requests
 
-        api_key (str): API key to authenticate your requests(cloud)
         cluster_id (str): id of a milvus instance(cloud)
-
         object_url (str): The object URL of the object to import(cloud), use `object_urls` instead.
         object_urls (list of list of str): The object urls that contain the data to import.
              A sub-list contains a single object url
@@ -154,6 +153,7 @@ def bulk_import(
         >>> # 1. Import multiple files into an open-source Milvus instance
         >>> bulk_import(
         ...    url="http://127.0.0.1:19530",
+        ...    api_key="username:password",
         ...    db_name="",
         ...    collection_name="my_collection",
         ...    partition_name="", # If Collection not enable partitionKey, can be specified.
