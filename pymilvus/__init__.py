@@ -13,6 +13,7 @@
 from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
+from .client.embedding_list import EmbeddingList
 from .client.prepare import Prepare
 from .client.search_result import Hit, Hits, SearchResult
 from .client.types import (
@@ -39,7 +40,7 @@ from .orm.future import MutationFuture
 from .orm.index import Index
 from .orm.partition import Partition
 from .orm.role import Role
-from .orm.schema import CollectionSchema, FieldSchema, Function
+from .orm.schema import CollectionSchema, FieldSchema, StructFieldSchema, Function
 from .orm.utility import (
     create_resource_group,
     create_user,
@@ -77,6 +78,7 @@ __all__ = [
     "BulkInsertState",
     "Collection",
     "CollectionSchema",
+    "StructFieldSchema",
     "Connections",
     "DataType",
     "DefaultConfig",

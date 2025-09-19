@@ -31,3 +31,5 @@ RANKER_TYPE_RRF = "rrf"
 RANKER_TYPE_WEIGHTED = "weighted"
 
 GUARANTEE_TIMESTAMP = "guarantee_timestamp"
+
+IS_EMBEDDING_LIST = "is_embedding_list"
