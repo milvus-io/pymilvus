@@ -13,8 +13,8 @@
 import copy
 from typing import Any, Dict, List, Optional, Union
 
+import orjson
 import pandas as pd
-import ujson
 from pandas.api.types import is_list_like, is_scalar
 
 from pymilvus.client.types import FunctionType
@@ -34,6 +34,7 @@ from pymilvus.exceptions import (
     SchemaNotReadyException,
 )
 from pymilvus.grpc_gen import schema_pb2 as schema_types
+from pymilvus.settings import Config
 
 from .constants import COMMON_TYPE_PARAMS
 from .types import (
@@ -415,7 +416,7 @@ class FieldSchema:
 
         for key in ["analyzer_params", "multi_analyzer_params"]:
             if key in self._kwargs and isinstance(self._kwargs[key], dict):
-                self._kwargs[key] = ujson.dumps(self._kwargs[key])
+                self._kwargs[key] = orjson.dumps(self._kwargs[key]).decode(Config.EncodeProtocol)
 
         self._parse_type_params()
         self.is_function_output = False

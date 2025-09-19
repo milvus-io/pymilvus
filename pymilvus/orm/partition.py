@@ -12,14 +12,15 @@
 
 from typing import Dict, List, Optional, TypeVar, Union
 
+import orjson
 import pandas as pd
-import ujson
 
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import Replica
 from pymilvus.exceptions import MilvusException
+from pymilvus.settings import Config
 
 from .mutation import MutationResult
 
@@ -57,13 +58,13 @@ class Partition:
             conn.create_partition(self._collection.name, self.name, **kwargs)
 
     def __repr__(self) -> str:
-        return ujson.dumps(
+        return orjson.dumps(
             {
                 "name": self.name,
                 "collection_name": self._collection.name,
                 "description": self.description,
             }
-        )
+        ).decode(Config.EncodeProtocol)
 
     def _get_connection(self):
         return self._collection._get_connection()

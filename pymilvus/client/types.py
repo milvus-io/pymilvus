@@ -4,7 +4,7 @@ from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
-import ujson
+import orjson
 
 from pymilvus.exceptions import (
     AutoIDException,
@@ -1064,7 +1064,7 @@ class HybridExtraList(list):
                 row_data[field_data.field_name] = None
                 return
             try:
-                json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+                json_dict = orjson.loads(field_data.scalars.json_data.data[index])
             except Exception as e:
                 logger.error(
                     f"HybridExtraList::_extract_lazy_fields::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
