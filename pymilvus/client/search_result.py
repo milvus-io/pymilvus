@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import ujson
+import orjson
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
@@ -152,7 +152,7 @@ class HybridHits(list):
                             json_data = field_data.scalars.json_data.data[idx]
                             try:
                                 json_dict_list = (
-                                    ujson.loads(json_data) if json_data is not None else None
+                                    orjson.loads(json_data) if json_data is not None else None
                                 )
                             except Exception as e:
                                 logger.error(
@@ -420,7 +420,7 @@ class SearchResult(list):
                 for item in res:
                     if item is not None:
                         try:
-                            json_dict_list.append(ujson.loads(item))
+                            json_dict_list.append(orjson.loads(item))
                         except Exception as e:
                             logger.error(
                                 f"SearchResult::_get_fields_by_range::Failed to load JSON item: {e}, original item: {item}"
@@ -809,7 +809,7 @@ def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> 
             return field_data.scalars.string_data.data[index]
     elif field_data.type == DataType.JSON:
         if index < len(field_data.scalars.json_data.data):
-            return ujson.loads(field_data.scalars.json_data.data[index])
+            return orjson.loads(field_data.scalars.json_data.data[index])
     elif field_data.type == DataType.FLOAT_VECTOR:
         dim = field_data.vectors.dim
         start_idx = index * dim

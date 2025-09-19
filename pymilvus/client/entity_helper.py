@@ -4,7 +4,7 @@ import struct
 from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
-import ujson
+import orjson
 
 from pymilvus.exceptions import (
     DataNotMatchException,
@@ -225,7 +225,7 @@ def convert_to_json(obj: object):
 
     processed_obj = preprocess_numpy_types(obj)
 
-    return ujson.dumps(processed_obj, ensure_ascii=False).encode(Config.EncodeProtocol)
+    return orjson.dumps(processed_obj)
 
 
 def convert_to_json_arr(objs: List[object], field_info: Any):
@@ -933,7 +933,7 @@ def extract_row_data_from_fields_data(
                 row_data[field_data.field_name] = None
                 return
             try:
-                json_dict = ujson.loads(field_data.scalars.json_data.data[index])
+                json_dict = orjson.loads(field_data.scalars.json_data.data[index])
             except Exception as e:
                 logger.error(
                     f"extract_row_data_from_fields_data::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"

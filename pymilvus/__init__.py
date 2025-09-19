@@ -10,6 +10,12 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+# Ensure `pymilvus` is a namespace package other distributions (like `pymilvus.model`) can
+# participate in.
+from pkgutil import extend_path
+
+__path__ = extend_path(__path__, __name__)
+
 from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture

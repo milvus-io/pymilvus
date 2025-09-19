@@ -4,7 +4,7 @@ import random
 from typing import Dict
 
 import pytest
-import ujson
+import orjson
 from pymilvus.client.search_result import Hit, Hits, HybridHits, SearchResult
 from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import schema_pb2
@@ -157,11 +157,11 @@ class TestSearchResult:
                                  )),
 
             schema_pb2.FieldData(type=DataType.JSON, field_name="normal_json_field", field_id=111,
-                scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[ujson.dumps({i: i for i in range(3)}).encode() for i in range(6)])),
+                scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[orjson.dumps({str(i): i for i in range(3)}) for i in range(6)])),
             ),
             schema_pb2.FieldData(type=DataType.JSON, field_name="$meta", field_id=112,
                 is_dynamic=True,
-                scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[ujson.dumps({str(i*100): i}).encode() for i in range(6)])),
+                scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[orjson.dumps({str(i*100): i}) for i in range(6)])),
             ),
 
             schema_pb2.FieldData(type=DataType.FLOAT_VECTOR, field_name="float_vector_field", field_id=113,
