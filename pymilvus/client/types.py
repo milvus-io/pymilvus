@@ -1212,7 +1212,11 @@ class ExtraList(list):
 
 
 def get_cost_from_status(status: Optional[common_pb2.Status] = None):
-    return int(status.extra_info["report_value"] if status and status.extra_info else "0")
+    return int(
+        status.extra_info["report_value"]
+        if status and status.extra_info and "report_value" in status.extra_info
+        else "0"
+    )
 
 
 def get_cost_extra(status: Optional[common_pb2.Status] = None):
