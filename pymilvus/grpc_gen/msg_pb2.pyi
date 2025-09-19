@@ -16,7 +16,7 @@ RowBased: InsertDataVersion
 ColumnBased: InsertDataVersion
 
 class InsertRequest(_message.Message):
-    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "segmentID", "timestamps", "rowIDs", "row_data", "fields_data", "num_rows", "version")
+    __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "segmentID", "timestamps", "rowIDs", "row_data", "fields_data", "num_rows", "version", "namespace")
     BASE_FIELD_NUMBER: _ClassVar[int]
     SHARDNAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -32,6 +32,7 @@ class InsertRequest(_message.Message):
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     NUM_ROWS_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     shardName: str
     db_name: str
@@ -47,7 +48,8 @@ class InsertRequest(_message.Message):
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
     num_rows: int
     version: InsertDataVersion
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., segmentID: _Optional[int] = ..., timestamps: _Optional[_Iterable[int]] = ..., rowIDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[_Union[_common_pb2.Blob, _Mapping]]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., num_rows: _Optional[int] = ..., version: _Optional[_Union[InsertDataVersion, str]] = ...) -> None: ...
+    namespace: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., segmentID: _Optional[int] = ..., timestamps: _Optional[_Iterable[int]] = ..., rowIDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[_Union[_common_pb2.Blob, _Mapping]]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., num_rows: _Optional[int] = ..., version: _Optional[_Union[InsertDataVersion, str]] = ..., namespace: _Optional[str] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
     __slots__ = ("base", "shardName", "db_name", "collection_name", "partition_name", "dbID", "collectionID", "partitionID", "int64_primary_keys", "timestamps", "num_rows", "primary_keys", "segment_id")
