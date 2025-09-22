@@ -2,11 +2,11 @@ import datetime
 import importlib.util
 import struct
 from copy import deepcopy
-from dateutil.parser import isoparse
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import orjson
+from dateutil.parser import isoparse
 
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status

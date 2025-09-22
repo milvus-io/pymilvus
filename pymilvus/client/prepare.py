@@ -1516,7 +1516,7 @@ class Prepare:
         timezone = kwargs.get("timezone")
         if timezone is not None:
             req.query_params.append(common_types.KeyValuePair(key="timezone", value=timezone))
-        
+
         timefileds = kwargs.get("time_fields")
         if timefileds is not None:
             req.query_params.append(common_types.KeyValuePair(key="time_fields", value=timefileds))

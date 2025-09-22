@@ -21,7 +21,6 @@ from .utils import (
     SparseMatrixInputType,
     SparseRowOutputType,
     sparse_parse_single_row,
-    validate_iso_timestamp,
 )
 
 logger = logging.getLogger(__name__)
@@ -324,7 +323,7 @@ def pack_field_value_to_field_data(
     elif field_type == DataType.TIMESTAMPTZ:
         try:
             if field_value is None:
-                field_data.scalars.string_data.data.extend([]) # Timestamptz is passed as String
+                field_data.scalars.string_data.data.extend([])  # Timestamptz is passed as String
             else:
                 field_data.scalars.string_data.data.append(field_value)
         except (TypeError, ValueError) as e:
