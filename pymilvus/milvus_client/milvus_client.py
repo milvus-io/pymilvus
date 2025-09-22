@@ -1793,3 +1793,76 @@ class MilvusClient:
             analyzer_names=analyzer_names,
             timeout=timeout,
         )
+
+    def update_replicate_configuration(
+        self,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Update replication configuration across Milvus clusters.
+
+        Args:
+            clusters (List[Dict], optional): List of cluster configurations.
+            Each dict should contain:
+                - cluster_id (str): Unique identifier for the cluster
+                - connection_param (Dict): Connection parameters with 'uri' and 'token'
+                - pchannels (List[str], optional): Physical channels for the cluster
+
+            cross_cluster_topology (List[Dict], optional): List of replication relationships.
+            Each dict should contain:
+                - source_cluster_id (str): ID of the source cluster
+                - target_cluster_id (str): ID of the target cluster
+
+            cross_cluster_topology (List[Dict], optional): List of replication relationships.
+            Each dict should contain:
+                - source_cluster_id (str): ID of the source cluster
+                - target_cluster_id (str): ID of the target cluster
+
+            timeout (float, optional): An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            Status: The status of the operation
+
+        Raises:
+            ParamError: If neither clusters nor cross_cluster_topology is provided
+            MilvusException: If the operation fails
+
+        Examples:
+            client.update_replicate_configuration(
+                clusters=[
+                    {
+                        "cluster_id": "source_cluster",
+                        "connection_param": {
+                            "uri": "http://source:19530",
+                            "token": "source_token"
+                        },
+                        "pchannels": ["source_pchannel1", "source_pchannel2"]
+                    },
+                    {
+                        "cluster_id": "target_cluster",
+                        "connection_param": {
+                            "uri": "http://target:19530",
+                            "token": "target_token"
+                        },
+                        "pchannels": ["target_pchannel1", "target_pchannel2"]
+                    }
+                ],
+                cross_cluster_topology=[
+                    {
+                        "source_cluster_id": "source_cluster",
+                        "target_cluster_id": "target_cluster"
+                    }
+                ]
+            )
+        """
+
+        return self._get_connection().update_replicate_configuration(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
+            timeout=timeout,
+            **kwargs,
+        )

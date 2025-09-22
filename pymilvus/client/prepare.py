@@ -7,6 +7,7 @@ import numpy as np
 import ujson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
@@ -1928,3 +1929,64 @@ class Prepare:
             else:
                 req.analyzer_names.extend(analyzer_names)
         return req
+
+    @classmethod
+    def update_replicate_configuration_request(
+        cls,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+    ):
+        # Validate input parameters
+        if clusters is None and cross_cluster_topology is None:
+            msg = "Either 'clusters' or 'cross_cluster_topology' must be provided"
+            raise ParamError(message=msg)
+
+        # Build ReplicateConfiguration from simplified parameters
+        replicate_configuration = common_pb2.ReplicateConfiguration()
+
+        # Add clusters
+        if clusters is not None:
+            for cluster_config in clusters:
+                cluster = common_pb2.MilvusCluster()
+
+                if "cluster_id" not in cluster_config:
+                    msg = "cluster_id is required for each cluster"
+                    raise ParamError(message=msg)
+                cluster.cluster_id = cluster_config["cluster_id"]
+
+                if "connection_param" not in cluster_config:
+                    msg = "connection_param is required for each cluster"
+                    raise ParamError(message=msg)
+                conn_param = cluster_config["connection_param"]
+                if "uri" not in conn_param:
+                    msg = "uri is required in connection_param"
+                    raise ParamError(message=msg)
+
+                cluster.connection_param.uri = conn_param["uri"]
+                cluster.connection_param.token = conn_param.get("token", "")
+
+                if "pchannels" in cluster_config:
+                    cluster.pchannels.extend(cluster_config["pchannels"])
+
+                replicate_configuration.clusters.append(cluster)
+
+        # Add cross-cluster topology
+        if cross_cluster_topology is not None:
+            for topology_config in cross_cluster_topology:
+                topology = common_pb2.CrossClusterTopology()
+
+                if "source_cluster_id" not in topology_config:
+                    msg = "source_cluster_id is required for each topology"
+                    raise ParamError(message=msg)
+                topology.source_cluster_id = topology_config["source_cluster_id"]
+
+                if "target_cluster_id" not in topology_config:
+                    msg = "target_cluster_id is required for each topology"
+                    raise ParamError(message=msg)
+                topology.target_cluster_id = topology_config["target_cluster_id"]
+
+                replicate_configuration.cross_cluster_topology.append(topology)
+
+        return milvus_types.UpdateReplicateConfigurationRequest(
+            replicate_configuration=replicate_configuration
+        )
