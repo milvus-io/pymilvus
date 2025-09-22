@@ -1109,6 +1109,9 @@ class Prepare:
         if kwargs.get("timezone") is not None:
             search_params["timezone"] = kwargs["timezone"]
 
+        if kwargs.get("time_fields") is not None:
+            search_params["time_fields"] = kwargs["time_fields"]
+
         search_params["params"] = get_params(param)
 
         req_params = [
@@ -1513,6 +1516,10 @@ class Prepare:
         timezone = kwargs.get("timezone")
         if timezone is not None:
             req.query_params.append(common_types.KeyValuePair(key="timezone", value=timezone))
+        
+        timefileds = kwargs.get("time_fields")
+        if timefileds is not None:
+            req.query_params.append(common_types.KeyValuePair(key="time_fields", value=timefileds))
 
         ignore_growing = kwargs.get("ignore_growing", False)
         stop_reduce_for_best = kwargs.get(REDUCE_STOP_FOR_BEST, False)
