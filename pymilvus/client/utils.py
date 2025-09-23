@@ -164,6 +164,9 @@ def len_of(field_data: Any) -> int:
         if field_data.scalars.HasField("double_data"):
             return len(field_data.scalars.double_data.data)
 
+        if field_data.scalars.HasField("timestamptz_data"):
+            return len(field_data.scalars.timestamptz_data.data)
+
         if field_data.scalars.HasField("string_data"):
             return len(field_data.scalars.string_data.data)
 

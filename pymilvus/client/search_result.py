@@ -57,6 +57,7 @@ class HybridHits(list):
                 DataType.DOUBLE,
                 DataType.VARCHAR,
                 DataType.GEOMETRY,
+                DataType.TIMESTAMPTZ,
             ]:
                 if has_valid:
                     [
@@ -529,7 +530,7 @@ def get_field_data(field_data: FieldData):
         return field_data.scalars.float_data.data
     if field_data.type == DataType.DOUBLE:
         return field_data.scalars.double_data.data
-    if field_data.type == DataType.VARCHAR:
+    if field_data.type in (DataType.VARCHAR, DataType.TIMESTAMPTZ):
         return field_data.scalars.string_data.data
     if field_data.type == DataType.GEOMETRY:
         return field_data.scalars.geometry_wkt_data.data
