@@ -617,6 +617,50 @@ class Prepare:
         return int(dim_value) if isinstance(dim_value, str) else dim_value
 
     @staticmethod
+    def _setup_struct_data_structures(struct_fields_info: Optional[List[Dict]]):
+        """Setup common data structures for struct field processing.
+
+        Returns:
+            Tuple containing:
+            - struct_fields_data: Dict of FieldData for struct fields
+            - struct_info_map: Dict mapping struct field names to their info
+            - struct_sub_fields_data: Dict of FieldData for sub-fields
+            - struct_sub_field_info: Dict mapping sub-field names to their info
+            - input_struct_field_info: List of struct fields info
+        """
+        struct_fields_data = {}
+        struct_info_map = {}
+        struct_sub_fields_data = {}
+        struct_sub_field_info = {}
+        input_struct_field_info = []
+
+        if struct_fields_info:
+            struct_fields_data = {
+                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+                for field in struct_fields_info
+            }
+            input_struct_field_info = list(struct_fields_info)
+            struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
+            struct_sub_fields_data = {
+                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+                for struct_field_info in struct_fields_info
+                for field in struct_field_info["fields"]
+            }
+            struct_sub_field_info = {
+                field["name"]: field
+                for struct_field_info in struct_fields_info
+                for field in struct_field_info["fields"]
+            }
+
+        return (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        )
+
+    @staticmethod
     def _parse_row_request(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         fields_info: List[Dict],
@@ -634,30 +678,13 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
 
-        struct_fields_data = {}
-        if struct_fields_info:
-            struct_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for field in struct_fields_info
-            }
-        input_struct_field_info = list(struct_fields_info) if struct_fields_info else []
-        # Build lookup map for O(1) access
-        struct_info_map = (
-            {struct["name"]: struct for struct in struct_fields_info} if struct_fields_info else {}
-        )
-        struct_sub_fields_data = {}
-        struct_sub_field_info = {}
-        if struct_fields_info:
-            struct_sub_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
-            struct_sub_field_info = {
-                field["name"]: field
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
+        (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        ) = Prepare._setup_struct_data_structures(struct_fields_info)
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -777,27 +804,21 @@ class Prepare:
         field_info_map = {field["name"]: field for field in input_fields_info}
         field_len = {field["name"]: 0 for field in input_fields_info}
 
-        struct_fields_data = {}
-        struct_info_map = {}
-        struct_sub_fields_data = {}
-        struct_sub_field_info = {}
-
-        if struct_fields_info and not partial_update:
-            struct_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for field in struct_fields_info
-            }
-            struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
-            struct_sub_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
-            struct_sub_field_info = {
-                field["name"]: field
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
+        # Use common struct data setup (only if not partial update)
+        if partial_update:
+            struct_fields_data = {}
+            struct_info_map = {}
+            struct_sub_fields_data = {}
+            struct_sub_field_info = {}
+            input_struct_field_info = []
+        else:
+            (
+                struct_fields_data,
+                struct_info_map,
+                struct_sub_fields_data,
+                struct_sub_field_info,
+                input_struct_field_info,
+            ) = Prepare._setup_struct_data_structures(struct_fields_info)
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -894,8 +915,15 @@ class Prepare:
 
         # Add struct fields to request (if not partial update)
         if struct_fields_data and not partial_update:
+            # reconstruct the struct array fields data (same as in insert)
+            for struct in input_struct_field_info:
+                struct_name = struct["name"]
+                struct_field_data = struct_fields_data[struct_name]
+                for field_info in struct["fields"]:
+                    struct_field_data.struct_arrays.fields.append(
+                        struct_sub_fields_data[field_info["name"]]
+                    )
             request.fields_data.extend(struct_fields_data.values())
-            request.fields_data.extend(struct_sub_fields_data.values())
 
         for _, field in enumerate(input_fields_info):
             is_dynamic = False
@@ -910,10 +938,14 @@ class Prepare:
                         message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
                     )
 
-        expected_num_input_fields = len(input_fields_info) + (1 if enable_dynamic else 0)
+        # Include struct fields in expected count (if not partial update)
+        struct_field_count = len(input_struct_field_info) if not partial_update else 0
+        expected_num_input_fields = (
+            len(input_fields_info) + struct_field_count + (1 if enable_dynamic else 0)
+        )
 
-        if not partial_update and len(fields_data) != expected_num_input_fields:
-            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(fields_data)}"
+        if not partial_update and len(request.fields_data) != expected_num_input_fields:
+            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(request.fields_data)}"
             raise ParamError(message=msg)
 
         return request
