@@ -320,6 +320,17 @@ def pack_field_value_to_field_data(
                 % (field_name, "double", type(field_value))
                 + f" Detail: {e!s}"
             ) from e
+    elif field_type == DataType.TIMESTAMPTZ:
+        try:
+            if field_value is None:
+                field_data.scalars.string_data.data.extend([])  # Timestamptz is passed as String
+            else:
+                field_data.scalars.string_data.data.append(field_value)
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "string", type(field_value))
+            ) from e
     elif field_type == DataType.FLOAT_VECTOR:
         try:
             f_value = field_value
@@ -731,6 +742,11 @@ def extract_row_data_from_fields_data_v2(
 
     if field_data.type == DataType.DOUBLE:
         data = field_data.scalars.double_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.TIMESTAMPTZ:
+        data = field_data.scalars.string_data.data
         assign_scalar(data)
         return False
 

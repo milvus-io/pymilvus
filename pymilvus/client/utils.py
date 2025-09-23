@@ -6,6 +6,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import orjson
+from dateutil.parser import isoparse
 
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status
@@ -163,6 +164,9 @@ def len_of(field_data: Any) -> int:
 
         if field_data.scalars.HasField("double_data"):
             return len(field_data.scalars.double_data.data)
+
+        if field_data.scalars.HasField("timestamptz_data"):
+            return len(field_data.scalars.timestamptz_data.data)
 
         if field_data.scalars.HasField("string_data"):
             return len(field_data.scalars.string_data.data)
@@ -458,3 +462,12 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
         struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
         for i in range(0, len(data), 8)
     }
+
+
+def validate_iso_timestamp(s: str) -> bool:
+    try:
+        isoparse(s)
+    except (ValueError, TypeError):
+        return False
+    else:
+        return True

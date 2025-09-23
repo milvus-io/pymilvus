@@ -19,6 +19,7 @@ venv/
 
 # Env
 .env
+.venv/
 
 # Local Temp
 temp/
