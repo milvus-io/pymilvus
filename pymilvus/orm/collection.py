@@ -51,6 +51,7 @@ from .schema import (
     CollectionSchema,
     FieldSchema,
     Function,
+    FunctionScore,
     check_insert_schema,
     check_schema,
     check_upsert_schema,
@@ -672,7 +673,7 @@ class Collection:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         round_decimal: int = -1,
-        ranker: Optional[Function] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ):
         """Conducts a vector similarity search with an optional boolean expression as filter.
@@ -714,7 +715,7 @@ class Collection:
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
-            ranker (``Function``, optional): The ranker to use for the search.
+            ranker (``Function``, ``FunctionScore``, optional): The ranker to use for the search.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)

@@ -10,7 +10,7 @@ from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamE
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function
+from pymilvus.orm.schema import CollectionSchema, FieldSchema, Function, FunctionScore
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
@@ -988,7 +988,7 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
-        ranker: Optional[Function] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
@@ -1128,10 +1128,11 @@ class Prepare:
         if expr is not None:
             request.dsl = expr
 
-        if ranker is not None and not isinstance(ranker, Function):
-            raise ParamError(message="The search ranker must be a Function.")
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
+
+        if isinstance(ranker, FunctionScore):
+            request.function_score.CopyFrom(Prepare.function_score_schema(ranker))
 
         return request
 
@@ -1213,6 +1214,36 @@ class Prepare:
         if isinstance(rerank, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))
         return request
+
+    @staticmethod
+    def common_kv_value(v: Any) -> str:
+        if isinstance(v, (dict, list)):
+            return json.dumps(v)
+        return str(v)
+
+    @staticmethod
+    def function_score_schema(function_score: FunctionScore) -> schema_types.FunctionScore:
+        functions = [
+            schema_types.FunctionSchema(
+                name=ranker.name,
+                type=ranker.type,
+                description=ranker.description,
+                input_field_names=ranker.input_field_names,
+                params=[
+                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                    for k, v in ranker.params.items()
+                ],
+            )
+            for ranker in function_score.functions
+        ]
+
+        return schema_types.FunctionScore(
+            functions=functions,
+            params=[
+                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                for k, v in function_score.params.items()
+            ],
+        )
 
     @staticmethod
     def ranker_to_function_score(ranker: Function) -> schema_types.FunctionScore:
