@@ -1390,7 +1390,7 @@ class LoadBalanceRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionRequest(_message.Message):
-    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids")
+    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids", "l0Compaction")
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     TIMETRAVEL_FIELD_NUMBER: _ClassVar[int]
     MAJORCOMPACTION_FIELD_NUMBER: _ClassVar[int]
@@ -1399,6 +1399,7 @@ class ManualCompactionRequest(_message.Message):
     PARTITION_ID_FIELD_NUMBER: _ClassVar[int]
     CHANNEL_FIELD_NUMBER: _ClassVar[int]
     SEGMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    L0COMPACTION_FIELD_NUMBER: _ClassVar[int]
     collectionID: int
     timetravel: int
     majorCompaction: bool
@@ -1407,7 +1408,8 @@ class ManualCompactionRequest(_message.Message):
     partition_id: int
     channel: str
     segment_ids: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+    l0Compaction: bool
+    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ..., l0Compaction: bool = ...) -> None: ...
 
 class ManualCompactionResponse(_message.Message):
     __slots__ = ("status", "compactionID", "compactionPlanCount")

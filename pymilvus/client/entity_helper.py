@@ -250,6 +250,38 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
+def convert_to_array_of_vector(obj: List[Any], field_info: Any):
+    # Create a single VectorField that contains all vectors flattened
+    field_data = schema_types.VectorField()
+    element_type = field_info.get("element_type", None)
+
+    if element_type == DataType.FLOAT_VECTOR:
+        dim_value = field_info.get("params", {}).get("dim", 0)
+        # Convert string to int if necessary
+        if isinstance(dim_value, str):
+            dim_value = int(dim_value)
+
+        # Set dim - this is the dimension of each individual vector
+        field_data.dim = dim_value
+
+        # Flatten all vectors into a single data array
+        for field_value in obj:
+            f_value = field_value
+            if isinstance(field_value, np.ndarray):
+                if field_value.dtype not in ("float32", "float64"):
+                    raise ParamError(
+                        message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
+                    )
+                f_value = field_value.tolist()
+            field_data.float_vector.data.extend(f_value)
+
+        return field_data
+
+    raise ParamError(
+        message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
+    )
+
+
 def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
 
@@ -778,9 +810,22 @@ def extract_row_data_from_fields_data_v2(
         DataType.INT8_VECTOR,
     ):
         return True
+    if field_data.type == DataType._ARRAY_OF_STRUCT:
+        return True
+    if field_data.type == DataType._ARRAY_OF_VECTOR:
+        return True
     if field_data.type == DataType.STRING:
         raise MilvusException(message="Not support string yet")
     return False
+
+
+def extract_vector_array_row_data(field_data: Any, index: int):
+    array = field_data.vectors.vector_array.data[index]
+    if field_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR:
+        return list(np.array(array.float_vector.data, dtype=np.float32))
+
+    # unimplemented
+    raise ParamError(message="unimplemented type")
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)
@@ -796,15 +841,15 @@ def extract_row_data_from_fields_data(
     entity_row_data = {}
     dynamic_fields = dynamic_output_fields or set()
 
-    def check_append(field_data: Any):
+    def check_append(field_data: Any, row_data: Dict):
         if field_data.type == DataType.STRING:
             raise MilvusException(message="Not support string yet")
 
         if field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
             return
 
         if (
@@ -812,32 +857,30 @@ def extract_row_data_from_fields_data(
             and len(field_data.scalars.int_data.data) >= index
         ):
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
             return
 
         if field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
             return
 
         if field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = np.single(
-                field_data.scalars.float_data.data[index]
-            )
+            row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
             return
 
         if field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
             return
 
         if (
@@ -845,9 +888,9 @@ def extract_row_data_from_fields_data(
             and len(field_data.scalars.string_data.data) >= index
         ):
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
+            row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
             return
 
         if (
@@ -864,7 +907,7 @@ def extract_row_data_from_fields_data(
 
         if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
             try:
                 json_dict = orjson.loads(field_data.scalars.json_data.data[index])
@@ -875,22 +918,22 @@ def extract_row_data_from_fields_data(
                 raise
 
             if not field_data.is_dynamic:
-                entity_row_data[field_data.field_name] = json_dict
+                row_data[field_data.field_name] = json_dict
                 return
 
             if not dynamic_fields:
-                entity_row_data.update(json_dict)
+                row_data.update(json_dict)
                 return
 
-            entity_row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
+            row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
             return
         if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
+                row_data[field_data.field_name] = None
                 return
-            entity_row_data[field_data.field_name] = extract_array_row_data(field_data, index)
+            row_data[field_data.field_name] = extract_array_row_data(field_data, index)
 
-        if field_data.type == DataType.FLOAT_VECTOR:
+        elif field_data.type == DataType.FLOAT_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float_vector.data) >= index * dim:
                 start_pos, end_pos = index * dim, (index + 1) * dim
@@ -900,41 +943,203 @@ def extract_row_data_from_fields_data(
                 arr = np.array(
                     field_data.vectors.float_vector.data[start_pos:end_pos], dtype=np.float32
                 )
-                entity_row_data[field_data.field_name] = list(arr)
+                row_data[field_data.field_name] = list(arr)
         elif field_data.type == DataType.BINARY_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.binary_vector) >= index * (dim // 8):
                 start_pos, end_pos = index * (dim // 8), (index + 1) * (dim // 8)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.binary_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.BFLOAT16_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.bfloat16_vector) >= index * (dim * 2):
                 start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.bfloat16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.FLOAT16_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.float16_vector) >= index * (dim * 2):
                 start_pos, end_pos = index * (dim * 2), (index + 1) * (dim * 2)
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.float16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-            entity_row_data[field_data.field_name] = sparse_parse_single_row(
+            row_data[field_data.field_name] = sparse_parse_single_row(
                 field_data.vectors.sparse_float_vector.contents[index]
             )
         elif field_data.type == DataType.INT8_VECTOR:
             dim = field_data.vectors.dim
             if len(field_data.vectors.int8_vector) >= index * dim:
                 start_pos, end_pos = index * dim, (index + 1) * dim
-                entity_row_data[field_data.field_name] = [
+                row_data[field_data.field_name] = [
                     field_data.vectors.int8_vector[start_pos:end_pos]
                 ]
+        elif (
+            field_data.type == DataType._ARRAY_OF_VECTOR
+            and len(field_data.vectors.vector_array.data) >= index
+        ):
+            row_data[field_data.field_name] = extract_vector_array_row_data(field_data, index)
+        elif field_data.type == DataType._ARRAY_OF_STRUCT:
+            row_data[field_data.field_name] = {}
+            for sub_field_data in field_data.struct_arrays.fields:
+                check_append(sub_field_data, row_data[field_data.field_name])
 
     for field_data in fields_data:
-        check_append(field_data)
+        check_append(field_data, entity_row_data)
 
     return entity_row_data
+
+
+def get_array_length(array_item: Any) -> int:
+    """Get the length of an array field from its data."""
+    if hasattr(array_item, "string_data") and array_item.string_data:
+        return len(array_item.string_data.data)
+    if hasattr(array_item, "int_data") and array_item.int_data:
+        return len(array_item.int_data.data)
+    if hasattr(array_item, "long_data") and array_item.long_data:
+        return len(array_item.long_data.data)
+    if hasattr(array_item, "float_data") and array_item.float_data:
+        return len(array_item.float_data.data)
+    if hasattr(array_item, "double_data") and array_item.double_data:
+        return len(array_item.double_data.data)
+    if hasattr(array_item, "bool_data") and array_item.bool_data:
+        return len(array_item.bool_data.data)
+    return 0
+
+
+def get_array_value_at_index(array_item: Any, idx: int) -> Any:
+    """Get the value at a specific index from an array field."""
+    if (
+        hasattr(array_item, "string_data")
+        and array_item.string_data
+        and idx < len(array_item.string_data.data)
+    ):
+        return array_item.string_data.data[idx]
+    if (
+        hasattr(array_item, "int_data")
+        and array_item.int_data
+        and idx < len(array_item.int_data.data)
+    ):
+        return array_item.int_data.data[idx]
+    if (
+        hasattr(array_item, "long_data")
+        and array_item.long_data
+        and idx < len(array_item.long_data.data)
+    ):
+        return array_item.long_data.data[idx]
+    if (
+        hasattr(array_item, "float_data")
+        and array_item.float_data
+        and idx < len(array_item.float_data.data)
+    ):
+        return array_item.float_data.data[idx]
+    if (
+        hasattr(array_item, "double_data")
+        and array_item.double_data
+        and idx < len(array_item.double_data.data)
+    ):
+        return array_item.double_data.data[idx]
+    if (
+        hasattr(array_item, "bool_data")
+        and array_item.bool_data
+        and idx < len(array_item.bool_data.data)
+    ):
+        return array_item.bool_data.data[idx]
+    return None
+
+
+def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> List[Dict[str, Any]]:
+    """Convert column-format struct data back to array of structs format.
+
+    Milvus stores struct arrays in column format where each field's data is stored separately.
+    This function converts it back to row format for user consumption.
+
+    For example, if the original one row of array of struct data was:
+    [
+        {"name": "Alice", "age": 30, "vector": [1.0, 2.0]},
+        {"name": "Bob", "age": 25, "vector": [3.0, 4.0]}
+    ]
+
+    Milvus stores it as:
+    - name field: ["Alice", "Bob"]
+    - age field: [30, 25]
+    - vector field: [[1.0, 2.0], [3.0, 4.0]]
+
+    This function reconstructs the original array of struct format.
+
+    Args:
+        struct_arrays: The struct_arrays field containing column-format data with sub-fields
+        row_idx: The row index to extract data for
+
+    Returns:
+        List of dictionaries representing the struct array in row format
+    """
+    if not struct_arrays or not hasattr(struct_arrays, "fields"):
+        return []
+
+    # Determine the number of struct elements by checking the first sub-field's data length
+    # All sub-fields should have the same number of elements
+    num_structs = 0
+    for sub_field in struct_arrays.fields:
+        if sub_field.type == DataType.ARRAY and row_idx < len(sub_field.scalars.array_data.data):
+            array_item = sub_field.scalars.array_data.data[row_idx]
+            num_structs = get_array_length(array_item)
+            if num_structs > 0:
+                break
+        elif sub_field.type == DataType._ARRAY_OF_VECTOR:
+            if (
+                hasattr(sub_field, "vectors")
+                and hasattr(sub_field.vectors, "vector_array")
+                and row_idx < len(sub_field.vectors.vector_array.data)
+            ):
+                vector_data = sub_field.vectors.vector_array.data[row_idx]
+                dim = vector_data.dim
+                # Number of vectors = total float data length / dimension
+                num_structs = len(vector_data.float_vector.data) // dim
+                break
+
+    # Build array of struct objects by extracting data at each struct index
+    struct_array = []
+    for struct_idx in range(num_structs):
+        struct_obj = {}
+
+        for sub_field in struct_arrays.fields:
+            sub_field_name = sub_field.field_name
+
+            # Handle scalar array fields (VARCHAR, INT, FLOAT, etc.)
+            if sub_field.type == DataType.ARRAY:
+                if row_idx < len(sub_field.scalars.array_data.data):
+                    array_item = sub_field.scalars.array_data.data[row_idx]
+                    # Extract the value at struct_idx from the appropriate data type
+                    struct_obj[sub_field_name] = get_array_value_at_index(array_item, struct_idx)
+
+            # Handle vector array fields (FLOAT_VECTOR, etc.)
+            elif sub_field.type == DataType._ARRAY_OF_VECTOR:
+                if hasattr(sub_field, "vectors") and hasattr(sub_field.vectors, "vector_array"):
+                    vector_array = sub_field.vectors.vector_array
+                    if row_idx < len(vector_array.data):
+                        vector_data = vector_array.data[row_idx]
+                        dim = vector_data.dim
+                        float_data = vector_data.float_vector.data
+                        # Extract the vector for this struct element
+                        # Vectors are stored flattened, so we need to slice by dimension
+                        vec_start = struct_idx * dim
+                        vec_end = vec_start + dim
+                        if vec_end <= len(float_data):
+                            struct_obj[sub_field_name] = list(float_data[vec_start:vec_end])
+                        else:
+                            struct_obj[sub_field_name] = None
+
+            # All struct sub-fields should be either ARRAY or ARRAY_OF_VECTOR
+            # Any other type indicates a bug in the data conversion logic
+            else:
+                raise ParamError(
+                    message=f"Unexpected field type {sub_field.type} for struct sub-field {sub_field_name}. "
+                    f"Struct fields must be ARRAY or ARRAY_OF_VECTOR internally."
+                )
+
+        struct_array.append(struct_obj)
+
+    return struct_array
