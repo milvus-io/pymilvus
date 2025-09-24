@@ -913,8 +913,7 @@ class Prepare:
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
         request.fields_data.extend(fields_data.values())
 
-        # Add struct fields to request (if not partial update)
-        if struct_fields_data and not partial_update:
+        if struct_fields_data:
             # reconstruct the struct array fields data (same as in insert)
             for struct in input_struct_field_info:
                 struct_name = struct["name"]
