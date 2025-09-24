@@ -120,6 +120,12 @@ class DataType(IntEnum):
     SPARSE_FLOAT_VECTOR = schema_pb2.SparseFloatVector
     INT8_VECTOR = schema_pb2.Int8Vector
 
+    STRUCT = schema_pb2.Struct
+
+    # Internal use only - not exposed to users
+    _ARRAY_OF_VECTOR = schema_pb2.ArrayOfVector
+    _ARRAY_OF_STRUCT = schema_pb2.ArrayOfStruct
+
     UNKNOWN = 999
 
     def __str__(self) -> str:
@@ -200,6 +206,13 @@ class PlaceholderType(IntEnum):
     SparseFloatVector = 104
     Int8Vector = 105
     VARCHAR = 21
+
+    EmbListBinaryVector = 300
+    EmbListFloatVector = 301
+    EmbListFloat16Vector = 302
+    EmbListBFloat16Vector = 303
+    EmbListSparseFloatVector = 304
+    EmbListInt8Vector = 305
 
 
 class State(IntEnum):
@@ -1141,6 +1154,35 @@ class HybridExtraList(list):
                 row_data[field_data.field_name] = [
                     field_data.vectors.int8_vector[start_pos:end_pos]
                 ]
+        elif field_data.type == DataType._ARRAY_OF_VECTOR:
+            # Handle array of vectors
+            if hasattr(field_data, "vectors") and hasattr(field_data.vectors, "vector_array"):
+                if index < len(field_data.vectors.vector_array.data):
+                    vector_data = field_data.vectors.vector_array.data[index]
+                    dim = vector_data.dim
+                    float_data = vector_data.float_vector.data
+                    num_vectors = len(float_data) // dim
+                    row_vectors = []
+                    for vec_idx in range(num_vectors):
+                        vec_start = vec_idx * dim
+                        vec_end = vec_start + dim
+                        row_vectors.append(list(float_data[vec_start:vec_end]))
+                    row_data[field_data.field_name] = row_vectors
+                else:
+                    row_data[field_data.field_name] = []
+            else:
+                row_data[field_data.field_name] = []
+        elif field_data.type == DataType._ARRAY_OF_STRUCT:
+            # Handle struct arrays - convert column format back to array of structs
+            if hasattr(field_data, "struct_arrays") and field_data.struct_arrays:
+                # Import here to avoid circular imports
+                from .entity_helper import extract_struct_array_from_column_data  # noqa: PLC0415
+
+                row_data[field_data.field_name] = extract_struct_array_from_column_data(
+                    field_data.struct_arrays, index
+                )
+            else:
+                row_data[field_data.field_name] = None
 
     def __getitem__(self, index: Union[int, slice]):
         if isinstance(index, slice):
