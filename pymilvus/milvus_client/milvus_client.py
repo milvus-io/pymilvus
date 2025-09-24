@@ -1467,6 +1467,7 @@ class MilvusClient:
         self,
         collection_name: str,
         is_clustering: Optional[bool] = False,
+        is_l0: Optional[bool] = False,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -1487,7 +1488,9 @@ class MilvusClient:
             for subsequent state inquiries.
         """
         conn = self._get_connection()
-        return conn.compact(collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs)
+        return conn.compact(
+            collection_name, is_clustering=is_clustering, is_l0=is_l0, timeout=timeout, **kwargs
+        )
 
     def get_compaction_state(
         self,
