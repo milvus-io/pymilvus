@@ -94,7 +94,7 @@ class MsgPosition(_message.Message):
     def __init__(self, channel_name: _Optional[str] = ..., msgID: _Optional[bytes] = ..., msgGroup: _Optional[str] = ..., timestamp: _Optional[int] = ...) -> None: ...
 
 class CreateCollectionRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collectionName", "partitionName", "dbID", "collectionID", "partitionID", "schema", "virtualChannelNames", "physicalChannelNames", "partitionIDs")
+    __slots__ = ("base", "db_name", "collectionName", "partitionName", "dbID", "collectionID", "partitionID", "schema", "virtualChannelNames", "physicalChannelNames", "partitionIDs", "partitionNames", "collection_schema")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONNAME_FIELD_NUMBER: _ClassVar[int]
@@ -106,6 +106,8 @@ class CreateCollectionRequest(_message.Message):
     VIRTUALCHANNELNAMES_FIELD_NUMBER: _ClassVar[int]
     PHYSICALCHANNELNAMES_FIELD_NUMBER: _ClassVar[int]
     PARTITIONIDS_FIELD_NUMBER: _ClassVar[int]
+    PARTITIONNAMES_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_SCHEMA_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collectionName: str
@@ -117,7 +119,9 @@ class CreateCollectionRequest(_message.Message):
     virtualChannelNames: _containers.RepeatedScalarFieldContainer[str]
     physicalChannelNames: _containers.RepeatedScalarFieldContainer[str]
     partitionIDs: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collectionName: _Optional[str] = ..., partitionName: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., schema: _Optional[bytes] = ..., virtualChannelNames: _Optional[_Iterable[str]] = ..., physicalChannelNames: _Optional[_Iterable[str]] = ..., partitionIDs: _Optional[_Iterable[int]] = ...) -> None: ...
+    partitionNames: _containers.RepeatedScalarFieldContainer[str]
+    collection_schema: _schema_pb2.CollectionSchema
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collectionName: _Optional[str] = ..., partitionName: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., schema: _Optional[bytes] = ..., virtualChannelNames: _Optional[_Iterable[str]] = ..., physicalChannelNames: _Optional[_Iterable[str]] = ..., partitionIDs: _Optional[_Iterable[int]] = ..., partitionNames: _Optional[_Iterable[str]] = ..., collection_schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ...) -> None: ...
 
 class DropCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collectionName", "dbID", "collectionID")

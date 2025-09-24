@@ -33,6 +33,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Int8Vector: _ClassVar[DataType]
     ArrayOfVector: _ClassVar[DataType]
     ArrayOfStruct: _ClassVar[DataType]
+    Struct: _ClassVar[DataType]
 
 class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -70,6 +71,7 @@ SparseFloatVector: DataType
 Int8Vector: DataType
 ArrayOfVector: DataType
 ArrayOfStruct: DataType
+Struct: DataType
 Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
