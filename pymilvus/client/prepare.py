@@ -325,6 +325,57 @@ class Prepare:
 
         return field_schema, primary_field, auto_id_field
 
+    @staticmethod
+    def get_function_schema(func: Dict) -> schema_types.FunctionSchema:
+        """Convert function dictionary to FunctionSchema protobuf object.
+
+        Args:
+            func: Dictionary containing function information with keys:
+                - name: Function name (required)
+                - description: Function description (optional)
+                - type: Function type (required)
+                - input_field_names: List of input field names (optional)
+                - output_field_names: List of output field names (optional)
+                - params: Dictionary of function parameters (optional)
+
+        Returns:
+            schema_types.FunctionSchema: Protobuf FunctionSchema object
+        """
+        # Validate required fields
+        if not func.get("name"):
+            raise ParamError(message="Function name is required")
+        if not func.get("type"):
+            raise ParamError(message="Function type is required")
+
+        function_schema = schema_types.FunctionSchema(
+            name=func.get("name"),
+            description=func.get("description", ""),
+            type=func.get("type"),
+        )
+
+        # Add input field names if provided
+        input_field_names = func.get("input_field_names", [])
+        if input_field_names:
+            if isinstance(input_field_names, str):
+                input_field_names = [input_field_names]
+            function_schema.input_field_names.extend(input_field_names)
+
+        # Add output field names if provided
+        output_field_names = func.get("output_field_names", [])
+        if output_field_names:
+            if isinstance(output_field_names, str):
+                output_field_names = [output_field_names]
+            function_schema.output_field_names.extend(output_field_names)
+
+        # Add function parameters
+        params = func.get("params", {})
+        if params and isinstance(params, dict):
+            for k, v in params.items():
+                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+                function_schema.params.append(kv_pair)
+
+        return function_schema
+
     @classmethod
     def get_schema(
         cls,
@@ -374,6 +425,97 @@ class Prepare:
         return milvus_types.AddCollectionFieldRequest(
             collection_name=collection_name,
             schema=bytes(field_schema_proto.SerializeToString()),
+        )
+
+    @classmethod
+    def alter_collection_schema_request(
+        cls,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        index_name: Optional[str] = None,
+        extra_params: Optional[Dict] = None,
+        func: Optional[Function] = None,
+        do_physical_backfill: bool = False,
+        # For Drop operation
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+    ) -> milvus_types.AlterCollectionSchemaRequest:
+        """
+        Create AlterCollectionSchemaRequest supporting both Add and Drop operations.
+
+        For Add operation: provide field_schema, func, index_name, extra_params
+        For Drop operation: provide either drop_field_name or drop_field_id
+        """
+        # Determine operation type
+        is_drop = drop_field_name is not None or drop_field_id is not None
+        is_add = field_schema is not None or func is not None
+
+        if is_drop and is_add:
+            raise ParamError(
+                message="Cannot perform both Add and Drop operations in a single request"
+            )
+        if not is_drop and not is_add:
+            raise ParamError(
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+            )
+
+        action = None
+
+        if is_drop:
+            # Create DropRequest
+            drop_request = milvus_types.AlterCollectionSchemaRequest.DropRequest()
+            if drop_field_name is not None:
+                drop_request.field_name = drop_field_name
+            elif drop_field_id is not None:
+                drop_request.field_id = drop_field_id
+            else:
+                raise ParamError(
+                    message="Must provide either drop_field_name or drop_field_id for Drop operation"
+                )
+
+            action = milvus_types.AlterCollectionSchemaRequest.Action(drop_request=drop_request)
+        else:
+            # Create AddRequest
+            field_infos = []
+            func_schemas = []
+
+            # Process field_schema if provided
+            if field_schema is not None:
+                # Get field schema (returns tuple, we need the first element)
+                field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
+
+                # Convert extra_params dict to KeyValuePair list
+                extra_params_kvs = []
+                if extra_params:
+                    extra_params_kvs = [
+                        common_types.KeyValuePair(key=str(k), value=str(v))
+                        for k, v in extra_params.items()
+                    ]
+
+                field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
+                    field_schema=field_schema_proto,
+                    index_name=index_name or "",
+                    extra_params=extra_params_kvs,
+                )
+                field_infos.append(field_info)
+
+            # Process function if provided
+            if func is not None:
+                func_schemas.append(cls.get_function_schema(func.to_dict()))
+
+            # Create AddRequest
+            add_request = milvus_types.AlterCollectionSchemaRequest.AddRequest(
+                field_infos=field_infos,
+                func_schema=func_schemas,
+                do_physical_backfill=do_physical_backfill,
+            )
+
+            action = milvus_types.AlterCollectionSchemaRequest.Action(add_request=add_request)
+
+        # Create the main request with action
+        return milvus_types.AlterCollectionSchemaRequest(
+            collection_name=collection_name,
+            action=action,
         )
 
     @classmethod
@@ -1015,6 +1157,7 @@ class Prepare:
         struct_fields_info: Optional[Dict] = None,
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
+        schema_version: int = 0,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1026,6 +1169,7 @@ class Prepare:
             partition_name=p_name,
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
+            schema_version=schema_version,
         )
 
         return cls._parse_row_request(
