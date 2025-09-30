@@ -25,7 +25,6 @@ ALWAYS_KEEP_ZERO_KEYS = frozenset(
     {"scanned_remote_bytes", "scanned_total_bytes", "cache_hit_ratio"}
 )
 
-
 # OmitZeroDict: ignore the key-value pairs with value as 0 when printing
 class OmitZeroDict(dict):
     def omit_zero_len(self):
