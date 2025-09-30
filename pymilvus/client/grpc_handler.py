@@ -21,7 +21,7 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function
+from pymilvus.orm.schema import Function, FunctionScore
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
@@ -940,7 +940,7 @@ class GrpcHandler:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         timeout: Optional[float] = None,
-        ranker: Optional[Function] = None,
+        ranker: Union[Function, FunctionScore] = None,
         **kwargs,
     ):
         check_pass_param(
