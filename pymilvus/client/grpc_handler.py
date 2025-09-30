@@ -69,7 +69,7 @@ from .types import (
     State,
     Status,
     UserInfo,
-    get_cost_extra,
+    get_extra_info,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -1745,7 +1745,7 @@ class GrpcHandler:
             if lazy_extracted:
                 lazy_field_data.append(field_data)
 
-        extra_dict = get_cost_extra(response.status)
+        extra_dict = get_extra_info(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
         return HybridExtraList(
             lazy_field_data,
