@@ -15,8 +15,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue with other branches even if one fails
       matrix:
-        # branch: [master, '2.5', '2.6'] # wait for milvus valid 2.6 branch
-        branch: [master, '2.5']
+        branch: [master, '2.5', '2.6']
     steps:
     - name: Setup Python
       uses: actions/setup-python@v5
@@ -77,8 +76,40 @@ jobs:
       if: steps.current.outputs.current == steps.version.outputs.latest
       run: echo "Already up-to-date. Skipping."
 
-    - name: Prepare branch
+    - name: Check for existing PR
       if: steps.current.outputs.current != steps.version.outputs.latest
+      id: check_pr
+      env:
+        GH_TOKEN: ${{ secrets.MILVUS_UPDATE_TOKEN }}
+      run: |
+        set -euo pipefail
+        TARGET_VERSION="${{ steps.version.outputs.latest }}"
+        TARGET_BRANCH="${{ matrix.branch }}"
+
+        # Search for open PRs with matching title pattern
+        PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} for ${TARGET_BRANCH} branch"
+        echo "Checking for existing PRs with title pattern: $PR_TITLE_PATTERN"
+
+        # List open PRs and check if any match our criteria
+        EXISTING_PR=$(gh pr list --repo milvus-io/milvus --base "${TARGET_BRANCH}" --state open --json number,title,author --jq ".[] | select(.title == \"${PR_TITLE_PATTERN}\") | .number" || echo "")
+
+        if [ -n "$EXISTING_PR" ]; then
+          echo "Found existing PR #$EXISTING_PR with same version update"
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "pr_number=$EXISTING_PR" >> $GITHUB_OUTPUT
+        else
+          echo "No existing PR found for this version update"
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Skip if PR already exists
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists == 'true'
+      run: |
+        echo "PR #${{ steps.check_pr.outputs.pr_number }} already exists for updating to version ${{ steps.version.outputs.latest }}"
+        echo "Skipping PR creation to avoid duplicate."
+
+    - name: Prepare branch
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists != 'true'
       run: |
         set -euo pipefail
         cd milvus-upstream
@@ -89,7 +120,7 @@ jobs:
         git switch -c "$BR"
 
     - name: Update requirements.txt
-      if: steps.current.outputs.current != steps.version.outputs.latest
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists != 'true'
       run: |
         set -euo pipefail
         file="milvus-upstream/tests/python_client/requirements.txt"
@@ -101,7 +132,7 @@ jobs:
         grep -nE '^pymilvus(\[bulk_writer\])?==' "$file" || true
 
     - name: Commit
-      if: steps.current.outputs.current != steps.version.outputs.latest
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists != 'true'
       run: |
         set -euo pipefail
         cd milvus-upstream
@@ -110,7 +141,7 @@ jobs:
 
 
     - name: Push to fork
-      if: steps.current.outputs.current != steps.version.outputs.latest
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists != 'true'
       run: |
         set -euo pipefail
         cd milvus-upstream
@@ -123,7 +154,7 @@ jobs:
         GIT_CURL_VERBOSE=1 GIT_TRACE=1 git push -u fork "$BRANCH"
 
     - name: Open PR to milvus-io/milvus
-      if: steps.current.outputs.current != steps.version.outputs.latest
+      if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists != 'true'
       env:
         GH_TOKEN: ${{ secrets.MILVUS_UPDATE_TOKEN }}
       run: |
