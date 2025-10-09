@@ -40,13 +40,6 @@ def create_connection(
     if connections.has_connection(using):
         return using
 
-    try:
-        connections.connect(
-            using, user, password, db_name, token, uri=uri, _async=use_async, **kwargs
-        )
-    except Exception as ex:
-        logger.error("Failed to create new connection using: %s", using)
-        raise ex from ex
-    else:
-        logger.debug("Created new connection using: %s", using)
-        return using
+    connections.connect(using, user, password, db_name, token, uri=uri, _async=use_async, **kwargs)
+    logger.debug("Created new connection using: %s", using)
+    return using
