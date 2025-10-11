@@ -429,7 +429,12 @@ class AsyncMilvusClient:
         conn = self._get_connection()
 
         if ids:
-            schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+            try:
+                schema_dict, _ = await conn._get_schema_from_cache_or_remote(
+                    collection_name, timeout=timeout
+                )
+            except Exception as ex:
+                raise ex from ex
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -461,7 +466,12 @@ class AsyncMilvusClient:
             return []
 
         conn = self._get_connection()
-        schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        try:
+            schema_dict, _ = await conn._get_schema_from_cache_or_remote(
+                collection_name, timeout=timeout
+            )
+        except Exception as ex:
+            raise ex from ex
 
         if not output_fields:
             output_fields = ["*"]
@@ -514,7 +524,12 @@ class AsyncMilvusClient:
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+            try:
+                schema_dict, _ = await conn._get_schema_from_cache_or_remote(
+                    collection_name, timeout=timeout
+                )
+            except Exception as ex:
+                raise ex from ex
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):

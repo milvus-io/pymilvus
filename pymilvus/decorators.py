@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import functools
 import logging
@@ -47,6 +48,82 @@ def retry_on_rpc_failure(
     back_off_multiplier: int = 3,
 ):
     def wrapper(func: Any):
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            @error_handler(func_name=func.__name__)
+            @tracing_request()
+            async def async_handler(*args, **kwargs):
+                _timeout = kwargs.get("timeout")
+                _retry_times = kwargs.get("retry_times")
+                _retry_on_rate_limit = kwargs.get("retry_on_rate_limit", True)
+
+                retry_timeout = (
+                    _timeout
+                    if _timeout is not None and isinstance(_timeout, (int, float))
+                    else None
+                )
+                final_retry_times = (
+                    _retry_times
+                    if _retry_times is not None and isinstance(_retry_times, int)
+                    else retry_times
+                )
+                counter = 1
+                back_off = initial_back_off
+                start_time = time.time()
+
+                def is_timeout(start_time: Optional[float] = None) -> bool:
+                    if retry_timeout is not None:
+                        return time.time() - start_time >= retry_timeout
+                    return counter > final_retry_times
+
+                to_msg = (
+                    f"[{func.__name__}] Retry timeout: {retry_timeout}s"
+                    if retry_timeout is not None
+                    else f"[{func.__name__}] Retry run out of {final_retry_times} retry times"
+                )
+
+                while True:
+                    try:
+                        return await func(*args, **kwargs)
+                    except grpc.RpcError as e:
+                        if e.code() in IGNORE_RETRY_CODES:
+                            raise e from e
+                        if is_timeout(start_time):
+                            raise MilvusException(
+                                e.code(), f"{to_msg}, message={e.details()}"
+                            ) from e
+
+                        if counter > 3:
+                            retry_msg = (
+                                f"[{func.__name__}] retry:{counter}, cost: {back_off:.2f}s, "
+                                f"reason: <{e.__class__.__name__}: {e.code()}, {e.details()}>"
+                            )
+                            LOGGER.info(retry_msg)
+
+                        await asyncio.sleep(back_off)
+                        back_off = min(back_off * back_off_multiplier, max_back_off)
+                    except MilvusException as e:
+                        if is_timeout(start_time):
+                            LOGGER.warning(WARNING_COLOR.format(to_msg))
+                            raise MilvusException(
+                                code=e.code, message=f"{to_msg}, message={e.message}"
+                            ) from e
+                        if _retry_on_rate_limit and (
+                            e.code == ErrorCode.RATE_LIMIT
+                            or e.compatible_code == common_pb2.RateLimit
+                        ):
+                            await asyncio.sleep(back_off)
+                            back_off = min(back_off * back_off_multiplier, max_back_off)
+                        else:
+                            raise e from e
+                    except Exception as e:
+                        raise e from e
+                    finally:
+                        counter += 1
+
+            return async_handler
+
         @functools.wraps(func)
         @error_handler(func_name=func.__name__)
         @tracing_request()
@@ -57,7 +134,9 @@ def retry_on_rpc_failure(
             _retry_times = kwargs.get("retry_times")
             _retry_on_rate_limit = kwargs.get("retry_on_rate_limit", True)
 
-            retry_timeout = _timeout if _timeout is not None and isinstance(_timeout, int) else None
+            retry_timeout = (
+                _timeout if _timeout is not None and isinstance(_timeout, (int, float)) else None
+            )
             final_retry_times = (
                 _retry_times
                 if _retry_times is not None and isinstance(_retry_times, int)
@@ -126,6 +205,40 @@ def retry_on_rpc_failure(
 
 def error_handler(func_name: str = ""):
     def wrapper(func: Callable):
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_handler(*args, **kwargs):
+                inner_name = func_name or func.__name__
+                record_dict = {}
+                try:
+                    record_dict["RPC start"] = str(datetime.datetime.now())
+                    return await func(*args, **kwargs)
+                except MilvusException as e:
+                    record_dict["RPC error"] = str(datetime.datetime.now())
+                    LOGGER.error(f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>")
+                    raise e from e
+                except grpc.FutureTimeoutError as e:
+                    record_dict["gRPC timeout"] = str(datetime.datetime.now())
+                    LOGGER.error(
+                        f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
+                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                    )
+                    raise e from e
+                except grpc.RpcError as e:
+                    record_dict["gRPC error"] = str(datetime.datetime.now())
+                    LOGGER.error(
+                        f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
+                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                    )
+                    raise e from e
+                except Exception as e:
+                    record_dict["Exception"] = str(datetime.datetime.now())
+                    LOGGER.error(f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>")
+                    raise MilvusException(message=f"Unexpected error, message=<{e!s}>") from e
+
+            return async_handler
+
         @functools.wraps(func)
         def handler(*args, **kwargs):
             inner_name = func_name
@@ -165,6 +278,17 @@ def error_handler(func_name: str = ""):
 
 def tracing_request():
     def wrapper(func: Callable):
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_handler(self: Callable, *args, **kwargs):
+                level = kwargs.get("log-level", kwargs.get("log_level"))
+                if level:
+                    self.set_onetime_loglevel(level)
+                return await func(self, *args, **kwargs)
+
+            return async_handler
+
         @functools.wraps(func)
         def handler(self: Callable, *args, **kwargs):
             level = kwargs.get("log-level", kwargs.get("log_level"))
