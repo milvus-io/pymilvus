@@ -22,7 +22,7 @@ from pymilvus.exceptions import (
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm import utility
-from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function
+from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function, FunctionScore
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
@@ -137,12 +137,7 @@ class MilvusClient:
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
-        try:
-            conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
-            logger.debug("Successfully created collection: %s", collection_name)
-        except Exception as ex:
-            logger.error("Failed to create collection: %s", collection_name)
-            raise ex from ex
+        conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
 
         index_params = IndexParams()
         index_params.add_index(vector_field_name, index_type="AUTOINDEX", metric_type=metric_type)
@@ -172,19 +167,14 @@ class MilvusClient:
         **kwargs,
     ):
         conn = self._get_connection()
-        try:
-            conn.create_index(
-                collection_name,
-                index_param.field_name,
-                index_param.get_index_configs(),
-                timeout=timeout,
-                index_name=index_param.index_name,
-                **kwargs,
-            )
-            logger.debug("Successfully created an index on collection: %s", collection_name)
-        except Exception as ex:
-            logger.error("Failed to create an index on collection: %s", collection_name)
-            raise ex from ex
+        conn.create_index(
+            collection_name,
+            index_param.field_name,
+            index_param.get_index_configs(),
+            timeout=timeout,
+            index_name=index_param.index_name,
+            **kwargs,
+        )
 
     def insert(
         self,
@@ -353,22 +343,16 @@ class MilvusClient:
         """
 
         conn = self._get_connection()
-        try:
-            res = conn.hybrid_search(
-                collection_name,
-                reqs,
-                ranker,
-                limit=limit,
-                partition_names=partition_names,
-                output_fields=output_fields,
-                timeout=timeout,
-                **kwargs,
-            )
-        except Exception as ex:
-            logger.error("Failed to hybrid search collection: %s", collection_name)
-            raise ex from ex
-
-        return res
+        return conn.hybrid_search(
+            collection_name,
+            reqs,
+            ranker,
+            limit=limit,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def search(
         self,
@@ -381,7 +365,7 @@ class MilvusClient:
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
-        ranker: Optional["Function"] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -414,26 +398,20 @@ class MilvusClient:
             kwargs["is_embedding_list"] = True
 
         conn = self._get_connection()
-        try:
-            res = conn.search(
-                collection_name,
-                data,
-                anns_field or "",
-                search_params or {},
-                expression=filter,
-                limit=limit,
-                output_fields=output_fields,
-                partition_names=partition_names,
-                expr_params=kwargs.pop("filter_params", {}),
-                timeout=timeout,
-                ranker=ranker,
-                **kwargs,
-            )
-        except Exception as ex:
-            logger.error("Failed to search collection: %s", collection_name)
-            raise ex from ex
-
-        return res
+        return conn.search(
+            collection_name,
+            data,
+            anns_field or "",
+            search_params or {},
+            expression=filter,
+            limit=limit,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            expr_params=kwargs.pop("filter_params", {}),
+            timeout=timeout,
+            ranker=ranker,
+            **kwargs,
+        )
 
     def query(
         self,
@@ -473,33 +451,21 @@ class MilvusClient:
         conn = self._get_connection()
 
         if ids:
-            try:
-                schema_dict, _ = conn._get_schema_from_cache_or_remote(
-                    collection_name, timeout=timeout
-                )
-            except Exception as ex:
-                logger.error("Failed to describe collection: %s", collection_name)
-                raise ex from ex
+            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
             output_fields = ["*"]
 
-        try:
-            res = conn.query(
-                collection_name,
-                expr=filter,
-                output_fields=output_fields,
-                partition_names=partition_names,
-                timeout=timeout,
-                expr_params=kwargs.pop("filter_params", {}),
-                **kwargs,
-            )
-        except Exception as ex:
-            logger.error("Failed to query collection: %s", collection_name)
-            raise ex from ex
-
-        return res
+        return conn.query(
+            collection_name,
+            expr=filter,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            timeout=timeout,
+            expr_params=kwargs.pop("filter_params", {}),
+            **kwargs,
+        )
 
     def query_iterator(
         self,
@@ -517,11 +483,7 @@ class MilvusClient:
 
         conn = self._get_connection()
         # set up schema for iterator
-        try:
-            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+        schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         return QueryIterator(
             connection=conn,
@@ -615,19 +577,13 @@ class MilvusClient:
         except ServerVersionIncompatibleException:
             # for compatibility, return search_iterator V1
             logger.warning(ExceptionsMessage.SearchIteratorV2FallbackWarning)
-        except Exception as ex:
-            raise ex from ex
 
         # following is the old code for search_iterator V1
         if filter is not None and not isinstance(filter, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
         # set up schema for iterator
-        try:
-            schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+        schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
         # if anns_field is not provided
         # if only one vector field, use to search
         # if multiple vector fields, raise exception and abort
@@ -722,30 +678,20 @@ class MilvusClient:
             return []
 
         conn = self._get_connection()
-        try:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
-        except Exception as ex:
-            logger.error("Failed to describe collection: %s", collection_name)
-            raise ex from ex
+        schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
 
         if not output_fields:
             output_fields = ["*"]
 
         expr = self._pack_pks_expr(schema_dict, ids)
-        try:
-            res = conn.query(
-                collection_name,
-                expr=expr,
-                output_fields=output_fields,
-                partition_names=partition_names,
-                timeout=timeout,
-                **kwargs,
-            )
-        except Exception as ex:
-            logger.error("Failed to get collection: %s", collection_name)
-            raise ex from ex
-
-        return res
+        return conn.query(
+            collection_name,
+            expr=expr,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def delete(
         self,
@@ -808,13 +754,7 @@ class MilvusClient:
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            try:
-                schema_dict, _ = conn._get_schema_from_cache_or_remote(
-                    collection_name, timeout=timeout
-                )
-            except Exception as ex:
-                logger.error("Failed to describe collection: %s", collection_name)
-                raise ex from ex
+            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
@@ -822,20 +762,16 @@ class MilvusClient:
             expr = filter
 
         ret_pks = []
-        try:
-            res = conn.delete(
-                collection_name=collection_name,
-                expression=expr,
-                partition_name=partition_name,
-                expr_params=kwargs.pop("filter_params", {}),
-                timeout=timeout,
-                **kwargs,
-            )
-            if res.primary_keys:
-                ret_pks.extend(res.primary_keys)
-        except Exception as ex:
-            logger.error("Failed to delete primary keys in collection: %s", collection_name)
-            raise ex from ex
+        res = conn.delete(
+            collection_name=collection_name,
+            expression=expr,
+            partition_name=partition_name,
+            expr_params=kwargs.pop("filter_params", {}),
+            timeout=timeout,
+            **kwargs,
+        )
+        if res.primary_keys:
+            ret_pks.extend(res.primary_keys)
 
         # compatible with deletions that returns primary keys
         if ret_pks:
@@ -935,12 +871,7 @@ class MilvusClient:
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
-        try:
-            conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
-            logger.debug("Successfully created collection: %s", collection_name)
-        except Exception as ex:
-            logger.error("Failed to create collection: %s", collection_name)
-            raise ex from ex
+        conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
 
         if index_params:
             self.create_index(collection_name, index_params, timeout=timeout)
@@ -980,19 +911,11 @@ class MilvusClient:
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
         conn = self._get_connection()
-        try:
-            conn.load_collection(collection_name, timeout=timeout, **kwargs)
-        except MilvusException as ex:
-            logger.error("Failed to load collection: %s", collection_name)
-            raise ex from ex
+        conn.load_collection(collection_name, timeout=timeout, **kwargs)
 
     def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        try:
-            conn.release_collection(collection_name, timeout=timeout, **kwargs)
-        except MilvusException as ex:
-            logger.error("Failed to load collection: %s", collection_name)
-            raise ex from ex
+        conn.release_collection(collection_name, timeout=timeout, **kwargs)
 
     def get_load_state(
         self,
@@ -1488,6 +1411,7 @@ class MilvusClient:
         self,
         collection_name: str,
         is_clustering: Optional[bool] = False,
+        is_l0: Optional[bool] = False,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -1508,7 +1432,9 @@ class MilvusClient:
             for subsequent state inquiries.
         """
         conn = self._get_connection()
-        return conn.compact(collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs)
+        return conn.compact(
+            collection_name, is_clustering=is_clustering, is_l0=is_l0, timeout=timeout, **kwargs
+        )
 
     def get_compaction_state(
         self,
@@ -1614,11 +1540,7 @@ class MilvusClient:
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        try:
-            res = conn.list_privilege_groups(timeout=timeout, **kwargs)
-        except Exception as ex:
-            logger.exception("Failed to list privilege groups.")
-            raise ex from ex
+        res = conn.list_privilege_groups(timeout=timeout, **kwargs)
         ret = []
         for g in res.groups:
             ret.append({"privilege_group": g.privilege_group, "privileges": g.privileges})

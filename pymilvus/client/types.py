@@ -21,15 +21,19 @@ ConsistencyLevel = common_pb2.ConsistencyLevel
 
 logger = logging.getLogger(__name__)
 
+ALWAYS_KEEP_ZERO_KEYS = frozenset(
+    {"scanned_remote_bytes", "scanned_total_bytes", "cache_hit_ratio"}
+)
+
 
 # OmitZeroDict: ignore the key-value pairs with value as 0 when printing
 class OmitZeroDict(dict):
     def omit_zero_len(self):
-        return len(dict(filter(lambda x: x[1], self.items())))
+        return len({k: v for k, v in self.items() if v or k in ALWAYS_KEEP_ZERO_KEYS})
 
-    # filter the key-value pairs with value as 0
+    # keep zero for specific keys, omit other zero values
     def __str__(self):
-        return str(dict(filter(lambda x: x[1], self.items())))
+        return str({k: v for k, v in self.items() if v or k in ALWAYS_KEEP_ZERO_KEYS})
 
     # no filter
     def __repr__(self):
@@ -1262,8 +1266,16 @@ def get_cost_from_status(status: Optional[common_pb2.Status] = None):
     )
 
 
-def get_cost_extra(status: Optional[common_pb2.Status] = None):
-    return {"cost": get_cost_from_status(status)}
+def get_extra_info(status: Optional[common_pb2.Status] = None):
+    extra = {"cost": get_cost_from_status(status)}
+    if status and status.extra_info:
+        if "scanned_remote_bytes" in status.extra_info:
+            extra["scanned_remote_bytes"] = int(status.extra_info["scanned_remote_bytes"])
+        if "scanned_total_bytes" in status.extra_info:
+            extra["scanned_total_bytes"] = int(status.extra_info["scanned_total_bytes"])
+        if "cache_hit_ratio" in status.extra_info:
+            extra["cache_hit_ratio"] = float(status.extra_info["cache_hit_ratio"])
+    return extra
 
 
 class DatabaseInfo:

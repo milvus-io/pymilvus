@@ -268,8 +268,16 @@ class SearchResult(list):
 
         # set extra info
         self.extra = {}
-        if status and status.extra_info and "report_value" in status.extra_info:
-            self.extra = {"cost": int(status.extra_info["report_value"])}
+        if status and status.extra_info:
+            if "report_value" in status.extra_info:
+                self.extra["cost"] = int(status.extra_info["report_value"])
+            if "scanned_remote_bytes" in status.extra_info:
+                self.extra["scanned_remote_bytes"] = int(status.extra_info["scanned_remote_bytes"])
+            if "scanned_total_bytes" in status.extra_info:
+                self.extra["scanned_total_bytes"] = int(status.extra_info["scanned_total_bytes"])
+            if "cache_hit_ratio" in status.extra_info:
+                self.extra["cache_hit_ratio"] = float(status.extra_info["cache_hit_ratio"])
+
         # iterator related
         self._session_ts = session_ts
         self._search_iterator_v2_results = res.search_iterator_v2_results

@@ -16,6 +16,7 @@ from pymilvus.orm.schema import (
     FieldSchema,
     Function,
     isVectorDataType,
+    FunctionScore,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
@@ -671,6 +672,18 @@ class Prepare:
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=False)
         ]
+        # check if pk exists in entities
+        primary_field_info = next(
+            (field for field in fields_info if field.get("is_primary", False)), None
+        )
+        if (
+            primary_field_info
+            and primary_field_info.get("auto_id", False)
+            and entities
+            and primary_field_info["name"] in entities[0]
+        ):
+            input_fields_info.append(primary_field_info)
+
         function_output_field_names = Prepare._function_output_field_names(fields_info)
         fields_data = {
             field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
@@ -1314,7 +1327,7 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
-        ranker: Optional[Function] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
@@ -1462,10 +1475,11 @@ class Prepare:
         if expr is not None:
             request.dsl = expr
 
-        if ranker is not None and not isinstance(ranker, Function):
-            raise ParamError(message="The search ranker must be a Function.")
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
+
+        if isinstance(ranker, FunctionScore):
+            request.function_score.CopyFrom(Prepare.function_score_schema(ranker))
 
         return request
 
@@ -1547,6 +1561,36 @@ class Prepare:
         if isinstance(rerank, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))
         return request
+
+    @staticmethod
+    def common_kv_value(v: Any) -> str:
+        if isinstance(v, (dict, list)):
+            return json.dumps(v)
+        return str(v)
+
+    @staticmethod
+    def function_score_schema(function_score: FunctionScore) -> schema_types.FunctionScore:
+        functions = [
+            schema_types.FunctionSchema(
+                name=ranker.name,
+                type=ranker.type,
+                description=ranker.description,
+                input_field_names=ranker.input_field_names,
+                params=[
+                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                    for k, v in ranker.params.items()
+                ],
+            )
+            for ranker in function_score.functions
+        ]
+
+        return schema_types.FunctionScore(
+            functions=functions,
+            params=[
+                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                for k, v in function_score.params.items()
+            ],
+        )
 
     @staticmethod
     def ranker_to_function_score(ranker: Function) -> schema_types.FunctionScore:
@@ -1877,17 +1921,23 @@ class Prepare:
 
     @classmethod
     def manual_compaction(
-        cls, collection_name: str, is_clustering: bool, collection_id: Optional[int] = None
+        cls,
+        collection_name: str,
+        is_clustering: bool,
+        is_l0: bool,
+        collection_id: Optional[int] = None,
     ):
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
+        if is_l0 is None or not isinstance(is_l0, bool):
+            raise ParamError(message=f"is_l0 value {is_l0} is illegal")
 
         request = milvus_types.ManualCompactionRequest()
         if collection_id is not None:
             request.collectionID = collection_id
         request.collection_name = collection_name
         request.majorCompaction = is_clustering
-
+        request.l0Compaction = is_l0
         return request
 
     @classmethod

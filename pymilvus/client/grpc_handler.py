@@ -21,7 +21,7 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function
+from pymilvus.orm.schema import Function, FunctionScore
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
@@ -69,7 +69,7 @@ from .types import (
     State,
     Status,
     UserInfo,
-    get_cost_extra,
+    get_extra_info,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -944,7 +944,7 @@ class GrpcHandler:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         timeout: Optional[float] = None,
-        ranker: Optional[Function] = None,
+        ranker: Union[Function, FunctionScore] = None,
         **kwargs,
     ):
         check_pass_param(
@@ -1749,7 +1749,7 @@ class GrpcHandler:
             if lazy_extracted:
                 lazy_field_data.append(field_data)
 
-        extra_dict = get_cost_extra(response.status)
+        extra_dict = get_extra_info(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts
         return HybridExtraList(
             lazy_field_data,
@@ -1780,12 +1780,13 @@ class GrpcHandler:
         self,
         collection_name: str,
         is_clustering: Optional[bool] = False,
+        is_l0: Optional[bool] = False,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
         meta = _api_level_md(**kwargs)
         # try with only collection_name
-        req = Prepare.manual_compaction(collection_name, is_clustering)
+        req = Prepare.manual_compaction(collection_name, is_clustering, is_l0)
         response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         if response.status.error_code == common_pb2.CollectionNameNotFound:
             # should be removed, but to be compatible with old milvus server, keep it for now.

@@ -39,7 +39,7 @@ from .orm.future import MutationFuture
 from .orm.index import Index
 from .orm.partition import Partition
 from .orm.role import Role
-from .orm.schema import CollectionSchema, FieldSchema, Function, StructFieldSchema
+from .orm.schema import CollectionSchema, FieldSchema, Function, StructFieldSchema, FunctionScore
 from .orm.utility import (
     create_resource_group,
     create_user,
@@ -83,6 +83,7 @@ __all__ = [
     "ExceptionsMessage",
     "FieldSchema",
     "Function",
+    "FunctionScore",
     "FunctionType",
     "Group",
     "Hit",

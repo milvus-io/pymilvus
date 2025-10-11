@@ -932,6 +932,28 @@ class Function:
         return self.to_dict() == value.to_dict()
 
 
+class FunctionScore:
+    def __init__(
+        self,
+        functions: Union[Function, List[Function]],
+        params: Optional[Dict] = None,
+    ):
+        if isinstance(functions, Function):
+            self._functions = [functions]
+        else:
+            self._functions = functions
+
+        self._params = params
+
+    @property
+    def params(self):
+        return self._params
+
+    @property
+    def functions(self):
+        return self._functions
+
+
 def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:
     """DataFrame, list, dict are valid insert data"""
     return isinstance(data, (pd.DataFrame, list, dict))
