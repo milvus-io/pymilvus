@@ -1143,9 +1143,10 @@ class Prepare:
 
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
-
-        if isinstance(ranker, FunctionScore):
+        elif isinstance(ranker, FunctionScore):
             request.function_score.CopyFrom(Prepare.function_score_schema(ranker))
+        elif ranker is not None:
+            raise ParamError(message="The search ranker must be a Function or FunctionScore.")
 
         return request
 
