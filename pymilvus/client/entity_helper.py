@@ -197,6 +197,27 @@ def convert_to_json(obj: object):
             return bool(obj)
         return obj
 
+    # Handle JSON string input
+    if isinstance(obj, str):
+        try:
+            # Validate JSON string by parsing it
+            parsed_obj = ujson.loads(obj)
+            # If it's a valid JSON string, validate dict keys if it's a dict
+            if isinstance(parsed_obj, dict):
+                for k in parsed_obj:
+                    if not isinstance(k, str):
+                        raise DataNotMatchException(message=ExceptionsMessage.JSONKeyMustBeStr)
+            # Return the original string encoded as bytes (since it's already valid JSON)
+            return obj.encode(Config.EncodeProtocol)
+        except (ValueError, ujson.JSONDecodeError) as e:
+            # Truncate the string if it's too long for better readability
+            max_len = 200
+            json_str_display = obj if len(obj) <= max_len else obj[:max_len] + "..."
+            raise DataNotMatchException(
+                message=f"Invalid JSON string: {str(e)}. Input string: {json_str_display!r}"
+            ) from e
+    
+    # Handle dict input
     if isinstance(obj, dict):
         for k in obj:
             if not isinstance(k, str):
@@ -475,7 +496,8 @@ def pack_field_value_to_field_data(
             if field_value is None:
                 field_data.scalars.json_data.data.extend([])
             else:
-                field_data.scalars.json_data.data.append(convert_to_json(field_value))
+                field_value = convert_to_json(field_value)
+                field_data.scalars.json_data.data.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent

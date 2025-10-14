@@ -28,6 +28,7 @@ rows = [
         {"id": 4, "vector": rng.random((1, dim))[0], "d": 400},
         {"id": 5, "vector": rng.random((1, dim))[0], "e": 500},
         {"id": 6, "vector": rng.random((1, dim))[0], "f": 600},
+        
 ]
 
 print(fmt.format("Start inserting entities"))
