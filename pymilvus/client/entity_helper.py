@@ -5,6 +5,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
 import orjson
+import ujson
 
 from pymilvus.exceptions import (
     DataNotMatchException,
@@ -214,9 +215,9 @@ def convert_to_json(obj: object):
             max_len = 200
             json_str_display = obj if len(obj) <= max_len else obj[:max_len] + "..."
             raise DataNotMatchException(
-                message=f"Invalid JSON string: {str(e)}. Input string: {json_str_display!r}"
+                message=f"Invalid JSON string: {e!s}. Input string: {json_str_display!r}"
             ) from e
-    
+
     # Handle dict input
     if isinstance(obj, dict):
         for k in obj:
