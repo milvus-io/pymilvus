@@ -496,8 +496,7 @@ def pack_field_value_to_field_data(
             if field_value is None:
                 field_data.scalars.json_data.data.extend([])
             else:
-                field_value = convert_to_json(field_value)
-                field_data.scalars.json_data.data.append(field_value)
+                field_data.scalars.json_data.data.append(convert_to_json(field_value))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
