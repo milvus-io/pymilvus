@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from pymilvus.client.types import DataType
+from pymilvus.exceptions import ParamError
 
 
 class EmbeddingList:
@@ -97,7 +98,7 @@ class EmbeddingList:
             if dtype in dtype_map:
                 return np.dtype(dtype_map[dtype])
             msg = f"Unsupported DataType: {dtype}"
-            raise ValueError(msg)
+            raise ParamError(message=msg)
         msg = f"dtype must be numpy dtype, string, or DataType, got {type(dtype)}"
         raise TypeError(msg)
 
