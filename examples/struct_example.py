@@ -8,7 +8,7 @@ from pymilvus import (
 from pymilvus.client.embedding_list import EmbeddingList
 
 COLLECTION_NAME = "Documents"
-EMBEDDING_DIM = 4
+EMBEDDING_DIM = 32
 analyzer_params = {
     "type": "standard",
     "filter": ["lowercase"],
@@ -60,7 +60,7 @@ print("Describe collection", coll)
 
 rng = np.random.default_rng(seed=19530)
 
-N = 20
+N = 100
 content = ["aaa",
            "jjj",
            "sss",
@@ -70,9 +70,9 @@ content = ["aaa",
            "dvxcnvmlzc",
            "aczxcc",
            "qiqixcc"]
-iterations = 100
+iterations = 10
 for _ in range(iterations):
-    arr_len = random.randint(1, 2)
+    arr_len = random.randint(2, 5)
     rows = [{"embedding": rng.random((1, 16))[0],
              "content": content[random.randint(0, len(content) - 1)],
              "struct_field": [
@@ -125,7 +125,7 @@ queries.append(embeddingList)
 
 field = "struct_field[struct_float_vec]"
 res = milvus_client.search(COLLECTION_NAME, data=queries, limit=10, anns_field=field,
-                     output_fields=["struct_field"])
+                     output_fields=["struct_field[struct_str]"])
 
 for i, (hits, query) in enumerate(zip(res, queries)):
     print(f"============== Query {i+1} ({query}) - Total hits: {len(hits)}")
