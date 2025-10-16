@@ -261,6 +261,8 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     field_data.dim = dim_value
 
     if element_type == DataType.FLOAT_VECTOR:
+        if not obj:
+            field_data.float_vector.data.extend([])
         for field_value in obj:
             f_value = field_value
             if isinstance(field_value, np.ndarray):
@@ -271,72 +273,74 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                 f_value = field_value.tolist()
             field_data.float_vector.data.extend(f_value)
 
-    elif element_type == DataType.FLOAT16_VECTOR:
-        all_bytes = b""
-        for field_value in obj:
-            if isinstance(field_value, bytes):
-                v_bytes = field_value
-            elif isinstance(field_value, np.ndarray):
-                if field_value.dtype != "float16":
-                    raise ParamError(
-                        message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
-                    )
-                v_bytes = field_value.view(np.uint8).tobytes()
-            else:
-                raise ParamError(
-                    message="invalid input type for float16 vector. Expected an np.ndarray with dtype=float16 or bytes"
-                )
-            all_bytes += v_bytes
-        field_data.float16_vector = all_bytes
+    # todo(SpadeA): other types are now not supported. When it's supported, make sure empty array is handled correctly.
 
-    elif element_type == DataType.BFLOAT16_VECTOR:
-        all_bytes = b""
-        for field_value in obj:
-            if isinstance(field_value, bytes):
-                v_bytes = field_value
-            elif isinstance(field_value, np.ndarray):
-                if field_value.dtype != "bfloat16":
-                    raise ParamError(
-                        message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
-                    )
-                v_bytes = field_value.view(np.uint8).tobytes()
-            else:
-                raise ParamError(
-                    message="invalid input type for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16 or bytes"
-                )
-            all_bytes += v_bytes
-        field_data.bfloat16_vector = all_bytes
+    # elif element_type == DataType.FLOAT16_VECTOR:
+    #     all_bytes = b""
+    #     for field_value in obj:
+    #         if isinstance(field_value, bytes):
+    #             v_bytes = field_value
+    #         elif isinstance(field_value, np.ndarray):
+    #             if field_value.dtype != "float16":
+    #                 raise ParamError(
+    #                     message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
+    #                 )
+    #             v_bytes = field_value.view(np.uint8).tobytes()
+    #         else:
+    #             raise ParamError(
+    #                 message="invalid input type for float16 vector. Expected an np.ndarray with dtype=float16 or bytes"
+    #             )
+    #         all_bytes += v_bytes
+    #     field_data.float16_vector = all_bytes
 
-    elif element_type == DataType.INT8_VECTOR:
-        all_bytes = b""
-        for field_value in obj:
-            if isinstance(field_value, bytes):
-                i_bytes = field_value
-            elif isinstance(field_value, np.ndarray):
-                if field_value.dtype != "int8":
-                    raise ParamError(
-                        message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
-                    )
-                i_bytes = field_value.view(np.int8).tobytes()
-            else:
-                raise ParamError(
-                    message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8 or bytes"
-                )
-            all_bytes += i_bytes
-        field_data.int8_vector = all_bytes
+    # elif element_type == DataType.BFLOAT16_VECTOR:
+    #     all_bytes = b""
+    #     for field_value in obj:
+    #         if isinstance(field_value, bytes):
+    #             v_bytes = field_value
+    #         elif isinstance(field_value, np.ndarray):
+    #             if field_value.dtype != "bfloat16":
+    #                 raise ParamError(
+    #                     message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
+    #                 )
+    #             v_bytes = field_value.view(np.uint8).tobytes()
+    #         else:
+    #             raise ParamError(
+    #                 message="invalid input type for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16 or bytes"
+    #             )
+    #         all_bytes += v_bytes
+    #     field_data.bfloat16_vector = all_bytes
 
-    elif element_type == DataType.BINARY_VECTOR:
-        all_bytes = b""
-        for field_value in obj:
-            if isinstance(field_value, bytes):
-                all_bytes += field_value
-            elif isinstance(field_value, (list, tuple)):
-                all_bytes += bytes(field_value)
-            else:
-                raise ParamError(
-                    message="invalid input for binary vector. Expected bytes or list/tuple of integers"
-                )
-        field_data.binary_vector = all_bytes
+    # elif element_type == DataType.INT8_VECTOR:
+    #     all_bytes = b""
+    #     for field_value in obj:
+    #         if isinstance(field_value, bytes):
+    #             i_bytes = field_value
+    #         elif isinstance(field_value, np.ndarray):
+    #             if field_value.dtype != "int8":
+    #                 raise ParamError(
+    #                     message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
+    #                 )
+    #             i_bytes = field_value.view(np.int8).tobytes()
+    #         else:
+    #             raise ParamError(
+    #                 message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8 or bytes"
+    #             )
+    #         all_bytes += i_bytes
+    #     field_data.int8_vector = all_bytes
+
+    # elif element_type == DataType.BINARY_VECTOR:
+    #     all_bytes = b""
+    #     for field_value in obj:
+    #         if isinstance(field_value, bytes):
+    #             all_bytes += field_value
+    #         elif isinstance(field_value, (list, tuple)):
+    #             all_bytes += bytes(field_value)
+    #         else:
+    #             raise ParamError(
+    #                 message="invalid input for binary vector. Expected bytes or list/tuple of integers"
+    #             )
+    #     field_data.binary_vector = all_bytes
     else:
         raise ParamError(
             message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"

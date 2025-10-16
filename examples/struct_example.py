@@ -52,7 +52,7 @@ dense_index_params = {
 index_params.add_index(field_name="embedding", index_type="IVF_FLAT", metric_type="COSINE", index_params={"nlist": 128})
 index_params.add_index(field_name="struct_field[struct_float_vec]", index_type="HNSW", index_name="struct_float_vec_index1", metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
 # index_params.add_index(field_name="struct_field[struct_float16_vec]", index_type="HNSW", index_name="struct_float_vec_index2",metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
-index_params.add_index(field_name="struct_field2[struct_float_vec]", index_type="HNSW", index_name="struct_float_vec_index3", metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
+index_params.add_index(field_name="struct_field2[struct_float_vec]", index_type="HNSW", index_name="struct_float_vec_index3", metric_type="MAX_SIM_IP", index_params={"M": 16, "efConstruction": 200})
 milvus_client.create_index(COLLECTION_NAME, schema=schema, index_params=index_params)
 
 coll = milvus_client.describe_collection(COLLECTION_NAME)

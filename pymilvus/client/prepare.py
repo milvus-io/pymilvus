@@ -562,11 +562,10 @@ class Prepare:
             field_data = struct_sub_fields_data[field_name]
 
             if field_info["type"] == DataType.ARRAY:
-                field_data.scalars.array_data.data.append(schema_types.ScalarField())
+                field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                empty_vector = schema_types.VectorField()
-                empty_vector.dim = Prepare._get_dim_value(field_info)
-                field_data.vectors.vector_array.data.append(empty_vector)
+                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.data.append(convert_to_array_of_vector([], field_info))
 
     @staticmethod
     def _validate_and_collect_struct_values(
