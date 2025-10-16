@@ -31,7 +31,7 @@ struct_schema = milvus_client.create_struct_field_schema()
 struct_schema.add_field("struct_str", DataType.VARCHAR, max_length=65535)
 struct_schema.add_field("struct_float_vec", DataType.FLOAT_VECTOR, dim=EMBEDDING_DIM)
 # we can have multiple vector field in a struct
-struct_schema.add_field("struct_float16_vec", DataType.FLOAT16_VECTOR, dim=EMBEDDING_DIM)
+# struct_schema.add_field("struct_float16_vec", DataType.FLOAT16_VECTOR, dim=EMBEDDING_DIM)
 schema.add_field("struct_field",datatype=DataType.ARRAY, element_type=DataType.STRUCT, struct_schema=struct_schema, max_capacity=1000)
 
 struct_schema = milvus_client.create_struct_field_schema()
@@ -51,7 +51,7 @@ dense_index_params = {
 
 index_params.add_index(field_name="embedding", index_type="IVF_FLAT", metric_type="COSINE", index_params={"nlist": 128})
 index_params.add_index(field_name="struct_field[struct_float_vec]", index_type="HNSW", index_name="struct_float_vec_index1", metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
-index_params.add_index(field_name="struct_field[struct_float16_vec]", index_type="HNSW", index_name="struct_float_vec_index2",metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
+# index_params.add_index(field_name="struct_field[struct_float16_vec]", index_type="HNSW", index_name="struct_float_vec_index2",metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
 index_params.add_index(field_name="struct_field2[struct_float_vec]", index_type="HNSW", index_name="struct_float_vec_index3", metric_type="MAX_SIM_COSINE", index_params={"M": 16, "efConstruction": 200})
 milvus_client.create_index(COLLECTION_NAME, schema=schema, index_params=index_params)
 
@@ -79,7 +79,7 @@ for _ in range(iterations):
                  {
                   "struct_str": content[random.randint(0, len(content) - 1)],
                   "struct_float_vec": rng.random((1, EMBEDDING_DIM))[0],
-                  "struct_float16_vec": rng.random((1, EMBEDDING_DIM))[0].astype(np.float16),
+                  # "struct_float16_vec": rng.random((1, EMBEDDING_DIM))[0].astype(np.float16),
                   }
                   for _ in range(arr_len)],
              "struct_field2": [
@@ -112,19 +112,19 @@ rng = np.random.default_rng(seed=19530)
 # Create search queries using EmbeddingList
 # For testing purposes, using random test data
 queries = [
-    EmbeddingList._from_random_test(7, EMBEDDING_DIM, dtype=np.dtype(np.float16), seed=19530),  # Query with 7 vectors
-    EmbeddingList._from_random_test(4, EMBEDDING_DIM, dtype=np.dtype(np.float16), seed=19531),  # Query with 4 vectors
+    EmbeddingList._from_random_test(7, EMBEDDING_DIM, seed=19530),  # Query with 7 vectors
+    EmbeddingList._from_random_test(4, EMBEDDING_DIM, seed=19531),  # Query with 4 vectors
 ]
 
 embeddingList = EmbeddingList()
 # Query with 2 vectors
-embeddingList.add(np.random.randn(EMBEDDING_DIM).astype(np.float16))
-embeddingList.add(np.random.randn(EMBEDDING_DIM).astype(np.float16))
+embeddingList.add(np.random.randn(EMBEDDING_DIM))
+embeddingList.add(np.random.randn(EMBEDDING_DIM))
 
 queries.append(embeddingList)
 
-field = "struct_field[struct_float16_vec]"
-res = milvus_client.search(COLLECTION_NAME, data=queries, limit=2, anns_field=field,
+field = "struct_field[struct_float_vec]"
+res = milvus_client.search(COLLECTION_NAME, data=queries, limit=10, anns_field=field,
                      output_fields=["struct_field"])
 
 for i, (hits, query) in enumerate(zip(res, queries)):
