@@ -1,0 +1,13 @@
+include README.md
+include LICENSE
+include pyproject.toml
+include setup.py
+include _version_helper.py
+
+recursive-include pymilvus *.pyx *.pxd
+recursive-include pymilvus *.py
+recursive-exclude pymilvus *.pyc
+recursive-exclude pymilvus __pycache__
+
+global-exclude *.so
+global-exclude *.c
