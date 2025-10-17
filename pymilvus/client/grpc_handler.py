@@ -603,6 +603,7 @@ class GrpcHandler:
             collection_name, schema, timeout
         )
         fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
 
         return Prepare.row_insert_param(
@@ -610,6 +611,7 @@ class GrpcHandler:
             entity_rows,
             partition_name,
             fields_info,
+            struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
         )
@@ -827,12 +829,14 @@ class GrpcHandler:
             collection_name, timeout=timeout
         )
         fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
         return Prepare.row_upsert_param(
             collection_name,
             rows,
             partition_name,
             fields_info,
+            struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
