@@ -82,7 +82,10 @@ class FieldSchema:
                     self.params[type_param.key] = int(type_param.value)
 
                 # TO-DO: use constants defined in orm
-                if type_param.key in ["max_capacity"] and raw.data_type == DataType.ARRAY:
+                if type_param.key in ["max_capacity"] and raw.data_type in (
+                    DataType.ARRAY,
+                    DataType._ARRAY_OF_VECTOR,
+                ):
                     self.params[type_param.key] = int(type_param.value)
 
         index_dict = {}
@@ -133,6 +136,32 @@ class FieldSchema:
         if self.is_function_output:
             _dict["is_function_output"] = True
         return _dict
+
+
+class StructArrayFieldSchema:
+    def __init__(self, raw: Any):
+        self._raw = raw
+
+        self.name = None
+        self.fields = []
+        self.description = None
+
+        self.__pack(self._raw)
+
+    def __pack(self, raw: Any):
+        self.name = raw.name
+        self.field_id = raw.fieldID
+        self.description = raw.description
+        self.fields = [FieldSchema(f) for f in raw.fields]
+
+    def dict(self):
+        return {
+            "field_id": self.field_id,
+            "name": self.name,
+            "description": self.description,
+            "type": DataType._ARRAY_OF_STRUCT,
+            "fields": [f.dict() for f in self.fields],
+        }
 
 
 class FunctionSchema:
@@ -186,6 +215,7 @@ class CollectionSchema:
         self.description = None
         self.params = {}
         self.fields = []
+        self.struct_array_fields = []
         self.functions = []
         self.statistics = {}
         self.auto_id = False  # auto_id is not in collection level any more later
@@ -225,6 +255,9 @@ class CollectionSchema:
         # for kv in raw.extra_params:
 
         self.fields = [FieldSchema(f) for f in raw.schema.fields]
+        self.struct_array_fields = [
+            StructArrayFieldSchema(f) for f in raw.schema.struct_array_fields
+        ]
         self.functions = [FunctionSchema(f) for f in raw.schema.functions]
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
         for field in self.fields:
@@ -255,6 +288,7 @@ class CollectionSchema:
             "num_shards": self.num_shards,
             "description": self.description,
             "fields": [f.dict() for f in self.fields],
+            "struct_array_fields": [f.dict() for f in self.struct_array_fields],
             "functions": [f.dict() for f in self.functions],
             "aliases": self.aliases,
             "collection_id": self.collection_id,

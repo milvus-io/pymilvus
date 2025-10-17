@@ -524,9 +524,10 @@ class AsyncGrpcHandler:
             collection_name, schema=schema, timeout=timeout, **kwargs
         )
         fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields", [])
         enable_dynamic = schema.get("enable_dynamic_field", False)
 
-        return fields_info, enable_dynamic, schema_timestamp
+        return fields_info, struct_fields_info, enable_dynamic, schema_timestamp
 
     async def update_schema(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
@@ -623,6 +624,7 @@ class AsyncGrpcHandler:
             collection_name, schema=schema, timeout=timeout, **kwargs
         )
         fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
 
         return Prepare.row_insert_param(
@@ -630,6 +632,7 @@ class AsyncGrpcHandler:
             entity_rows,
             partition_name,
             fields_info,
+            struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
         )
@@ -737,7 +740,7 @@ class AsyncGrpcHandler:
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
         partial_update = kwargs.get("partial_update", False)
-        fields_info, enable_dynamic, schema_timestamp = await self._get_info(
+        fields_info, struct_fields_info, enable_dynamic, schema_timestamp = await self._get_info(
             collection_name, timeout, **kwargs
         )
         return Prepare.row_upsert_param(
@@ -745,6 +748,7 @@ class AsyncGrpcHandler:
             rows,
             partition_name,
             fields_info,
+            struct_fields_info,
             enable_dynamic=enable_dynamic,
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
