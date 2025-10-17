@@ -2,7 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import orjson
+import ujson
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
@@ -797,7 +797,7 @@ def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> 
             return field_data.scalars.string_data.data[index]
     elif field_data.type == DataType.JSON:
         if index < len(field_data.scalars.json_data.data):
-            return orjson.loads(field_data.scalars.json_data.data[index])
+            return ujson.loads(field_data.scalars.json_data.data[index])
     elif field_data.type == DataType.FLOAT_VECTOR:
         dim = field_data.vectors.dim
         start_idx = index * dim

@@ -519,4 +519,3 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
         converted_fields.append(user_struct_field)
 
     return converted_fields
-
