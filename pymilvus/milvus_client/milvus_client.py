@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     ExceptionsMessage,
@@ -11,7 +12,7 @@ from pymilvus.client.types import (
     ReplicaInfo,
     ResourceGroupConfig,
 )
-from pymilvus.client.utils import get_params, is_vector_type
+from pymilvus.client.utils import convert_struct_fields_to_user_format, get_params, is_vector_type
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ErrorCode,
@@ -391,8 +392,6 @@ class MilvusClient:
             List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
                 not included in the result data.
         """
-        from ..client.embedding_list import EmbeddingList  # noqa: PLC0415, TID252
-
         # Convert EmbeddingList objects to flat arrays if present
         if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
             data = [emb_list.to_flat_array() for emb_list in data]
@@ -791,11 +790,8 @@ class MilvusClient:
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         result = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
-
         # Convert internal struct_array_fields to user-friendly format
         if isinstance(result, dict) and "struct_array_fields" in result:
-            from pymilvus.client.utils import convert_struct_fields_to_user_format  # noqa: PLC0415
-
             converted_fields = convert_struct_fields_to_user_format(result["struct_array_fields"])
             result["fields"].extend(converted_fields)
             # Remove internal struct_array_fields from user-facing response

@@ -18,6 +18,7 @@ import ujson
 from pandas.api.types import is_list_like, is_scalar
 
 from pymilvus.client.types import FunctionType
+from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
     AutoIDException,
     CannotInferSchemaException,
@@ -256,8 +257,6 @@ class CollectionSchema:
 
     @classmethod
     def construct_from_dict(cls, raw: Dict):
-        from ..client.utils import convert_struct_fields_to_user_format  # noqa: PLC0415, TID252
-
         fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
 
         struct_fields = None

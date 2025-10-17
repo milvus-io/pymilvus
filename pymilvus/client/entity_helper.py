@@ -255,16 +255,14 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     field_data = schema_types.VectorField()
     element_type = field_info.get("element_type", None)
 
+    dim_value = field_info.get("params", {}).get("dim", 0)
+    if isinstance(dim_value, str):
+        dim_value = int(dim_value)
+    field_data.dim = dim_value
+
     if element_type == DataType.FLOAT_VECTOR:
-        dim_value = field_info.get("params", {}).get("dim", 0)
-        # Convert string to int if necessary
-        if isinstance(dim_value, str):
-            dim_value = int(dim_value)
-
-        # Set dim - this is the dimension of each individual vector
-        field_data.dim = dim_value
-
-        # Flatten all vectors into a single data array
+        if not obj:
+            field_data.float_vector.data.extend([])
         for field_value in obj:
             f_value = field_value
             if isinstance(field_value, np.ndarray):
@@ -275,11 +273,13 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                 f_value = field_value.tolist()
             field_data.float_vector.data.extend(f_value)
 
-        return field_data
-
-    raise ParamError(
-        message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
-    )
+    else:
+        # todo(SpadeA): other types are now not supported. When it's supported, make sure empty
+        # array is handled correctly.
+        raise ParamError(
+            message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
+        )
+    return field_data
 
 
 def entity_to_array_arr(entity_values: List[Any], field_info: Any):
@@ -783,11 +783,29 @@ def extract_row_data_from_fields_data_v2(
 
 def extract_vector_array_row_data(field_data: Any, index: int):
     array = field_data.vectors.vector_array.data[index]
-    if field_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR:
+    element_type = field_data.vectors.vector_array.element_type
+
+    if element_type == DataType.FLOAT_VECTOR:
         return list(np.array(array.float_vector.data, dtype=np.float32))
 
-    # unimplemented
-    raise ParamError(message="unimplemented type")
+    if element_type == DataType.FLOAT16_VECTOR:
+        byte_data = array.float16_vector
+        return list(np.frombuffer(byte_data, dtype=np.float16))
+
+    if element_type == DataType.BFLOAT16_VECTOR:
+        byte_data = array.bfloat16_vector
+        return list(
+            np.frombuffer(byte_data, dtype="bfloat16" if hasattr(np, "bfloat16") else np.uint16)
+        )
+
+    if element_type == DataType.INT8_VECTOR:
+        byte_data = array.int8_vector
+        return list(np.frombuffer(byte_data, dtype=np.int8))
+
+    if element_type == DataType.BINARY_VECTOR:
+        return [array.binary_vector]
+
+    raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
 
 
 # pylint: disable=R1702 (too-many-nested-blocks)
@@ -1046,9 +1064,23 @@ def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> L
             ):
                 vector_data = sub_field.vectors.vector_array.data[row_idx]
                 dim = vector_data.dim
-                # Number of vectors = total float data length / dimension
-                num_structs = len(vector_data.float_vector.data) // dim
-                break
+                element_type = sub_field.vectors.vector_array.element_type
+
+                if element_type == DataType.FLOAT_VECTOR:
+                    num_structs = len(vector_data.float_vector.data) // dim
+                elif element_type == DataType.FLOAT16_VECTOR:
+                    num_structs = len(vector_data.float16_vector) // (dim * 2)
+                elif element_type == DataType.BFLOAT16_VECTOR:
+                    num_structs = len(vector_data.bfloat16_vector) // (dim * 2)
+                elif element_type == DataType.INT8_VECTOR:
+                    num_structs = len(vector_data.int8_vector) // dim
+                elif element_type == DataType.BINARY_VECTOR:
+                    num_structs = len(vector_data.binary_vector) // (dim // 8)
+                else:
+                    num_structs = 0
+
+                if num_structs > 0:
+                    break
 
     # Build array of struct objects by extracting data at each struct index
     struct_array = []
@@ -1065,21 +1097,74 @@ def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> L
                     # Extract the value at struct_idx from the appropriate data type
                     struct_obj[sub_field_name] = get_array_value_at_index(array_item, struct_idx)
 
-            # Handle vector array fields (FLOAT_VECTOR, etc.)
             elif sub_field.type == DataType._ARRAY_OF_VECTOR:
                 if hasattr(sub_field, "vectors") and hasattr(sub_field.vectors, "vector_array"):
                     vector_array = sub_field.vectors.vector_array
                     if row_idx < len(vector_array.data):
                         vector_data = vector_array.data[row_idx]
                         dim = vector_data.dim
-                        float_data = vector_data.float_vector.data
-                        # Extract the vector for this struct element
-                        # Vectors are stored flattened, so we need to slice by dimension
-                        vec_start = struct_idx * dim
-                        vec_end = vec_start + dim
-                        if vec_end <= len(float_data):
-                            struct_obj[sub_field_name] = list(float_data[vec_start:vec_end])
+                        element_type = vector_array.element_type
+
+                        if element_type == DataType.FLOAT_VECTOR:
+                            float_data = vector_data.float_vector.data
+                            vec_start = struct_idx * dim
+                            vec_end = vec_start + dim
+                            if vec_end <= len(float_data):
+                                struct_obj[sub_field_name] = list(float_data[vec_start:vec_end])
+                            else:
+                                struct_obj[sub_field_name] = None
+
+                        elif element_type == DataType.FLOAT16_VECTOR:
+                            byte_data = vector_data.float16_vector
+                            bytes_per_vec = dim * 2
+                            vec_start = struct_idx * bytes_per_vec
+                            vec_end = vec_start + bytes_per_vec
+                            if vec_end <= len(byte_data):
+                                vec_bytes = byte_data[vec_start:vec_end]
+                                struct_obj[sub_field_name] = list(
+                                    np.frombuffer(vec_bytes, dtype=np.float16)
+                                )
+                            else:
+                                struct_obj[sub_field_name] = None
+
+                        elif element_type == DataType.BFLOAT16_VECTOR:
+                            byte_data = vector_data.bfloat16_vector
+                            bytes_per_vec = dim * 2
+                            vec_start = struct_idx * bytes_per_vec
+                            vec_end = vec_start + bytes_per_vec
+                            if vec_end <= len(byte_data):
+                                vec_bytes = byte_data[vec_start:vec_end]
+                                dtype = "bfloat16" if hasattr(np, "bfloat16") else np.uint16
+                                struct_obj[sub_field_name] = list(
+                                    np.frombuffer(vec_bytes, dtype=dtype)
+                                )
+                            else:
+                                struct_obj[sub_field_name] = None
+
+                        elif element_type == DataType.INT8_VECTOR:
+                            byte_data = vector_data.int8_vector
+                            bytes_per_vec = dim
+                            vec_start = struct_idx * bytes_per_vec
+                            vec_end = vec_start + bytes_per_vec
+                            if vec_end <= len(byte_data):
+                                vec_bytes = byte_data[vec_start:vec_end]
+                                struct_obj[sub_field_name] = list(
+                                    np.frombuffer(vec_bytes, dtype=np.int8)
+                                )
+                            else:
+                                struct_obj[sub_field_name] = None
+
+                        elif element_type == DataType.BINARY_VECTOR:
+                            byte_data = vector_data.binary_vector
+                            bytes_per_vec = dim // 8
+                            vec_start = struct_idx * bytes_per_vec
+                            vec_end = vec_start + bytes_per_vec
+                            if vec_end <= len(byte_data):
+                                struct_obj[sub_field_name] = [byte_data[vec_start:vec_end]]
+                            else:
+                                struct_obj[sub_field_name] = None
                         else:
+                            # Unsupported vector type, set to None
                             struct_obj[sub_field_name] = None
 
             # All struct sub-fields should be either ARRAY or ARRAY_OF_VECTOR

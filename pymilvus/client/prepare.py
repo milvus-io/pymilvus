@@ -516,7 +516,15 @@ class Prepare:
         struct_sub_field_info: Dict,
         struct_sub_fields_data: Dict,
     ):
-        """Process a single struct field's data."""
+        """Process a single struct field's data.
+
+        Args:
+            field_name: Name of the struct field
+            values: List of struct values
+            struct_info: Info about the struct field
+            struct_sub_field_info: Two-level dict [struct_name][field_name] -> field info
+            struct_sub_fields_data: Two-level dict [struct_name][field_name] -> FieldData
+        """
         if not isinstance(values, list):
             msg = f"Field '{field_name}': Expected list, got {type(values).__name__}"
             raise TypeError(msg)
@@ -526,9 +534,10 @@ class Prepare:
 
         # Handle empty array - create empty data structures
         if not values:
-            # Only process fields belonging to this struct
-            relevant_field_info = {name: struct_sub_field_info[name] for name in expected_fields}
-            Prepare._add_empty_struct_data(relevant_field_info, struct_sub_fields_data)
+            # Get relevant field info and data for this struct
+            relevant_field_info = struct_sub_field_info[field_name]
+            relevant_fields_data = struct_sub_fields_data[field_name]
+            Prepare._add_empty_struct_data(relevant_field_info, relevant_fields_data)
             return
 
         # Validate and collect values
@@ -536,8 +545,10 @@ class Prepare:
             values, expected_fields, field_name
         )
 
-        # Process collected values - use struct_sub_field_info directly
-        Prepare._process_struct_values(field_values, struct_sub_field_info, struct_sub_fields_data)
+        # Process collected values using the struct-specific sub-dictionaries
+        relevant_field_info = struct_sub_field_info[field_name]
+        relevant_fields_data = struct_sub_fields_data[field_name]
+        Prepare._process_struct_values(field_values, relevant_field_info, relevant_fields_data)
 
     @staticmethod
     def _add_empty_struct_data(struct_field_info: Dict, struct_sub_fields_data: Dict):
@@ -546,11 +557,12 @@ class Prepare:
             field_data = struct_sub_fields_data[field_name]
 
             if field_info["type"] == DataType.ARRAY:
-                field_data.scalars.array_data.data.append(schema_types.ScalarField())
+                field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                empty_vector = schema_types.VectorField()
-                empty_vector.dim = Prepare._get_dim_value(field_info)
-                field_data.vectors.vector_array.data.append(empty_vector)
+                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.data.append(
+                    convert_to_array_of_vector([], field_info)
+                )
 
     @staticmethod
     def _validate_and_collect_struct_values(
@@ -613,6 +625,59 @@ class Prepare:
         return int(dim_value) if isinstance(dim_value, str) else dim_value
 
     @staticmethod
+    def _setup_struct_data_structures(struct_fields_info: Optional[List[Dict]]):
+        """Setup common data structures for struct field processing.
+
+        Returns:
+            Tuple containing:
+            - struct_fields_data: Dict of FieldData for struct fields
+            - struct_info_map: Dict mapping struct field names to their info
+            - struct_sub_fields_data: Two-level Dict of FieldData for
+                sub-fields [struct_name][field_name]
+            - struct_sub_field_info: Two-level Dict mapping sub-field names
+                to their info [struct_name][field_name]
+            - input_struct_field_info: List of struct fields info
+        """
+        struct_fields_data = {}
+        struct_info_map = {}
+        struct_sub_fields_data = {}
+        struct_sub_field_info = {}
+        input_struct_field_info = []
+
+        if struct_fields_info:
+            struct_fields_data = {
+                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
+                for field in struct_fields_info
+            }
+            input_struct_field_info = list(struct_fields_info)
+            struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
+
+            # Use two-level maps to avoid overwrite when different structs have fields
+            # with same name
+            # First level: struct name, Second level: field name
+            for struct_field_info in struct_fields_info:
+                struct_name = struct_field_info["name"]
+                struct_sub_fields_data[struct_name] = {}
+                struct_sub_field_info[struct_name] = {}
+
+                for field in struct_field_info["fields"]:
+                    field_name = field["name"]
+                    field_data = schema_types.FieldData(field_name=field_name, type=field["type"])
+                    # Set dim for ARRAY_OF_VECTOR types
+                    if field["type"] == DataType._ARRAY_OF_VECTOR:
+                        field_data.vectors.dim = Prepare._get_dim_value(field)
+                    struct_sub_fields_data[struct_name][field_name] = field_data
+                    struct_sub_field_info[struct_name][field_name] = field
+
+        return (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        )
+
+    @staticmethod
     def _parse_row_request(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         fields_info: List[Dict],
@@ -642,30 +707,13 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
 
-        struct_fields_data = {}
-        if struct_fields_info:
-            struct_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for field in struct_fields_info
-            }
-        input_struct_field_info = list(struct_fields_info) if struct_fields_info else []
-        # Build lookup map for O(1) access
-        struct_info_map = (
-            {struct["name"]: struct for struct in struct_fields_info} if struct_fields_info else {}
-        )
-        struct_sub_fields_data = {}
-        struct_sub_field_info = {}
-        if struct_fields_info:
-            struct_sub_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
-            struct_sub_field_info = {
-                field["name"]: field
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
+        (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        ) = Prepare._setup_struct_data_structures(struct_fields_info)
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -744,8 +792,10 @@ class Prepare:
             struct_name = struct["name"]
             struct_field_data = struct_fields_data[struct_name]
             for field_info in struct["fields"]:
+                # Use two-level map to get the correct sub-field data
+                field_name = field_info["name"]
                 struct_field_data.struct_arrays.fields.append(
-                    struct_sub_fields_data[field_info["name"]]
+                    struct_sub_fields_data[struct_name][field_name]
                 )
 
         request.fields_data.extend(fields_data.values())
@@ -785,27 +835,21 @@ class Prepare:
         field_info_map = {field["name"]: field for field in input_fields_info}
         field_len = {field["name"]: 0 for field in input_fields_info}
 
-        struct_fields_data = {}
-        struct_info_map = {}
-        struct_sub_fields_data = {}
-        struct_sub_field_info = {}
-
-        if struct_fields_info and not partial_update:
-            struct_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for field in struct_fields_info
-            }
-            struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
-            struct_sub_fields_data = {
-                field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
-            struct_sub_field_info = {
-                field["name"]: field
-                for struct_field_info in struct_fields_info
-                for field in struct_field_info["fields"]
-            }
+        # Use common struct data setup (only if not partial update)
+        if partial_update:
+            struct_fields_data = {}
+            struct_info_map = {}
+            struct_sub_fields_data = {}
+            struct_sub_field_info = {}
+            input_struct_field_info = []
+        else:
+            (
+                struct_fields_data,
+                struct_info_map,
+                struct_sub_fields_data,
+                struct_sub_field_info,
+                input_struct_field_info,
+            ) = Prepare._setup_struct_data_structures(struct_fields_info)
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -900,10 +944,18 @@ class Prepare:
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
         request.fields_data.extend(fields_data.values())
 
-        # Add struct fields to request (if not partial update)
-        if struct_fields_data and not partial_update:
+        if struct_fields_data:
+            # reconstruct the struct array fields data (same as in insert)
+            for struct in input_struct_field_info:
+                struct_name = struct["name"]
+                struct_field_data = struct_fields_data[struct_name]
+                for field_info in struct["fields"]:
+                    # Use two-level map to get the correct sub-field data
+                    field_name = field_info["name"]
+                    struct_field_data.struct_arrays.fields.append(
+                        struct_sub_fields_data[struct_name][field_name]
+                    )
             request.fields_data.extend(struct_fields_data.values())
-            request.fields_data.extend(struct_sub_fields_data.values())
 
         for _, field in enumerate(input_fields_info):
             is_dynamic = False
@@ -918,10 +970,14 @@ class Prepare:
                         message=f"dynamic field enabled, {field_name} shouldn't in entities[{j}]"
                     )
 
-        expected_num_input_fields = len(input_fields_info) + (1 if enable_dynamic else 0)
+        # Include struct fields in expected count (if not partial update)
+        struct_field_count = len(input_struct_field_info) if not partial_update else 0
+        expected_num_input_fields = (
+            len(input_fields_info) + struct_field_count + (1 if enable_dynamic else 0)
+        )
 
-        if not partial_update and len(fields_data) != expected_num_input_fields:
-            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(fields_data)}"
+        if not partial_update and len(request.fields_data) != expected_num_input_fields:
+            msg = f"{ExceptionsMessage.FieldsNumInconsistent}, expected {expected_num_input_fields} fields, got {len(request.fields_data)}"
             raise ParamError(message=msg)
 
         return request

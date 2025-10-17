@@ -5,6 +5,7 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from pymilvus.client.types import DataType
+from pymilvus.exceptions import ParamError
 
 
 class EmbeddingList:
@@ -17,18 +18,18 @@ class EmbeddingList:
 
     Examples:
         >>> # Create empty and add vectors
-        >>> query = EmbeddingList()
-        >>> query.add(embedding1)
-        >>> query.add(embedding2)
+        >>> query1 = EmbeddingList()
+        >>> query1.add(embedding1)
+        >>> query1.add(embedding2)
         >>>
         >>> # Create from list of vectors
         >>> vectors = [vec1, vec2, vec3]
-        >>> query = EmbeddingList(vectors)
+        >>> query2 = EmbeddingList(vectors)
         >>>
         >>> # Use in search
         >>> results = client.search(
         >>>     collection_name="my_collection",
-        >>>     data=[query1, query2, query3],  # List of EmbeddingList
+        >>>     data=[query1, query2],  # List of EmbeddingList
         >>>     ...
         >>> )
     """
@@ -97,7 +98,7 @@ class EmbeddingList:
             if dtype in dtype_map:
                 return np.dtype(dtype_map[dtype])
             msg = f"Unsupported DataType: {dtype}"
-            raise ValueError(msg)
+            raise ParamError(message=msg)
         msg = f"dtype must be numpy dtype, string, or DataType, got {type(dtype)}"
         raise TypeError(msg)
 
@@ -173,7 +174,7 @@ class EmbeddingList:
         return self
 
     @classmethod
-    def from_random_test(
+    def _from_random_test(
         cls,
         num_vectors: int,
         dim: int,
