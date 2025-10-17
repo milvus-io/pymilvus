@@ -9,6 +9,7 @@ import orjson
 # Try to import Cython fast path, fallback to pure Python
 try:
     from ._fast_extract import assign_array_fast, assign_scalar_fast
+
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
@@ -641,7 +642,9 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
 
     # Use Cython fast path if available
     if HAS_CYTHON:
-        assign_array_fast(entity_rows, field_name, list(data), list(valid_data), True, int(element_type))
+        assign_array_fast(
+            entity_rows, field_name, list(data), list(valid_data), True, int(element_type)
+        )
         return
     if element_type == DataType.INT64:
         for i in range(row_count):
@@ -749,7 +752,9 @@ def extract_row_data_from_fields_data_v2(
 
         # Use Cython fast path if available (2-3x faster)
         if HAS_CYTHON:
-            assign_scalar_fast(entity_rows, field_name, data_list, list(valid_data) if has_valid else [], has_valid)
+            assign_scalar_fast(
+                entity_rows, field_name, data_list, list(valid_data) if has_valid else [], has_valid
+            )
         # Pure Python fallback
         elif has_valid:
             for i in range(row_count):
