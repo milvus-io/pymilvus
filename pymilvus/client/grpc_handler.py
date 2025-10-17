@@ -44,6 +44,7 @@ from .check import (
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
+from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
@@ -997,9 +998,16 @@ class GrpcHandler:
 
         requests = []
         for req in reqs:
+            # Convert EmbeddingList to flat array if present in the request data
+            data = req.data
+            req_kwargs = dict(kwargs)
+            if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
+                data = [emb_list.to_flat_array() for emb_list in data]
+                req_kwargs["is_embedding_list"] = True
+
             search_request = Prepare.search_requests_with_expr(
                 collection_name,
-                req.data,
+                data,
                 req.anns_field,
                 req.param,
                 req.limit,
@@ -1007,7 +1015,7 @@ class GrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
-                **kwargs,
+                **req_kwargs,
             )
             requests.append(search_request)
 
