@@ -15,8 +15,8 @@ from pymilvus.orm.schema import (
     CollectionSchema,
     FieldSchema,
     Function,
-    isVectorDataType,
     FunctionScore,
+    isVectorDataType,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
@@ -565,7 +565,9 @@ class Prepare:
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
-                field_data.vectors.vector_array.data.append(convert_to_array_of_vector([], field_info))
+                field_data.vectors.vector_array.data.append(
+                    convert_to_array_of_vector([], field_info)
+                )
 
     @staticmethod
     def _validate_and_collect_struct_values(
@@ -635,8 +637,10 @@ class Prepare:
             Tuple containing:
             - struct_fields_data: Dict of FieldData for struct fields
             - struct_info_map: Dict mapping struct field names to their info
-            - struct_sub_fields_data: Two-level Dict of FieldData for sub-fields [struct_name][field_name]
-            - struct_sub_field_info: Two-level Dict mapping sub-field names to their info [struct_name][field_name]
+            - struct_sub_fields_data: Two-level Dict of FieldData for
+                sub-fields [struct_name][field_name]
+            - struct_sub_field_info: Two-level Dict mapping sub-field names
+                to their info [struct_name][field_name]
             - input_struct_field_info: List of struct fields info
         """
         struct_fields_data = {}
@@ -653,7 +657,8 @@ class Prepare:
             input_struct_field_info = list(struct_fields_info)
             struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
 
-            # Use two-level maps to avoid overwrite when different structs have fields with same name
+            # Use two-level maps to avoid overwrite when different structs have fields
+            # with same name
             # First level: struct name, Second level: field name
             for struct_field_info in struct_fields_info:
                 struct_name = struct_field_info["name"]
@@ -662,9 +667,7 @@ class Prepare:
 
                 for field in struct_field_info["fields"]:
                     field_name = field["name"]
-                    field_data = schema_types.FieldData(
-                        field_name=field_name, type=field["type"]
-                    )
+                    field_data = schema_types.FieldData(field_name=field_name, type=field["type"])
                     # Set dim for ARRAY_OF_VECTOR types
                     if field["type"] == DataType._ARRAY_OF_VECTOR:
                         field_data.vectors.dim = Prepare._get_dim_value(field)
