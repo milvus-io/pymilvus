@@ -7,8 +7,7 @@ import numpy as np
 import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import (
-    convert_to_str_array,
-    entity_to_array_arr,
+    convert_to_str_array, entity_to_array_arr,
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
@@ -28,6 +27,7 @@ from pymilvus.grpc_gen import schema_pb2
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 from scipy.sparse import csr_matrix
+from pymilvus.exceptions import DataNotMatchException
 
 
 class TestEntityHelperSparse:
@@ -208,7 +208,6 @@ class TestEntityHelperSparse:
     ])
     def test_convert_to_json_string_invalid(self, invalid_json_string: str):
         """Test JSON conversion rejects invalid JSON strings"""
-        from pymilvus.exceptions import DataNotMatchException
         
         with pytest.raises(DataNotMatchException) as exc_info:
             entity_helper.convert_to_json(invalid_json_string)
@@ -221,7 +220,6 @@ class TestEntityHelperSparse:
 
     def test_convert_to_json_string_with_non_string_keys(self):
         """Test JSON conversion rejects JSON strings with non-string keys in dict"""
-        from pymilvus.exceptions import DataNotMatchException
         
         # This is actually not possible in standard JSON, as JSON object keys are always strings
         # But we can test that dict validation still works
@@ -235,7 +233,6 @@ class TestEntityHelperSparse:
 
     def test_convert_to_json_long_invalid_string_truncated(self):
         """Test that long invalid JSON strings are truncated in error messages"""
-        from pymilvus.exceptions import DataNotMatchException
         
         # Create a long invalid JSON string
         long_invalid_json = "invalid json " * 50  # > 200 characters
