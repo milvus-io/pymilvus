@@ -7,8 +7,7 @@ import numpy as np
 import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import (
-    convert_to_str_array,
-    entity_to_array_arr,
+    convert_to_str_array, entity_to_array_arr,
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
@@ -28,6 +27,7 @@ from pymilvus.grpc_gen import schema_pb2
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 from scipy.sparse import csr_matrix
+from pymilvus.exceptions import DataNotMatchException
 
 
 class TestEntityHelperSparse:
@@ -167,6 +167,83 @@ class TestEntityHelperSparse:
         result = entity_helper.convert_to_json(data)
         assert isinstance(result, bytes)
         assert json.loads(result.decode()) == data
+
+    @pytest.mark.parametrize("json_string,expected", [
+        ('{"key": "value", "number": 42}', {"key": "value", "number": 42}),
+        ('{"nested": {"inner": "value"}}', {"nested": {"inner": "value"}}),
+        ('[1, 2, 3, "four"]', [1, 2, 3, "four"]),
+        ('{"name": "Alice", "age": 30}', {"name": "Alice", "age": 30}),
+        ('null', None),
+        ('true', True),
+        ('false', False),
+        ('123', 123),
+        ('"simple string"', "simple string"),
+    ])
+    def test_convert_to_json_string_valid(self, json_string: str, expected):
+        """Test JSON conversion for valid JSON string input"""
+        result = entity_helper.convert_to_json(json_string)
+        assert isinstance(result, bytes)
+        # Verify the result is valid JSON
+        parsed = json.loads(result.decode())
+        assert parsed == expected
+
+    def test_convert_to_json_from_json_dumps(self):
+        """Test JSON conversion from json.dumps() output"""
+        original_dict = {"key": "value", "count": 100, "nested": {"inner": "data"}}
+        json_string = json.dumps(original_dict)
+        
+        result = entity_helper.convert_to_json(json_string)
+        assert isinstance(result, bytes)
+        parsed = json.loads(result.decode())
+        assert parsed == original_dict
+
+    @pytest.mark.parametrize("invalid_json_string", [
+        "not a json string",
+        '{"invalid": }',
+        '{"key": "value"',  # missing closing brace
+        "{'key': 'value'}",  # single quotes not valid in JSON
+        "{key: value}",  # unquoted keys
+        "undefined",
+        "{,}",
+    ])
+    def test_convert_to_json_string_invalid(self, invalid_json_string: str):
+        """Test JSON conversion rejects invalid JSON strings"""
+        
+        with pytest.raises(DataNotMatchException) as exc_info:
+            entity_helper.convert_to_json(invalid_json_string)
+        
+        # Verify error message contains the invalid JSON string
+        error_message = str(exc_info.value)
+        assert "Invalid JSON string" in error_message
+        # Verify the original input string is in the error message
+        assert invalid_json_string in error_message or invalid_json_string[:50] in error_message
+
+    def test_convert_to_json_string_with_non_string_keys(self):
+        """Test JSON conversion rejects JSON strings with non-string keys in dict"""
+        
+        # This is actually not possible in standard JSON, as JSON object keys are always strings
+        # But we can test that dict validation still works
+        invalid_dict = {1: "value", 2: "another"}
+        
+        with pytest.raises(DataNotMatchException) as exc_info:
+            entity_helper.convert_to_json(invalid_dict)
+        
+        error_message = str(exc_info.value)
+        assert "JSON" in error_message
+
+    def test_convert_to_json_long_invalid_string_truncated(self):
+        """Test that long invalid JSON strings are truncated in error messages"""
+        
+        # Create a long invalid JSON string
+        long_invalid_json = "invalid json " * 50  # > 200 characters
+        
+        with pytest.raises(DataNotMatchException) as exc_info:
+            entity_helper.convert_to_json(long_invalid_json)
+        
+        error_message = str(exc_info.value)
+        assert "Invalid JSON string" in error_message
+        # Should contain truncated version with "..."
+        assert "..." in error_message
 
     def test_pack_field_value_to_field_data(self):
         """Test packing field values into field data protobuf"""
