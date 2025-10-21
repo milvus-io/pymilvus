@@ -338,7 +338,7 @@ class AsyncMilvusClient:
             raise TypeError(msg)
 
         if len(data) == 0:
-            return {"upsert_count": 0}
+            return {"upsert_count": 0, "ids": []}
 
         conn = self._get_connection()
         # Upsert into the collection.
@@ -353,6 +353,7 @@ class AsyncMilvusClient:
             {
                 "upsert_count": res.upsert_count,
                 "cost": res.cost,
+                "ids": res.primary_keys,
             }
         )
 
