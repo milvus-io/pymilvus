@@ -272,7 +272,7 @@ class MilvusClient:
             raise TypeError(msg)
 
         if len(data) == 0:
-            return {"upsert_count": 0}
+            return {"upsert_count": 0, "ids": []}
 
         conn = self._get_connection()
         # Upsert into the collection.
@@ -289,7 +289,7 @@ class MilvusClient:
                 "cost": res.cost,
                 # milvus server supports upsert on autoid=ture from v2.4.15
                 # upsert on autoid=ture will return new ids for user
-                "primary_keys": res.primary_keys,
+                "ids": res.primary_keys,
             }
         )
 
