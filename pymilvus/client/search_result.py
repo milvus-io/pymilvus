@@ -92,7 +92,7 @@ class HybridHits(list):
                 self.lazy_field_data.append(field_data)
             else:
                 msg = f"Unsupported field type: {field_data.type}"
-                raise MilvusException(msg)
+                raise MilvusException(message=msg)
         super().__init__(top_k_res)
 
     def __str__(self) -> str:
@@ -218,7 +218,7 @@ class HybridHits(list):
                             item["entity"][field_name] = []
                 else:
                     msg = f"Unsupported field type: {field_data.type}"
-                    raise MilvusException(msg)
+                    raise MilvusException(message=msg)
 
         self.has_materialized = True
 
@@ -555,7 +555,7 @@ def get_field_data(field_data: FieldData):
     if field_data.type == DataType._ARRAY_OF_VECTOR:
         return field_data.vectors.vector_array
     msg = f"Unsupported field type: {field_data.type}"
-    raise MilvusException(msg)
+    raise MilvusException(message=msg)
 
 
 class Hits(list):
