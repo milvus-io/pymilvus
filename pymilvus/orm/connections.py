@@ -15,7 +15,7 @@ import logging
 import pathlib
 import threading
 import time
-from typing import Callable, Tuple, Union
+from typing import Callable, Generic, Tuple, TypeVar, Union
 from urllib import parse
 
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
@@ -32,6 +32,8 @@ logger = logging.getLogger(__name__)
 
 VIRTUAL_PORT = 443
 
+T = TypeVar("T")
+
 
 def synchronized(func: Callable):
     """
@@ -46,13 +48,13 @@ def synchronized(func: Callable):
     return lock_func
 
 
-class SingleInstanceMetaClass(type):
+class SingleInstanceMetaClass(Generic[T]):
     instance = None
 
     def __init__(cls, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args, **kwargs) -> T:
         if cls.instance:
             return cls.instance
         cls.instance = cls.__new__(cls)
