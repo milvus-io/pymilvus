@@ -409,6 +409,10 @@ class CollectionSchema:
                 raise ParamError(message="Param max_capacity is required when datatype is STRUCT")
             struct_schema.max_capacity = kwargs["max_capacity"]
 
+            if "mmap_enabled" in kwargs:
+                for field in struct_schema.fields:
+                    field._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+
             self._struct_fields.append(struct_schema)
             return self
 
