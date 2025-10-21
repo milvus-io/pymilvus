@@ -1,0 +1,4 @@
+py-spy # CPU profiling
+memray # Memory profiling
+line_profiler # line-by-line profing
+memory_profiler
