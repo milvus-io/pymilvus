@@ -6,6 +6,14 @@ from typing import Any, Dict, Iterable, List, Optional
 import numpy as np
 import orjson
 
+# Try to import Cython fast path, fallback to pure Python
+try:
+    from ._fast_extract import assign_array_fast, assign_scalar_fast
+
+    HAS_CYTHON = True
+except ImportError:
+    HAS_CYTHON = False
+
 from pymilvus.exceptions import (
     DataNotMatchException,
     ExceptionsMessage,
@@ -651,55 +659,39 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
     field_name = field_data.field_name
     data = field_data.scalars.array_data.data
     element_type = field_data.scalars.array_data.element_type
+    valid_data = field_data.valid_data
+
+    # Use Cython fast path if available
+    if HAS_CYTHON:
+        assign_array_fast(
+            entity_rows, field_name, list(data), list(valid_data), True, int(element_type)
+        )
+        return
     if element_type == DataType.INT64:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].long_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].long_data.data if valid_data[i] else None
     elif element_type == DataType.BOOL:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].bool_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].bool_data.data if valid_data[i] else None
     elif element_type in (
         DataType.INT8,
         DataType.INT16,
         DataType.INT32,
     ):
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].int_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].int_data.data if valid_data[i] else None
     elif element_type == DataType.FLOAT:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].float_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].float_data.data if valid_data[i] else None
     elif element_type == DataType.DOUBLE:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].double_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].double_data.data if valid_data[i] else None
     elif element_type in (
         DataType.STRING,
         DataType.VARCHAR,
     ):
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].string_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].string_data.data if valid_data[i] else None
     else:
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
@@ -708,25 +700,36 @@ def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict],
     field_name = field_data.field_name
     data = field_data.scalars.array_data.data
     element_type = field_data.scalars.array_data.element_type
+
+    # Use Cython fast path if available
+    if HAS_CYTHON:
+        assign_array_fast(entity_rows, field_name, list(data), [], False, int(element_type))
+        return
     if element_type == DataType.INT64:
-        [entity_rows[i].__setitem__(field_name, data[i].long_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].long_data.data
     elif element_type == DataType.BOOL:
-        [entity_rows[i].__setitem__(field_name, data[i].bool_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].bool_data.data
     elif element_type in (
         DataType.INT8,
         DataType.INT16,
         DataType.INT32,
     ):
-        [entity_rows[i].__setitem__(field_name, data[i].int_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].int_data.data
     elif element_type == DataType.FLOAT:
-        [entity_rows[i].__setitem__(field_name, data[i].float_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].float_data.data
     elif element_type == DataType.DOUBLE:
-        [entity_rows[i].__setitem__(field_name, data[i].double_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].double_data.data
     elif element_type in (
         DataType.STRING,
         DataType.VARCHAR,
     ):
-        [entity_rows[i].__setitem__(field_name, data[i].string_data.data) for i in range(row_count)]
+        for i in range(row_count):
+            entity_rows[i][field_name] = data[i].string_data.data
     else:
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
@@ -765,13 +768,21 @@ def extract_row_data_from_fields_data_v2(
     valid_data = field_data.valid_data
 
     def assign_scalar(data: List[Any]) -> None:
-        if has_valid:
-            [
-                entity_rows[i].__setitem__(field_name, None if not valid_data[i] else data[i])
-                for i in range(row_count)
-            ]
+        # Convert protobuf RepeatedScalarFieldContainer to list for faster indexing
+        data_list = list(data)
+
+        # Use Cython fast path if available (2-3x faster)
+        if HAS_CYTHON:
+            assign_scalar_fast(
+                entity_rows, field_name, data_list, list(valid_data) if has_valid else [], has_valid
+            )
+        # Pure Python fallback
+        elif has_valid:
+            for i in range(row_count):
+                entity_rows[i][field_name] = None if not valid_data[i] else data_list[i]
         else:
-            [entity_rows[i].__setitem__(field_name, data[i]) for i in range(row_count)]
+            for i in range(row_count):
+                entity_rows[i][field_name] = data_list[i]
 
     if field_data.type == DataType.BOOL:
         data = field_data.scalars.bool_data.data
