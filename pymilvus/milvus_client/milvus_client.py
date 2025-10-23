@@ -6,11 +6,14 @@ from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
+    CompactionPlans,
     ExceptionsMessage,
+    LoadedSegmentInfo,
     LoadState,
     OmitZeroDict,
     ReplicaInfo,
     ResourceGroupConfig,
+    SegmentInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, get_params, is_vector_type
 from pymilvus.exceptions import (
@@ -21,7 +24,6 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
-from pymilvus.orm import utility
 from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function, FunctionScore
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
@@ -34,7 +36,6 @@ from .check import validate_param
 from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
-
 
 class MilvusClient:
     """The Milvus Client"""
@@ -67,7 +68,7 @@ class MilvusClient:
         self._using = create_connection(
             uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
         )
-        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
+        self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
     def create_collection(
         self,
@@ -1809,3 +1810,73 @@ class MilvusClient:
             timeout=timeout,
             **kwargs,
         )
+
+    def flush_all(self, timeout: Optional[float] = None, **kwargs) -> None:
+        """Flush all collections.
+
+        Args:
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+        """
+        self._get_connection().flush_all(timeout=timeout, **kwargs)
+
+    def get_flush_all_state(self, timeout: Optional[float] = None, **kwargs) -> bool:
+        """Get the flush all state.
+
+        Args:
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            bool: True if flush all operation is completed, False otherwise.
+        """
+        return self._get_connection().get_flush_all_state(timeout=timeout, **kwargs)
+
+    def list_loaded_segments(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> List[LoadedSegmentInfo]:
+        """List loaded segments for a collection.
+
+        Args:
+            collection_name (str): The name of the collection.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[LoadedSegmentInfo]: A list of loaded segment information.
+        """
+        infos = self._get_connection().get_query_segment_info(collection_name, timeout=timeout, **kwargs)
+        return [LoadedSegmentInfo(info.segment_id, info.collection_id, collection_name, info.num_rows, info.is_sorted, info.state, info.level, info.storage_version, info.mem_size) for info in infos]
+
+    def list_persistent_segments(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> List[SegmentInfo]:
+        """List persistent segments for a collection.
+
+        Args:
+            collection_name (str): The name of the collection.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[SegmentInfo]: A list of persistent segment information.
+        """
+        infos = self._get_connection().get_persistent_segment_infos(collection_name, timeout=timeout, **kwargs)
+        return [SegmentInfo(info.segment_id, info.collection_id, collection_name, info.num_rows, info.is_sorted, info.state, info.level, info.storage_version) for info in infos]
+
+    def get_server_type(self):
+        """Get the server type.
+
+        Returns:
+            str: The server type (e.g., "milvus", "zilliz").
+        """
+        return self._get_connection().get_server_type()
+
+    def get_compaction_plans(self, job_id: int, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
+        """Get compaction plans for a specific job.
+
+        Args:
+            job_id (int): The ID of the compaction job.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            CompactionPlans: The compaction plans for the specified job.
+        """
+        return self._get_connection().get_compaction_plans(job_id, timeout=timeout, **kwargs)

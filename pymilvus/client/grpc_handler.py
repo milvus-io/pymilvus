@@ -1034,14 +1034,13 @@ class GrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    def get_query_segment_info(self, collection_name: str, timeout: float = 30, **kwargs):
+    def get_query_segment_info(self, collection_name: str, timeout: float = 30, **kwargs) -> List[milvus_types.QuerySegmentInfo]:
         req = Prepare.get_query_segment_info_request(collection_name)
         response = self._stub.GetQuerySegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        status = response.status
-        check_status(status)
-        return response.infos  # todo: A wrapper class of QuerySegmentInfo
+        check_status(response.status)
+        return response.infos
 
     @retry_on_rpc_failure()
     def create_alias(
@@ -1601,18 +1600,18 @@ class GrpcHandler:
         response = self._stub.GetFlushState(req, timeout=timeout, metadata=_api_level_md(**kwargs))
         status = response.status
         check_status(status)
-        return response.flushed  # todo: A wrapper class of PersistentSegmentInfo
+        return response.flushed
 
     @retry_on_rpc_failure()
     def get_persistent_segment_infos(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> List[milvus_types.PersistentSegmentInfo]:
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = self._stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response.status)
-        return response.infos  # todo: A wrapper class of PersistentSegmentInfo
+        return response.infos
 
     def _wait_for_flushed(
         self,
