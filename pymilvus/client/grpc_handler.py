@@ -1034,7 +1034,11 @@ class GrpcHandler:
         )
 
     @retry_on_rpc_failure()
-    def get_query_segment_info(self, collection_name: str, timeout: float = 30, **kwargs) -> List[milvus_types.QuerySegmentInfo]:
+    def get_query_segment_info(
+        self,
+        collection_name: str,
+        timeout: float = 30, **kwargs
+    ) -> List[milvus_types.QuerySegmentInfo]:
         req = Prepare.get_query_segment_info_request(collection_name)
         response = self._stub.GetQuerySegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)

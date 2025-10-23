@@ -1386,6 +1386,7 @@ class SegmentInfo:
     level: common_pb2.SegmentLevel
     storage_version: int
 
+
 @dataclass
 class LoadedSegmentInfo(SegmentInfo):
     mem_size: int

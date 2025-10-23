@@ -37,6 +37,7 @@ from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
 
+
 class MilvusClient:
     """The Milvus Client"""
 
@@ -1832,7 +1833,12 @@ class MilvusClient:
         """
         return self._get_connection().get_flush_all_state(timeout=timeout, **kwargs)
 
-    def list_loaded_segments(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> List[LoadedSegmentInfo]:
+    def list_loaded_segments(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[LoadedSegmentInfo]:
         """List loaded segments for a collection.
 
         Args:
@@ -1843,10 +1849,30 @@ class MilvusClient:
         Returns:
             List[LoadedSegmentInfo]: A list of loaded segment information.
         """
-        infos = self._get_connection().get_query_segment_info(collection_name, timeout=timeout, **kwargs)
-        return [LoadedSegmentInfo(info.segment_id, info.collection_id, collection_name, info.num_rows, info.is_sorted, info.state, info.level, info.storage_version, info.mem_size) for info in infos]
+        infos = self._get_connection().get_query_segment_info(
+            collection_name, timeout=timeout, **kwargs
+        )
+        return [
+            LoadedSegmentInfo(
+                info.segment_id,
+                info.collection_id,
+                collection_name,
+                info.num_rows,
+                info.is_sorted,
+                info.state,
+                info.level,
+                info.storage_version,
+                info.mem_size,
+            )
+            for info in infos
+        ]
 
-    def list_persistent_segments(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> List[SegmentInfo]:
+    def list_persistent_segments(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
@@ -1857,8 +1883,22 @@ class MilvusClient:
         Returns:
             List[SegmentInfo]: A list of persistent segment information.
         """
-        infos = self._get_connection().get_persistent_segment_infos(collection_name, timeout=timeout, **kwargs)
-        return [SegmentInfo(info.segment_id, info.collection_id, collection_name, info.num_rows, info.is_sorted, info.state, info.level, info.storage_version) for info in infos]
+        infos = self._get_connection().get_persistent_segment_infos(
+            collection_name, timeout=timeout, **kwargs
+        )
+        return [
+            SegmentInfo(
+                info.segment_id,
+                info.collection_id,
+                collection_name,
+                info.num_rows,
+                info.is_sorted,
+                info.state,
+                info.level,
+                info.storage_version,
+            )
+            for info in infos
+        ]
 
     def get_server_type(self):
         """Get the server type.
@@ -1868,7 +1908,12 @@ class MilvusClient:
         """
         return self._get_connection().get_server_type()
 
-    def get_compaction_plans(self, job_id: int, timeout: Optional[float] = None, **kwargs) -> CompactionPlans:
+    def get_compaction_plans(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
         """Get compaction plans for a specific job.
 
         Args:
