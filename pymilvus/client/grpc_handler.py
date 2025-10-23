@@ -9,7 +9,12 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
+from pymilvus.decorators import (
+    deprecated_func,
+    ignore_unimplemented,
+    retry_on_rpc_failure,
+    upgrade_reminder,
+)
 from pymilvus.exceptions import (
     AmbiguousIndexName,
     DataNotMatchException,
@@ -1861,6 +1866,7 @@ class GrpcHandler:
         return cp
 
     @retry_on_rpc_failure()
+    @deprecated_func(reason="Will be removed in 3.0, Use describe_replica instead")
     def get_replicas(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Replica:
@@ -1919,6 +1925,7 @@ class GrpcHandler:
         return groups
 
     @retry_on_rpc_failure()
+    @deprecated_func(reason="Will be removed in 3.0, Use bulk_writer.bulk_import instead")
     def do_bulk_insert(
         self,
         collection_name: str,

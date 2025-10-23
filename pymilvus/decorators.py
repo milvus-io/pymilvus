@@ -3,6 +3,7 @@ import datetime
 import functools
 import logging
 import time
+import warnings
 from typing import Any, Callable, Optional
 
 import grpc
@@ -14,18 +15,35 @@ LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
 
 
-def deprecated(func: Any):
-    @functools.wraps(func)
-    def inner(*args, **kwargs):
-        LOGGER.warning(
-            WARNING_COLOR.format(
-                "[WARNING] PyMilvus: ",
-                "class Milvus will be deprecated soon, please use Collection/utility instead",
+def deprecated_func(reason: str=""):
+    def decorator(func: Any):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            warnings.warn(
+                f"{func.__name__} is deprecated. {reason}",
+                category=DeprecationWarning,
+                stacklevel=2,
             )
-        )
-        return func(*args, **kwargs)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
-    return inner
+def deprecated_cls(reason: str=""):
+    def decorator(cls: Any):
+        original_init = cls.__init__
+
+        @functools.wraps(original_init)
+        def new_init(*args, **kwargs):
+            warnings.warn(
+                f"{cls.__name__} is deprecated. {reason}",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            return original_init(*args, **kwargs)
+
+        cls.__init__ = new_init
+        return cls
+    return decorator
 
 
 # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code
