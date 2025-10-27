@@ -180,10 +180,10 @@ class HybridHits(list):
                     if struct_arrays and hasattr(struct_arrays, "fields"):
                         for i in range(len(self)):
                             item = self.get_raw_item(i)
-                            item["entity"][field_name] = (
-                                entity_helper.extract_struct_array_from_column_data(
-                                    struct_arrays, idx
-                                )
+                            item["entity"][
+                                field_name
+                            ] = entity_helper.extract_struct_array_from_column_data(
+                                struct_arrays, idx
                             )
                             idx += 1
                     else:

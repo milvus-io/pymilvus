@@ -9,6 +9,8 @@ from minio.error import S3Error
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from pymilvus import (
     MilvusClient, DataType,
@@ -37,6 +39,10 @@ _VARCHAR_FIELD_NAME = "varchar"
 _JSON_FIELD_NAME = "json"
 _INT16_FIELD_NAME = "int16"
 _ARRAY_FIELD_NAME = "array"
+_STRUCT_NAME = "struct_field"
+_STRUCT_SUB_STR  = "struct_str"
+_STRUCT_SUB_FLOAT = "struct_float_vec"
+_CONCAT_STRUCT_SUB_FLOAT = "struct_field[struct_float_vec]"
 
 # minio
 DEFAULT_BUCKET_NAME = "a-bucket"
@@ -65,6 +71,12 @@ def create_collection():
     schema.add_field(field_name=_INT16_FIELD_NAME, datatype=DataType.INT16, nullable=True)
     schema.add_field(field_name=_ARRAY_FIELD_NAME, datatype=DataType.ARRAY, element_type=DataType.INT64, max_capacity=100, nullable=True)
 
+    struct_schema = MilvusClient.create_struct_field_schema()
+    struct_schema.add_field("struct_str", DataType.VARCHAR, max_length=65535)
+    struct_schema.add_field("struct_float_vec", DataType.FLOAT_VECTOR, dim=_FLOAT_DIM)
+    schema.add_field(_STRUCT_NAME, datatype=DataType.ARRAY, element_type=DataType.STRUCT, struct_schema=struct_schema,
+                     max_capacity=1000)
+
     index_params = client.prepare_index_params()
     index_params.add_index(
         field_name=_BIN_VECTOR_FIELD_NAME,
@@ -80,6 +92,11 @@ def create_collection():
         field_name=_SPARSE_VECTOR_FIELD_NAME,
         index_type="SPARSE_INVERTED_INDEX",
         metric_type="IP",
+    )
+    index_params.add_index(
+        field_name=_CONCAT_STRUCT_SUB_FLOAT,
+        index_type="HNSW",
+        metric_type="MAX_SIM",
     )
 
     client.drop_collection(collection_name=_COLLECTION_NAME)
@@ -100,6 +117,7 @@ def gen_parquet_file(num, file_path):
     json_arr = []
     int16_arr = []
     array_arr = []
+    struct_arr = []
     k_arr = []
     for i in range(num):
         # id field
@@ -148,6 +166,18 @@ def gen_parquet_file(num, file_path):
         else:
             array_arr.append(None)
 
+        # struct field - generate array of struct objects
+        arr_len = random.randint(1, 5)  # Random number of struct elements
+        struct_list = []
+        for _ in range(arr_len):
+            struct_obj = {
+                _STRUCT_SUB_STR: f"struct_str_{i}_{random.randint(0, 100)}",
+                _STRUCT_SUB_FLOAT: [random.random() for _ in range(_FLOAT_DIM)]
+            }
+            struct_list.append(struct_obj)
+        # Store as Python list for Parquet native struct type
+        struct_arr.append(struct_list)
+
         # dynamic field
         a = {"K": i} if i % 3 == 0 else {}
         k_arr.append(np.dtype("str").type(json.dumps(a)))
@@ -161,24 +191,35 @@ def gen_parquet_file(num, file_path):
     data[_JSON_FIELD_NAME] = json_arr
     data[_INT16_FIELD_NAME] = int16_arr
     data[_ARRAY_FIELD_NAME] = array_arr
+    data[_STRUCT_NAME] = struct_arr
     data["$meta"] = k_arr
 
-    # write to Parquet file
-    parquet_data = {}
-    parquet_data[_ID_FIELD_NAME] = id_arr
-    parquet_data[_BIN_VECTOR_FIELD_NAME] = bin_vector_arr
-    parquet_data[_FLOAT_VECTOR_FIELD_NAME] = float_vector_arr
-    parquet_data[_SPARSE_VECTOR_FIELD_NAME] = sparse_vector_arr
-    parquet_data[_VARCHAR_FIELD_NAME] = varchar_arr
-    parquet_data[_JSON_FIELD_NAME] = json_arr
-    parquet_data[_INT16_FIELD_NAME] = np.array(int16_arr)
-    parquet_data[_ARRAY_FIELD_NAME] = array_arr
-    parquet_data["$meta"] = k_arr
+    # write to Parquet file using PyArrow to preserve struct schema
+    # Define PyArrow schema for struct field
+    struct_type = pa.struct([
+        pa.field(_STRUCT_SUB_STR, pa.string()),
+        pa.field(_STRUCT_SUB_FLOAT, pa.list_(pa.float32()))
+    ])
 
-    data_frame = pd.DataFrame(data=parquet_data)
-    data_frame.to_parquet(
-        file_path, row_group_size=10000, engine="pyarrow"
-    )  # don't use fastparquet
+    # Build PyArrow arrays with explicit types
+    pa_arrays = {
+        _ID_FIELD_NAME: pa.array(id_arr, type=pa.int64()),
+        _BIN_VECTOR_FIELD_NAME: pa.array([np.array(v, dtype=np.uint8) for v in bin_vector_arr],
+                                         type=pa.list_(pa.uint8())),
+        _FLOAT_VECTOR_FIELD_NAME: pa.array([np.array(v, dtype=np.float32) for v in float_vector_arr],
+                                           type=pa.list_(pa.float32())),
+        _SPARSE_VECTOR_FIELD_NAME: pa.array(sparse_vector_arr, type=pa.string()),
+        _VARCHAR_FIELD_NAME: pa.array(varchar_arr, type=pa.string()),
+        _JSON_FIELD_NAME: pa.array(json_arr, type=pa.string()),
+        _INT16_FIELD_NAME: pa.array(int16_arr, type=pa.int16()),
+        _ARRAY_FIELD_NAME: pa.array(array_arr, type=pa.list_(pa.int64())),
+        _STRUCT_NAME: pa.array(struct_arr, type=pa.list_(struct_type)),
+        "$meta": pa.array(k_arr, type=pa.string())
+    }
+
+    # Create PyArrow table and write to Parquet
+    table = pa.table(pa_arrays)
+    pq.write_table(table, file_path, row_group_size=10000)
 
     return data
 
@@ -261,38 +302,145 @@ def call_bulkinsert(batch_files: List[List[str]]):
 def verify(data):
     indices = [1, 10, 30]
     print("============= original data ==============")
-    def getValue(field_name, i):
-        return f"{field_name}:{data[field_name][i] if len(data[field_name]) > 0 else None}"
     for i in indices:
-        print(f"{getValue(_ID_FIELD_NAME, i)}, "
-              f"{getValue(_BIN_VECTOR_FIELD_NAME, i)}, "
-              f"{getValue(_FLOAT_VECTOR_FIELD_NAME, i)}, "
-              f"{getValue(_SPARSE_VECTOR_FIELD_NAME, i)}, "
-              f"{getValue(_VARCHAR_FIELD_NAME, i)}, "
-              f"{getValue(_JSON_FIELD_NAME, i)}, "
-              f"{getValue(_INT16_FIELD_NAME, i)}, "
-              f"{getValue(_ARRAY_FIELD_NAME, i)}"
+        print(f"{_ID_FIELD_NAME}:{data[_ID_FIELD_NAME][i]}, "
+              f"{_BIN_VECTOR_FIELD_NAME}:{data[_BIN_VECTOR_FIELD_NAME][i]}, "
+              f"{_FLOAT_VECTOR_FIELD_NAME}:{data[_FLOAT_VECTOR_FIELD_NAME][i]}, "
+              f"{_SPARSE_VECTOR_FIELD_NAME}:{data[_SPARSE_VECTOR_FIELD_NAME][i]}, "
+              f"{_VARCHAR_FIELD_NAME}:{data[_VARCHAR_FIELD_NAME][i]}, "
+              f"{_JSON_FIELD_NAME}:{data[_JSON_FIELD_NAME][i]}, "
+              f"{_INT16_FIELD_NAME}:{data[_INT16_FIELD_NAME][i]}, "
+              f"{_ARRAY_FIELD_NAME}:{data[_ARRAY_FIELD_NAME][i]}, "
+              f"{_STRUCT_NAME}:{data[_STRUCT_NAME][i]}"
               )
-    ids = [data[_ID_FIELD_NAME][k] for k in indices]
+
+    # Extract IDs from the data
+    ids = [int(data[_ID_FIELD_NAME][k]) for k in indices]
     results = client.query(collection_name=_COLLECTION_NAME,
                            filter=f"{_ID_FIELD_NAME} in {ids}",
                            output_fields=["*"])
     print("============= query data ==============")
-    def getRes(result, field_name):
-        if field_name == _BIN_VECTOR_FIELD_NAME:
-            return f"{field_name}:{np.frombuffer(result[field_name][0], dtype=np.uint8)}"
+
+    # Build a map from ID to result for easier comparison
+    result_map = {res[_ID_FIELD_NAME]: res for res in results}
+
+    # Verify each row
+    all_match = True
+    for i in indices:
+        row_id = int(data[_ID_FIELD_NAME][i])
+
+        if row_id not in result_map:
+            print(f"❌ ID {row_id} not found in query results")
+            all_match = False
+            continue
+
+        res = result_map[row_id]
+        print(f"\n--- Verifying ID: {row_id} ---")
+
+        # Compare each field
+        mismatches = []
+
+        # ID field
+        if data[_ID_FIELD_NAME][i] != res[_ID_FIELD_NAME]:
+            mismatches.append(f"ID mismatch: {data[_ID_FIELD_NAME][i]} != {res[_ID_FIELD_NAME]}")
+
+        # Binary vector field
+        orig_bin_vector = np.array(data[_BIN_VECTOR_FIELD_NAME][i], dtype=np.uint8)
+        query_bin_vector = np.frombuffer(res[_BIN_VECTOR_FIELD_NAME][0], dtype=np.uint8)
+        if not np.array_equal(orig_bin_vector, query_bin_vector):
+            mismatches.append(f"Binary vector mismatch")
+
+        # Float vector field
+        orig_float_vector = np.array(data[_FLOAT_VECTOR_FIELD_NAME][i], dtype=np.float32)
+        query_float_vector = res[_FLOAT_VECTOR_FIELD_NAME]
+        if len(orig_float_vector) != len(query_float_vector):
+            mismatches.append(f"Float vector length mismatch: {len(orig_float_vector)} != {len(query_float_vector)}")
         else:
-            return f"{field_name}:{result[field_name]}"
-    for res in results:
-        print(f"{getRes(res, _ID_FIELD_NAME)}, "
-              f"{getRes(res, _BIN_VECTOR_FIELD_NAME)}, "
-              f"{getRes(res, _FLOAT_VECTOR_FIELD_NAME)}, "
-              f"{getRes(res, _SPARSE_VECTOR_FIELD_NAME)}, "
-              f"{getRes(res, _VARCHAR_FIELD_NAME)}, "
-              f"{getRes(res, _JSON_FIELD_NAME)}, "
-              f"{getRes(res, _INT16_FIELD_NAME)}, "
-              f"{getRes(res, _ARRAY_FIELD_NAME)}, "
-              )
+            max_diff = max(abs(a - b) for a, b in zip(orig_float_vector, query_float_vector))
+            if max_diff > 1e-5:
+                mismatches.append(f"Float vector values differ (max diff: {max_diff})")
+
+        # Sparse vector field
+        orig_sparse = json.loads(data[_SPARSE_VECTOR_FIELD_NAME][i])
+        query_sparse = res[_SPARSE_VECTOR_FIELD_NAME]
+        # Normalize keys to integers for comparison (JSON keys are strings, query returns int keys)
+        orig_sparse_normalized = {int(k): v for k, v in orig_sparse.items()}
+        if set(orig_sparse_normalized.keys()) != set(query_sparse.keys()):
+            mismatches.append(f"Sparse vector keys mismatch: {set(orig_sparse_normalized.keys())} != {set(query_sparse.keys())}")
+        else:
+            # Compare values with tolerance for floating point
+            max_sparse_diff = max(abs(orig_sparse_normalized[k] - query_sparse[k]) for k in orig_sparse_normalized.keys())
+            if max_sparse_diff > 1e-5:
+                mismatches.append(f"Sparse vector values differ (max diff: {max_sparse_diff})")
+
+        # VARCHAR field (nullable)
+        orig_varchar = data[_VARCHAR_FIELD_NAME][i]
+        query_varchar = res[_VARCHAR_FIELD_NAME]
+        if orig_varchar != query_varchar:
+            mismatches.append(f"VARCHAR mismatch: {orig_varchar} != {query_varchar}")
+
+        # JSON field (nullable)
+        orig_json = data[_JSON_FIELD_NAME][i]
+        query_json = res[_JSON_FIELD_NAME]
+        # Compare parsed JSON objects
+        if orig_json is not None:
+            orig_json_obj = json.loads(orig_json)
+        else:
+            orig_json_obj = None
+        if orig_json_obj != query_json:
+            mismatches.append(f"JSON mismatch: {orig_json_obj} != {query_json}")
+
+        # INT16 field (nullable)
+        orig_int16 = data[_INT16_FIELD_NAME][i]
+        query_int16 = res[_INT16_FIELD_NAME]
+        if orig_int16 != query_int16:
+            mismatches.append(f"INT16 mismatch: {orig_int16} != {query_int16}")
+
+        # Array field (nullable)
+        orig_array = data[_ARRAY_FIELD_NAME][i]
+        query_array = res[_ARRAY_FIELD_NAME]
+        if orig_array is None and query_array is None:
+            pass  # Both are None, OK
+        elif orig_array is None or query_array is None:
+            mismatches.append(f"Array mismatch: one is None, other is not")
+        elif not np.array_equal(orig_array, query_array):
+            mismatches.append(f"Array mismatch: {orig_array.tolist()} != {query_array}")
+
+        # Struct field - compare as lists
+        orig_struct = data[_STRUCT_NAME][i]
+        query_struct = res[_STRUCT_NAME]
+        if len(orig_struct) != len(query_struct):
+            mismatches.append(f"Struct array length mismatch: {len(orig_struct)} != {len(query_struct)}")
+        else:
+            for idx, (orig_item, query_item) in enumerate(zip(orig_struct, query_struct)):
+                if orig_item[_STRUCT_SUB_STR] != query_item[_STRUCT_SUB_STR]:
+                    mismatches.append(f"Struct[{idx}].{_STRUCT_SUB_STR} mismatch: {orig_item[_STRUCT_SUB_STR]} != {query_item[_STRUCT_SUB_STR]}")
+
+                # Compare struct float vectors with tolerance
+                orig_vec = orig_item[_STRUCT_SUB_FLOAT]
+                query_vec = query_item[_STRUCT_SUB_FLOAT]
+                if len(orig_vec) != len(query_vec):
+                    mismatches.append(f"Struct[{idx}].{_STRUCT_SUB_FLOAT} length mismatch")
+                else:
+                    max_diff = max(abs(a - b) for a, b in zip(orig_vec, query_vec))
+                    if max_diff > 1e-5:
+                        mismatches.append(f"Struct[{idx}].{_STRUCT_SUB_FLOAT} values differ (max diff: {max_diff})")
+
+        if mismatches:
+            all_match = False
+            print(f"❌ Verification failed for ID {row_id}:")
+            for mismatch in mismatches:
+                print(f"   - {mismatch}")
+        else:
+            print(f"✓ ID {row_id} matches perfectly")
+
+    print("\n============= Verification Summary ==============")
+    if all_match:
+        print("✓ All data verified successfully!")
+    else:
+        print("❌ Some data mismatches found")
+
+    return all_match
 
 
 if __name__ == '__main__':
