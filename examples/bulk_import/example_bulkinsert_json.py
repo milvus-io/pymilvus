@@ -9,8 +9,6 @@ from minio.error import S3Error
 
 from pymilvus import (
     DataType,
-    utility,
-    BulkInsertState,
     MilvusClient,
 )
 
@@ -142,34 +140,6 @@ def bulk_insert_rowbased(row_count_per_file, file_id, partition_name = None):
     call_bulkinsert(remote_files)
 
     return data
-
-# Wait all bulkinsert tasks to be a certain state
-# return the states of all the tasks, including failed task
-def wait_tasks_to_state(task_ids, state_code):
-    wait_ids = task_ids
-    states = []
-    while True:
-        time.sleep(2)
-        temp_ids = []
-        for id in wait_ids:
-            state = utility.get_bulk_insert_state(task_id=id)
-            if state.state == BulkInsertState.ImportFailed or state.state == BulkInsertState.ImportFailedAndCleaned:
-                print(state)
-                print("The task", state.task_id, "failed, reason:", state.failed_reason)
-                continue
-
-            if state.state >= state_code:
-                states.append(state)
-                continue
-
-            temp_ids.append(id)
-
-        wait_ids = temp_ids
-        if len(wait_ids) == 0:
-            break;
-        print("Wait {} tasks to be state: {}. Next round check".format(len(wait_ids), BulkInsertState.state_2_name.get(state_code, "unknown")))
-
-    return states
 
 # Upload data files to minio
 def upload(local_file_path: str,
