@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
-import ujson
+import orjson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.grpc_gen import common_pb2
@@ -19,6 +19,7 @@ from pymilvus.orm.schema import (
     isVectorDataType,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
+from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils
 from .abstract import BaseRanker
@@ -161,7 +162,11 @@ class Prepare:
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(
                     key=str(k) if k != "mmap_enabled" else "mmap.enabled",
-                    value=ujson.dumps(v) if not isinstance(v, str) else str(v),
+                    value=(
+                        orjson.dumps(v).decode(Config.EncodeProtocol)
+                        if not isinstance(v, str)
+                        else str(v)
+                    ),
                 )
                 field_schema.type_params.append(kv_pair)
 
@@ -2311,7 +2316,7 @@ class Prepare:
 
         if analyzer_params is not None:
             if isinstance(analyzer_params, dict):
-                req.analyzer_params = ujson.dumps(analyzer_params)
+                req.analyzer_params = orjson.dumps(analyzer_params).decode(Config.EncodeProtocol)
             else:
                 req.analyzer_params = analyzer_params
 

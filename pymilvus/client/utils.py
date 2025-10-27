@@ -5,10 +5,11 @@ from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
-import ujson
+import orjson
 
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen.common_pb2 import Status
+from pymilvus.settings import Config
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
@@ -308,7 +309,7 @@ def get_server_type(host: str):
 
 
 def dumps(v: Union[dict, str]) -> str:
-    return ujson.dumps(v) if isinstance(v, dict) else str(v)
+    return orjson.dumps(v).decode(Config.EncodeProtocol) if isinstance(v, dict) else str(v)
 
 
 class SciPyHelper:

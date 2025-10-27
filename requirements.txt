@@ -12,7 +12,7 @@ pep517==0.10.0
 pyparsing==2.4.7
 six==1.16.0
 toml==0.10.2
-ujson>=2.0.0
+orjson
 urllib3==2.5.0
 m2r==0.3.1
 Sphinx==4.0.0
