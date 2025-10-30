@@ -37,6 +37,7 @@ _VARCHAR_FIELD_NAME = "varchar"
 _JSON_FIELD_NAME = "json"
 _INT16_FIELD_NAME = "int16"
 _ARRAY_FIELD_NAME = "array"
+_GEOMETRY_FIELD_NAME = "geometry"
 
 # minio
 DEFAULT_BUCKET_NAME = "a-bucket"
@@ -64,6 +65,7 @@ def create_collection():
     schema.add_field(field_name=_JSON_FIELD_NAME, datatype=DataType.JSON, nullable=True)
     schema.add_field(field_name=_INT16_FIELD_NAME, datatype=DataType.INT16, nullable=True)
     schema.add_field(field_name=_ARRAY_FIELD_NAME, datatype=DataType.ARRAY, element_type=DataType.INT64, max_capacity=100, nullable=True)
+    schema.add_field(field_name=_GEOMETRY_FIELD_NAME, datatype=DataType.GEOMETRY, nullable=True)
 
     index_params = client.prepare_index_params()
     index_params.add_index(
@@ -101,6 +103,7 @@ def gen_parquet_file(num, file_path):
     int16_arr = []
     array_arr = []
     k_arr = []
+    geometry_arr = []
     for i in range(num):
         # id field
         id_arr.append(np.dtype("int64").type(i))
@@ -123,8 +126,10 @@ def gen_parquet_file(num, file_path):
         # varchar field
         if i%2 == 0:
             varchar_arr.append(np.dtype("str").type(f"this is varchar {i}"))
+            geometry_arr.append(np.dtype("str").type(f"POINT({i} {i+1})"))
         else:
             varchar_arr.append(None)
+            geometry_arr.append(None)
 
         # json field
         if i % 3 != 0:
@@ -161,6 +166,7 @@ def gen_parquet_file(num, file_path):
     data[_JSON_FIELD_NAME] = json_arr
     data[_INT16_FIELD_NAME] = int16_arr
     data[_ARRAY_FIELD_NAME] = array_arr
+    data[_GEOMETRY_FIELD_NAME] = geometry_arr
     data["$meta"] = k_arr
 
     # write to Parquet file
@@ -173,6 +179,7 @@ def gen_parquet_file(num, file_path):
     parquet_data[_JSON_FIELD_NAME] = json_arr
     parquet_data[_INT16_FIELD_NAME] = np.array(int16_arr)
     parquet_data[_ARRAY_FIELD_NAME] = array_arr
+    parquet_data[_GEOMETRY_FIELD_NAME] = geometry_arr
     parquet_data["$meta"] = k_arr
 
     data_frame = pd.DataFrame(data=parquet_data)
@@ -271,7 +278,8 @@ def verify(data):
               f"{getValue(_VARCHAR_FIELD_NAME, i)}, "
               f"{getValue(_JSON_FIELD_NAME, i)}, "
               f"{getValue(_INT16_FIELD_NAME, i)}, "
-              f"{getValue(_ARRAY_FIELD_NAME, i)}"
+              f"{getValue(_ARRAY_FIELD_NAME, i)}, "
+              f"{getValue(_GEOMETRY_FIELD_NAME, i)}"
               )
     ids = [data[_ID_FIELD_NAME][k] for k in indices]
     results = client.query(collection_name=_COLLECTION_NAME,
@@ -292,6 +300,7 @@ def verify(data):
               f"{getRes(res, _JSON_FIELD_NAME)}, "
               f"{getRes(res, _INT16_FIELD_NAME)}, "
               f"{getRes(res, _ARRAY_FIELD_NAME)}, "
+              f"{getRes(res, _GEOMETRY_FIELD_NAME)}, "
               )
 
 
