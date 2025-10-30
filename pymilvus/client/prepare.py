@@ -182,6 +182,19 @@ class Prepare:
                 fields=[],
                 description=struct.description,
             )
+
+            if struct.params:
+                for k, v in struct.params.items():
+                    kv_pair = common_types.KeyValuePair(
+                        key=str(k) if k != "mmap_enabled" else "mmap.enabled",
+                        value=(
+                            orjson.dumps(v).decode(Config.EncodeProtocol)
+                            if not isinstance(v, str)
+                            else str(v)
+                        ),
+                    )
+                    struct_schema.type_params.append(kv_pair)
+
             for f in struct.fields:
                 # Convert struct field types to backend representation
                 # As struct itself only support array type, so all it's fields are array type

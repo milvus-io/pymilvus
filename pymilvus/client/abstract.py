@@ -1,4 +1,5 @@
 import abc
+import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -145,6 +146,7 @@ class StructArrayFieldSchema:
         self.name = None
         self.fields = []
         self.description = None
+        self.params = {}
 
         self.__pack(self._raw)
 
@@ -154,14 +156,26 @@ class StructArrayFieldSchema:
         self.description = raw.description
         self.fields = [FieldSchema(f) for f in raw.fields]
 
+        self.params = {}
+        for kv in raw.type_params:
+            key = kv.key if kv.key != "mmap.enabled" else "mmap_enabled"
+            try:
+                value = json.loads(kv.value)
+            except (json.JSONDecodeError, ValueError):
+                value = kv.value
+            self.params[key] = value
+
     def dict(self):
-        return {
+        result = {
             "field_id": self.field_id,
             "name": self.name,
             "description": self.description,
             "type": DataType._ARRAY_OF_STRUCT,
             "fields": [f.dict() for f in self.fields],
         }
+        if self.params:
+            result["params"] = self.params
+        return result
 
 
 class FunctionSchema:
