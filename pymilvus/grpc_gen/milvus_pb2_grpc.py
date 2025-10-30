@@ -91,6 +91,21 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
+        self.AddCollectionFunction = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AddCollectionFunction',
+                request_serializer=milvus__pb2.AddCollectionFunctionRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.AlterCollectionFunction = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterCollectionFunction',
+                request_serializer=milvus__pb2.AlterCollectionFunctionRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
+        self.DropCollectionFunction = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropCollectionFunction',
+                request_serializer=milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                )
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
@@ -652,6 +667,24 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def AlterCollectionField(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AddCollectionFunction(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterCollectionFunction(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropCollectionFunction(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1261,7 +1294,7 @@ class MilvusServiceServicer(object):
 
     def GetReplicateInfo(self, request, context):
         """
-        GetReplicateInfo retrieves replication-related metadata from a target Milvus cluster.
+        GetReplicateInfo retrieves replication-related metadata of specified channel from a target Milvus cluster.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1337,6 +1370,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'AlterCollectionField': grpc.unary_unary_rpc_method_handler(
                     servicer.AlterCollectionField,
                     request_deserializer=milvus__pb2.AlterCollectionFieldRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AddCollectionFunction': grpc.unary_unary_rpc_method_handler(
+                    servicer.AddCollectionFunction,
+                    request_deserializer=milvus__pb2.AddCollectionFunctionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AlterCollectionFunction': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterCollectionFunction,
+                    request_deserializer=milvus__pb2.AlterCollectionFunctionRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'DropCollectionFunction': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropCollectionFunction,
+                    request_deserializer=milvus__pb2.DropCollectionFunctionRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
@@ -2131,6 +2179,87 @@ class MilvusService(object):
             target,
             '/milvus.proto.milvus.MilvusService/AlterCollectionField',
             milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            )
+
+    @staticmethod
+    def AddCollectionFunction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AddCollectionFunction',
+            milvus__pb2.AddCollectionFunctionRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            )
+
+    @staticmethod
+    def AlterCollectionFunction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AlterCollectionFunction',
+            milvus__pb2.AlterCollectionFunctionRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            )
+
+    @staticmethod
+    def DropCollectionFunction(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DropCollectionFunction',
+            milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
             common__pb2.Status.FromString,
             options,
             channel_credentials,

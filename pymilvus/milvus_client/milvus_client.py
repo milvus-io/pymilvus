@@ -829,9 +829,8 @@ class MilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def create_struct_field_schema(cls, **kwargs) -> StructFieldSchema:
-        kwargs["check_fields"] = False  # do not check fields for now
-        return StructFieldSchema("", [], **kwargs)
+    def create_struct_field_schema(cls) -> StructFieldSchema:
+        return StructFieldSchema()
 
     @classmethod
     def create_field_schema(
