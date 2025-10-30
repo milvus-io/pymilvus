@@ -318,7 +318,7 @@ def verify(data):
               f"{_JSON_FIELD_NAME}:{data[_JSON_FIELD_NAME][i]}, "
               f"{_INT16_FIELD_NAME}:{data[_INT16_FIELD_NAME][i]}, "
               f"{_ARRAY_FIELD_NAME}:{data[_ARRAY_FIELD_NAME][i]}, "
-              f"{_GEOMETRY_FIELD_NAME}:{data[_GEOMETRY_FIELD_NAME]}, "
+              f"{_GEOMETRY_FIELD_NAME}:{data[_GEOMETRY_FIELD_NAME][i]}, "
               f"{_STRUCT_NAME}:{data[_STRUCT_NAME][i]}"
               )
 
