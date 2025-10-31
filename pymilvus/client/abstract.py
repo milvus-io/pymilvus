@@ -1,5 +1,4 @@
 import abc
-import json
 import logging
 from typing import Any, Dict, List, Optional, Union
 
@@ -160,8 +159,8 @@ class StructArrayFieldSchema:
         for kv in raw.type_params:
             key = kv.key if kv.key != "mmap.enabled" else "mmap_enabled"
             try:
-                value = json.loads(kv.value)
-            except (json.JSONDecodeError, ValueError):
+                value = orjson.loads(kv.value)
+            except (orjson.JSONDecodeError, ValueError):
                 value = kv.value
             self.params[key] = value
 
