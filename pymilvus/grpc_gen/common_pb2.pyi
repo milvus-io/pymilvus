@@ -138,6 +138,9 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeAlias: _ClassVar[MsgType]
     ListAliases: _ClassVar[MsgType]
     AlterCollectionField: _ClassVar[MsgType]
+    AddCollectionFunction: _ClassVar[MsgType]
+    AlterCollectionFunction: _ClassVar[MsgType]
+    DropCollectionFunction: _ClassVar[MsgType]
     CreatePartition: _ClassVar[MsgType]
     DropPartition: _ClassVar[MsgType]
     HasPartition: _ClassVar[MsgType]
@@ -351,6 +354,9 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeAddFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
+    PrivilegeAddCollectionFunction: _ClassVar[ObjectPrivilege]
+    PrivilegeAlterCollectionFunction: _ClassVar[ObjectPrivilege]
+    PrivilegeDropCollectionFunction: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -372,10 +378,6 @@ class LoadPriority(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     HIGH: _ClassVar[LoadPriority]
     LOW: _ClassVar[LoadPriority]
 
-class FileResourceType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    ANALYZER_DICTIONARY: _ClassVar[FileResourceType]
-
 class WALName(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     Unknown: _ClassVar[WALName]
@@ -384,6 +386,11 @@ class WALName(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Kafka: _ClassVar[WALName]
     WoodPecker: _ClassVar[WALName]
     Test: _ClassVar[WALName]
+
+class HighlightType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    Lexical: _ClassVar[HighlightType]
+    Semantic: _ClassVar[HighlightType]
 Success: ErrorCode
 UnexpectedError: ErrorCode
 ConnectFailed: ErrorCode
@@ -498,6 +505,9 @@ RenameCollection: MsgType
 DescribeAlias: MsgType
 ListAliases: MsgType
 AlterCollectionField: MsgType
+AddCollectionFunction: MsgType
+AlterCollectionFunction: MsgType
+DropCollectionFunction: MsgType
 CreatePartition: MsgType
 DropPartition: MsgType
 HasPartition: MsgType
@@ -693,6 +703,9 @@ PrivilegeAddCollectionField: ObjectPrivilege
 PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
+PrivilegeAddCollectionFunction: ObjectPrivilege
+PrivilegeAlterCollectionFunction: ObjectPrivilege
+PrivilegeDropCollectionFunction: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -704,13 +717,14 @@ LoadStateLoading: LoadState
 LoadStateLoaded: LoadState
 HIGH: LoadPriority
 LOW: LoadPriority
-ANALYZER_DICTIONARY: FileResourceType
 Unknown: WALName
 RocksMQ: WALName
 Pulsar: WALName
 Kafka: WALName
 WoodPecker: WALName
 Test: WALName
+Lexical: HighlightType
+Semantic: HighlightType
 PRIVILEGE_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 privilege_ext_obj: _descriptor.FieldDescriptor
 
@@ -978,3 +992,25 @@ class ReplicateCheckpoint(_message.Message):
     message_id: MessageID
     time_tick: int
     def __init__(self, cluster_id: _Optional[str] = ..., pchannel: _Optional[str] = ..., message_id: _Optional[_Union[MessageID, _Mapping]] = ..., time_tick: _Optional[int] = ...) -> None: ...
+
+class HighlightData(_message.Message):
+    __slots__ = ("fragments",)
+    FRAGMENTS_FIELD_NUMBER: _ClassVar[int]
+    fragments: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, fragments: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class HighlightResult(_message.Message):
+    __slots__ = ("field_name", "datas")
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    DATAS_FIELD_NUMBER: _ClassVar[int]
+    field_name: str
+    datas: _containers.RepeatedCompositeFieldContainer[HighlightData]
+    def __init__(self, field_name: _Optional[str] = ..., datas: _Optional[_Iterable[_Union[HighlightData, _Mapping]]] = ...) -> None: ...
+
+class Highlighter(_message.Message):
+    __slots__ = ("type", "params")
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    type: HighlightType
+    params: _containers.RepeatedCompositeFieldContainer[KeyValuePair]
+    def __init__(self, type: _Optional[_Union[HighlightType, str]] = ..., params: _Optional[_Iterable[_Union[KeyValuePair, _Mapping]]] = ...) -> None: ...
