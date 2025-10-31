@@ -43,6 +43,7 @@ _STRUCT_NAME = "struct_field"
 _STRUCT_SUB_STR  = "struct_str"
 _STRUCT_SUB_FLOAT = "struct_float_vec"
 _CONCAT_STRUCT_SUB_FLOAT = "struct_field[struct_float_vec]"
+_GEOMETRY_FIELD_NAME = "geometry"
 
 # minio
 DEFAULT_BUCKET_NAME = "a-bucket"
@@ -70,6 +71,7 @@ def create_collection():
     schema.add_field(field_name=_JSON_FIELD_NAME, datatype=DataType.JSON, nullable=True)
     schema.add_field(field_name=_INT16_FIELD_NAME, datatype=DataType.INT16, nullable=True)
     schema.add_field(field_name=_ARRAY_FIELD_NAME, datatype=DataType.ARRAY, element_type=DataType.INT64, max_capacity=100, nullable=True)
+    schema.add_field(field_name=_GEOMETRY_FIELD_NAME, datatype=DataType.GEOMETRY, nullable=True)
 
     struct_schema = MilvusClient.create_struct_field_schema()
     struct_schema.add_field("struct_str", DataType.VARCHAR, max_length=65535)
@@ -119,6 +121,7 @@ def gen_parquet_file(num, file_path):
     array_arr = []
     struct_arr = []
     k_arr = []
+    geometry_arr = []
     for i in range(num):
         # id field
         id_arr.append(np.dtype("int64").type(i))
@@ -141,8 +144,10 @@ def gen_parquet_file(num, file_path):
         # varchar field
         if i%2 == 0:
             varchar_arr.append(np.dtype("str").type(f"this is varchar {i}"))
+            geometry_arr.append(np.dtype("str").type(f"POINT({i} {i+1})"))
         else:
             varchar_arr.append(None)
+            geometry_arr.append(None)
 
         # json field
         if i % 3 != 0:
@@ -191,6 +196,7 @@ def gen_parquet_file(num, file_path):
     data[_JSON_FIELD_NAME] = json_arr
     data[_INT16_FIELD_NAME] = int16_arr
     data[_ARRAY_FIELD_NAME] = array_arr
+    data[_GEOMETRY_FIELD_NAME] = geometry_arr
     data[_STRUCT_NAME] = struct_arr
     data["$meta"] = k_arr
 
@@ -213,6 +219,7 @@ def gen_parquet_file(num, file_path):
         _JSON_FIELD_NAME: pa.array(json_arr, type=pa.string()),
         _INT16_FIELD_NAME: pa.array(int16_arr, type=pa.int16()),
         _ARRAY_FIELD_NAME: pa.array(array_arr, type=pa.list_(pa.int64())),
+        _GEOMETRY_FIELD_NAME: pa.array(geometry_arr, type=pa.string()),
         _STRUCT_NAME: pa.array(struct_arr, type=pa.list_(struct_type)),
         "$meta": pa.array(k_arr, type=pa.string())
     }
@@ -311,6 +318,7 @@ def verify(data):
               f"{_JSON_FIELD_NAME}:{data[_JSON_FIELD_NAME][i]}, "
               f"{_INT16_FIELD_NAME}:{data[_INT16_FIELD_NAME][i]}, "
               f"{_ARRAY_FIELD_NAME}:{data[_ARRAY_FIELD_NAME][i]}, "
+              f"{_GEOMETRY_FIELD_NAME}:{data[_GEOMETRY_FIELD_NAME][i]}, "
               f"{_STRUCT_NAME}:{data[_STRUCT_NAME][i]}"
               )
 
