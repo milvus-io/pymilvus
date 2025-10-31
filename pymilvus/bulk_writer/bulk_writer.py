@@ -168,6 +168,13 @@ class BulkWriter:
 
         return len(x)
 
+    def _verify_geometry(self, x: object, field: FieldSchema):
+        validator = TYPE_VALIDATOR[DataType.VARCHAR.name]
+        if not validator(x):
+            self._throw(f"Illegal geometry value for field '{field.name}', type mismatch")
+
+        return len(x)
+
     def _verify_scalar(self, x: object, dtype: DataType, field_name: str):
         validator = TYPE_VALIDATOR[dtype.name]
         if not validator(x):
@@ -286,6 +293,8 @@ class BulkWriter:
                     row[field.name] = row[field.name].tolist()
 
                 row_size = row_size + self._verify_array(row[field.name], field)
+            elif dtype == DataType.GEOMETRY:
+                row_size = row_size + self._verify_geometry(row[field.name], field)
             else:
                 if isinstance(row[field.name], np.generic):
                     row[field.name] = row[field.name].item()
