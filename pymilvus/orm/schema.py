@@ -410,8 +410,7 @@ class CollectionSchema:
             struct_schema.max_capacity = kwargs["max_capacity"]
 
             if "mmap_enabled" in kwargs:
-                for field in struct_schema.fields:
-                    field._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+                struct_schema._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
 
             self._struct_fields.append(struct_schema)
             return self
@@ -633,26 +632,14 @@ def isVectorDataType(datatype: DataType) -> bool:
 
 
 class StructFieldSchema:
-    def __init__(self, name: str, fields: List, description: str = "", **kwargs):
-        self.name = name
-        self._kwargs = copy.deepcopy(kwargs)
+    def __init__(self):
+        self.name = ""
+        self._kwargs = {}
         self._fields = []
-        self._description = description
+        self._description = ""
+        self._type_params = {}
         # max_capacity will be set when added to CollectionSchema
-        # Initialize from kwargs if provided (for backward compatibility)
-        self.max_capacity = kwargs.get("max_capacity")
-
-        if not isinstance(fields, list):
-            raise FieldsTypeException(message=ExceptionsMessage.FieldsType)
-
-        for field in fields:
-            if not isinstance(field, FieldSchema):
-                raise FieldTypeException(message=ExceptionsMessage.FieldType)
-
-        self._fields = [copy.deepcopy(field) for field in fields]
-        self._check_kwargs()
-        if kwargs.get("check_fields", True):
-            self._check_fields()
+        self.max_capacity = None
 
     def _check_kwargs(self):
         """Check struct-level kwargs."""
@@ -724,6 +711,10 @@ class StructFieldSchema:
     def description(self):
         return self._description
 
+    @property
+    def params(self):
+        return self._type_params
+
     def to_dict(self):
         """Convert StructFieldSchema to dictionary representation."""
         struct_dict = {
@@ -734,6 +725,9 @@ class StructFieldSchema:
         # Include max_capacity if it's set
         if self.max_capacity is not None:
             struct_dict["max_capacity"] = self.max_capacity
+        # Include type_params if not empty
+        if self._type_params:
+            struct_dict["params"] = copy.deepcopy(self._type_params)
         return struct_dict
 
     @classmethod
@@ -744,16 +738,28 @@ class StructFieldSchema:
         1. User-friendly format (from convert_struct_fields_to_user_format)
         2. Direct struct field format with sub-fields
         """
-        kwargs = {}
+        # Create empty instance
+        instance = cls()
+
+        # Set name and description
+        instance.name = raw.get("name", "")
+        instance._description = raw.get("description", "")
 
         # Extract max_capacity if present
         if "max_capacity" in raw:
-            kwargs["max_capacity"] = raw["max_capacity"]
+            instance.max_capacity = raw["max_capacity"]
         elif (
             "params" in raw and isinstance(raw["params"], dict) and "max_capacity" in raw["params"]
         ):
-            kwargs["max_capacity"] = raw["params"]["max_capacity"]
+            instance.max_capacity = raw["params"]["max_capacity"]
 
+        # Extract type_params from params dict
+        if "params" in raw and isinstance(raw["params"], dict):
+            for key, value in raw["params"].items():
+                if key != "max_capacity":  # max_capacity is already handled above
+                    instance._type_params[key] = value
+
+        # Build fields list
         fields = []
         if "struct_fields" in raw:
             # User format from convert_struct_fields_to_user_format
@@ -776,9 +782,9 @@ class StructFieldSchema:
                 elif isinstance(field_raw, FieldSchema):
                     fields.append(field_raw)
 
-        return cls(
-            name=raw["name"], fields=fields, description=raw.get("description", ""), **kwargs
-        )
+        instance._fields = [copy.deepcopy(field) for field in fields]
+
+        return instance
 
 
 class Function:
