@@ -3,6 +3,7 @@ import datetime
 import functools
 import logging
 import time
+import traceback
 from typing import Any, Callable, Optional
 
 import grpc
@@ -216,25 +217,37 @@ def error_handler(func_name: str = ""):
                     return await func(*args, **kwargs)
                 except MilvusException as e:
                     record_dict["RPC error"] = str(datetime.datetime.now())
-                    LOGGER.error(f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>")
+                    tb_str = traceback.format_exc()
+                    LOGGER.error(
+                        f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>\n"
+                        f"Traceback:\n{tb_str}"
+                    )
                     raise e from e
                 except grpc.FutureTimeoutError as e:
                     record_dict["gRPC timeout"] = str(datetime.datetime.now())
+                    tb_str = traceback.format_exc()
                     LOGGER.error(
                         f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
-                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
+                        f"Traceback:\n{tb_str}"
                     )
                     raise e from e
                 except grpc.RpcError as e:
                     record_dict["gRPC error"] = str(datetime.datetime.now())
+                    tb_str = traceback.format_exc()
                     LOGGER.error(
                         f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
-                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
+                        f"Traceback:\n{tb_str}"
                     )
                     raise e from e
                 except Exception as e:
                     record_dict["Exception"] = str(datetime.datetime.now())
-                    LOGGER.error(f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>")
+                    tb_str = traceback.format_exc()
+                    LOGGER.error(
+                        f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>\n"
+                        f"Traceback:\n{tb_str}"
+                    )
                     raise MilvusException(message=f"Unexpected error, message=<{e!s}>") from e
 
             return async_handler
@@ -250,25 +263,37 @@ def error_handler(func_name: str = ""):
                 return func(*args, **kwargs)
             except MilvusException as e:
                 record_dict["RPC error"] = str(datetime.datetime.now())
-                LOGGER.error(f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>")
+                tb_str = traceback.format_exc()
+                LOGGER.error(
+                    f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>\n"
+                    f"Traceback:\n{tb_str}"
+                )
                 raise e from e
             except grpc.FutureTimeoutError as e:
                 record_dict["gRPC timeout"] = str(datetime.datetime.now())
+                tb_str = traceback.format_exc()
                 LOGGER.error(
                     f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
-                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
+                    f"Traceback:\n{tb_str}"
                 )
                 raise e from e
             except grpc.RpcError as e:
                 record_dict["gRPC error"] = str(datetime.datetime.now())
+                tb_str = traceback.format_exc()
                 LOGGER.error(
                     f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
-                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>"
+                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
+                    f"Traceback:\n{tb_str}"
                 )
                 raise e from e
             except Exception as e:
                 record_dict["Exception"] = str(datetime.datetime.now())
-                LOGGER.error(f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>")
+                tb_str = traceback.format_exc()
+                LOGGER.error(
+                    f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>\n"
+                    f"Traceback:\n{tb_str}"
+                )
                 raise MilvusException(message=f"Unexpected error, message=<{e!s}>") from e
 
         return handler
