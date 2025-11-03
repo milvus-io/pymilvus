@@ -787,6 +787,50 @@ class AddCollectionFieldRequest(_message.Message):
     schema: bytes
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., schema: _Optional[bytes] = ...) -> None: ...
 
+class AddCollectionFunctionRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "functionSchema")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    FUNCTIONSCHEMA_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    functionSchema: _schema_pb2.FunctionSchema
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., functionSchema: _Optional[_Union[_schema_pb2.FunctionSchema, _Mapping]] = ...) -> None: ...
+
+class AlterCollectionFunctionRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "function_name", "functionSchema")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    FUNCTIONSCHEMA_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    function_name: str
+    functionSchema: _schema_pb2.FunctionSchema
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., function_name: _Optional[str] = ..., functionSchema: _Optional[_Union[_schema_pb2.FunctionSchema, _Mapping]] = ...) -> None: ...
+
+class DropCollectionFunctionRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "function_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    function_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., function_name: _Optional[str] = ...) -> None: ...
+
 class UpsertRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace")
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -886,7 +930,7 @@ class SubSearchRequest(_message.Message):
     def __init__(self, dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nq: _Optional[int] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs", "expr_template_values", "function_score", "namespace")
+    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs", "expr_template_values", "function_score", "namespace", "highlighter")
     class ExprTemplateValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -914,6 +958,7 @@ class SearchRequest(_message.Message):
     EXPR_TEMPLATE_VALUES_FIELD_NUMBER: _ClassVar[int]
     FUNCTION_SCORE_FIELD_NUMBER: _ClassVar[int]
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    HIGHLIGHTER_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -934,7 +979,8 @@ class SearchRequest(_message.Message):
     expr_template_values: _containers.MessageMap[str, _schema_pb2.TemplateValue]
     function_score: _schema_pb2.FunctionScore
     namespace: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., function_score: _Optional[_Union[_schema_pb2.FunctionScore, _Mapping]] = ..., namespace: _Optional[str] = ...) -> None: ...
+    highlighter: _common_pb2.Highlighter
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., function_score: _Optional[_Union[_schema_pb2.FunctionScore, _Mapping]] = ..., namespace: _Optional[str] = ..., highlighter: _Optional[_Union[_common_pb2.Highlighter, _Mapping]] = ...) -> None: ...
 
 class Hits(_message.Message):
     __slots__ = ("IDs", "row_data", "scores")
@@ -2432,28 +2478,24 @@ class RunAnalyzerResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Iterable[_Union[AnalyzerResult, _Mapping]]] = ...) -> None: ...
 
 class FileResourceInfo(_message.Message):
-    __slots__ = ("id", "name", "path", "type")
+    __slots__ = ("id", "name", "path")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     id: int
     name: str
     path: str
-    type: _common_pb2.FileResourceType
-    def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., path: _Optional[str] = ..., type: _Optional[_Union[_common_pb2.FileResourceType, str]] = ...) -> None: ...
+    def __init__(self, id: _Optional[int] = ..., name: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class AddFileResourceRequest(_message.Message):
-    __slots__ = ("base", "name", "path", "type")
+    __slots__ = ("base", "name", "path")
     BASE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
-    TYPE_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     name: str
     path: str
-    type: _common_pb2.FileResourceType
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., path: _Optional[str] = ..., type: _Optional[_Union[_common_pb2.FileResourceType, str]] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., path: _Optional[str] = ...) -> None: ...
 
 class RemoveFileResourceRequest(_message.Message):
     __slots__ = ("base", "name")
@@ -2626,16 +2668,18 @@ class UpdateReplicateConfigurationRequest(_message.Message):
     def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
 
 class GetReplicateInfoRequest(_message.Message):
-    __slots__ = ("source_cluster_id",)
+    __slots__ = ("source_cluster_id", "target_pchannel")
     SOURCE_CLUSTER_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_PCHANNEL_FIELD_NUMBER: _ClassVar[int]
     source_cluster_id: str
-    def __init__(self, source_cluster_id: _Optional[str] = ...) -> None: ...
+    target_pchannel: str
+    def __init__(self, source_cluster_id: _Optional[str] = ..., target_pchannel: _Optional[str] = ...) -> None: ...
 
 class GetReplicateInfoResponse(_message.Message):
-    __slots__ = ("checkpoints",)
-    CHECKPOINTS_FIELD_NUMBER: _ClassVar[int]
-    checkpoints: _containers.RepeatedCompositeFieldContainer[_common_pb2.ReplicateCheckpoint]
-    def __init__(self, checkpoints: _Optional[_Iterable[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]]] = ...) -> None: ...
+    __slots__ = ("checkpoint",)
+    CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
+    checkpoint: _common_pb2.ReplicateCheckpoint
+    def __init__(self, checkpoint: _Optional[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]] = ...) -> None: ...
 
 class ReplicateMessage(_message.Message):
     __slots__ = ("source_cluster_id", "message")
