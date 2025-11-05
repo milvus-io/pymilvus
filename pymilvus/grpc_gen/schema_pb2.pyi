@@ -41,6 +41,7 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BM25: _ClassVar[FunctionType]
     TextEmbedding: _ClassVar[FunctionType]
     Rerank: _ClassVar[FunctionType]
+    MinHash: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -76,6 +77,7 @@ Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
 Rerank: FunctionType
+MinHash: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -148,7 +150,7 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -158,6 +160,7 @@ class CollectionSchema(_message.Message):
     FUNCTIONS_FIELD_NUMBER: _ClassVar[int]
     DBNAME_FIELD_NUMBER: _ClassVar[int]
     STRUCT_ARRAY_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -167,7 +170,8 @@ class CollectionSchema(_message.Message):
     functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
     dbName: str
     struct_array_fields: _containers.RepeatedCompositeFieldContainer[StructArrayFieldSchema]
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ...) -> None: ...
+    version: int
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params")
