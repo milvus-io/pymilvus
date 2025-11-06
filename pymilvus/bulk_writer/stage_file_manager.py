@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import urllib3
 from minio import Minio
@@ -16,6 +19,41 @@ from pymilvus.bulk_writer.stage_restful import apply_stage
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from minio.helpers import DictType
+
+
+class OAuthMinio(Minio):
+    def __init__(self, *args, oauth_token: str, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.oauth_token = oauth_token
+
+    def _url_open(
+        self,
+        method: str,
+        region: str,
+        bucket_name: str | None = None,
+        object_name: str | None = None,
+        body: bytes | None = None,
+        headers: DictType | None = None,
+        query_params: DictType | None = None,
+        preload_content: bool = True,
+        no_body_trace: bool = False,
+    ):
+        headers = headers or {}
+        if self.oauth_token:
+            headers["Authorization"] = f"Bearer {self.oauth_token}"
+        return super()._url_open(
+            method,
+            region,
+            bucket_name=bucket_name,
+            object_name=object_name,
+            headers=headers,
+            query_params=query_params,
+            body=body,
+            preload_content=preload_content,
+        )
 
 
 class StageFileManager:
@@ -66,21 +104,34 @@ class StageFileManager:
         creds = self.stage_info["credentials"]
         http_client = urllib3.PoolManager(maxsize=100)
 
+        cloud = self.stage_info["cloud"]
+        region = self.stage_info["region"]
         endpoint = EndpointResolver.resolve_endpoint(
             self.stage_info["endpoint"],
-            self.stage_info["cloud"],
-            self.stage_info["region"],
+            cloud,
+            region,
             self.connect_type,
         )
-        self._client = Minio(
-            endpoint=endpoint,
-            access_key=creds["tmpAK"],
-            secret_key=creds["tmpSK"],
-            session_token=creds["sessionToken"],
-            region=self.stage_info["region"],
-            secure=True,
-            http_client=http_client,
-        )
+
+        session_token = creds["sessionToken"]
+        if cloud == "gcp":
+            self._client = OAuthMinio(
+                endpoint=endpoint,
+                region=region,
+                secure=True,
+                oauth_token=session_token,
+                http_client=http_client,
+            )
+        else:
+            self._client = Minio(
+                endpoint=endpoint,
+                access_key=creds["tmpAK"],
+                secret_key=creds["tmpSK"],
+                session_token=session_token,
+                region=region,
+                secure=True,
+                http_client=http_client,
+            )
         logger.info("storage client refreshed")
 
     def _validate_size(self):
