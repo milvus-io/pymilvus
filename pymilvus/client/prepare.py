@@ -1977,10 +1977,10 @@ class Prepare:
             raise ParamError(message=f"is_l0 value {is_l0} is illegal")
 
         request = milvus_types.ManualCompactionRequest(
-            collection_name = collection_name,
-            majorCompaction = is_clustering,
-            l0Compaction = is_l0,
-            target_size = target_size,
+            collection_name=collection_name,
+            majorCompaction=is_clustering,
+            l0Compaction=is_l0,
+            target_size=target_size,
         )
         if collection_id is not None:
             request.collectionID = collection_id

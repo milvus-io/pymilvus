@@ -1811,7 +1811,9 @@ class GrpcHandler:
             response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
             check_status(response.status)
 
-            req = Prepare.manual_compaction(collection_name, is_clustering, response.collectionID, target_size)
+            req = Prepare.manual_compaction(
+                collection_name, is_clustering, response.collectionID, target_size
+            )
             response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         check_status(response.status)
         return response.compactionID
