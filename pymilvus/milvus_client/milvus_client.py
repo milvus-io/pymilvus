@@ -1,6 +1,8 @@
 import logging
 from typing import Dict, List, Optional, Union
 
+from pymilvus .decorators import deprecated_func
+
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
@@ -801,16 +803,15 @@ class MilvusClient:
 
         return result
 
-    def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+    def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> bool:
         conn = self._get_connection()
         return conn.has_collection(collection_name, timeout=timeout, **kwargs)
 
-    def list_collections(self, **kwargs):
+    def list_collections(self, **kwargs) -> List[str]:
         conn = self._get_connection()
         return conn.list_collections(**kwargs)
 
     def drop_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        """Delete the collection stored in this object"""
         conn = self._get_connection()
         conn.drop_collection(collection_name, timeout=timeout, **kwargs)
 
@@ -951,14 +952,13 @@ class MilvusClient:
             return all the indexes of this collection, otherwise this interface will return
             all indexes on this field of the collection.
 
-        :param collection_name: The name of collection.
-        :type  collection_name: str
+        Args:
+            collection_name (str): The name of collection.
+            field_name (str, Optional): The name of field.  If no field name is specified,
+            all indexes of this collection will be returned.
 
-        :param field_name: The name of field.  If no field name is specified, all indexes
-                of this collection will be returned.
-
-        :return: The name list of all indexes.
-        :rtype: str list
+        Returns:
+            List(str): The name list of all indexes.
         """
         conn = self._get_connection()
         indexes = conn.list_indexes(collection_name, **kwargs)
@@ -1010,7 +1010,7 @@ class MilvusClient:
 
     def alter_collection_properties(
         self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
-    ):
+    ) -> None:
         conn = self._get_connection()
         conn.alter_collection_properties(
             collection_name,
@@ -1060,16 +1060,17 @@ class MilvusClient:
         """Add a new field to the collection.
 
         Args:
-            collection_name(``string``): The name of collection.
-            name (str): The name of the field.
-            dtype (DataType): The data type of the field.
-            desc (str): The description of the field.
-            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+            collection_name(string): The name of collection.
+            field_name (str): The name of the field.
+            data_type (DataType): The data type of the field.
+            desc (str, Optional): The description of the field.
+            timeout (float, Optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
             **kwargs (``dict``): Optional field params
-                nullable: bool, indicates field is nullable or not, shall be ``True`` for now
-                default_value: default val for added field
+
+                * nullable (bool), indicates field is nullable or not, shall be ``True`` for now
+                * default_value (Any): default val for added field
 
         Raises:
             MilvusException: If anything goes wrong
@@ -1349,7 +1350,7 @@ class MilvusClient:
         conn = self._get_connection()
         return conn.list_aliases(collection_name, timeout=timeout, **kwargs)
 
-    # deprecated same to use_database
+    @deprecated_func(reason="Will be removed in 3.0, Use use_database instead")
     def using_database(self, db_name: str, **kwargs):
         self.use_database(db_name, **kwargs)
 
