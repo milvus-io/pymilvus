@@ -18,7 +18,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 
-from examples.bulk_import.data_gengerator import *
+from examples.orm_deprecated.bulk_import.data_gengerator import *
 
 logging.basicConfig(level=logging.INFO)
 

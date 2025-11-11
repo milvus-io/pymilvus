@@ -715,6 +715,10 @@ class StructFieldSchema:
     def params(self):
         return self._type_params
 
+    @property
+    def dtype(self) -> DataType:
+        return DataType.STRUCT
+
     def to_dict(self):
         """Convert StructFieldSchema to dictionary representation."""
         struct_dict = {
