@@ -246,6 +246,10 @@ def convert_to_array_arr(objs: List[Any], field_info: Any):
 
 
 def convert_to_array(obj: List[Any], field_info: Any):
+    # Convert numpy ndarray to list if needed
+    if isinstance(obj, np.ndarray):
+        obj = obj.tolist()
+
     field_data = schema_types.ScalarField()
     element_type = field_info.get("element_type", None)
     if element_type == DataType.BOOL:
