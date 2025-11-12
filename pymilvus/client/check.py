@@ -6,6 +6,7 @@ import numpy as np
 
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.settings import Config
 
 from . import entity_helper
 from .singleton_utils import Singleton
@@ -71,7 +72,7 @@ def is_correct_date_str(param: str) -> bool:
     except ValueError:
         return False
 
-    return True
+    return False
 
 
 def is_legal_dimension(dim: Any) -> bool:
@@ -120,16 +121,30 @@ def is_legal_ids(ids: Any) -> bool:
     if not ids or not isinstance(ids, list):
         return False
 
-    # TODO: Here check id valid value range may not match other SDK
-    for i in ids:
-        if not isinstance(i, (int, str)):
-            return False
-        try:
-            i_ = int(i)
-            if i_ < 0 or i_ > sys.maxsize:
+    first = ids[0]
+    if isinstance(first, bool):
+        return False
+
+    if isinstance(first, (int, np.integer)):
+        for i in ids:
+            if isinstance(i, bool) or not isinstance(i, (int, np.integer)):
                 return False
-        except Exception:
-            return False
+            value = int(i)
+            if value < 0 or value > sys.maxsize:
+                return False
+        return True
+
+    if isinstance(first, str):
+        for i in ids:
+            if not isinstance(i, str) or not i or len(i) > Config.MaxVarCharLength:
+                return False
+            try:
+                value = int(i)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if value < 0 or value > sys.maxsize:
+                return False
+        return True
 
     return True
 
@@ -388,3 +403,14 @@ def check_pass_param(*_args: Any, **kwargs: Any) -> None:  # pylint: disable=too
     checker = _get_param_checker()
     for key, value in kwargs.items():
         checker.check(key, value)
+
+
+def check_id_and_data(ids: Any, data: Any) -> None:
+    if ids is not None and data is not None:
+        raise ParamError(message="Either ids or data must be provided, not both")
+    if ids is None and data is None:
+        raise ParamError(message="Either ids or data must be provided")
+    if ids is not None:
+        check_pass_param(ids=ids)
+    if data is not None:
+        check_pass_param(search_data=data)
