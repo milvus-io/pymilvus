@@ -37,6 +37,29 @@ from .constants import (
 logger = logging.getLogger(__name__)
 
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj: object):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.generic):
+            return obj.item()
+        return json.JSONEncoder.default(self, obj)
+
+
+def to_raw_type(obj: dict):
+    keys = obj.keys()
+    for k in keys:
+        v = obj[k]
+        if isinstance(v, dict):
+            obj[k] = to_raw_type(v)
+            continue
+        if isinstance(v, np.ndarray):
+            obj[k] = v.tolist()
+        elif isinstance(v, np.generic):
+            obj[k] = v.item()
+    return obj
+
+
 class Buffer:
     def __init__(
         self,
@@ -53,6 +76,10 @@ class Buffer:
                 continue
             if field.is_function_output:
                 continue
+            self._buffer[field.name] = []
+            self._fields[field.name] = field
+
+        for field in schema.struct_fields:
             self._buffer[field.name] = []
             self._fields[field.name] = field
 
@@ -226,7 +253,7 @@ class Buffer:
         file_path = Path(local_path + ".json")
         try:
             with file_path.open("w") as json_file:
-                json.dump(data, json_file, indent=2)
+                json.dump(data, json_file, indent=2, cls=NumpyEncoder)
         except Exception as e:
             self._throw(f"Failed to persist file {file_path}, error: {e}")
 
@@ -269,6 +296,9 @@ class Buffer:
                 for val in v:
                     arr.append(None if val is None else np.array(val, dtype=dt))
                 data[k] = pd.Series(arr)
+            elif field_schema.dtype == DataType.STRUCT:
+                # bulk_import accepts struct array as list[dict],
+                data[k] = pd.Series(v, dtype=None)
             elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
                 dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
                 arr = []
@@ -362,6 +392,15 @@ class Buffer:
             elif field_schema.dtype in {DataType.BOOL}:
                 # boolean values are converted to string array
                 data[k] = pd.Series(v, dtype=np.dtype("str"))
+            elif field_schema.dtype in {DataType.STRUCT}:
+                # data.to_csv() converts numpy type with unexpected string, we need a raw struct
+                raw_arr = []
+                for structs in v:
+                    raw_structs = []
+                    for struct in structs:
+                        raw_structs.append(to_raw_type(struct))
+                    raw_arr.append(json.dumps(raw_structs))
+                data[k] = pd.Series(raw_arr, dtype=np.dtype("str"))
             else:
                 # pd.Series cannot handle None with specific np.dtype because it cannot convert
                 # None to a type value.

@@ -171,3 +171,14 @@ def sparse_vector_validator(x: object):
             check_pair(key, value)
 
     return x
+
+
+def struct_validator(x: object, max_cap: int):
+    if not isinstance(x, list):
+        raise MilvusException(message="only accept list of dict for STRUCT type field")
+    if len(x) > max_cap:
+        raise MilvusException(message="array's length must be less or equal than max_capacity")
+    for k in x:
+        if not isinstance(k, dict):
+            raise MilvusException(message="only accept list of dict for STRUCT type field")
+    return x

@@ -19,12 +19,13 @@ import numpy as np
 
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
+from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema
 
 from .buffer import (
     Buffer,
 )
 from .constants import (
+    NUMPY_TYPE_CREATOR,
     TYPE_SIZE,
     TYPE_VALIDATOR,
     BulkFileType,
@@ -168,19 +169,14 @@ class BulkWriter:
 
         return len(x)
 
-    def _verify_geometry(self, x: object, field: FieldSchema):
-        validator = TYPE_VALIDATOR[DataType.VARCHAR.name]
-        if not validator(x):
-            self._throw(f"Illegal geometry value for field '{field.name}', type mismatch")
-
-        return len(x)
-
     def _verify_scalar(self, x: object, dtype: DataType, field_name: str):
         validator = TYPE_VALIDATOR[dtype.name]
         if not validator(x):
             self._throw(
                 f"Illegal scalar value for field '{field_name}', value overflow or type mismatch"
             )
+        if isinstance(x, str):
+            return len(x)
         return TYPE_SIZE[dtype.name]
 
     def _verify_array(self, x: object, field: FieldSchema):
@@ -205,10 +201,7 @@ class BulkWriter:
 
         return row_size
 
-    def _verify_row(self, row: dict):
-        if not isinstance(row, dict):
-            self._throw("The input row must be a dict object")
-
+    def _verify_normal_field(self, row: dict):
         row_size = 0
         for field in self._schema.fields:
             if field.is_primary and field.auto_id:
@@ -293,15 +286,78 @@ class BulkWriter:
                     row[field.name] = row[field.name].tolist()
 
                 row_size = row_size + self._verify_array(row[field.name], field)
-            elif dtype == DataType.GEOMETRY:
-                row_size = row_size + self._verify_geometry(row[field.name], field)
             else:
                 if isinstance(row[field.name], np.generic):
                     row[field.name] = row[field.name].item()
 
                 row_size = row_size + self._verify_scalar(row[field.name], dtype, field.name)
 
+        return row_size
+
+    def _verify_struct(self, x: object, field: StructFieldSchema):
+        validator = TYPE_VALIDATOR[DataType.STRUCT.name]
+        if not validator(x, field.max_capacity):
+            self._throw(
+                f"Illegal value for struct field '{field.name}', length exceeds capacity or type mismatch"
+            )
+
+        struct_size = 0
+        for sub_field in field.fields:
+            sub_dtype = DataType(sub_field.dtype)
+            for obj in x:
+                if sub_field.name not in obj:
+                    self._throw(
+                        f"Sub field '{sub_field.name}' of struct field '{field.name}' is missed"
+                    )
+                if sub_dtype == DataType.FLOAT_VECTOR:
+                    origin_list, byte_len = self._verify_vector(obj[sub_field.name], sub_field)
+                    obj[sub_field.name] = np.array(
+                        origin_list, dtype=NUMPY_TYPE_CREATOR[DataType.FLOAT.name]
+                    )
+                    struct_size = struct_size + byte_len
+                elif sub_dtype == DataType.VARCHAR:
+                    struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
+                elif sub_dtype in {
+                    DataType.BOOL,
+                    DataType.INT8,
+                    DataType.INT16,
+                    DataType.INT32,
+                    DataType.INT64,
+                    DataType.FLOAT,
+                    DataType.DOUBLE,
+                }:
+                    if isinstance(obj[sub_field.name], np.generic):
+                        obj[sub_field.name] = obj[sub_field.name].item()
+
+                    struct_size = struct_size + self._verify_scalar(
+                        obj[sub_field.name], sub_dtype, sub_field.name
+                    )
+                    obj[sub_field.name] = NUMPY_TYPE_CREATOR[sub_dtype.name].type(
+                        obj[sub_field.name]
+                    )
+                else:
+                    self._throw(f"Unsupported field type '{sub_dtype.name}' for struct field")
+
+        return struct_size
+
+    def _verify_struct_field(self, row: dict):
+        structs_size = 0
+        for field in self._schema.struct_fields:
+            if field.name not in row:
+                self._throw(f"The struct field '{field.name}' is missed")
+
+            structs_size = structs_size + self._verify_struct(row[field.name], field)
+
+        return structs_size
+
+    def _verify_row(self, row: dict):
+        if not isinstance(row, dict):
+            self._throw("The input row must be a dict object")
+
+        normal_fields_size = self._verify_normal_field(row)
+        struct_fields_size = self._verify_struct_field(row)
+
         with self._buffer_lock:
-            self._buffer_size = self._buffer_size + row_size
+            self._buffer_size = self._buffer_size + normal_fields_size + struct_fields_size
             self._buffer_row_count = self._buffer_row_count + 1
             self._total_row_count = self._total_row_count + 1
