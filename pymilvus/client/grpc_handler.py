@@ -328,6 +328,8 @@ class GrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(status)
+        if collection_name in self.schema_cache:
+            self.schema_cache.pop(collection_name)
 
     @retry_on_rpc_failure()
     def add_collection_field(
