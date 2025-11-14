@@ -142,6 +142,7 @@ class FunctionType(IntEnum):
     BM25 = 1
     TEXTEMBEDDING = 2
     RERANK = 3
+    MINHASH = 4
 
 
 class RangeType(IntEnum):
