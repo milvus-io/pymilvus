@@ -543,6 +543,10 @@ class Prepare:
             struct_sub_field_info: Two-level dict [struct_name][field_name] -> field info
             struct_sub_fields_data: Two-level dict [struct_name][field_name] -> FieldData
         """
+        # Convert numpy ndarray to list if needed
+        if isinstance(values, np.ndarray):
+            values = values.tolist()
+
         if not isinstance(values, list):
             msg = f"Field '{field_name}': Expected list, got {type(values).__name__}"
             raise TypeError(msg)
