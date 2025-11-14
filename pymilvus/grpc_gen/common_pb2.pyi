@@ -241,6 +241,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AlterDatabase: _ClassVar[MsgType]
     DescribeDatabase: _ClassVar[MsgType]
     AddCollectionField: _ClassVar[MsgType]
+    AlterWAL: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -357,6 +358,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeAddCollectionFunction: _ClassVar[ObjectPrivilege]
     PrivilegeAlterCollectionFunction: _ClassVar[ObjectPrivilege]
     PrivilegeDropCollectionFunction: _ClassVar[ObjectPrivilege]
+    PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -608,6 +610,7 @@ ListDatabases: MsgType
 AlterDatabase: MsgType
 DescribeDatabase: MsgType
 AddCollectionField: MsgType
+AlterWAL: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -706,6 +709,7 @@ PrivilegeListFileResources: ObjectPrivilege
 PrivilegeAddCollectionFunction: ObjectPrivilege
 PrivilegeAlterCollectionFunction: ObjectPrivilege
 PrivilegeDropCollectionFunction: ObjectPrivilege
+PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
