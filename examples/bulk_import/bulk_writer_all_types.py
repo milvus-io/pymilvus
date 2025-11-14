@@ -216,6 +216,7 @@ def remote_writer(schema: CollectionSchema, file_type: BulkFileType):
     with RemoteBulkWriter(
             schema=schema,
             remote_path="bulk_data",
+            local_path="/tmp/PARQUET",
             connect_param=RemoteBulkWriter.S3ConnectParam(
                 endpoint=MINIO_ADDRESS,
                 access_key=MINIO_ACCESS_KEY,
