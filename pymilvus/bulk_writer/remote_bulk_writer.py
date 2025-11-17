@@ -32,6 +32,8 @@ from .local_bulk_writer import LocalBulkWriter
 
 logger = logging.getLogger(__name__)
 
+TEMP_LOCAL_PATH = "local_path"
+
 
 class RemoteBulkWriter(LocalBulkWriter):
     class S3ConnectParam:
@@ -112,8 +114,12 @@ class RemoteBulkWriter(LocalBulkWriter):
         config: Optional[dict] = None,
         **kwargs,
     ):
-        local_path = Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer")
-        super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
+        temp_local_path = str(Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer"))
+        if TEMP_LOCAL_PATH in kwargs:
+            temp_local_path = kwargs.get(TEMP_LOCAL_PATH)
+            kwargs.pop(TEMP_LOCAL_PATH)
+        super().__init__(schema, temp_local_path, chunk_size, file_type, config, **kwargs)
+
         self._remote_path = Path("/").joinpath(remote_path).joinpath(super().uuid)
         self._connect_param = connect_param
         self._client = None
