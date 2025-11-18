@@ -221,7 +221,7 @@ class MilvusClient:
         # Insert into the collection.
         try:
             res = conn.insert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout
+                collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
             )
         except Exception as ex:
             raise ex from ex
