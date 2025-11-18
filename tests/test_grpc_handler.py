@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import grpc
 import pytest
-from pymilvus import CollectionSchema, FieldSchema, MilvusException
+from pymilvus import CollectionSchema, FieldSchema, MilvusException, Function, FunctionType
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2, milvus_pb2
@@ -17,7 +17,8 @@ class TestGrpcHandler:
     def test_has_collection_no_error(self, channel, client_thread, has):
         handler = GrpcHandler(channel=channel)
 
-        has_collection_future = client_thread.submit(handler.has_collection, "fake")
+        has_collection_future = client_thread.submit(
+            handler.has_collection, "fake")
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["DescribeCollection"]
@@ -38,7 +39,8 @@ class TestGrpcHandler:
     def test_has_collection_error(self, channel, client_thread):
         handler = GrpcHandler(channel=channel)
 
-        has_collection_future = client_thread.submit(handler.has_collection, "fake")
+        has_collection_future = client_thread.submit(
+            handler.has_collection, "fake")
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["DescribeCollection"]
@@ -58,7 +60,8 @@ class TestGrpcHandler:
         channel.close()
 
         # Retry is unable to test
-        has_collection_future = client_thread.submit(handler.has_collection, "fake", timeout=0)
+        has_collection_future = client_thread.submit(
+            handler.has_collection, "fake", timeout=0)
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["DescribeCollection"]
@@ -67,7 +70,8 @@ class TestGrpcHandler:
 
         expected_result = milvus_pb2.DescribeCollectionResponse()
 
-        rpc.terminate(expected_result, (), grpc.StatusCode.UNAVAILABLE, "server Unavailable")
+        rpc.terminate(expected_result, (),
+                      grpc.StatusCode.UNAVAILABLE, "server Unavailable")
 
         with pytest.raises(MilvusException):
             has_collection_future.result()
@@ -114,7 +118,8 @@ class TestGrpcHandler:
     def test_flush_all(self, channel, client_thread, _async):
         handler = GrpcHandler(channel=channel)
 
-        flush_all_future = client_thread.submit(handler.flush_all, _async=_async, timeout=10)
+        flush_all_future = client_thread.submit(
+            handler.flush_all, _async=_async, timeout=10)
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["FlushAll"]
@@ -132,7 +137,8 @@ class TestGrpcHandler:
     def test_get_flush_all_state(self, channel, client_thread):
         handler = GrpcHandler(channel=channel)
 
-        flushed = client_thread.submit(handler.get_flush_all_state, flush_all_ts=100)
+        flushed = client_thread.submit(
+            handler.get_flush_all_state, flush_all_ts=100)
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["GetFlushAllState"]
@@ -220,7 +226,8 @@ class TestGrpcHandlerStateManagement:
 
             handler.register_state_change_callback(callback)
             assert callback in handler.callbacks
-            mock_ch.subscribe.assert_called_once_with(callback, try_to_connect=True)
+            mock_ch.subscribe.assert_called_once_with(
+                callback, try_to_connect=True)
 
     def test_deregister_state_change_callbacks(self) -> None:
         with patch('pymilvus.client.grpc_handler.grpc.insecure_channel') as mock_channel:
@@ -487,11 +494,85 @@ class TestGrpcHandlerCollectionOperations:
         result = drop_props_future.result()
         assert result is None
 
+    def test_add_collection_function(self, channel: Any, client_thread: Any) -> None:
+        """Test add_collection_function"""
+        handler = GrpcHandler(channel=channel)
+
+        function = Function("test", FunctionType.TEXTEMBEDDING, input_field_names=[
+                            "text"], output_field_names=["embedding"])
+
+        add_function_future = client_thread.submit(
+            handler.add_collection_function,
+            collection_name="test_collection",
+            function=function,
+            timeout=10
+        )
+
+        (invocation_metadata, request, rpc) = channel.take_unary_unary(
+            descriptor.methods_by_name["AddCollectionFunction"]
+        )
+        rpc.send_initial_metadata(())
+
+        expected_result = common_pb2.Status(code=0)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
+
+        result = add_function_future.result()
+        assert result is None
+
+    def test_alter_collection_function(self, channel: Any, client_thread: Any) -> None:
+        """Test alter_collection_function"""
+        handler = GrpcHandler(channel=channel)
+
+        function = Function("test", FunctionType.TEXTEMBEDDING, input_field_names=[
+                            "text"], output_field_names=["embedding"])
+
+        alter_function_future = client_thread.submit(
+            handler.alter_collection_function,
+            collection_name="test_collection",
+            function_name="test",
+            function=function,
+            timeout=10
+        )
+
+        (invocation_metadata, request, rpc) = channel.take_unary_unary(
+            descriptor.methods_by_name["AlterCollectionFunction"]
+        )
+        rpc.send_initial_metadata(())
+
+        expected_result = common_pb2.Status(code=0)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
+
+        result = alter_function_future.result()
+        assert result is None
+
+    def test_drop_collection_function(self, channel: Any, client_thread: Any) -> None:
+        """Test drop_collection_function"""
+        handler = GrpcHandler(channel=channel)
+
+        drop_function_future = client_thread.submit(
+            handler.drop_collection_function,
+            collection_name="test_collection",
+            function_name="test",
+            timeout=10
+        )
+
+        (invocation_metadata, request, rpc) = channel.take_unary_unary(
+            descriptor.methods_by_name["DropCollectionFunction"]
+        )
+        rpc.send_initial_metadata(())
+
+        expected_result = common_pb2.Status(code=0)
+        rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
+
+        result = drop_function_future.result()
+        assert result is None
+
     def test_has_collection_compatibility(self, channel: Any, client_thread: Any) -> None:
         """Test has_collection with Milvus < 2.3.2 compatibility"""
         handler = GrpcHandler(channel=channel)
 
-        has_collection_future = client_thread.submit(handler.has_collection, "fake")
+        has_collection_future = client_thread.submit(
+            handler.has_collection, "fake")
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["DescribeCollection"]
@@ -528,7 +609,8 @@ class TestGrpcHandlerPasswordReset:
                     mock_update.assert_called_once_with(
                         "test_user", "old_pass", "new_pass", timeout=10
                     )
-                    mock_auth.assert_called_once_with("test_user", "new_pass", None)
+                    mock_auth.assert_called_once_with(
+                        "test_user", "new_pass", None)
                     mock_setup.assert_called_once()
 
 
@@ -605,7 +687,8 @@ class TestGrpcHandlerListAndRenameOperations:
     def test_list_collections(self, channel: grpc.Channel, client_thread: Any, result) -> None:
         handler = GrpcHandler(channel=channel)
 
-        list_future = client_thread.submit(handler.list_collections, timeout=10)
+        list_future = client_thread.submit(
+            handler.list_collections, timeout=10)
 
         (invocation_metadata, request, rpc) = channel.take_unary_unary(
             descriptor.methods_by_name["ShowCollections"]
@@ -622,13 +705,16 @@ class TestGrpcHandlerListAndRenameOperations:
 
     def test_list_collections_error(self, channel: grpc.Channel, client_thread: Any) -> None:
         handler = GrpcHandler(channel=channel)
-        list_future = client_thread.submit(handler.list_collections, timeout=10)
+        list_future = client_thread.submit(
+            handler.list_collections, timeout=10)
 
-        (_, _, rpc) = channel.take_unary_unary(descriptor.methods_by_name["ShowCollections"])
+        (_, _, rpc) = channel.take_unary_unary(
+            descriptor.methods_by_name["ShowCollections"])
         rpc.send_initial_metadata(())
 
         rpc.terminate(
-            milvus_pb2.ShowCollectionsResponse(status=common_pb2.Status(code=1, reason="Internal error")),
+            milvus_pb2.ShowCollectionsResponse(
+                status=common_pb2.Status(code=1, reason="Internal error")),
             (),
             grpc.StatusCode.OK,
             "",
@@ -695,7 +781,8 @@ class TestGrpcHandlerListAndRenameOperations:
         )
         rpc.send_initial_metadata(())
 
-        expected_result = common_pb2.Status(code=1, reason="Collection already exists")
+        expected_result = common_pb2.Status(
+            code=1, reason="Collection already exists")
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
 
         with pytest.raises(MilvusException):
@@ -737,7 +824,8 @@ class TestGrpcHandlerPartitionOperations:
         )
         rpc.send_initial_metadata(())
 
-        expected_result = common_pb2.Status(code=1, reason="Partition already exists")
+        expected_result = common_pb2.Status(
+            code=1, reason="Partition already exists")
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
 
         with pytest.raises(MilvusException):
@@ -779,7 +867,8 @@ class TestGrpcHandlerPartitionOperations:
         )
         rpc.send_initial_metadata(())
 
-        expected_result = common_pb2.Status(code=1, reason="Partition not found")
+        expected_result = common_pb2.Status(
+            code=1, reason="Partition not found")
         rpc.terminate(expected_result, (), grpc.StatusCode.OK, "")
 
         with pytest.raises(MilvusException):

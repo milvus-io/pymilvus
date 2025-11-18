@@ -1023,6 +1023,85 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def add_collection_function(
+        self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
+    ):
+        """Add a new function to the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.add_collection_function(
+            collection_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def alter_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Alter a function in the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be modified
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.alter_collection_function(
+            collection_name,
+            function_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_collection_function(
+        self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a function from the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be dropped
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.drop_collection_function(
+            collection_name,
+            function_name,
+            timeout=timeout,
+            **kwargs,
+        )
+
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
