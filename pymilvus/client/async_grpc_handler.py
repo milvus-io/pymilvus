@@ -1884,12 +1884,76 @@ class AsyncGrpcHandler:
         check_status(resp)
 
     @retry_on_rpc_failure()
+    async def get_flush_state(
+        self,
+        segment_ids: List[int],
+        collection_name: str,
+        flush_ts: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> bool:
+        """Get the flush state for given segments."""
+        await self.ensure_channel_ready()
+        req = Prepare.get_flush_state_request(segment_ids, collection_name, flush_ts)
+        response = await self._async_stub.GetFlushState(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.flushed
+
+    async def _wait_for_flushed(
+        self,
+        segment_ids: List[int],
+        collection_name: str,
+        flush_ts: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Wait for segments to be flushed."""
+        flush_ret = False
+        start = time.time()
+        while not flush_ret:
+            flush_ret = await self.get_flush_state(
+                segment_ids, collection_name, flush_ts, timeout, **kwargs
+            )
+            end = time.time()
+            if timeout is not None and end - start > timeout:
+                raise MilvusException(
+                    message=f"wait for flush timeout, collection: {collection_name}, flusht_ts: {flush_ts}"
+                )
+
+            if not flush_ret:
+                await asyncio.sleep(0.5)
+
+    @retry_on_rpc_failure()
     async def flush(self, collection_names: List[str], timeout: Optional[float] = None, **kwargs):
+        if collection_names in (None, []) or not isinstance(collection_names, list):
+            raise ParamError(message="Collection name list can not be None or empty")
+
+        check_pass_param(timeout=timeout)
+        for name in collection_names:
+            check_pass_param(collection_name=name)
+
         req = Prepare.flush_param(collection_names)
         response = await self._async_stub.Flush(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response.status)
+
+        # Wait for all segments to be flushed in parallel
+        if collection_names:
+            await asyncio.gather(
+                *(
+                    self._wait_for_flushed(
+                        response.coll_segIDs[collection_name].data,
+                        collection_name,
+                        response.coll_flush_ts[collection_name],
+                        timeout=timeout,
+                    )
+                    for collection_name in collection_names
+                )
+            )
+
         return response
 
     @retry_on_rpc_failure()
