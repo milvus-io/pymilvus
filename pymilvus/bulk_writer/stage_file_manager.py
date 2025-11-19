@@ -131,15 +131,6 @@ class StageFileManager:
                 secure=True,
                 http_client=http_client,
             )
-        self._client = Minio(
-            endpoint=self.stage_info["endpoint"],
-            access_key=creds["tmpAK"],
-            secret_key=creds["tmpSK"],
-            session_token=creds["sessionToken"],
-            region=self.stage_info["region"],
-            secure=True,
-            http_client=http_client,
-        )
         logger.info("storage client refreshed")
 
     def _validate_size(self):
