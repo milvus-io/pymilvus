@@ -246,6 +246,10 @@ def convert_to_array_arr(objs: List[Any], field_info: Any):
 
 
 def convert_to_array(obj: List[Any], field_info: Any):
+    # Convert numpy ndarray to list if needed
+    if isinstance(obj, np.ndarray):
+        obj = obj.tolist()
+
     field_data = schema_types.ScalarField()
     element_type = field_info.get("element_type", None)
     if element_type == DataType.BOOL:
@@ -1033,18 +1037,30 @@ def extract_row_data_from_fields_data(
 
 def get_array_length(array_item: Any) -> int:
     """Get the length of an array field from its data."""
-    if hasattr(array_item, "string_data") and array_item.string_data:
-        return len(array_item.string_data.data)
-    if hasattr(array_item, "int_data") and array_item.int_data:
-        return len(array_item.int_data.data)
-    if hasattr(array_item, "long_data") and array_item.long_data:
-        return len(array_item.long_data.data)
-    if hasattr(array_item, "float_data") and array_item.float_data:
-        return len(array_item.float_data.data)
-    if hasattr(array_item, "double_data") and array_item.double_data:
-        return len(array_item.double_data.data)
-    if hasattr(array_item, "bool_data") and array_item.bool_data:
-        return len(array_item.bool_data.data)
+    if hasattr(array_item, "string_data") and hasattr(array_item.string_data, "data"):
+        length = len(array_item.string_data.data)
+        if length > 0:
+            return length
+    if hasattr(array_item, "int_data") and hasattr(array_item.int_data, "data"):
+        length = len(array_item.int_data.data)
+        if length > 0:
+            return length
+    if hasattr(array_item, "long_data") and hasattr(array_item.long_data, "data"):
+        length = len(array_item.long_data.data)
+        if length > 0:
+            return length
+    if hasattr(array_item, "float_data") and hasattr(array_item.float_data, "data"):
+        length = len(array_item.float_data.data)
+        if length > 0:
+            return length
+    if hasattr(array_item, "double_data") and hasattr(array_item.double_data, "data"):
+        length = len(array_item.double_data.data)
+        if length > 0:
+            return length
+    if hasattr(array_item, "bool_data") and hasattr(array_item.bool_data, "data"):
+        length = len(array_item.bool_data.data)
+        if length > 0:
+            return length
     return 0
 
 
@@ -1052,38 +1068,38 @@ def get_array_value_at_index(array_item: Any, idx: int) -> Any:
     """Get the value at a specific index from an array field."""
     if (
         hasattr(array_item, "string_data")
-        and array_item.string_data
-        and idx < len(array_item.string_data.data)
+        and hasattr(array_item.string_data, "data")
+        and len(array_item.string_data.data) > idx
     ):
         return array_item.string_data.data[idx]
     if (
         hasattr(array_item, "int_data")
-        and array_item.int_data
-        and idx < len(array_item.int_data.data)
+        and hasattr(array_item.int_data, "data")
+        and len(array_item.int_data.data) > idx
     ):
         return array_item.int_data.data[idx]
     if (
         hasattr(array_item, "long_data")
-        and array_item.long_data
-        and idx < len(array_item.long_data.data)
+        and hasattr(array_item.long_data, "data")
+        and len(array_item.long_data.data) > idx
     ):
         return array_item.long_data.data[idx]
     if (
         hasattr(array_item, "float_data")
-        and array_item.float_data
-        and idx < len(array_item.float_data.data)
+        and hasattr(array_item.float_data, "data")
+        and len(array_item.float_data.data) > idx
     ):
         return array_item.float_data.data[idx]
     if (
         hasattr(array_item, "double_data")
-        and array_item.double_data
-        and idx < len(array_item.double_data.data)
+        and hasattr(array_item.double_data, "data")
+        and len(array_item.double_data.data) > idx
     ):
         return array_item.double_data.data[idx]
     if (
         hasattr(array_item, "bool_data")
-        and array_item.bool_data
-        and idx < len(array_item.bool_data.data)
+        and hasattr(array_item.bool_data, "data")
+        and len(array_item.bool_data.data) > idx
     ):
         return array_item.bool_data.data[idx]
     return None

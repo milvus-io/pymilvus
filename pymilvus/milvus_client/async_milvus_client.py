@@ -287,7 +287,7 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         # Insert into the collection.
         res = await conn.insert_rows(
-            collection_name, data, partition_name=partition_name, timeout=timeout
+            collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
         )
         return OmitZeroDict(
             {
