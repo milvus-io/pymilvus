@@ -14,13 +14,12 @@ import copy
 import logging
 import pathlib
 import threading
-import time
 from typing import Callable, Tuple, Union
 from urllib import parse
 
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
-from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.exceptions import (
     ConnectionConfigException,
     ConnectionNotExistException,
@@ -62,53 +61,6 @@ class SingleInstanceMetaClass(type):
     @synchronized
     def __new__(cls, *args, **kwargs):
         return super().__new__(cls, *args, **kwargs)
-
-
-class ReconnectHandler:
-    def __init__(self, conns: object, connection_name: str, kwargs: object) -> None:
-        self.connection_name = connection_name
-        self.conns = conns
-        self._kwargs = kwargs
-        self.is_idle_state = False
-        self.reconnect_lock = threading.Lock()
-
-    def check_state_and_reconnect_later(self):
-        check_after_seconds = 3
-        logger.debug(f"state is idle, schedule reconnect in {check_after_seconds} seconds")
-        time.sleep(check_after_seconds)
-        if not self.is_idle_state:
-            logger.debug("idle state changed, skip reconnect")
-            return
-        with self.reconnect_lock:
-            logger.info("reconnect on idle state")
-            self.is_idle_state = False
-            try:
-                logger.debug("try disconnecting old connection...")
-                self.conns.disconnect(self.connection_name)
-            except Exception:
-                logger.warning("disconnect failed: {e}")
-            finally:
-                reconnected = False
-                while not reconnected:
-                    try:
-                        logger.debug("try reconnecting...")
-                        self.conns.connect(self.connection_name, **self._kwargs)
-                        reconnected = True
-                    except Exception as e:
-                        logger.warning(
-                            f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
-                        )
-                        time.sleep(check_after_seconds)
-            logger.info("reconnected")
-
-    def reconnect_on_idle(self, state: object):
-        logger.debug(f"state change to: {state}")
-        with self.reconnect_lock:
-            if state.value[1] != "idle":
-                self.is_idle_state = False
-                return
-            self.is_idle_state = True
-            threading.Thread(target=self.check_state_and_reconnect_later).start()
 
 
 class Connections(metaclass=SingleInstanceMetaClass):
@@ -418,9 +370,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                     gh._wait_for_channel_ready(timeout=timeout)
 
                     if kwargs.pop("keep_alive", False):
-                        gh.register_state_change_callback(
-                            ReconnectHandler(self, alias, kwargs_copy).reconnect_on_idle
-                        )
+                        gh.register_reconnect_handler(ReconnectHandler(self, alias, kwargs_copy))
                 except Exception as e:
                     self.remove_connection(alias)
                     raise e from e
