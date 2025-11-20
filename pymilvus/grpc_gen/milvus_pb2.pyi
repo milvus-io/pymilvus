@@ -158,7 +158,7 @@ class ListAliasesResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., aliases: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class CreateCollectionRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "schema", "shards_num", "consistency_level", "properties", "num_partitions")
+    __slots__ = ("base", "db_name", "collection_name", "schema", "shards_num", "consistency_level", "properties", "num_partitions", "external_source", "external_spec")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -167,6 +167,8 @@ class CreateCollectionRequest(_message.Message):
     CONSISTENCY_LEVEL_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     NUM_PARTITIONS_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SPEC_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -175,7 +177,9 @@ class CreateCollectionRequest(_message.Message):
     consistency_level: _common_pb2.ConsistencyLevel
     properties: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     num_partitions: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., schema: _Optional[bytes] = ..., shards_num: _Optional[int] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., num_partitions: _Optional[int] = ...) -> None: ...
+    external_source: str
+    external_spec: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., schema: _Optional[bytes] = ..., shards_num: _Optional[int] = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., num_partitions: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ...) -> None: ...
 
 class DropCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name")
@@ -1436,7 +1440,7 @@ class LoadBalanceRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionRequest(_message.Message):
-    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids", "l0Compaction")
+    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids", "l0Compaction", "target_size")
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     TIMETRAVEL_FIELD_NUMBER: _ClassVar[int]
     MAJORCOMPACTION_FIELD_NUMBER: _ClassVar[int]
@@ -1446,6 +1450,7 @@ class ManualCompactionRequest(_message.Message):
     CHANNEL_FIELD_NUMBER: _ClassVar[int]
     SEGMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     L0COMPACTION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SIZE_FIELD_NUMBER: _ClassVar[int]
     collectionID: int
     timetravel: int
     majorCompaction: bool
@@ -1455,7 +1460,8 @@ class ManualCompactionRequest(_message.Message):
     channel: str
     segment_ids: _containers.RepeatedScalarFieldContainer[int]
     l0Compaction: bool
-    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ..., l0Compaction: bool = ...) -> None: ...
+    target_size: int
+    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ..., l0Compaction: bool = ..., target_size: _Optional[int] = ...) -> None: ...
 
 class ManualCompactionResponse(_message.Message):
     __slots__ = ("status", "compactionID", "compactionPlanCount")
