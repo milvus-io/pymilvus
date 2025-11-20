@@ -266,6 +266,7 @@ def get_import_progress(
 def list_import_jobs(
     url: str,
     collection_name: str = "",
+    db_name: str = "",
     cluster_id: str = "",
     api_key: str = "",
     page_size: int = 10,
@@ -295,6 +296,7 @@ def list_import_jobs(
 
     params = {
         "collectionName": collection_name,
+        "dbName": db_name,
         "clusterId": cluster_id,
         "pageSize": page_size,
         "currentPage": current_page,
