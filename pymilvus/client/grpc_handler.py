@@ -1,6 +1,8 @@
 import base64
 import json
+import logging
 import socket
+import threading
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
@@ -80,6 +82,58 @@ from .utils import (
     len_of,
 )
 
+logger = logging.getLogger(__name__)
+
+
+class ReconnectHandler:
+    def __init__(self, conns: object, connection_name: str, kwargs: object) -> None:
+        self.connection_name = connection_name
+        self.conns = conns
+        self._kwargs = kwargs
+        self.is_idle_state = False
+        self.reconnect_lock = threading.Lock()
+
+    def reset_db_name(self, db_name: str):
+        self._kwargs["db_name"] = db_name
+
+    def check_state_and_reconnect_later(self):
+        check_after_seconds = 3
+        logger.debug(f"state is idle, schedule reconnect in {check_after_seconds} seconds")
+        time.sleep(check_after_seconds)
+        if not self.is_idle_state:
+            logger.debug("idle state changed, skip reconnect")
+            return
+        with self.reconnect_lock:
+            logger.info("reconnect on idle state")
+            self.is_idle_state = False
+            try:
+                logger.debug("try disconnecting old connection...")
+                self.conns.disconnect(self.connection_name)
+            except Exception:
+                logger.warning("disconnect failed: {e}")
+            finally:
+                reconnected = False
+                while not reconnected:
+                    try:
+                        logger.debug("try reconnecting...")
+                        self.conns.connect(self.connection_name, **self._kwargs)
+                        reconnected = True
+                    except Exception as e:
+                        logger.warning(
+                            f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
+                        )
+                        time.sleep(check_after_seconds)
+            logger.info("reconnected")
+
+    def reconnect_on_idle(self, state: object):
+        logger.debug(f"state change to: {state}")
+        with self.reconnect_lock:
+            if state.value[1] != "idle":
+                self.is_idle_state = False
+                return
+            self.is_idle_state = True
+            threading.Thread(target=self.check_state_and_reconnect_later).start()
+
 
 class GrpcHandler:
     # pylint: disable=too-many-instance-attributes
@@ -104,6 +158,12 @@ class GrpcHandler:
         self._setup_grpc_channel()
         self.callbacks = []
         self.schema_cache = {}
+        self._reconnect_handler = None
+
+    def register_reconnect_handler(self, handler: ReconnectHandler):
+        if handler is not None:
+            self._reconnect_handler = handler
+            self.register_state_change_callback(handler.reconnect_on_idle)
 
     def register_state_change_callback(self, callback: Callable):
         self.callbacks.append(callback)
@@ -179,6 +239,8 @@ class GrpcHandler:
         self._setup_db_interceptor(db_name)
         self._setup_grpc_channel()
         self._setup_identifier_interceptor(self._user)
+        if self._reconnect_handler is not None:
+            self._reconnect_handler.reset_db_name(db_name)
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
