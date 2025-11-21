@@ -62,7 +62,7 @@ TYPE_VALIDATOR = {
     DataType.BFLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, True),
     DataType.SPARSE_FLOAT_VECTOR.name: lambda x: sparse_vector_validator(x),
     DataType.INT8_VECTOR.name: lambda x, dim: int8_vector_validator(x, dim),
-    DataType.ARRAY.name: lambda x, cap: isinstance(x, list) and len(x) <= cap,
+    DataType.ARRAY.name: lambda x, cap: (isinstance(x, (list, np.ndarray)) and len(x) <= cap),
 }
 
 NUMPY_TYPE_CREATOR = {

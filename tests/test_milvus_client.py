@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from pymilvus.exceptions import ParamError
@@ -12,8 +12,11 @@ log = logging.getLogger(__name__)
 class TestMilvusClient:
     @pytest.mark.parametrize("index_params", [None, {}, "str", MilvusClient.prepare_index_params()])
     def test_create_index_invalid_params(self, index_params):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        
         with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
-             patch('pymilvus.orm.utility.get_server_type', return_value="milvus"):
+             patch('pymilvus.orm.connections.Connections._fetch_handler', return_value=mock_handler):
             client = MilvusClient()
 
             if isinstance(index_params, IndexParams):
@@ -42,7 +45,11 @@ class TestMilvusClient:
             log.info(index)
 
     def test_connection_reuse(self):
-        with patch("pymilvus.orm.utility.get_server_type", return_value="milvus"), patch("pymilvus.orm.connections.Connections.connect", return_value=None):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        
+        with patch("pymilvus.orm.connections.Connections.connect", return_value=None), \
+             patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
             client = MilvusClient()
             assert client._using == "http://localhost:19530"
             client = MilvusClient(user="test", password="foobar")
