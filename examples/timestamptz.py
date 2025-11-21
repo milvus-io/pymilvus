@@ -20,7 +20,7 @@ def main():
   schema.add_field("vec", DataType.FLOAT_VECTOR, dim=4)
   print("===================alter database timezone===================")
   try:
-    client.alter_database_properties("default", {"database.timezone": "Asia/Shanghai"})
+    client.alter_database_properties("default", {"timezone": "Asia/Shanghai"})
   except Exception as e:
     print(e)
   print(client.describe_database("default"))
@@ -92,19 +92,19 @@ def main():
   print(client.describe_collection(collection_name))
   print("===================alter collection timezone===================")
   try:
-    client.alter_collection_properties(collection_name, {"collection.timezone": "Asia/Shanghai"})
+    client.alter_collection_properties(collection_name, {"timezone": "Asia/Shanghai"})
   except Exception as e:
     print(e)
   print(client.describe_collection(collection_name))
 
   try:
-    client.alter_collection_properties(collection_name, {"collection.timezone": "error"})
+    client.alter_collection_properties(collection_name, {"timezone": "error"})
   except Exception as e:
     print(e)
   print(client.describe_collection(collection_name))
 
   try:
-    client.alter_database_properties("default", {"database.timezone": "error"})
+    client.alter_database_properties("default", {"timezone": "error"})
   except Exception as e:
     print(e)
   print(client.describe_database("default"))
