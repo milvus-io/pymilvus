@@ -8,7 +8,7 @@ from pymilvus.exceptions import MilvusException
 logger = logging.getLogger(__name__)
 
 
-def list_stages(
+def list_volumes(
     url: str,
     api_key: str,
     project_id: str,
@@ -16,7 +16,7 @@ def list_stages(
     page_size: int = 10,
     **kwargs,
 ) -> requests.Response:
-    """call listStages restful interface to list stages of project
+    """call listVolumes restful interface to list volumes of project
 
     Args:
         url (str): url of the server
@@ -28,7 +28,7 @@ def list_stages(
     Returns:
         response of the restful interface
     """
-    request_url = url + "/v2/stages"
+    request_url = url + "/v2/volumes"
 
     params = {"projectId": project_id, "currentPage": current_page, "pageSize": page_size}
 
@@ -37,32 +37,32 @@ def list_stages(
     return resp
 
 
-def create_stage(
+def create_volume(
     url: str,
     api_key: str,
     project_id: str,
     region_id: str,
-    stage_name: str,
+    volume_name: str,
     **kwargs,
 ) -> requests.Response:
-    """call createStage restful interface to create new stage
+    """call createVolume restful interface to create new volume
 
     Args:
         url (str): url of the server
         api_key (str): API key to authenticate your requests.
         project_id (str): id of the project
         region_id (str): id of the region
-        stage_name (str): name of the stage
+        volume_name (str): name of the volume
 
     Returns:
         response of the restful interface
     """
-    request_url = url + "/v2/stages/create"
+    request_url = url + "/v2/volumes/create"
 
     params = {
         "projectId": project_id,
         "regionId": region_id,
-        "stageName": stage_name,
+        "volumeName": volume_name,
     }
 
     resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
@@ -70,50 +70,50 @@ def create_stage(
     return resp
 
 
-def delete_stage(
+def delete_volume(
     url: str,
     api_key: str,
-    stage_name: str,
+    volume_name: str,
     **kwargs,
 ) -> requests.Response:
-    """call deleteStage restful interface to create stage
+    """call deleteVolume restful interface to delete volume
 
     Args:
         url (str): url of the server
         api_key (str): API key to authenticate your requests.
-        stage_name (str): name of the stage
+        volume_name (str): name of the volume
 
     Returns:
         response of the restful interface
     """
-    request_url = url + "/v2/stages/" + stage_name
+    request_url = url + "/v2/volumes/" + volume_name
 
     resp = _delete_request(url=request_url, api_key=api_key, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
 
 
-def apply_stage(
+def apply_volume(
     url: str,
     api_key: str,
-    stage_name: str,
+    volume_name: str,
     path: str,
     **kwargs,
 ) -> requests.Response:
-    """call applyStage restful interface to apply cred of stage
+    """call applyVolume restful interface to apply cred of volume
 
     Args:
         url (str): url of the server
         api_key (str): API key to authenticate your requests.
-        stage_name (str): name of the stage
-        path(str): path of the stage
+        volume_name (str): name of the volume
+        path(str): path of the volume
 
     Returns:
         response of the restful interface
     """
-    request_url = url + "/v2/stages/apply"
+    request_url = url + "/v2/volumes/apply"
 
-    params = {"stageName": stage_name, "path": path}
+    params = {"volumeName": volume_name, "path": path}
 
     resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
     _handle_response(request_url, resp.json())
