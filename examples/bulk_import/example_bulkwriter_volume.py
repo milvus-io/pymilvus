@@ -16,7 +16,7 @@ import time
 import numpy as np
 
 from examples.bulk_import.data_gengerator import *
-from pymilvus.bulk_writer.stage_bulk_writer import StageBulkWriter
+from pymilvus.bulk_writer.volume_bulk_writer import VolumeBulkWriter
 from pymilvus.orm import utility
 
 logging.basicConfig(level=logging.INFO)
@@ -46,7 +46,7 @@ CLOUD_ENDPOINT = "https://api.cloud.zilliz.com"
 API_KEY = "_api_key_for_cluster_org_"
 
 # This is currently a private preview feature. If you need to use it, please submit a request and contact us.
-STAGE_NAME = "_stage_name_for_project_"
+VOLUME_NAME = "_volume_name_for_project_"
 
 CLUSTER_ID = "_your_cloud_cluster_id_"
 DB_NAME = ""  # If db_name is not specified, use ""
@@ -93,12 +93,12 @@ def build_all_type_schema():
     return schema
 
 
-def example_collection_remote_stage(file_type: BulkFileType):
+def example_collection_remote_volume(file_type: BulkFileType):
     schema = build_all_type_schema()
     print(f"\n===================== all field types ({file_type.name}) ====================")
     create_collection(schema, False)
-    stage_upload_result = stage_remote_writer(file_type, schema)
-    call_stage_import(stage_upload_result['stage_name'], stage_upload_result['path'])
+    volume_upload_result = volume_remote_writer(file_type, schema)
+    call_volume_import(volume_upload_result['volume_name'], volume_upload_result['path'])
     retrieve_imported_data()
 
 
@@ -111,16 +111,16 @@ def create_collection(schema: CollectionSchema, drop_if_exist: bool):
         print(f"Collection '{collection.name}' created")
 
 
-def stage_remote_writer(file_type, schema):
-    with StageBulkWriter(
+def volume_remote_writer(file_type, schema):
+    with VolumeBulkWriter(
             schema=schema,
             remote_path="bulk_data",
             file_type=file_type,
             chunk_size=512 * 1024 * 1024,
             cloud_endpoint=CLOUD_ENDPOINT,
             api_key=API_KEY,
-            stage_name=STAGE_NAME,
-    ) as stage_bulk_writer:
+            volume_name=VOLUME_NAME,
+    ) as volume_bulk_writer:
         print("Append rows")
         batch_count = 10000
         for i in range(batch_count):
@@ -146,12 +146,12 @@ def stage_remote_writer(file_type, schema):
                 "array_int": [k for k in range(10)],
                 "sparse_vector": gen_sparse_vector(False),
             }
-            stage_bulk_writer.append_row(row)
+            volume_bulk_writer.append_row(row)
 
         # append rows by numpy type
         for i in range(batch_count):
             id = i + batch_count
-            stage_bulk_writer.append_row({
+            volume_bulk_writer.append_row({
                 "id": np.int64(id),
                 "bool": True if i % 3 == 0 else False,
                 "int8": np.int8(id % 128),
@@ -174,12 +174,12 @@ def stage_remote_writer(file_type, schema):
                 "sparse_vector": gen_sparse_vector(True),
             })
 
-        print(f"{stage_bulk_writer.total_row_count} rows appends")
-        print(f"{stage_bulk_writer.buffer_row_count} rows in buffer not flushed")
+        print(f"{volume_bulk_writer.total_row_count} rows appends")
+        print(f"{volume_bulk_writer.buffer_row_count} rows in buffer not flushed")
         print("Generate data files...")
-        stage_bulk_writer.commit()
-        print(f"Data files have been uploaded: {stage_bulk_writer.batch_files}")
-        return stage_bulk_writer.get_stage_upload_result()
+        volume_bulk_writer.commit()
+        print(f"Data files have been uploaded: {volume_bulk_writer.batch_files}")
+        return volume_bulk_writer.get_volume_upload_result()
 
 
 def retrieve_imported_data():
@@ -217,7 +217,7 @@ def retrieve_imported_data():
         print(item)
 
 
-def call_stage_import(stage_name: str, path: str):
+def call_volume_import(volume_name: str, path: str):
     print(f"\n===================== import files to cluster ====================")
     resp = bulk_import(
         url=CLOUD_ENDPOINT,
@@ -225,7 +225,7 @@ def call_stage_import(stage_name: str, path: str):
         cluster_id=CLUSTER_ID,
         db_name=DB_NAME,
         collection_name=COLLECTION_NAME,
-        stage_name=stage_name,
+        volume_name=volume_name,
         data_paths=[[path]]
     )
     print(resp.json())
@@ -270,4 +270,4 @@ def call_stage_import(stage_name: str, path: str):
 
 if __name__ == '__main__':
     create_connection()
-    example_collection_remote_stage(file_type=BulkFileType.PARQUET)
+    example_collection_remote_volume(file_type=BulkFileType.PARQUET)
