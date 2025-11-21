@@ -409,6 +409,57 @@ class GrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
+    def drop_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.drop_collection_function_request(collection_name, function_name)
+
+        status = self._stub.DropCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def add_collection_function(
+        self,
+        collection_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.add_collection_function_request(collection_name, function)
+
+        status = self._stub.AddCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
+    def alter_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_function_request(
+            collection_name, function_name, function
+        )
+
+        status = self._stub.AlterCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(status)
+
+    @retry_on_rpc_failure()
     def alter_collection_properties(
         self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
     ):
