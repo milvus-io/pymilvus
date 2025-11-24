@@ -1853,8 +1853,8 @@ class MilvusClient:
         )
         return [
             LoadedSegmentInfo(
-                info.segment_id,
-                info.collection_id,
+                info.segmentID,
+                info.collectionID,
                 collection_name,
                 info.num_rows,
                 info.is_sorted,
@@ -1887,8 +1887,8 @@ class MilvusClient:
         )
         return [
             SegmentInfo(
-                info.segment_id,
-                info.collection_id,
+                info.segmentID,
+                info.collectionID,
                 collection_name,
                 info.num_rows,
                 info.is_sorted,
