@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import logging
 
@@ -33,8 +34,15 @@ def create_connection(
             md5.update(token.encode())
             auth_fmt = f"{md5.hexdigest()}"
 
-        # different uri, auth, db_name cannot share the same connection
-        not_empty = [v for v in [use_async_fmt, uri, db_name, auth_fmt] if v]
+        # For async connections, include event loop ID in alias to prevent
+        # reusing connections from closed event loops
+        loop_id_fmt = ""
+        if use_async:
+            loop = asyncio.get_running_loop()
+            loop_id_fmt = f"loop{id(loop)}"
+
+        # different uri, auth, db_name, and event loop (for async) cannot share the same connection
+        not_empty = [v for v in [use_async_fmt, uri, db_name, auth_fmt, loop_id_fmt] if v]
         using = "-".join(not_empty)
 
     if connections.has_connection(using):
