@@ -17,7 +17,7 @@ import orjson
 import pandas as pd
 from pandas.api.types import is_list_like, is_scalar
 
-from pymilvus.client.types import FunctionType
+from pymilvus.client.types import FunctionType, HighlightType
 from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
     AutoIDException,
@@ -966,6 +966,64 @@ class FunctionScore:
     @property
     def functions(self):
         return self._functions
+
+
+class LexicalHighlighter:
+    def __init__(
+        self,
+        *,
+        queries: Optional[List] = None,
+        highlight_search_text: Optional[bool] = None,
+        pre_tags: Optional[List[str]] = None,
+        post_tags: Optional[List[str]] = None,
+        fragment_offset: Optional[int] = None,
+        fragment_size: Optional[int] = None,
+        num_of_fragments: Optional[int] = None,
+    ):
+        self.pre_tag = pre_tags
+        self.post_tag = post_tags
+        self.fragment_offset = fragment_offset
+        self.fragment_size = fragment_size
+        self.num_of_fragments = num_of_fragments
+        self.queries = queries
+        self.highlight_search_text = highlight_search_text
+
+    def with_query(self, field: str, text: str, query_type: str):
+        if self.queries is None:
+            self.queries = []
+        self.queries.append({"type": query_type, "field": field, "text": text})
+
+    @property
+    def params(self) -> Dict[str, Any]:
+        params = {}
+        if self.pre_tag is not None:
+            params["pre_tags"] = self.pre_tag
+
+        if self.post_tag is not None:
+            params["post_tags"] = self.post_tag
+
+        if self.fragment_offset is not None:
+            params["fragment_offset"] = self.fragment_offset
+
+        if self.fragment_size is not None:
+            params["fragment_size"] = self.fragment_size
+
+        if self.num_of_fragments is not None:
+            params["num_of_fragments"] = self.num_of_fragments
+
+        if self.queries is not None:
+            params["queries"] = self.queries
+
+        if self.highlight_search_text is not None:
+            params["highlight_search_text"] = self.highlight_search_text
+        return params
+
+    @property
+    def type(self) -> HighlightType:
+        return HighlightType.LEXICAL
+
+
+Highlighter = LexicalHighlighter  # Use Union[...] to add more highlighter types in the future
 
 
 def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:

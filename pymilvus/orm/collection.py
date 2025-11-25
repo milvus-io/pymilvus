@@ -52,6 +52,7 @@ from .schema import (
     FieldSchema,
     Function,
     FunctionScore,
+    Highlighter,
     check_insert_schema,
     check_schema,
     check_upsert_schema,
@@ -674,6 +675,7 @@ class Collection:
         timeout: Optional[float] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        highlighter: Optional[Highlighter] = None,
         **kwargs,
     ):
         """Conducts a vector similarity search with an optional boolean expression as filter.
@@ -820,6 +822,7 @@ class Collection:
             timeout=timeout,
             schema=self._schema_dict,
             ranker=ranker,
+            highlighter=highlighter,
             **kwargs,
         )
 

@@ -23,7 +23,7 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function
+from pymilvus.orm.schema import Function, Highlighter
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
@@ -830,6 +830,7 @@ class AsyncGrpcHandler:
         round_decimal: int = -1,
         timeout: Optional[float] = None,
         ranker: Optional[Function] = None,
+        highlighter: Optional[Highlighter] = None,
         **kwargs,
     ):
         await self.ensure_channel_ready()
@@ -860,6 +861,7 @@ class AsyncGrpcHandler:
             output_fields,
             round_decimal,
             ranker=ranker,
+            highlighter=highlighter,
             **kwargs,
         )
         return await self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
