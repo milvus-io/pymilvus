@@ -1,5 +1,6 @@
 import logging
 import time
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
@@ -1372,3 +1373,20 @@ class AnalyzeResult:
         return str(self.tokens)
 
     __repr__ = __str__
+
+
+@dataclass
+class SegmentInfo:
+    segment_id: int
+    collection_id: int
+    collection_name: str
+    num_rows: int
+    is_sorted: bool
+    state: common_pb2.SegmentState
+    level: common_pb2.SegmentLevel
+    storage_version: int
+
+
+@dataclass
+class LoadedSegmentInfo(SegmentInfo):
+    mem_size: int

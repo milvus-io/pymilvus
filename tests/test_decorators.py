@@ -1,8 +1,9 @@
 import time
+from unittest.mock import patch
 
 import grpc
 import pytest
-from pymilvus.decorators import IGNORE_RETRY_CODES, retry_on_rpc_failure
+from pymilvus.decorators import IGNORE_RETRY_CODES, error_handler, retry_on_rpc_failure
 from pymilvus.exceptions import ErrorCode, MilvusException
 from pymilvus.grpc_gen import common_pb2
 
@@ -204,3 +205,127 @@ class MockUnRetriableError(grpc.RpcError):
 
     def details(self):
         return "details of unretriable error"
+
+
+class TestErrorHandlerTraceback:
+    """Test the traceback functionality in error_handler decorator."""
+
+    @patch("pymilvus.decorators.LOGGER")
+    def test_error_handler_includes_traceback_for_milvus_exception(self, mock_logger):
+        """Test that error_handler logs traceback for MilvusException."""
+
+        @error_handler(func_name="test_func")
+        def func_that_raises_milvus_exception():
+            def inner_func():
+                raise MilvusException(ErrorCode.UNEXPECTED_ERROR, "test error")
+
+            inner_func()
+
+        with pytest.raises(MilvusException):
+            func_that_raises_milvus_exception()
+
+        # Verify LOGGER.error was called
+        assert mock_logger.error.called
+        # Get the logged message
+        log_message = mock_logger.error.call_args[0][0]
+        # Check that traceback information is in the log message
+        assert "Traceback:" in log_message
+        assert "inner_func" in log_message
+        assert "test_func" in log_message
+
+    @patch("pymilvus.decorators.LOGGER")
+    def test_error_handler_includes_traceback_for_grpc_error(self, mock_logger):
+        """Test that error_handler logs traceback for grpc.RpcError."""
+
+        @error_handler(func_name="test_grpc_func")
+        def func_that_raises_grpc_error():
+            def inner_func():
+                raise MockUnavailableError()
+
+            inner_func()
+
+        with pytest.raises(grpc.RpcError):
+            func_that_raises_grpc_error()
+
+        # Verify LOGGER.error was called
+        assert mock_logger.error.called
+        # Get the logged message
+        log_message = mock_logger.error.call_args[0][0]
+        # Check that traceback information is in the log message
+        assert "Traceback:" in log_message
+        assert "inner_func" in log_message
+        assert "test_grpc_func" in log_message
+
+    @patch("pymilvus.decorators.LOGGER")
+    def test_error_handler_includes_traceback_for_generic_exception(self, mock_logger):
+        """Test that error_handler logs traceback for generic Exception."""
+
+        @error_handler(func_name="test_generic_func")
+        def func_that_raises_generic_exception():
+            def inner_func():
+                raise ValueError("test generic error")
+
+            inner_func()
+
+        with pytest.raises(MilvusException):
+            func_that_raises_generic_exception()
+
+        # Verify LOGGER.error was called
+        assert mock_logger.error.called
+        # Get the logged message
+        log_message = mock_logger.error.call_args[0][0]
+        # Check that traceback information is in the log message
+        assert "Traceback:" in log_message
+        assert "inner_func" in log_message
+        assert "ValueError" in log_message
+
+    @patch("pymilvus.decorators.LOGGER")
+    def test_error_handler_traceback_shows_call_stack(self, mock_logger):
+        """Test that traceback shows the complete call stack."""
+
+        @error_handler(func_name="outer_func")
+        def outer_function():
+            def middle_function():
+                def inner_function():
+                    raise MilvusException(ErrorCode.UNEXPECTED_ERROR, "deep error")
+
+                inner_function()
+
+            middle_function()
+
+        with pytest.raises(MilvusException):
+            outer_function()
+
+        # Verify LOGGER.error was called
+        assert mock_logger.error.called
+        # Get the logged message
+        log_message = mock_logger.error.call_args[0][0]
+        # Verify the complete call stack is present
+        assert "Traceback:" in log_message
+        assert "outer_function" in log_message
+        assert "middle_function" in log_message
+        assert "inner_function" in log_message
+
+    @pytest.mark.asyncio
+    @patch("pymilvus.decorators.LOGGER")
+    async def test_async_error_handler_includes_traceback(self, mock_logger):
+        """Test that async error_handler logs traceback."""
+
+        @error_handler(func_name="test_async_func")
+        async def async_func_that_raises():
+            def inner_func():
+                raise MilvusException(ErrorCode.UNEXPECTED_ERROR, "async test error")
+
+            inner_func()
+
+        with pytest.raises(MilvusException):
+            await async_func_that_raises()
+
+        # Verify LOGGER.error was called
+        assert mock_logger.error.called
+        # Get the logged message
+        log_message = mock_logger.error.call_args[0][0]
+        # Check that traceback information is in the log message
+        assert "Traceback:" in log_message
+        assert "inner_func" in log_message
+        assert "test_async_func" in log_message
