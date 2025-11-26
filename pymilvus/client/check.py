@@ -205,6 +205,11 @@ def is_legal_search_data(data: Any) -> bool:
     if entity_helper.entity_is_sparse_matrix(data):
         return True
 
+    # Support EmbeddingList for array-of-vector searches
+    # Check for EmbeddingList by type name to avoid circular dependency
+    if isinstance(data, list) and len(data) > 0 and type(data[0]).__name__ == "EmbeddingList":
+        return True
+
     if not isinstance(data, (list, np.ndarray)):
         return False
 

@@ -1,8 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import numpy as np
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.exceptions import MilvusException
+from pymilvus.grpc_gen import schema_pb2
 
 
 class TestAsyncGrpcHandler:
@@ -312,3 +314,164 @@ class TestAsyncGrpcHandler:
 
             # Verify wait_for_creating_index was called
             handler.wait_for_creating_index.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_search_with_embedding_list(self) -> None:
+        """
+        Test that search works with EmbeddingList input data.
+        This test verifies the fix for issue where AsyncMilvusClient.search 
+        failed when using EmbeddingList for array-of-vector searches.
+        """
+        # Setup mock channel and stub
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        # Mock Search response with proper SearchResultData structure
+        mock_search_result_data = schema_pb2.SearchResultData(
+            num_queries=2,
+            top_k=0,
+            scores=[],
+            ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[])),
+            topks=[],
+            primary_field_name="id"
+        )
+        mock_search_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.reason = ""
+        mock_search_response.status = mock_status
+        mock_search_response.results = mock_search_result_data
+        mock_search_response.session_ts = 0
+        mock_stub.Search = AsyncMock(return_value=mock_search_response)
+
+        # Create EmbeddingList data
+        from pymilvus.client.embedding_list import EmbeddingList
+        emb_list1 = EmbeddingList()
+        emb_list1.add([0.1, 0.2, 0.3, 0.4, 0.5])
+        emb_list2 = EmbeddingList()
+        emb_list2.add([0.5, 0.4, 0.3, 0.2, 0.1])
+        data = [emb_list1, emb_list2]
+
+        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
+             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
+             patch('pymilvus.client.async_grpc_handler.check_status'), \
+             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}):
+            
+            # Mock search_requests_with_expr to return a request
+            mock_request = MagicMock()
+            mock_prepare.search_requests_with_expr.return_value = mock_request
+
+            await handler.search(
+                collection_name="test_collection",
+                data=data,
+                anns_field="vector",
+                param={"metric_type": "COSINE"},
+                limit=10
+            )
+
+            # Verify that Prepare.search_requests_with_expr was called
+            mock_prepare.search_requests_with_expr.assert_called_once()
+            call_args = mock_prepare.search_requests_with_expr.call_args
+            
+            # Verify that is_embedding_list was passed as True in kwargs
+            assert call_args.kwargs.get("is_embedding_list") is True
+            
+            # Verify data was converted (not EmbeddingList objects anymore)
+            passed_data = call_args[0][1]  # data is the second positional argument
+            assert isinstance(passed_data, list)
+            assert not isinstance(passed_data[0], EmbeddingList)
+            # The data should be converted to flat arrays
+            assert isinstance(passed_data[0], (list, np.ndarray))
+
+            # Verify Search was called
+            mock_stub.Search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_hybrid_search_with_embedding_list(self) -> None:
+        """
+        Test that hybrid_search works with EmbeddingList input data.
+        """
+        # Setup mock channel and stub
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        # Mock HybridSearch response with proper SearchResultData structure
+        mock_hybrid_result_data = schema_pb2.SearchResultData(
+            num_queries=1,
+            top_k=0,
+            scores=[],
+            ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[])),
+            topks=[],
+            primary_field_name="id"
+        )
+        mock_hybrid_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.reason = ""
+        mock_hybrid_response.status = mock_status
+        mock_hybrid_response.results = mock_hybrid_result_data
+        mock_stub.HybridSearch = AsyncMock(return_value=mock_hybrid_response)
+
+        # Create AnnSearchRequest with EmbeddingList
+        from pymilvus.client.embedding_list import EmbeddingList
+        from pymilvus.client.abstract import AnnSearchRequest
+        import numpy as np
+        
+        emb_list = EmbeddingList()
+        emb_list.add([0.1, 0.2, 0.3])
+        req = AnnSearchRequest(
+            data=[emb_list],
+            anns_field="vector",
+            param={"metric_type": "COSINE"},
+            limit=10
+        )
+
+        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
+             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
+             patch('pymilvus.client.async_grpc_handler.check_status'), \
+             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}):
+            
+            # Mock search_requests_with_expr and hybrid_search_request_with_ranker
+            mock_search_request = MagicMock()
+            mock_hybrid_request = MagicMock()
+            mock_prepare.search_requests_with_expr.return_value = mock_search_request
+            mock_prepare.hybrid_search_request_with_ranker.return_value = mock_hybrid_request
+
+            # Mock rerank (BaseRanker)
+            mock_ranker = MagicMock()
+
+            await handler.hybrid_search(
+                collection_name="test_collection",
+                reqs=[req],
+                rerank=mock_ranker,
+                limit=10
+            )
+
+            # Verify that search_requests_with_expr was called with converted data
+            mock_prepare.search_requests_with_expr.assert_called_once()
+            call_args = mock_prepare.search_requests_with_expr.call_args
+            
+            # Verify is_embedding_list flag was set
+            assert call_args.kwargs.get("is_embedding_list") is True
+            
+            # Verify data was converted
+            passed_data = call_args[0][1]
+            assert isinstance(passed_data, list)
+            assert not isinstance(passed_data[0], EmbeddingList)
+
+            # Verify HybridSearch was called
+            mock_stub.HybridSearch.assert_called_once()
