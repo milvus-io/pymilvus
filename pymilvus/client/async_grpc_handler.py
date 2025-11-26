@@ -35,6 +35,7 @@ from .check import (
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
+from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
@@ -842,6 +843,12 @@ class AsyncGrpcHandler:
             guarantee_timestamp=kwargs.get("guarantee_timestamp"),
             timeout=timeout,
         )
+
+        # Convert EmbeddingList to flat array if present
+        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
+            data = [emb_list.to_flat_array() for emb_list in data]
+            kwargs["is_embedding_list"] = True
+
         request = Prepare.search_requests_with_expr(
             collection_name,
             data,
@@ -883,9 +890,16 @@ class AsyncGrpcHandler:
 
         requests = []
         for req in reqs:
+            data = req.data
+            req_kwargs = dict(kwargs)
+            # Convert EmbeddingList to flat array if present
+            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
+                data = [emb_list.to_flat_array() for emb_list in data]
+                req_kwargs["is_embedding_list"] = True
+
             search_request = Prepare.search_requests_with_expr(
                 collection_name,
-                req.data,
+                data,
                 req.anns_field,
                 req.param,
                 req.limit,
@@ -893,7 +907,7 @@ class AsyncGrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
-                **kwargs,
+                **req_kwargs,
             )
             requests.append(search_request)
 
