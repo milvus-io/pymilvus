@@ -67,6 +67,17 @@ Note: the problems, features, and questions mentioned here are not limited to Py
 
 `setup.py`: Package script for PyMilvus.
 
+## Backporting (Cherry-pick)
+
+We use a bot to automate backporting bug fixes to  branches.
+
+**How to use:**
+Simply add a label `backport-to-<branch-name>` to your Pull Request (e.g., `backport-to-2.6`).
+* ✅ **Success**: The bot will create a new backport PR automatically.
+* ❌ **Failure**: The bot will comment on your PR if there are conflicts or restricted files (`proto_gen/`).
+
+If the bot fails due to conflicts, please backport manually.
+
 ## Congratulations! You are now the contributor to the Milvus community!
 
 Apart from dealing with codes and machines, you are always welcome to communicate with any member from the Milvus community. New faces join us every day, and they may as well encounter the same challenges as you faced beore. Feel free to help them. You can pass on the collaborative spirit from the assistance you acquired when you first joined the community. Let us build a collaborative, open-source, exuberant, and tolerant community together!
