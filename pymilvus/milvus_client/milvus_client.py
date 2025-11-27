@@ -24,21 +24,21 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
-from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function, FunctionScore
+from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
-from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
 
 from ._utils import create_connection
+from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
 logger = logging.getLogger(__name__)
 
 
-class MilvusClient:
+class MilvusClient(BaseMilvusClient):
     """The Milvus Client"""
 
     # pylint: disable=logging-too-many-args, too-many-instance-attributes
@@ -825,40 +825,6 @@ class MilvusClient:
         conn = self._get_connection()
         conn.rename_collections(old_name, new_name, target_db, timeout=timeout, **kwargs)
 
-    @classmethod
-    def create_schema(cls, **kwargs):
-        kwargs["check_fields"] = False  # do not check fields for now
-        return CollectionSchema([], **kwargs)
-
-    @classmethod
-    def create_struct_field_schema(cls) -> StructFieldSchema:
-        return StructFieldSchema()
-
-    @classmethod
-    def create_field_schema(
-        cls, name: str, data_type: DataType, desc: str = "", **kwargs
-    ) -> FieldSchema:
-        """Create a field schema. Wrapping orm.FieldSchema.
-
-        Args:
-            name (str): The name of the field.
-            dtype (DataType): The data type of the field.
-            desc (str): The description of the field.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            FieldSchema: the FieldSchema created.
-        """
-        return FieldSchema(name, data_type, desc, **kwargs)
-
-    @classmethod
-    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
-        index_params = IndexParams()
-        if field_name:
-            validate_param("field_name", field_name, str)
-            index_params.add_index(field_name, **kwargs)
-        return index_params
-
     def _create_collection_with_schema(
         self,
         collection_name: str,
@@ -880,34 +846,6 @@ class MilvusClient:
 
     def close(self):
         connections.remove_connection(self._using)
-
-    def _get_connection(self):
-        return connections._fetch_handler(self._using)
-
-    def _extract_primary_field(self, schema_dict: Dict) -> dict:
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return {}
-
-        for field_dict in fields:
-            if field_dict.get("is_primary", None) is not None:
-                return field_dict
-
-        return {}
-
-    def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
-        primary_field = self._extract_primary_field(schema_dict)
-        pk_field_name = primary_field["name"]
-        data_type = primary_field["type"]
-
-        # Varchar pks need double quotes around the values
-        if data_type == DataType.VARCHAR:
-            ids = ["'" + str(entry) + "'" for entry in pks]
-            expr = f"""{pk_field_name} in [{",".join(ids)}]"""
-        else:
-            ids = [str(entry) for entry in pks]
-            expr = f"{pk_field_name} in [{','.join(ids)}]"
-        return expr
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
@@ -1898,14 +1836,6 @@ class MilvusClient:
             )
             for info in infos
         ]
-
-    def get_server_type(self):
-        """Get the server type.
-
-        Returns:
-            str: The server type (e.g., "milvus", "zilliz").
-        """
-        return self._get_connection().get_server_type()
 
     def get_compaction_plans(
         self,
