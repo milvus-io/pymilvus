@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
-from pymilvus.orm.schema import Function, FunctionType
+from pymilvus.orm.schema import Function, FunctionType, StructFieldSchema
 
 
 class TestCollectionSchema:
@@ -193,3 +193,90 @@ class TestFieldSchema:
             target = f.to_dict()
             assert target == dicts[i]
             assert target is not dicts[i]
+
+
+class TestStructFieldSchema:
+    def test_add_field_with_reused_struct_schema(self):
+        """Test that reusing the same struct_schema for multiple fields works correctly.
+
+        This test verifies the fix for issue #3104 where reusing a struct_schema
+        object across multiple ARRAY<STRUCT> fields caused "duplicated field name" errors.
+        """
+        # Create a struct schema to reuse
+        struct_schema = StructFieldSchema()
+        struct_schema.add_field("score", DataType.FLOAT)
+        struct_schema.add_field("content", DataType.VARCHAR, max_length=512)
+
+        # Create collection schema
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("embedding", DataType.FLOAT_VECTOR, dim=128),
+            ]
+        )
+
+        # Add two ARRAY<STRUCT> fields using the same struct_schema
+        schema.add_field(
+            "field1",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=10,
+        )
+        schema.add_field(
+            "field2",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=20,
+        )
+
+        # Verify both struct fields have different names
+        assert len(schema.struct_fields) == 2
+        assert schema.struct_fields[0].name == "field1"
+        assert schema.struct_fields[1].name == "field2"
+        assert schema.struct_fields[0].max_capacity == 10
+        assert schema.struct_fields[1].max_capacity == 20
+
+        # Verify original struct_schema was not modified
+        assert struct_schema.name == ""
+        assert struct_schema.max_capacity is None
+
+    def test_struct_field_schema_to_dict(self):
+        """Test StructFieldSchema to_dict method."""
+        struct_schema = StructFieldSchema()
+        struct_schema.name = "test_struct"
+        struct_schema.max_capacity = 10
+        struct_schema.add_field("score", DataType.FLOAT)
+        struct_schema.add_field("content", DataType.VARCHAR, max_length=512)
+
+        result = struct_schema.to_dict()
+        assert result["name"] == "test_struct"
+        assert result["max_capacity"] == 10
+        assert len(result["fields"]) == 2
+        assert result["fields"][0]["name"] == "score"
+        assert result["fields"][1]["name"] == "content"
+
+    def test_struct_field_schema_construct_from_dict(self):
+        """Test StructFieldSchema construct_from_dict method."""
+        raw_dict = {
+            "name": "test_struct",
+            "description": "test description",
+            "max_capacity": 10,
+            "fields": [
+                {"name": "score", "type": DataType.FLOAT, "description": ""},
+                {
+                    "name": "content",
+                    "type": DataType.VARCHAR,
+                    "description": "",
+                    "params": {"max_length": 512},
+                },
+            ],
+        }
+
+        struct_schema = StructFieldSchema.construct_from_dict(raw_dict)
+        assert struct_schema.name == "test_struct"
+        assert struct_schema.max_capacity == 10
+        assert len(struct_schema.fields) == 2
+        assert struct_schema.fields[0].name == "score"
+        assert struct_schema.fields[1].name == "content"
