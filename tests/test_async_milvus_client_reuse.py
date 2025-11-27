@@ -12,10 +12,11 @@ class TestAsyncConnectionReuse:
         uri = "http://localhost:19530"
         
         async def create_client():
-            # Mock connections.connect to avoid real network connection
-            # Mock utility.get_server_type to avoid checking server version
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            
             with patch("pymilvus.orm.connections.Connections.connect") as mock_connect, \
-                 patch("pymilvus.orm.utility.get_server_type", return_value="milvus"):
+                 patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
                 
                 client = AsyncMilvusClient(uri=uri)
                 # Return the alias used and the current loop id
