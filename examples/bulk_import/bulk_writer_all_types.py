@@ -68,7 +68,7 @@ def build_schema():
     schema.add_field(field_name="double", datatype=DataType.DOUBLE)
     schema.add_field(field_name="varchar", datatype=DataType.VARCHAR, max_length=100)
     schema.add_field(field_name="json", datatype=DataType.JSON)
-    # schema.add_field(field_name="timestamp", datatype=DataType.TIMESTAMPTZ)
+    schema.add_field(field_name="timestamp", datatype=DataType.TIMESTAMPTZ)
     schema.add_field(field_name="geometry", datatype=DataType.GEOMETRY)
 
     schema.add_field(field_name="array_bool", datatype=DataType.ARRAY, element_type=DataType.BOOL, max_capacity=10)
@@ -153,9 +153,9 @@ def gen_row(i):
         "double": i / 3,
         "varchar": f"varchar_{i}",
         "json": {"dummy": i},
-        # "timestamp": shanghai_tz.localize(
-        #     datetime.datetime(2025, 1, 1, 0, 0, 0) + datetime.timedelta(days=i)
-        # ).isoformat(),
+        "timestamp": shanghai_tz.localize(
+            datetime.datetime(2025, 1, 1, 0, 0, 0) + datetime.timedelta(days=i)
+        ).isoformat(),
         "geometry": f"POINT ({i} {i})",
 
         "array_bool": [True if (i + k) % 2 == 0 else False for k in range(4)],
@@ -299,9 +299,9 @@ def verify_imported_data():
             elif key == "sparse_vector":
                 # returned sparse vector is id-pair format
                 original_row[key] = gen_sparse_vector(id, False)
-            # elif key == "timestamp":
-            #     # TODO: compare the timestamp values
-            #     continue
+            elif key == "timestamp":
+                # TODO: compare the timestamp values
+                continue
             if item[key] != original_row[key]:
                 raise Exception(f"value of {key} is unequal, original value: {original_row[key]}, query value: {item[key]}")
         print(f"Query result of id={id} is correct")

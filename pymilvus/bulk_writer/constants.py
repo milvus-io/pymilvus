@@ -53,7 +53,7 @@ TYPE_VALIDATOR = {
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
     DataType.JSON.name: lambda x: isinstance(x, (str, list, dict)),
-    # DataType.TIMESTAMPTZ.name: lambda x: isinstance(x, str),
+    DataType.TIMESTAMPTZ.name: lambda x: isinstance(x, str),
     DataType.GEOMETRY.name: lambda x: isinstance(x, str),
     DataType.STRUCT.name: lambda x, max_cap: struct_validator(x, max_cap),
     DataType.FLOAT_VECTOR.name: lambda x, dim: float_vector_validator(x, dim),
@@ -75,7 +75,7 @@ NUMPY_TYPE_CREATOR = {
     DataType.DOUBLE.name: np.dtype("float64"),
     DataType.VARCHAR.name: np.dtype("str"),
     DataType.JSON.name: np.dtype("str"),  # in numpy/parquet file, json object are stored as string
-    # DataType.TIMESTAMPTZ.name: np.dtype("str"),
+    DataType.TIMESTAMPTZ.name: np.dtype("str"),
     DataType.GEOMETRY.name: np.dtype("str"),
     DataType.FLOAT_VECTOR.name: np.dtype("float32"),
     DataType.BINARY_VECTOR.name: np.dtype("uint8"),
