@@ -114,7 +114,7 @@ def bulk_import(
     access_key: str = "",
     secret_key: str = "",
     token: str = "",
-    stage_name: str = "",
+    volume_name: str = "",
     data_paths: [List[List[str]]] = None,
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
@@ -139,7 +139,7 @@ def bulk_import(
         secret_key (str): secret key to access the object storage(cloud)
         token (str): access token to access the object storage(cloud)
 
-        stage_name (str): name of the stage to import(cloud)
+        volume_name (str): name of the volume to import(cloud)
         data_paths (list of list of str): The paths of files that contain the data to import(cloud)
         verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
@@ -181,7 +181,7 @@ def bulk_import(
         ...    token="your-token" # for short-term credentials, also include `token`
         ... )
 
-        >>> # 3. Import multiple files or folders from a Zilliz Stage into a Zilliz Cloud instance
+        >>> # 3. Import multiple files or folders from a Zilliz Volume into a Zilliz Cloud instance
         >>> bulk_import(
         ...     url="https://api.cloud.zilliz.com", # If regions in China, it is: https://api.cloud.zilliz.com.cn
         ...     api_key="YOUR_API_KEY",
@@ -189,7 +189,7 @@ def bulk_import(
         ...     db_name="", # Only For Dedicated deployments: this parameter can be specified.
         ...     collection_name="my_collection",
         ...     partition_name="", # If Collection not enable partitionKey, can be specified.
-        ...     stage_name="my_stage",
+        ...     volume_name="my_volume",
         ...     data_paths=[
         ...         ["parquet-folder/1.parquet"],
         ...         ["parquet-folder-2/"]
@@ -210,7 +210,7 @@ def bulk_import(
         "accessKey": access_key,
         "secretKey": secret_key,
         "token": token,
-        "stageName": stage_name,
+        "volumeName": volume_name,
         "dataPaths": data_paths,
     }
 
