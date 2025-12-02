@@ -82,16 +82,18 @@ class DeleteRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., shardName: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., dbID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., int64_primary_keys: _Optional[_Iterable[int]] = ..., timestamps: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., primary_keys: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., segment_id: _Optional[int] = ...) -> None: ...
 
 class MsgPosition(_message.Message):
-    __slots__ = ("channel_name", "msgID", "msgGroup", "timestamp")
+    __slots__ = ("channel_name", "msgID", "msgGroup", "timestamp", "WAL_name")
     CHANNEL_NAME_FIELD_NUMBER: _ClassVar[int]
     MSGID_FIELD_NUMBER: _ClassVar[int]
     MSGGROUP_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    WAL_NAME_FIELD_NUMBER: _ClassVar[int]
     channel_name: str
     msgID: bytes
     msgGroup: str
     timestamp: int
-    def __init__(self, channel_name: _Optional[str] = ..., msgID: _Optional[bytes] = ..., msgGroup: _Optional[str] = ..., timestamp: _Optional[int] = ...) -> None: ...
+    WAL_name: _common_pb2.WALName
+    def __init__(self, channel_name: _Optional[str] = ..., msgID: _Optional[bytes] = ..., msgGroup: _Optional[str] = ..., timestamp: _Optional[int] = ..., WAL_name: _Optional[_Union[_common_pb2.WALName, str]] = ...) -> None: ...
 
 class CreateCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collectionName", "partitionName", "dbID", "collectionID", "partitionID", "schema", "virtualChannelNames", "physicalChannelNames", "partitionIDs", "partitionNames", "collection_schema")
