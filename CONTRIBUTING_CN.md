@@ -91,6 +91,16 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 
 ### 通过所有 Github Actions
 
+## Cherry-pick
+
+使用方法： 只需为你的 Pull Request 添加 backport-to-<branch-name> 格式的标签即可（例如：backport-to-2.6）。
+
+✅ 成功：机器人会自动创建一个新的 Backport PR。
+
+❌ 失败：如果存在代码冲突或修改了受限文件（如 proto_gen/），机器人会在 PR 中留言提醒。
+
+如果机器人因冲突执行失败，请手动进行 Backport 操作。
+
 ## 恭喜你！你已经成为了 Milvus 社区的贡献者！
 
 除了和代码、机器打交道，你还可以和 Milvus 社区中的人交流。社区中每天都有很多新面孔加入，当他们遇到的困难正好是你所了解的地方，请尽情的帮助这些人。回想你初次接触 Milvus 接受过的帮助，你也可以将这样的交流互助精神不断传递下去，我们一起共创一个协作、开源、开放、包容的社区。

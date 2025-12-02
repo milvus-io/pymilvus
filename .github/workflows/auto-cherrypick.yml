@@ -1,0 +1,299 @@
+name: Backport
+
+on:
+  pull_request_target:
+    types:
+      - closed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number'
+        required: true
+        type: string
+      target_branch:
+        description: 'Target branch'
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  backport:
+    timeout-minutes: 30
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request_target' && 
+       github.event.pull_request.merged == true && 
+       ((github.event.action == 'closed') || 
+        (github.event.action == 'labeled' && startsWith(github.event.label.name, 'backport-to-'))))
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Execute Backport
+        id: execute-backport
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
+          TRIGGER_USER: ${{ github.actor }}
+        run: |
+          # Helper function to write summary
+          write_summary() {
+            local status="$1"
+            local title="$2"
+            local details="$3"
+            echo "## $status $title" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "$details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          }
+
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            PR_NUMBER="$INPUT_PR_NUMBER"
+            IS_MANUAL="true"
+            
+            if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
+              echo "::error::Invalid PR number: $PR_NUMBER (must be a positive integer)"
+              write_summary "❌" "Backport Failed" "**Reason:** Invalid PR number \`$PR_NUMBER\` (must be a positive integer)"
+              exit 1
+            fi
+            
+            if ! [[ "$INPUT_TARGET_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
+              echo "::error::Invalid branch name: $INPUT_TARGET_BRANCH (contains invalid characters)"
+              write_summary "❌" "Backport Failed" "**Reason:** Invalid branch name \`$INPUT_TARGET_BRANCH\` (contains invalid characters)"
+              exit 1
+            fi
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            IS_MANUAL="false"
+          fi
+
+          echo "Starting Backport for PR #$PR_NUMBER (Triggered by $TRIGGER_USER)"
+
+          if ! PR_DATA=$(gh pr view "$PR_NUMBER" --json mergeCommit,title,files,author,state,labels,body --jq . 2>&1); then
+            echo "::error::Failed to fetch PR data: $PR_DATA"
+            write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Reason:** Failed to fetch PR data\n\n**Error:** \`$PR_DATA\`"
+            exit 1
+          fi
+
+          MERGE_COMMIT=$(echo "$PR_DATA" | jq -r '.mergeCommit.oid // empty')
+          PR_TITLE=$(echo "$PR_DATA" | jq -r .title)
+          PR_AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login // "ghost"')
+          PR_STATE=$(echo "$PR_DATA" | jq -r .state)
+          CHANGED_FILES=$(echo "$PR_DATA" | jq -r '.files[].path // empty')
+
+          if [ -z "$PR_AUTHOR" ] || [ "$PR_AUTHOR" == "null" ]; then
+            PR_AUTHOR="ghost"
+          fi
+
+          PR_TITLE_CLEAN=$(echo "$PR_TITLE" | tr -d '\n\r' | sed 's/["`\\]/ /g' | head -c 200)
+          if [ -z "$PR_TITLE_CLEAN" ]; then
+            PR_TITLE_CLEAN="Backport PR #$PR_NUMBER"
+          fi
+
+          if [ "$PR_STATE" != "MERGED" ]; then
+            echo "::error::PR is not merged."
+            write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Reason:** PR is not merged yet"
+            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', PR #'"$PR_NUMBER"$' is not merged yet.\n\n(cc @'"$TRIGGER_USER"$')'
+            exit 0
+          fi
+
+          if [ -z "$MERGE_COMMIT" ] || [ "$MERGE_COMMIT" == "null" ]; then
+            echo "::error::Cannot find merge commit for PR #$PR_NUMBER"
+            write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Reason:** Cannot determine merge commit for this PR"
+            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', cannot determine merge commit for this PR.\n\n(cc @'"$TRIGGER_USER"$')'
+            exit 0
+          fi
+
+          if [ -n "$CHANGED_FILES" ] && echo "$CHANGED_FILES" | grep -q "^pymilvus/grpc_gen/"; then
+            echo "::notice::Skipping restricted paths."
+            write_summary "⚠️" "Backport Skipped" "**PR:** #$PR_NUMBER\n\n**Reason:** This PR modifies \`pymilvus/grpc_gen/\`. Please backport manually."
+            gh pr comment "$PR_NUMBER" --body $'⚠️ **Backport Skipped**\nHi @'"$PR_AUTHOR"$', this PR modifies `pymilvus/grpc_gen/`. Please backport manually.\n\n(cc @'"$TRIGGER_USER"$')'
+            exit 0
+          fi
+
+          TARGET_BRANCHES=""
+          LABELED_BRANCHES=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep '^backport-to-' | sed 's/^backport-to-//' || true)
+          if [ "$IS_MANUAL" == "true" ]; then
+             # Check if the target branch has corresponding label
+             if echo "$LABELED_BRANCHES" | grep -qx "$INPUT_TARGET_BRANCH"; then
+               TARGET_BRANCHES="$INPUT_TARGET_BRANCH"
+             else
+               echo "::error::Target branch '$INPUT_TARGET_BRANCH' is not labeled with 'backport-to-$INPUT_TARGET_BRANCH'"
+               write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Target Branch:** \`$INPUT_TARGET_BRANCH\`\n\n**Reason:** Missing label \`backport-to-$INPUT_TARGET_BRANCH\`\n\n**Available Labels:** \`$LABELED_BRANCHES\`"
+               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$INPUT_TARGET_BRANCH"$'` is not in the backport labels. Please add label `backport-to-'"$INPUT_TARGET_BRANCH"$'` first.\n\n(cc @'"$TRIGGER_USER"$')'
+               exit 0
+             fi
+          else
+             TARGET_BRANCHES="$LABELED_BRANCHES"
+          fi
+
+          if [ -z "$TARGET_BRANCHES" ]; then
+             echo "No target branches found."
+             write_summary "ℹ️" "No Backport Needed" "**PR:** #$PR_NUMBER\n\n**Reason:** No \`backport-to-*\` labels found on this PR"
+             exit 0
+          fi
+
+          BACKPORT_SUCCESS="false"
+          BACKPORT_COUNT=0
+          SUMMARY_RESULTS=""
+
+          while IFS= read -r TARGET_BRANCH; do
+            [ -z "$TARGET_BRANCH" ] && continue
+            TARGET_BRANCH=$(echo "$TARGET_BRANCH" | xargs)
+            
+            echo "::group::Processing backport to $TARGET_BRANCH"
+
+            if ! git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
+               echo "::error::Target branch '$TARGET_BRANCH' does not exist."
+               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Branch does not exist |"
+               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$TARGET_BRANCH"$'` does not exist.\n\n(cc @'"$TRIGGER_USER"$')'
+               echo "::endgroup::"
+               continue
+            fi
+
+            echo "Checking for existing backport PR..."
+            EXISTING_PR=$(gh pr list \
+              --base "$TARGET_BRANCH" \
+              --state all \
+              --search "in:title [Backport $TARGET_BRANCH]" \
+              --author "app/github-actions" \
+              --json number,title \
+              --jq ".[] | select(.title | contains(\"#$PR_NUMBER\")) | .number" \
+              | head -n 1)
+
+            if [ -n "$EXISTING_PR" ]; then
+              echo "::notice::Backport PR already exists: #$EXISTING_PR"
+              SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ℹ️ Skipped | Already exists: #$EXISTING_PR |"
+              gh pr comment "$PR_NUMBER" --body $'ℹ️ **Backport Already Exists**\nHi @'"$PR_AUTHOR"$', a backport PR for `'"$TARGET_BRANCH"$'` already exists: #'"$EXISTING_PR"$'\n\n(cc @'"$TRIGGER_USER"$')'
+              echo "::endgroup::"
+              continue
+            fi
+
+            git reset --hard HEAD
+            git clean -fdx
+
+            TARGET_BRANCH_SHORT="${TARGET_BRANCH:0:100}"
+            BRANCH_SUFFIX="$(date +%s)-$RANDOM"
+            BACKPORT_BRANCH="backport-$PR_NUMBER-to-$TARGET_BRANCH_SHORT-$BRANCH_SUFFIX"
+            BACKPORT_BRANCH="${BACKPORT_BRANCH:0:250}"
+            
+            if ! git fetch origin "$TARGET_BRANCH"; then
+              echo "::error::Failed to fetch $TARGET_BRANCH"
+              SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to fetch branch |"
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to fetch target branch `'"$TARGET_BRANCH"$'`.\n\n(cc @'"$TRIGGER_USER"$')'
+              echo "::endgroup::"
+              continue
+            fi
+
+            git checkout -b "$BACKPORT_BRANCH" "origin/$TARGET_BRANCH"
+
+            echo "Attempting cherry-pick of $MERGE_COMMIT..."
+            
+            if git cherry-pick -x -s "$MERGE_COMMIT" 2>&1; then
+              echo "Cherry-pick successful."
+            else
+              echo "Standard cherry-pick failed, trying with -m 1..."
+              git cherry-pick --abort 2>/dev/null || true
+              
+              if git cherry-pick -x -s -m 1 "$MERGE_COMMIT" 2>&1; then
+                echo "Cherry-pick with -m 1 successful."
+              else
+                echo "::error::Cherry-pick failed due to conflicts."
+                git cherry-pick --abort 2>/dev/null || true
+                
+                SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Merge conflicts - manual backport required |"
+                gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', I could not cherry-pick this to `'"$TARGET_BRANCH"$'` due to **merge conflicts**. Please backport manually.\n\n(cc @'"$TRIGGER_USER"$')'
+                echo "::endgroup::"
+                continue 
+              fi
+            fi
+
+            if ! git push origin "$BACKPORT_BRANCH"; then
+              echo "::error::Failed to push branch $BACKPORT_BRANCH"
+              SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to push branch |"
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to push backport branch for `'"$TARGET_BRANCH"$'`.\n\n(cc @'"$TRIGGER_USER"$')'
+              echo "::endgroup::"
+              continue
+            fi
+            
+            PR_BODY="Backport of #$PR_NUMBER to \`$TARGET_BRANCH\`."
+            ASSIGNEE_ARG=""
+            if [ "$IS_MANUAL" == "true" ]; then
+               PR_BODY="Manual backport of #$PR_NUMBER to \`$TARGET_BRANCH\`."
+               ASSIGNEE_ARG="--assignee $TRIGGER_USER"
+            fi
+
+            if NEW_PR_URL=$(gh pr create \
+              --base "$TARGET_BRANCH" \
+              --head "$BACKPORT_BRANCH" \
+              --title "[Backport $TARGET_BRANCH] $PR_TITLE_CLEAN" \
+              --body "$PR_BODY" \
+              --label "backport" \
+              $ASSIGNEE_ARG 2>&1); then
+              
+              gh pr comment "$PR_NUMBER" --body $'✅ **Backport Created**\nHi @'"$PR_AUTHOR"$', Backport PR for `'"$TARGET_BRANCH"$'` has been created: '"$NEW_PR_URL"$'\n\n(cc @'"$TRIGGER_USER"$')'
+              
+              echo "Backport PR created: $NEW_PR_URL"
+              SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ✅ Success | $NEW_PR_URL |"
+              BACKPORT_SUCCESS="true"
+              BACKPORT_COUNT=$((BACKPORT_COUNT + 1))
+            else
+              echo "::error::Failed to create backport PR."
+              SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to create PR |"
+              git push origin --delete "$BACKPORT_BRANCH" 2>/dev/null || true
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport PR Creation Failed**\nHi @'"$PR_AUTHOR"$', Failed to create backport PR for `'"$TARGET_BRANCH"$'`.\n\nError: '"$NEW_PR_URL"$'\n\n(cc @'"$TRIGGER_USER"$')'
+            fi
+            
+            echo "::endgroup::"
+          done < <(echo "$TARGET_BRANCHES")
+
+          # Write final summary
+          if [ "$BACKPORT_SUCCESS" == "true" ]; then
+            echo "## ✅ Backport Completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Backport Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #$PR_NUMBER" >> $GITHUB_STEP_SUMMARY
+          echo "**Title:** $PR_TITLE_CLEAN" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @$TRIGGER_USER" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | Status | Details |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo -e "$SUMMARY_RESULTS" >> $GITHUB_STEP_SUMMARY
+
+          echo "success=$BACKPORT_SUCCESS" >> $GITHUB_OUTPUT
+          echo "count=$BACKPORT_COUNT" >> $GITHUB_OUTPUT
+          echo "Backport process completed. Success: $BACKPORT_SUCCESS, Count: $BACKPORT_COUNT"
+
+      - name: Label Original PR
+        if: steps.execute-backport.outputs.success == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_PR_NUMBER: ${{ inputs.pr_number }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" == "workflow_dispatch" ]; then
+            PR_NUMBER="$INPUT_PR_NUMBER"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+          fi
+          gh pr edit "$PR_NUMBER" --add-label "backported" || echo "::warning::Failed to add 'backported' label"
