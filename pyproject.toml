@@ -69,6 +69,13 @@ dev = [
     "pytest-asyncio",
     "ruff>=0.12.9,<1",
     "black",
+    # develop bulk_writer
+    "requests",
+    "minio>=7.0.0",
+    "pyarrow>=12.0.0",
+    "azure-storage-blob",
+    "urllib3",
+    "scipy",
 ]
 
 [tool.setuptools.dynamic]
