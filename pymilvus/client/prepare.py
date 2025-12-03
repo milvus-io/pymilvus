@@ -1634,20 +1634,28 @@ class Prepare:
                 type=ranker.type,
                 description=ranker.description,
                 input_field_names=ranker.input_field_names,
-                params=[
-                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
-                    for k, v in ranker.params.items()
-                ],
+                params=(
+                    [
+                        common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                        for k, v in ranker.params.items()
+                    ]
+                    if ranker.params
+                    else []
+                ),
             )
             for ranker in function_score.functions
         ]
 
         return schema_types.FunctionScore(
             functions=functions,
-            params=[
-                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
-                for k, v in function_score.params.items()
-            ],
+            params=(
+                [
+                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                    for k, v in function_score.params.items()
+                ]
+                if function_score.params
+                else []
+            ),
         )
 
     @staticmethod
