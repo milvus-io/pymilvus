@@ -39,28 +39,35 @@ jobs:
           VALID_BRANCHES=$(echo "$EXISTING_LABELS" | sed 's|^backport-to-||' | sort)
           echo "Valid branches: $VALID_BRANCHES"
           
-          # Extract all /backport-to-xxx patterns from comment
-          BACKPORT_COMMANDS=$(echo "$COMMENT_BODY" | grep -oP '/backport-to-\S+' || true)
+          # Extract all /backport-to-xxx patterns and their arguments from comment
+          # Supports: /backport-to-2.6, /backport-to-2.6 2.5 2.4, multiple lines, etc.
+          REQUESTED_BRANCHES=""
           
-          if [ -z "$BACKPORT_COMMANDS" ]; then
+          # Process each line that contains /backport-to-
+          while IFS= read -r line; do
+            # Check if line contains /backport-to-
+            if echo "$line" | grep -q '/backport-to-'; then
+              # Extract the part after /backport-to- until end of line or next command
+              # First get the primary branch (immediately after /backport-to-)
+              primary=$(echo "$line" | grep -oP '/backport-to-\S+' | sed 's|^/backport-to-||')
+              if [ -n "$primary" ]; then
+                REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${primary}"$'\n'
+              fi
+              
+              # Then get any space-separated additional branches (numbers/versions only)
+              # Match pattern: /backport-to-X.X followed by space-separated version numbers
+              extras=$(echo "$line" | grep -oP '/backport-to-\S+\s+\K[\d.]+(\s+[\d.]+)*' || true)
+              if [ -n "$extras" ]; then
+                for b in $extras; do
+                  REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${b}"$'\n'
+                done
+              fi
+            fi
+          done <<< "$COMMENT_BODY"
+          
+          if [ -z "$REQUESTED_BRANCHES" ]; then
             echo "::error::No /backport-to- commands found"
             exit 1
-          fi
-          
-          # Extract requested branch names
-          REQUESTED_BRANCHES=""
-          while IFS= read -r cmd; do
-            [ -z "$cmd" ] && continue
-            branch_part=$(echo "$cmd" | sed 's|^/backport-to-||')
-            for b in $branch_part; do
-              REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${b}"$'\n'
-            done
-          done <<< "$BACKPORT_COMMANDS"
-          
-          # Handle space-separated format: /backport-to-2.6 2.5 2.4
-          EXTRA=$(echo "$COMMENT_BODY" | grep -oP '(?<=/backport-to-\S)\s+[\d.]+(\s+[\d.]+)*' | tr ' ' '\n' || true)
-          if [ -n "$EXTRA" ]; then
-            REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${EXTRA}"$'\n'
           fi
           
           # Deduplicate and remove empty lines
