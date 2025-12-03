@@ -46,7 +46,7 @@ jobs:
       - name: Execute Backport
         id: execute-backport
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PYMILVUS_BOT_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           INPUT_PR_NUMBER: ${{ inputs.pr_number }}
           INPUT_TARGET_BRANCH: ${{ inputs.target_branch }}
@@ -172,9 +172,8 @@ jobs:
               --base "$TARGET_BRANCH" \
               --state all \
               --search "in:title [Backport $TARGET_BRANCH]" \
-              --author "app/github-actions" \
-              --json number,title \
-              --jq ".[] | select(.title | contains(\"#$PR_NUMBER\")) | .number" \
+              --json number,title,state,mergedAt \
+              --jq ".[] | select(.title | contains(\"#$PR_NUMBER\")) | select(.state == \"OPEN\" or .mergedAt != null) | .number" \
               | head -n 1)
 
             if [ -n "$EXISTING_PR" ]; then
@@ -242,7 +241,7 @@ jobs:
             if NEW_PR_URL=$(gh pr create \
               --base "$TARGET_BRANCH" \
               --head "$BACKPORT_BRANCH" \
-              --title "[Backport $TARGET_BRANCH] $PR_TITLE_CLEAN" \
+              --title "[Backport $TARGET_BRANCH] $PR_TITLE_CLEAN (#$PR_NUMBER)" \
               --body "$PR_BODY" \
               --label "backport" \
               $ASSIGNEE_ARG 2>&1); then
@@ -287,7 +286,7 @@ jobs:
       - name: Label Original PR
         if: steps.execute-backport.outputs.success == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PYMILVUS_BOT_TOKEN }}
           INPUT_PR_NUMBER: ${{ inputs.pr_number }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
