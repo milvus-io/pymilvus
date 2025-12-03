@@ -8,37 +8,67 @@ jobs:
   backport-label:
     if: >
       github.event.issue.pull_request &&
-      startsWith(github.event.comment.body, '/backport-to-')
+      contains(github.event.comment.body, '/backport-to-')
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
     steps:
-      - name: Parse and add backport label
+      - name: Parse and add backport labels
         env:
           GH_TOKEN: ${{ secrets.PYMILVUS_BOT_TOKEN }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Extract branch name from comment (e.g., /backport-to-2.6 -> 2.6)
-          BRANCH=$(echo "$COMMENT_BODY" | grep -oP '(?<=^/backport-to-)[^\s]+' | head -n 1)
+          # Extract all /backport-to-xxx patterns from comment
+          # Supports: /backport-to-2.6, /backport-to-2.6 2.5 2.4, multiple lines, etc.
           
-          if [ -z "$BRANCH" ]; then
-            echo "::error::Could not parse branch name from comment"
+          # Extract all /backport-to-XXX patterns
+          BACKPORT_COMMANDS=$(echo "$COMMENT_BODY" | grep -oP '/backport-to-\S+' || true)
+          
+          if [ -z "$BACKPORT_COMMANDS" ]; then
+            echo "::error::No /backport-to- commands found"
             exit 1
           fi
           
-          # Check if branch exists
-          if ! gh api "/repos/${{ github.repository }}/branches/$BRANCH" --silent 2>/dev/null; then
-            echo "::error::Branch '$BRANCH' does not exist"
-            gh pr comment "$PR_NUMBER" --body "❌ Branch \`$BRANCH\` does not exist. Please check the branch name." --repo ${{ github.repository }}
+          # Extract branch names
+          BRANCHES=""
+          while IFS= read -r cmd; do
+            [ -z "$cmd" ] && continue
+            branch_part=$(echo "$cmd" | sed 's|^/backport-to-||')
+            for b in $branch_part; do
+              BRANCHES="${BRANCHES}${b}"$'\n'
+            done
+          done <<< "$BACKPORT_COMMANDS"
+          
+          # Handle space-separated format: /backport-to-2.6 2.5 2.4
+          EXTRA=$(echo "$COMMENT_BODY" | grep -oP '(?<=/backport-to-\S)\s+[\d.]+(\s+[\d.]+)*' | tr ' ' '\n' || true)
+          if [ -n "$EXTRA" ]; then
+            BRANCHES="${BRANCHES}${EXTRA}"$'\n'
+          fi
+          
+          # Deduplicate and remove empty lines
+          ALL_BRANCHES=$(echo "$BRANCHES" | sort -u | grep -v '^$')
+          
+          if [ -z "$ALL_BRANCHES" ]; then
+            echo "::error::No valid branches found"
             exit 1
           fi
           
-          LABEL="backport-to-$BRANCH"
-          echo "Adding label: $LABEL"
+          echo "Found branches:"
+          echo "$ALL_BRANCHES"
           
-          # Add the label to the PR
-          gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo ${{ github.repository }}
-          
-          
-
+          while IFS= read -r BRANCH; do
+            [ -z "$BRANCH" ] && continue
+            
+            echo "Processing branch: $BRANCH"
+            
+            # Check if branch exists
+            if ! gh api "/repos/${{ github.repository }}/branches/$BRANCH" --silent 2>/dev/null; then
+              echo "::warning::Branch '$BRANCH' does not exist, skipping"
+              continue
+            fi
+            
+            LABEL="backport-to-$BRANCH"
+            echo "Adding label: $LABEL"
+            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo ${{ github.repository }} || echo "::warning::Failed to add label $LABEL"
+          done <<< "$ALL_BRANCHES"
