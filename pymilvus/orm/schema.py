@@ -403,7 +403,7 @@ class CollectionSchema:
         ):
             if "struct_schema" not in kwargs:
                 raise ParamError(message="Param struct_schema is required when datatype is STRUCT")
-            struct_schema = kwargs.pop("struct_schema")
+            struct_schema = copy.deepcopy(kwargs.pop("struct_schema"))
             struct_schema.name = field_name
             if "max_capacity" not in kwargs:
                 raise ParamError(message="Param max_capacity is required when datatype is STRUCT")
