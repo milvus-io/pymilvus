@@ -109,21 +109,21 @@ jobs:
           if [ "$PR_STATE" != "MERGED" ]; then
             echo "::error::PR is not merged."
             write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Reason:** PR is not merged yet"
-            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', PR #'"$PR_NUMBER"$' is not merged yet.\n\n(cc @'"$TRIGGER_USER"$')'
+            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', PR #'"$PR_NUMBER"$' is not merged yet.'
             exit 0
           fi
 
           if [ -z "$MERGE_COMMIT" ] || [ "$MERGE_COMMIT" == "null" ]; then
             echo "::error::Cannot find merge commit for PR #$PR_NUMBER"
             write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Reason:** Cannot determine merge commit for this PR"
-            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', cannot determine merge commit for this PR.\n\n(cc @'"$TRIGGER_USER"$')'
+            gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', cannot determine merge commit for this PR.'
             exit 0
           fi
 
           if [ -n "$CHANGED_FILES" ] && echo "$CHANGED_FILES" | grep -q "^pymilvus/grpc_gen/"; then
             echo "::notice::Skipping restricted paths."
             write_summary "⚠️" "Backport Skipped" "**PR:** #$PR_NUMBER\n\n**Reason:** This PR modifies \`pymilvus/grpc_gen/\`. Please backport manually."
-            gh pr comment "$PR_NUMBER" --body $'⚠️ **Backport Skipped**\nHi @'"$PR_AUTHOR"$', this PR modifies `pymilvus/grpc_gen/`. Please backport manually.\n\n(cc @'"$TRIGGER_USER"$')'
+            gh pr comment "$PR_NUMBER" --body $'⚠️ **Backport Skipped**\nHi @'"$PR_AUTHOR"$', this PR modifies `pymilvus/grpc_gen/`. Please backport manually.'
             exit 0
           fi
 
@@ -136,7 +136,7 @@ jobs:
              else
                echo "::error::Target branch '$INPUT_TARGET_BRANCH' is not labeled with 'backport-to-$INPUT_TARGET_BRANCH'"
                write_summary "❌" "Backport Failed" "**PR:** #$PR_NUMBER\n\n**Target Branch:** \`$INPUT_TARGET_BRANCH\`\n\n**Reason:** Missing label \`backport-to-$INPUT_TARGET_BRANCH\`\n\n**Available Labels:** \`$LABELED_BRANCHES\`"
-               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$INPUT_TARGET_BRANCH"$'` is not in the backport labels. Please add label `backport-to-'"$INPUT_TARGET_BRANCH"$'` first.\n\n(cc @'"$TRIGGER_USER"$')'
+               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$INPUT_TARGET_BRANCH"$'` is not in the backport labels. Please add label `backport-to-'"$INPUT_TARGET_BRANCH"$'` first.'
                exit 0
              fi
           else
@@ -162,7 +162,7 @@ jobs:
             if ! git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
                echo "::error::Target branch '$TARGET_BRANCH' does not exist."
                SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Branch does not exist |"
-               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$TARGET_BRANCH"$'` does not exist.\n\n(cc @'"$TRIGGER_USER"$')'
+               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', target branch `'"$TARGET_BRANCH"$'` does not exist.'
                echo "::endgroup::"
                continue
             fi
@@ -179,7 +179,7 @@ jobs:
             if [ -n "$EXISTING_PR" ]; then
               echo "::notice::Backport PR already exists: #$EXISTING_PR"
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ℹ️ Skipped | Already exists: #$EXISTING_PR |"
-              gh pr comment "$PR_NUMBER" --body $'ℹ️ **Backport Already Exists**\nHi @'"$PR_AUTHOR"$', a backport PR for `'"$TARGET_BRANCH"$'` already exists: #'"$EXISTING_PR"$'\n\n(cc @'"$TRIGGER_USER"$')'
+              gh pr comment "$PR_NUMBER" --body $'ℹ️ **Backport Already Exists**\nHi @'"$PR_AUTHOR"$', a backport PR for `'"$TARGET_BRANCH"$'` already exists: #'"$EXISTING_PR"$''
               echo "::endgroup::"
               continue
             fi
@@ -195,7 +195,7 @@ jobs:
             if ! git fetch origin "$TARGET_BRANCH"; then
               echo "::error::Failed to fetch $TARGET_BRANCH"
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to fetch branch |"
-              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to fetch target branch `'"$TARGET_BRANCH"$'`.\n\n(cc @'"$TRIGGER_USER"$')'
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to fetch target branch `'"$TARGET_BRANCH"$'`.'
               echo "::endgroup::"
               continue
             fi
@@ -217,7 +217,7 @@ jobs:
                 git cherry-pick --abort 2>/dev/null || true
                 
                 SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Merge conflicts - manual backport required |"
-                gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', I could not cherry-pick this to `'"$TARGET_BRANCH"$'` due to **merge conflicts**. Please backport manually.\n\n(cc @'"$TRIGGER_USER"$')'
+                gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', I could not cherry-pick this to `'"$TARGET_BRANCH"$'` due to **merge conflicts**. Please backport manually.'
                 echo "::endgroup::"
                 continue 
               fi
@@ -226,7 +226,7 @@ jobs:
             if ! git push origin "$BACKPORT_BRANCH"; then
               echo "::error::Failed to push branch $BACKPORT_BRANCH"
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to push branch |"
-              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to push backport branch for `'"$TARGET_BRANCH"$'`.\n\n(cc @'"$TRIGGER_USER"$')'
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to push backport branch for `'"$TARGET_BRANCH"$'`.'
               echo "::endgroup::"
               continue
             fi
@@ -246,7 +246,7 @@ jobs:
               --label "backport" \
               $ASSIGNEE_ARG 2>&1); then
               
-              gh pr comment "$PR_NUMBER" --body $'✅ **Backport Created**\nHi @'"$PR_AUTHOR"$', Backport PR for `'"$TARGET_BRANCH"$'` has been created: '"$NEW_PR_URL"$'\n\n(cc @'"$TRIGGER_USER"$')'
+              gh pr comment "$PR_NUMBER" --body $'✅ **Backport Created**\nHi @'"$PR_AUTHOR"$', Backport PR for `'"$TARGET_BRANCH"$'` has been created: '"$NEW_PR_URL"$''
               
               echo "Backport PR created: $NEW_PR_URL"
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ✅ Success | $NEW_PR_URL |"
@@ -256,7 +256,7 @@ jobs:
               echo "::error::Failed to create backport PR."
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to create PR |"
               git push origin --delete "$BACKPORT_BRANCH" 2>/dev/null || true
-              gh pr comment "$PR_NUMBER" --body $'❌ **Backport PR Creation Failed**\nHi @'"$PR_AUTHOR"$', Failed to create backport PR for `'"$TARGET_BRANCH"$'`.\n\nError: '"$NEW_PR_URL"$'\n\n(cc @'"$TRIGGER_USER"$')'
+              gh pr comment "$PR_NUMBER" --body $'❌ **Backport PR Creation Failed**\nHi @'"$PR_AUTHOR"$', Failed to create backport PR for `'"$TARGET_BRANCH"$'`.\n\nError: '"$NEW_PR_URL"$''
             fi
             
             echo "::endgroup::"

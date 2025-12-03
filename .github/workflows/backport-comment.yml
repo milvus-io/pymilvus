@@ -1,0 +1,44 @@
+name: Backport Command
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  backport-label:
+    if: >
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/backport-to-')
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Parse and add backport label
+        env:
+          GH_TOKEN: ${{ secrets.PYMILVUS_BOT_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          # Extract branch name from comment (e.g., /backport-to-2.6 -> 2.6)
+          BRANCH=$(echo "$COMMENT_BODY" | grep -oP '(?<=^/backport-to-)[^\s]+' | head -n 1)
+          
+          if [ -z "$BRANCH" ]; then
+            echo "::error::Could not parse branch name from comment"
+            exit 1
+          fi
+          
+          # Check if branch exists
+          if ! gh api "/repos/${{ github.repository }}/branches/$BRANCH" --silent 2>/dev/null; then
+            echo "::error::Branch '$BRANCH' does not exist"
+            gh pr comment "$PR_NUMBER" --body "❌ Branch \`$BRANCH\` does not exist. Please check the branch name." --repo ${{ github.repository }}
+            exit 1
+          fi
+          
+          LABEL="backport-to-$BRANCH"
+          echo "Adding label: $LABEL"
+          
+          # Add the label to the PR
+          gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo ${{ github.repository }}
+          
+          
+
