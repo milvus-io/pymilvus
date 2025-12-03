@@ -242,3 +242,73 @@ class TestAsyncGrpcHandler:
                 replica_number=2,
                 resource_groups=["rg1", "rg2"]
             )
+
+    @pytest.mark.asyncio
+    async def test_create_index_with_nested_field(self) -> None:
+        """
+        Test that create_index works with nested field names (e.g., "chunks[text_vector]").
+        This test verifies the fix for issue where AsyncMilvusClient.create_index 
+        failed for nested fields in Array of Struct.
+        """
+        # Setup mock channel and stub
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        # Mock wait_for_creating_index to return success
+        handler.wait_for_creating_index = AsyncMock(return_value=(True, ""))
+        handler.alloc_timestamp = AsyncMock(return_value=12345)
+
+        # Mock CreateIndex response
+        mock_create_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.reason = ""
+        mock_create_response.status = mock_status
+        mock_stub.CreateIndex = AsyncMock(return_value=mock_create_response)
+
+        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
+             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
+             patch('pymilvus.client.async_grpc_handler.check_status'), \
+             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}):
+            
+            # Create mock index request
+            mock_index_request = MagicMock()
+            mock_prepare.create_index_request.return_value = mock_index_request
+
+            # Call create_index with a nested field name (Array of Struct field path)
+            nested_field_name = "chunks[text_vector]"
+            index_params = {
+                "metric_type": "MAX_SIM_COSINE",
+                "index_type": "HNSW",
+                "params": {"M": 16, "efConstruction": 200}
+            }
+            
+            await handler.create_index(
+                collection_name="test_collection",
+                field_name=nested_field_name,
+                params=index_params,
+                index_name="test_index"
+            )
+
+            # Verify that Prepare.create_index_request was called with the nested field name
+            mock_prepare.create_index_request.assert_called_once_with(
+                "test_collection",
+                nested_field_name,
+                index_params,
+                index_name="test_index"
+            )
+
+            # Verify that CreateIndex was called on the stub
+            # The key point is that no MilvusException was raised before this call
+            # (which would have happened with the old client-side validation)
+            mock_stub.CreateIndex.assert_called_once()
+
+            # Verify wait_for_creating_index was called
+            handler.wait_for_creating_index.assert_called_once()

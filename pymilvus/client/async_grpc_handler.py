@@ -1,6 +1,5 @@
 import asyncio
 import base64
-import copy
 import json
 import socket
 import time
@@ -43,7 +42,6 @@ from .types import (
     AnalyzeResult,
     CompactionState,
     DatabaseInfo,
-    DataType,
     HybridExtraList,
     IndexState,
     LoadState,
@@ -921,30 +919,12 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         index_name = kwargs.pop("index_name", Config.IndexName)
-        copy_kwargs = copy.deepcopy(kwargs)
 
-        collection_desc = await self.describe_collection(
-            collection_name, timeout=timeout, **copy_kwargs
-        )
         await self.ensure_channel_ready()
-        valid_field = False
-        for fields in collection_desc["fields"]:
-            if field_name != fields["name"]:
-                continue
-            valid_field = True
-            if fields["type"] not in {
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.SPARSE_FLOAT_VECTOR,
-                DataType.INT8_VECTOR,
-            }:
-                break
-
-        if not valid_field:
-            raise MilvusException(message=f"cannot create index on non-existed field: {field_name}")
-
+        # Note: Field validation is handled by the server.
+        # Client-side validation for nested fields (e.g., "chunks[text_vector]")
+        # is not reliable as it only checks top-level field names.
+        # Let the server perform the validation instead.
         index_param = Prepare.create_index_request(
             collection_name, field_name, params, index_name=index_name
         )
