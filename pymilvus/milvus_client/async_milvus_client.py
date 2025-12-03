@@ -4,28 +4,29 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.types import (
     ExceptionsMessage,
+    LoadState,
     OmitZeroDict,
     ResourceGroupConfig,
     RoleInfo,
     UserInfo,
 )
+from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ParamError,
     PrimaryKeyException,
 )
-from pymilvus.orm import utility
-from pymilvus.orm.collection import CollectionSchema
+from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
 from pymilvus.orm.connections import connections
-from pymilvus.orm.schema import FieldSchema
 from pymilvus.orm.types import DataType
 
 from ._utils import create_connection
+from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
 
 
-class AsyncMilvusClient:
+class AsyncMilvusClient(BaseMilvusClient):
     """AsyncMilvusClient is an EXPERIMENTAL class
     which only provides part of MilvusClient's methods"""
 
@@ -49,7 +50,7 @@ class AsyncMilvusClient:
             timeout=timeout,
             **kwargs,
         )
-        self.is_self_hosted = bool(utility.get_server_type(using=self._using) == "milvus")
+        self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
     async def create_collection(
         self,
@@ -361,7 +362,7 @@ class AsyncMilvusClient:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: BaseRanker,
+        ranker: Union[BaseRanker, Function],
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
@@ -391,6 +392,7 @@ class AsyncMilvusClient:
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         conn = self._get_connection()
@@ -405,6 +407,7 @@ class AsyncMilvusClient:
             partition_names=partition_names,
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
+            ranker=ranker,
             **kwargs,
         )
 
@@ -559,7 +562,14 @@ class AsyncMilvusClient:
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> dict:
         conn = self._get_connection()
-        return await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        result = await conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        # Convert internal struct_array_fields to user-friendly format
+        if isinstance(result, dict) and "struct_array_fields" in result:
+            converted_fields = convert_struct_fields_to_user_format(result["struct_array_fields"])
+            result["fields"].extend(converted_fields)
+            # Remove internal struct_array_fields from user-facing response
+            result.pop("struct_array_fields")
+        return result
 
     async def has_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
@@ -601,9 +611,18 @@ class AsyncMilvusClient:
         **kwargs,
     ):
         conn = self._get_connection()
-        return await conn.get_load_state(
+        state = await conn.get_load_state(
             collection_name, partition_names, timeout=timeout, **kwargs
         )
+
+        ret = {"state": state}
+        if state == LoadState.Loading:
+            progress = await conn.get_loading_progress(
+                collection_name, partition_names, timeout=timeout
+            )
+            ret["progress"] = progress
+
+        return ret
 
     async def refresh_load(
         self,
@@ -683,55 +702,8 @@ class AsyncMilvusClient:
             **kwargs,
         )
 
-    @classmethod
-    def create_schema(cls, **kwargs):
-        kwargs["check_fields"] = False  # do not check fields for now
-        return CollectionSchema([], **kwargs)
-
-    @classmethod
-    def create_field_schema(
-        cls, name: str, data_type: DataType, desc: str = "", **kwargs
-    ) -> FieldSchema:
-        return FieldSchema(name, data_type, desc, **kwargs)
-
-    @classmethod
-    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
-        index_params = IndexParams()
-        if field_name:
-            validate_param("field_name", field_name, str)
-            index_params.add_index(field_name, **kwargs)
-        return index_params
-
     async def close(self):
         await connections.async_remove_connection(self._using)
-
-    def _get_connection(self):
-        return connections._fetch_handler(self._using)
-
-    def _extract_primary_field(self, schema_dict: Dict) -> dict:
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return {}
-
-        for field_dict in fields:
-            if field_dict.get("is_primary", None) is not None:
-                return field_dict
-
-        return {}
-
-    def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
-        primary_field = self._extract_primary_field(schema_dict)
-        pk_field_name = primary_field["name"]
-        data_type = primary_field["type"]
-
-        # Varchar pks need double quotes around the values
-        if data_type == DataType.VARCHAR:
-            ids = ["'" + str(entry) + "'" for entry in pks]
-            expr = f"""{pk_field_name} in [{','.join(ids)}]"""
-        else:
-            ids = [str(entry) for entry in pks]
-            expr = f"{pk_field_name} in [{','.join(ids)}]"
-        return expr
 
     async def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         conn = self._get_connection()
@@ -1080,16 +1052,40 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         await conn.flush([collection_name], timeout=timeout, **kwargs)
 
+    async def flush_all(self, timeout: Optional[float] = None, **kwargs) -> None:
+        """Flush all collections.
+
+        Args:
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+        """
+        conn = self._get_connection()
+        await conn.flush_all(timeout=timeout, **kwargs)
+
+    async def get_flush_all_state(self, timeout: Optional[float] = None, **kwargs) -> bool:
+        """Get the flush all state.
+
+        Args:
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            bool: True if flush all operation is completed, False otherwise.
+        """
+        conn = self._get_connection()
+        return await conn.get_flush_all_state(timeout=timeout, **kwargs)
+
     async def compact(
         self,
         collection_name: str,
         is_clustering: Optional[bool] = False,
+        is_l0: Optional[bool] = False,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
         conn = self._get_connection()
         return await conn.compact(
-            collection_name, is_clustering=is_clustering, timeout=timeout, **kwargs
+            collection_name, is_clustering=is_clustering, is_l0=is_l0, timeout=timeout, **kwargs
         )
 
     async def get_compaction_state(
@@ -1098,6 +1094,25 @@ class AsyncMilvusClient:
         conn = self._get_connection()
         result = await conn.get_compaction_state(job_id, timeout=timeout, **kwargs)
         return result.state_name
+
+    async def get_compaction_plans(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Get compaction plans for a specific job.
+
+        Args:
+            job_id (int): The ID of the compaction job.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            CompactionPlans: The compaction plans for the specified job.
+        """
+        conn = self._get_connection()
+        return await conn.get_compaction_plans(job_id, timeout=timeout, **kwargs)
 
     async def run_analyzer(
         self,
@@ -1120,6 +1135,46 @@ class AsyncMilvusClient:
             collection_name=collection_name,
             field_name=field_name,
             analyzer_names=analyzer_names,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def update_replicate_configuration(
+        self,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Update replication configuration across Milvus clusters.
+
+        Args:
+            clusters (List[Dict], optional): List of cluster configurations.
+            Each dict should contain:
+                - cluster_id (str): Unique identifier for the cluster
+                - connection_param (Dict): Connection parameters with 'uri' and 'token'
+                - pchannels (List[str], optional): Physical channels for the cluster
+
+            cross_cluster_topology (List[Dict], optional): List of replication relationships.
+            Each dict should contain:
+                - source_cluster_id (str): ID of the source cluster
+                - target_cluster_id (str): ID of the target cluster
+
+            timeout (float, optional): An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            Status: The status of the operation
+
+        Raises:
+            ParamError: If neither clusters nor cross_cluster_topology is provided
+            MilvusException: If the operation fails
+        """
+        conn = self._get_connection()
+        return await conn.update_replicate_configuration(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
             timeout=timeout,
             **kwargs,
         )
