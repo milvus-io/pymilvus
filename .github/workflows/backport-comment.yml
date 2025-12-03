@@ -19,6 +19,13 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
+          # Check if PR targets master branch
+          BASE_BRANCH=$(gh pr view "$PR_NUMBER" --repo ${{ github.repository }} --json baseRefName --jq '.baseRefName')
+          if [ "$BASE_BRANCH" != "master" ]; then
+            echo "::notice::Backport command only works on PRs targeting master branch (current: $BASE_BRANCH)"
+            exit 0
+          fi
+          
           # Get all existing backport-to-* labels from the repository
           EXISTING_LABELS=$(gh label list --repo ${{ github.repository }} --json name --jq '.[].name' | grep '^backport-to-' || true)
           
