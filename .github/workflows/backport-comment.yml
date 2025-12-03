@@ -19,10 +19,20 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
           PR_NUMBER: ${{ github.event.issue.number }}
         run: |
-          # Extract all /backport-to-xxx patterns from comment
-          # Supports: /backport-to-2.6, /backport-to-2.6 2.5 2.4, multiple lines, etc.
+          # Get all existing backport-to-* labels from the repository
+          EXISTING_LABELS=$(gh label list --repo ${{ github.repository }} --json name --jq '.[].name' | grep '^backport-to-' || true)
           
-          # Extract all /backport-to-XXX patterns
+          if [ -z "$EXISTING_LABELS" ]; then
+            echo "::error::No backport-to-* labels found in repository"
+            gh pr comment "$PR_NUMBER" --body "❌ No \`backport-to-*\` labels are configured in this repository." --repo ${{ github.repository }}
+            exit 1
+          fi
+          
+          # Extract valid branches from existing labels
+          VALID_BRANCHES=$(echo "$EXISTING_LABELS" | sed 's|^backport-to-||' | sort)
+          echo "Valid branches: $VALID_BRANCHES"
+          
+          # Extract all /backport-to-xxx patterns from comment
           BACKPORT_COMMANDS=$(echo "$COMMENT_BODY" | grep -oP '/backport-to-\S+' || true)
           
           if [ -z "$BACKPORT_COMMANDS" ]; then
@@ -30,45 +40,69 @@ jobs:
             exit 1
           fi
           
-          # Extract branch names
-          BRANCHES=""
+          # Extract requested branch names
+          REQUESTED_BRANCHES=""
           while IFS= read -r cmd; do
             [ -z "$cmd" ] && continue
             branch_part=$(echo "$cmd" | sed 's|^/backport-to-||')
             for b in $branch_part; do
-              BRANCHES="${BRANCHES}${b}"$'\n'
+              REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${b}"$'\n'
             done
           done <<< "$BACKPORT_COMMANDS"
           
           # Handle space-separated format: /backport-to-2.6 2.5 2.4
           EXTRA=$(echo "$COMMENT_BODY" | grep -oP '(?<=/backport-to-\S)\s+[\d.]+(\s+[\d.]+)*' | tr ' ' '\n' || true)
           if [ -n "$EXTRA" ]; then
-            BRANCHES="${BRANCHES}${EXTRA}"$'\n'
+            REQUESTED_BRANCHES="${REQUESTED_BRANCHES}${EXTRA}"$'\n'
           fi
           
           # Deduplicate and remove empty lines
-          ALL_BRANCHES=$(echo "$BRANCHES" | sort -u | grep -v '^$')
+          ALL_REQUESTED=$(echo "$REQUESTED_BRANCHES" | sort -u | grep -v '^$')
           
-          if [ -z "$ALL_BRANCHES" ]; then
-            echo "::error::No valid branches found"
+          if [ -z "$ALL_REQUESTED" ]; then
+            echo "::error::No valid branches found in comment"
             exit 1
           fi
           
-          echo "Found branches:"
-          echo "$ALL_BRANCHES"
+          echo "Requested branches:"
+          echo "$ALL_REQUESTED"
+          
+          SUCCESS_LABELS=""
+          INVALID_BRANCHES=""
           
           while IFS= read -r BRANCH; do
             [ -z "$BRANCH" ] && continue
             
-            echo "Processing branch: $BRANCH"
+            LABEL="backport-to-$BRANCH"
+            echo "Processing: $LABEL"
             
-            # Check if branch exists
-            if ! gh api "/repos/${{ github.repository }}/branches/$BRANCH" --silent 2>/dev/null; then
-              echo "::warning::Branch '$BRANCH' does not exist, skipping"
+            # Check if label exists in repository
+            if ! echo "$EXISTING_LABELS" | grep -qx "$LABEL"; then
+              echo "::warning::Label '$LABEL' does not exist"
+              INVALID_BRANCHES="${INVALID_BRANCHES}- \`$BRANCH\`"$'\n'
               continue
             fi
             
-            LABEL="backport-to-$BRANCH"
             echo "Adding label: $LABEL"
-            gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo ${{ github.repository }} || echo "::warning::Failed to add label $LABEL"
-          done <<< "$ALL_BRANCHES"
+            if gh pr edit "$PR_NUMBER" --add-label "$LABEL" --repo ${{ github.repository }}; then
+              SUCCESS_LABELS="${SUCCESS_LABELS}- \`$LABEL\`"$'\n'
+            else
+              INVALID_BRANCHES="${INVALID_BRANCHES}- \`$BRANCH\` (failed to add)"$'\n'
+            fi
+          done <<< "$ALL_REQUESTED"
+          
+          # If there are invalid branches, comment to notify user
+          if [ -n "$INVALID_BRANCHES" ]; then
+            # Format valid branches for display
+            VALID_LIST=$(echo "$VALID_BRANCHES" | while read -r b; do [ -n "$b" ] && echo "- \`$b\`"; done)
+            
+            COMMENT="❌ **Invalid backport target(s):**"$'\n'"$INVALID_BRANCHES"$'\n'
+            COMMENT="${COMMENT}"$'\n'"**Available targets:**"$'\n'"$VALID_LIST"
+            
+            gh pr comment "$PR_NUMBER" --body "$COMMENT" --repo ${{ github.repository }}
+          fi
+          
+          if [ -n "$SUCCESS_LABELS" ]; then
+            echo "Successfully added labels:"
+            echo "$SUCCESS_LABELS"
+          fi
