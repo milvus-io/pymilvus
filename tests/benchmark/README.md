@@ -18,8 +18,6 @@ tests/benchmark/
 ├── conftest.py              # Mock gRPC stubs & shared fixtures
 ├── mock_responses.py        # Fake protobuf response builders
 ├── test_search_bench.py     # Search timing benchmarks
-├── test_query_bench.py      # Query timing benchmarks
-├── test_hybrid_bench.py     # Hybrid search timing benchmarks
 └── scripts/
     ├── profile_cpu.sh       # CPU profiling wrapper
     └── profile_memory.sh    # Memory profiling wrapper
@@ -41,7 +39,7 @@ pip install -r requirements.txt
 pytest tests/benchmark/ --benchmark-only
 
 # Run specific benchmark
-pytest tests/benchmark/test_search_bench.py::TestSearchBench::test_search_float32 --benchmark-only
+pytest tests/benchmark/test_search_bench.py::TestSearchBench::test_search_float32_varying_output_fields --benchmark-only
 
 # Save baseline for comparison
 pytest tests/benchmark/ --benchmark-only --benchmark-save=baseline

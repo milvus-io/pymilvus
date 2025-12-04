@@ -1,105 +1,85 @@
 from unittest.mock import MagicMock, patch
+
 import pytest
+from pymilvus import CollectionSchema, DataType, FieldSchema, MilvusClient, StructFieldSchema
+from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 
-from pymilvus import MilvusClient
 from . import mock_responses
-from pymilvus.grpc_gen import common_pb2, milvus_pb2
+
+
+def setup_search_mock(client, mock_fn):
+    client._get_connection()._stub.Search = MagicMock(side_effect=mock_fn)
+
+
+def setup_query_mock(client, mock_fn):
+    client._get_connection()._stub.Query = MagicMock(side_effect=mock_fn)
+
+
+def setup_hybrid_search_mock(client, mock_fn):
+    client._get_connection()._stub.HybridSearch = MagicMock(side_effect=mock_fn)
+
+
+def get_default_test_schema() -> CollectionSchema:
+    schema = MilvusClient.create_schema()
+    schema.add_field(field_name='id', datatype=DataType.INT64, is_primary=True)
+    schema.add_field(field_name='embedding', datatype=DataType.FLOAT_VECTOR, dim=128)
+    schema.add_field(field_name='name', datatype=DataType.VARCHAR, max_length=100)
+    schema.add_field(field_name='bool_field', datatype=DataType.BOOL)
+    schema.add_field(field_name='int8_field', datatype=DataType.INT8)
+    schema.add_field(field_name='int16_field', datatype=DataType.INT16)
+    schema.add_field(field_name='int32_field', datatype=DataType.INT32)
+    schema.add_field(field_name='age', datatype=DataType.INT32)
+    schema.add_field(field_name='float_field', datatype=DataType.FLOAT)
+    schema.add_field(field_name='score', datatype=DataType.FLOAT)
+    schema.add_field(field_name='double_field', datatype=DataType.DOUBLE)
+    schema.add_field(field_name='varchar_field', datatype=DataType.VARCHAR, max_length=100)
+    schema.add_field(field_name='json_field', datatype=DataType.JSON)
+    schema.add_field(field_name='array_field', datatype=DataType.ARRAY, element_type=DataType.INT64, max_capacity=10)
+    schema.add_field(field_name='geometry_field', datatype=DataType.GEOMETRY)
+    schema.add_field(field_name='timestamptz_field', datatype=DataType.TIMESTAMPTZ)
+    schema.add_field(field_name='binary_vector', datatype=DataType.BINARY_VECTOR, dim=128)
+    schema.add_field(field_name='float16_vector', datatype=DataType.FLOAT16_VECTOR, dim=128)
+    schema.add_field(field_name='bfloat16_vector', datatype=DataType.BFLOAT16_VECTOR, dim=128)
+    schema.add_field(field_name='sparse_vector', datatype=DataType.SPARSE_FLOAT_VECTOR)
+    schema.add_field(field_name='int8_vector', datatype=DataType.INT8_VECTOR, dim=128)
+
+    struct_schema = StructFieldSchema()
+    struct_schema.add_field('struct_int', DataType.INT32)
+    struct_schema.add_field('struct_str', DataType.VARCHAR, max_length=100)
+    schema.add_field(field_name='struct_array_field', datatype=DataType.ARRAY, element_type=DataType.STRUCT, struct_schema=struct_schema, max_capacity=10)
+    return schema
 
 
 @pytest.fixture
-def mock_search_stub():
-    def _mock_search(request, timeout=None, metadata=None):
-        return mock_responses.create_search_results(
-            num_queries=1,
-            top_k=10,
-            output_fields=["id", "age", "score", "name"]
-        )
-    return _mock_search
-
-
-@pytest.fixture
-def mock_query_stub():
-    def _mock_query(request, timeout=None, metadata=None):
-        return mock_responses.create_query_results(
-            num_rows=100,
-            output_fields=["id", "age", "score", "name", "active", "metadata"]
-        )
-    return _mock_query
-
-
-@pytest.fixture
-def mocked_milvus_client(mock_search_stub, mock_query_stub):
+def mocked_milvus_client():
     with patch('grpc.insecure_channel') as mock_channel_func, \
          patch('grpc.secure_channel') as mock_secure_channel_func, \
          patch('grpc.channel_ready_future') as mock_ready_future, \
          patch('pymilvus.grpc_gen.milvus_pb2_grpc.MilvusServiceStub') as mock_stub_class:
-        
+
         mock_channel = MagicMock()
         mock_channel_func.return_value = mock_channel
         mock_secure_channel_func.return_value = mock_channel
-        
+
         mock_future = MagicMock()
         mock_future.result = MagicMock(return_value=None)
         mock_ready_future.return_value = mock_future
-        
+
         mock_stub = MagicMock()
-        
-        
+
+
         mock_connect_response = milvus_pb2.ConnectResponse()
         mock_connect_response.status.error_code = common_pb2.ErrorCode.Success
         mock_connect_response.status.code = 0
         mock_connect_response.identifier = 12345
         mock_stub.Connect = MagicMock(return_value=mock_connect_response)
-        
-        mock_stub.Search = MagicMock(side_effect=mock_search_stub)
-        mock_stub.Query = MagicMock(side_effect=mock_query_stub)
-        mock_stub.HybridSearch = MagicMock(side_effect=mock_search_stub)
-        mock_stub.DescribeCollection = MagicMock(return_value=_create_describe_collection_response())
-        
+
+        mock_stub.Search = MagicMock()
+        mock_stub.Query = MagicMock()
+        mock_stub.HybridSearch = MagicMock()
+
         mock_stub_class.return_value = mock_stub
-        
-        client = MilvusClient(uri="http://localhost:19530")
-        
+
+        client = MilvusClient()
+
         yield client
-
-
-def _create_describe_collection_response():
-    from pymilvus.grpc_gen import milvus_pb2, schema_pb2, common_pb2
-    
-    response = milvus_pb2.DescribeCollectionResponse()
-    response.status.error_code = common_pb2.ErrorCode.Success
-    
-    schema = response.schema
-    schema.name = "test_collection"
-    
-    id_field = schema.fields.add()
-    id_field.fieldID = 1
-    id_field.name = "id"
-    id_field.data_type = schema_pb2.DataType.Int64
-    id_field.is_primary_key = True
-    
-    embedding_field = schema.fields.add()
-    embedding_field.fieldID = 2
-    embedding_field.name = "embedding"
-    embedding_field.data_type = schema_pb2.DataType.FloatVector
-    
-    dim_param = embedding_field.type_params.add()
-    dim_param.key = "dim"
-    dim_param.value = "128"
-    
-    age_field = schema.fields.add()
-    age_field.fieldID = 3
-    age_field.name = "age"
-    age_field.data_type = schema_pb2.DataType.Int32
-    
-    score_field = schema.fields.add()
-    score_field.fieldID = 4
-    score_field.name = "score"
-    score_field.data_type = schema_pb2.DataType.Float
-    
-    name_field = schema.fields.add()
-    name_field.fieldID = 5
-    name_field.name = "name"
-    name_field.data_type = schema_pb2.DataType.VarChar
-    
-    return response
