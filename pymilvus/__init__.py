@@ -45,7 +45,14 @@ from .orm.future import MutationFuture
 from .orm.index import Index
 from .orm.partition import Partition
 from .orm.role import Role
-from .orm.schema import CollectionSchema, FieldSchema, Function, FunctionScore, StructFieldSchema
+from .orm.schema import (
+    CollectionSchema,
+    FieldSchema,
+    Function,
+    FunctionScore,
+    LexicalHighlighter,
+    StructFieldSchema,
+)
 from .orm.utility import (
     create_resource_group,
     create_user,
@@ -96,6 +103,7 @@ __all__ = [
     "Hits",
     "Index",
     "IndexType",
+    "LexicalHighlighter",
     "MilvusClient",
     "MilvusException",
     "MilvusUnavailableException",

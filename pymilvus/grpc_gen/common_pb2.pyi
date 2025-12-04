@@ -355,9 +355,6 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeAddFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
-    PrivilegeAddCollectionFunction: _ClassVar[ObjectPrivilege]
-    PrivilegeAlterCollectionFunction: _ClassVar[ObjectPrivilege]
-    PrivilegeDropCollectionFunction: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -706,9 +703,6 @@ PrivilegeAddCollectionField: ObjectPrivilege
 PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
-PrivilegeAddCollectionFunction: ObjectPrivilege
-PrivilegeAlterCollectionFunction: ObjectPrivilege
-PrivilegeDropCollectionFunction: ObjectPrivilege
 PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
