@@ -1,7 +1,7 @@
 import logging
 from typing import Dict, List, Optional, Union
 
-from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
+from pymilvus.client.abstract import AnnSearchRequest, BaseRanker, FieldSchema
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.search_iterator import SearchIteratorV2
@@ -1022,6 +1022,123 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             **kwargs,
         )
+
+    def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        func: Optional[Function] = None,
+        index_param: Optional[IndexParam] = None,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        # For Drop operation
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ) -> int:
+        """Alter collection schema supporting both Add and Drop operations.
+
+        For Add operation: provide field_schema, func, and index_param
+        For Drop operation: provide either drop_field_name or drop_field_id
+
+        Args:
+            collection_name: Name of the collection
+            field_schema: Field schema to add (for Add operation)
+            func: Function to add (for Add operation)
+            index_param: Index parameters for the field (for Add operation)
+            do_physical_backfill: Whether to perform physical backfill (for Add operation)
+            timeout: Timeout for the operation
+            drop_field_name: Field name to drop (for Drop operation)
+            drop_field_id: Field ID to drop (for Drop operation)
+            **kwargs: Additional keyword arguments
+
+        Returns:
+            int: Error code from the operation (0 for success)
+
+        Raises:
+            ParamError: If operation parameters are invalid
+            MilvusException: If the operation fails
+        """
+        validate_param("collection_name", collection_name, str)
+        conn = self._get_connection()
+
+        # Determine operation type
+        is_drop = drop_field_name is not None or drop_field_id is not None
+        is_add = field_schema is not None or func is not None
+
+        if is_drop and is_add:
+            raise ParamError(
+                message="Cannot perform both Add and Drop operations in a single request"
+            )
+        if not is_drop and not is_add:
+            raise ParamError(
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+            )
+
+        try:
+            if is_add:
+                # Add operation: require field_schema, func, and index_param
+                if field_schema is None:
+                    raise ParamError(message="field_schema is required for Add operation")
+                if func is None:
+                    raise ParamError(message="func is required for Add operation")
+                if index_param is None:
+                    raise ParamError(message="index_param is required for Add operation")
+
+                error_code = conn.alter_collection_schema(
+                    collection_name,
+                    field_schema,
+                    index_param.index_name,
+                    index_param.get_index_configs(),
+                    func,
+                    do_physical_backfill=do_physical_backfill,
+                    timeout=timeout,
+                    **kwargs,
+                )
+                logger.debug(
+                    "Successfully added function field %s to collection: %s",
+                    field_schema.field_name,
+                    collection_name,
+                )
+            else:
+                # Drop operation
+                error_code = conn.alter_collection_schema(
+                    collection_name,
+                    field_schema=None,
+                    index_name=None,
+                    extra_params=None,
+                    func=None,
+                    do_physical_backfill=False,
+                    drop_field_name=drop_field_name,
+                    drop_field_id=drop_field_id,
+                    timeout=timeout,
+                    **kwargs,
+                )
+                field_identifier = (
+                    drop_field_name if drop_field_name else f"field_id={drop_field_id}"
+                )
+                logger.debug(
+                    "Successfully dropped field %s from collection: %s",
+                    field_identifier,
+                    collection_name,
+                )
+
+        except Exception as ex:
+            if is_add:
+                logger.error(
+                    "Failed to add function field %s to collection: %s",
+                    field_schema.field_name if field_schema else "unknown",
+                    collection_name,
+                )
+            else:
+                field_identifier = (
+                    drop_field_name if drop_field_name else f"field_id={drop_field_id}"
+                )
+                logger.error(
+                    "Failed to drop field %s from collection: %s", field_identifier, collection_name
+                )
+            raise ex from ex
+        return error_code
 
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs

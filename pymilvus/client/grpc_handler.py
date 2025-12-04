@@ -408,6 +408,44 @@ class GrpcHandler:
         )
         check_status(status)
 
+    def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        index_name: Optional[str] = None,
+        extra_params: Optional[Dict] = None,
+        func: Optional[Function] = None,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        # For Drop operation
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ):
+        """
+        Alter collection schema supporting both Add and Drop operations.
+
+        For Add operation: provide field_schema, func, index_name, extra_params
+        For Drop operation: provide either drop_field_name or drop_field_id
+        """
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
+            index_name=index_name,
+            extra_params=extra_params,
+            func=func,
+            do_physical_backfill=do_physical_backfill,
+            drop_field_name=drop_field_name,
+            drop_field_id=drop_field_id,
+        )
+        response = self._stub.AlterCollectionSchema(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.alter_status)
+        check_status(response.index_status)
+        return response.alter_status.error_code
+
     @retry_on_rpc_failure()
     def alter_collection_properties(
         self, collection_name: str, properties: List, timeout: Optional[float] = None, **kwargs
@@ -644,10 +682,12 @@ class GrpcHandler:
             collection_name, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         schema_timestamp = schema.get("update_timestamp", 0)
+        schema_version = schema.get("schema_version", 0)
 
         self.schema_cache[collection_name] = {
             "schema": schema,
             "schema_timestamp": schema_timestamp,
+            "schema_version": schema_version,
         }
 
         return schema
@@ -664,7 +704,7 @@ class GrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = self._get_schema_from_cache_or_remote(
+        schema, schema_timestamp, schema_version = self._get_schema_from_cache_or_remote(
             collection_name, schema, timeout
         )
         fields_info = schema.get("fields")
@@ -679,6 +719,7 @@ class GrpcHandler:
             struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
+            schema_version=schema_version,
         )
 
     def _get_schema_from_cache_or_remote(
@@ -691,19 +732,21 @@ class GrpcHandler:
             # Use the cached schema and timestamp
             schema = self.schema_cache[collection_name]["schema"]
             schema_timestamp = self.schema_cache[collection_name]["schema_timestamp"]
+            schema_version = self.schema_cache[collection_name]["schema_version"]
         else:
             # Fetch the schema remotely if not in cache
             if not isinstance(schema, dict):
                 schema = self.describe_collection(collection_name, timeout=timeout)
             schema_timestamp = schema.get("update_timestamp", 0)
-
+            schema_version = schema.get("schema_version", 0)
             # Cache the fetched schema and timestamp
             self.schema_cache[collection_name] = {
                 "schema": schema,
                 "schema_timestamp": schema_timestamp,
+                "schema_version": schema_version,
             }
 
-        return schema, schema_timestamp
+        return schema, schema_timestamp, schema_version
 
     def _prepare_batch_insert_request(
         self,

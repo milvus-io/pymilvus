@@ -226,6 +226,7 @@ class CollectionSchema:
 
         self.collection_name = None
         self.description = None
+        self.schema_version = 0
         self.params = {}
         self.fields = []
         self.struct_array_fields = []
@@ -272,6 +273,7 @@ class CollectionSchema:
             StructArrayFieldSchema(f) for f in raw.schema.struct_array_fields
         ]
         self.functions = [FunctionSchema(f) for f in raw.schema.functions]
+        self.schema_version = raw.schema.version
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
         for field in self.fields:
             if field.name in function_output_field_names:
@@ -309,6 +311,7 @@ class CollectionSchema:
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
+            "schema_version": self.schema_version,
         }
 
         if self.created_timestamp != 0:
