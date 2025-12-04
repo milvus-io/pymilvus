@@ -144,6 +144,11 @@ class FunctionType(IntEnum):
     RERANK = 3
 
 
+class HighlightType(IntEnum):
+    LEXICAL = 0
+    SEMANTIC = 1
+
+
 class RangeType(IntEnum):
     LT = 0  # less than
     LTE = 1  # less than or equal

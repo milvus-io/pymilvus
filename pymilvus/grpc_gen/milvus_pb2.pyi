@@ -1225,14 +1225,23 @@ class FlushAllRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., flush_targets: _Optional[_Iterable[_Union[FlushAllTarget, _Mapping]]] = ...) -> None: ...
 
 class FlushAllResponse(_message.Message):
-    __slots__ = ("status", "flush_all_ts", "flush_results")
+    __slots__ = ("status", "flush_all_ts", "flush_results", "flush_all_tss")
+    class FlushAllTssEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_ALL_TS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    FLUSH_ALL_TSS_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     flush_all_ts: int
     flush_results: _containers.RepeatedCompositeFieldContainer[FlushAllResult]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., flush_results: _Optional[_Iterable[_Union[FlushAllResult, _Mapping]]] = ...) -> None: ...
+    flush_all_tss: _containers.ScalarMap[str, int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., flush_results: _Optional[_Iterable[_Union[FlushAllResult, _Mapping]]] = ..., flush_all_tss: _Optional[_Mapping[str, int]] = ...) -> None: ...
 
 class FlushAllResult(_message.Message):
     __slots__ = ("db_name", "collection_results")
@@ -1436,7 +1445,7 @@ class LoadBalanceRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., src_nodeID: _Optional[int] = ..., dst_nodeIDs: _Optional[_Iterable[int]] = ..., sealed_segmentIDs: _Optional[_Iterable[int]] = ..., collectionName: _Optional[str] = ..., db_name: _Optional[str] = ...) -> None: ...
 
 class ManualCompactionRequest(_message.Message):
-    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids", "l0Compaction")
+    __slots__ = ("collectionID", "timetravel", "majorCompaction", "collection_name", "db_name", "partition_id", "channel", "segment_ids", "l0Compaction", "target_size")
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     TIMETRAVEL_FIELD_NUMBER: _ClassVar[int]
     MAJORCOMPACTION_FIELD_NUMBER: _ClassVar[int]
@@ -1446,6 +1455,7 @@ class ManualCompactionRequest(_message.Message):
     CHANNEL_FIELD_NUMBER: _ClassVar[int]
     SEGMENT_IDS_FIELD_NUMBER: _ClassVar[int]
     L0COMPACTION_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SIZE_FIELD_NUMBER: _ClassVar[int]
     collectionID: int
     timetravel: int
     majorCompaction: bool
@@ -1455,7 +1465,8 @@ class ManualCompactionRequest(_message.Message):
     channel: str
     segment_ids: _containers.RepeatedScalarFieldContainer[int]
     l0Compaction: bool
-    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ..., l0Compaction: bool = ...) -> None: ...
+    target_size: int
+    def __init__(self, collectionID: _Optional[int] = ..., timetravel: _Optional[int] = ..., majorCompaction: bool = ..., collection_name: _Optional[str] = ..., db_name: _Optional[str] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., segment_ids: _Optional[_Iterable[int]] = ..., l0Compaction: bool = ..., target_size: _Optional[int] = ...) -> None: ...
 
 class ManualCompactionResponse(_message.Message):
     __slots__ = ("status", "compactionID", "compactionPlanCount")
@@ -1534,16 +1545,25 @@ class GetFlushStateResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flushed: bool = ...) -> None: ...
 
 class GetFlushAllStateRequest(_message.Message):
-    __slots__ = ("base", "flush_all_ts", "db_name", "flush_targets")
+    __slots__ = ("base", "flush_all_ts", "db_name", "flush_targets", "flush_all_tss")
+    class FlushAllTssEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: int
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
     BASE_FIELD_NUMBER: _ClassVar[int]
     FLUSH_ALL_TS_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     FLUSH_TARGETS_FIELD_NUMBER: _ClassVar[int]
+    FLUSH_ALL_TSS_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     flush_all_ts: int
     db_name: str
     flush_targets: _containers.RepeatedCompositeFieldContainer[FlushAllTarget]
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., db_name: _Optional[str] = ..., flush_targets: _Optional[_Iterable[_Union[FlushAllTarget, _Mapping]]] = ...) -> None: ...
+    flush_all_tss: _containers.ScalarMap[str, int]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., db_name: _Optional[str] = ..., flush_targets: _Optional[_Iterable[_Union[FlushAllTarget, _Mapping]]] = ..., flush_all_tss: _Optional[_Mapping[str, int]] = ...) -> None: ...
 
 class GetFlushAllStateResponse(_message.Message):
     __slots__ = ("status", "flushed", "flush_states")

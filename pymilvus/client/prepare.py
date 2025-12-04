@@ -16,6 +16,7 @@ from pymilvus.orm.schema import (
     FieldSchema,
     Function,
     FunctionScore,
+    Highlighter,
     isVectorDataType,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
@@ -1370,6 +1371,7 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        highlighter: Optional[Highlighter] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
@@ -1524,6 +1526,9 @@ class Prepare:
         elif ranker is not None:
             raise ParamError(message="The search ranker must be a Function or FunctionScore.")
 
+        if highlighter is not None:
+            request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
+
         return request
 
     @classmethod
@@ -1610,6 +1615,16 @@ class Prepare:
         if isinstance(v, (dict, list)):
             return json.dumps(v)
         return str(v)
+
+    @staticmethod
+    def highlighter_schema(highlighter: Highlighter) -> common_types.Highlighter:
+        return common_types.Highlighter(
+            type=highlighter.type,
+            params=[
+                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                for k, v in highlighter.params.items()
+            ],
+        )
 
     @staticmethod
     def function_score_schema(function_score: FunctionScore) -> schema_types.FunctionScore:
