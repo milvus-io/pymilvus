@@ -65,15 +65,13 @@ def mocked_milvus_client():
         mock_future.result = MagicMock(return_value=None)
         mock_ready_future.return_value = mock_future
 
-        mock_stub = MagicMock()
-
-
         mock_connect_response = milvus_pb2.ConnectResponse()
         mock_connect_response.status.error_code = common_pb2.ErrorCode.Success
         mock_connect_response.status.code = 0
         mock_connect_response.identifier = 12345
-        mock_stub.Connect = MagicMock(return_value=mock_connect_response)
 
+        mock_stub = MagicMock()
+        mock_stub.Connect = MagicMock(return_value=mock_connect_response)
         mock_stub.Search = MagicMock()
         mock_stub.Query = MagicMock()
         mock_stub.HybridSearch = MagicMock()
