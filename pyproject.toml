@@ -85,7 +85,7 @@ dev = [
     "scipy",
     # develop benchmark
     "py-spy",
-    "memray",
+    "memray;sys_platform!='win32'",
     "pytest-benchmark[histogram]",
 ]
 
