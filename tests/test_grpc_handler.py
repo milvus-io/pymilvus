@@ -5,9 +5,9 @@ import grpc
 import pytest
 from pymilvus import CollectionSchema, FieldSchema, MilvusException, Function, FunctionType
 from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2, milvus_pb2
-from pymilvus.orm.types import DataType
 
 descriptor = milvus_pb2.DESCRIPTOR.services_by_name["MilvusService"]
 

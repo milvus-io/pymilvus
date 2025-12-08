@@ -17,9 +17,9 @@ from typing import Optional
 
 import numpy as np
 
+from pymilvus.client.schema import CollectionSchema, FieldSchema, StructFieldSchema
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema
 
 from .buffer import (
     Buffer,

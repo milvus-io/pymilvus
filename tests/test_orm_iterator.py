@@ -2,25 +2,25 @@ import re
 from unittest.mock import Mock, patch
 
 import pytest
-from pymilvus.exceptions import MilvusException
-from pymilvus.orm.constants import (
+from pymilvus.client.constants import (
     DEFAULT_SEARCH_EXTENSION_RATE,
     EF,
     MAX_BATCH_SIZE,
     PARAMS,
 )
-from pymilvus.orm.iterator import (
+from pymilvus.client.iterator import (
     assert_info,
     check_set_flag,
     extend_batch_size,
     fall_back_to_latest_session_ts,
     io_operation,
 )
+from pymilvus.exceptions import MilvusException
 
 
 class TestIteratorHelpers:
-    @patch('pymilvus.orm.iterator.datetime')
-    @patch('pymilvus.orm.iterator.mkts_from_datetime')
+    @patch('pymilvus.client.iterator.datetime')
+    @patch('pymilvus.client.iterator.mkts_from_datetime')
     def test_fall_back_to_latest_session_ts(self, mock_mkts, mock_datetime):
         mock_now = Mock()
         mock_datetime.datetime.now.return_value = mock_now
@@ -125,7 +125,7 @@ class TestQueryIteratorInit:
         schema.fields = []
         return schema
 
-    @patch('pymilvus.orm.iterator.Connections')
+    @patch('pymilvus.client.iterator.Connections')
     def test_query_iterator_basic_init(self, mock_connections, mock_connection, mock_schema):
         mock_connections.get_connection.return_value = mock_connection
 
@@ -152,7 +152,7 @@ class TestSearchIteratorHelpers:
         expected = min(200, batch_size * DEFAULT_SEARCH_EXTENSION_RATE)
         assert result == expected
 
-    @patch('pymilvus.orm.iterator.Path')
+    @patch('pymilvus.client.iterator.Path')
     def test_iterator_checkpoint_operations(self, mock_path):
         """Test checkpoint file operations that iterators might use"""
         mock_file = Mock()

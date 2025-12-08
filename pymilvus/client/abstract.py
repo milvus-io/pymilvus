@@ -18,7 +18,13 @@ from .types import DataType, FunctionType
 logger = logging.getLogger(__name__)
 
 
-class FieldSchema:
+class ResponseFieldSchema:
+    """Internal class for parsing gRPC FieldSchema responses.
+
+    Note: This is different from client.schema.FieldSchema which is used for
+    constructing schemas. This class is for parsing server responses.
+    """
+
     def __init__(self, raw: Any):
         self._raw = raw
 
@@ -138,7 +144,9 @@ class FieldSchema:
         return _dict
 
 
-class StructArrayFieldSchema:
+class ResponseStructArrayFieldSchema:
+    """Internal class for parsing gRPC StructArrayFieldSchema responses."""
+
     def __init__(self, raw: Any):
         self._raw = raw
 
@@ -153,7 +161,7 @@ class StructArrayFieldSchema:
         self.name = raw.name
         self.field_id = raw.fieldID
         self.description = raw.description
-        self.fields = [FieldSchema(f) for f in raw.fields]
+        self.fields = [ResponseFieldSchema(f) for f in raw.fields]
 
         self.params = {}
         for kv in raw.type_params:
@@ -177,7 +185,9 @@ class StructArrayFieldSchema:
         return result
 
 
-class FunctionSchema:
+class ResponseFunctionSchema:
+    """Internal class for parsing gRPC FunctionSchema responses."""
+
     def __init__(self, raw: Any):
         self._raw = raw
 
@@ -220,7 +230,13 @@ class FunctionSchema:
         }
 
 
-class CollectionSchema:
+class ResponseCollectionSchema:
+    """Internal class for parsing gRPC CollectionSchema responses.
+
+    Note: This is different from client.schema.CollectionSchema which is used for
+    constructing schemas. This class is for parsing server responses.
+    """
+
     def __init__(self, raw: Any):
         self._raw = raw
 
@@ -273,11 +289,11 @@ class CollectionSchema:
         # TODO: extra_params here
         # for kv in raw.extra_params:
 
-        self.fields = [FieldSchema(f) for f in raw.schema.fields]
+        self.fields = [ResponseFieldSchema(f) for f in raw.schema.fields]
         self.struct_array_fields = [
-            StructArrayFieldSchema(f) for f in raw.schema.struct_array_fields
+            ResponseStructArrayFieldSchema(f) for f in raw.schema.struct_array_fields
         ]
-        self.functions = [FunctionSchema(f) for f in raw.schema.functions]
+        self.functions = [ResponseFunctionSchema(f) for f in raw.schema.functions]
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
         for field in self.fields:
             if field.name in function_output_field_names:

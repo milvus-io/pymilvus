@@ -19,14 +19,14 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
+from pymilvus.client.schema import (
+    CollectionSchema,
+    FieldSchema,
+)
 from pymilvus.client.types import (
     DataType,
 )
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import (
-    CollectionSchema,
-    FieldSchema,
-)
 
 from .constants import (
     ARROW_TYPE_CREATOR,

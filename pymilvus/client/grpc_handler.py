@@ -11,6 +11,13 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
+from pymilvus.client.schema import (
+    CollectionSchema,
+    FieldSchema,
+    Function,
+    FunctionScore,
+    Highlighter,
+)
 from pymilvus.decorators import (
     ignore_unimplemented,
     retry_on_rpc_failure,
@@ -27,16 +34,14 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function, FunctionScore, Highlighter
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
 from .abstract import (
     AnnSearchRequest,
     BaseRanker,
-    CollectionSchema,
-    FieldSchema,
     MutationResult,
+    ResponseCollectionSchema,
 )
 from .asynch import (
     CreateIndexFuture,
@@ -371,7 +376,7 @@ class GrpcHandler:
     def create_collection(
         self,
         collection_name: str,
-        fields: Union[CollectionSchema, Dict[str, Iterable]],
+        fields: Union["CollectionSchema", Dict[str, Iterable]],
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -413,7 +418,7 @@ class GrpcHandler:
     def add_collection_field(
         self,
         collection_name: str,
-        field_schema: FieldSchema,
+        field_schema: "FieldSchema",
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -555,7 +560,7 @@ class GrpcHandler:
         status = response.status
 
         if is_successful(status):
-            return CollectionSchema(raw=response).dict()
+            return ResponseCollectionSchema(raw=response).dict()
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 

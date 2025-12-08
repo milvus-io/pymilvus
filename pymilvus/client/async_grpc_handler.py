@@ -10,6 +10,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
+from pymilvus.client.schema import FieldSchema, Function, Highlighter
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import (
     ignore_unimplemented,
@@ -26,11 +27,15 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function, Highlighter
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
-from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchema, MutationResult
+from .abstract import (
+    AnnSearchRequest,
+    BaseRanker,
+    MutationResult,
+    ResponseCollectionSchema,
+)
 from .async_interceptor import async_header_adder_interceptor
 from .cache import GlobalCache
 from .check import (
@@ -365,7 +370,7 @@ class AsyncGrpcHandler:
         status = response.status
 
         if is_successful(status):
-            return CollectionSchema(raw=response).dict()
+            return ResponseCollectionSchema(raw=response).dict()
 
         raise DescribeCollectionException(status.code, status.reason, status.error_code)
 

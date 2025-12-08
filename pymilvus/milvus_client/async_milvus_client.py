@@ -3,8 +3,11 @@ import time
 from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
+from pymilvus.client.connections import connections
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.schema import CollectionSchema, Function, FunctionScore
 from pymilvus.client.types import (
+    DataType,
     ExceptionsMessage,
     LoadState,
     OmitZeroDict,
@@ -19,9 +22,6 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
-from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
-from pymilvus.orm.connections import connections
-from pymilvus.orm.types import DataType
 
 from ._utils import create_connection
 from .async_optimize_task import AsyncOptimizeTask

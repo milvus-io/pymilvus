@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from pymilvus.bulk_writer.buffer import Buffer
 from pymilvus.bulk_writer.constants import DYNAMIC_FIELD_NAME, BulkFileType
+from pymilvus.client.schema import CollectionSchema, FieldSchema
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 
 class TestBuffer:

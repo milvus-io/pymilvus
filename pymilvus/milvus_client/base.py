@@ -2,10 +2,9 @@
 
 from typing import Dict, List
 
-from pymilvus.orm.collection import CollectionSchema, FieldSchema
-from pymilvus.orm.connections import connections
-from pymilvus.orm.schema import StructFieldSchema
-from pymilvus.orm.types import DataType
+from pymilvus.client.connections import connections
+from pymilvus.client.schema import CollectionSchema, FieldSchema, StructFieldSchema
+from pymilvus.client.types import DataType
 
 from .check import validate_param
 from .index import IndexParams

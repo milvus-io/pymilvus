@@ -20,10 +20,8 @@ from pymilvus.client.types import (
     Shard,
     get_consistency_level,
 )
+from pymilvus.client.types import infer_dtype_bydata
 from pymilvus.exceptions import InvalidConsistencyLevel
-from pymilvus.orm.types import (
-    infer_dtype_bydata,
-)
 
 
 class TestTypes:

@@ -6,12 +6,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 import numpy as np
 import orjson
 
-from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
-from pymilvus.grpc_gen import common_pb2
-from pymilvus.grpc_gen import common_pb2 as common_types
-from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.grpc_gen import schema_pb2 as schema_types
-from pymilvus.orm.schema import (
+from pymilvus.client.schema import (
     CollectionSchema,
     FieldSchema,
     Function,
@@ -19,7 +14,12 @@ from pymilvus.orm.schema import (
     Highlighter,
     isVectorDataType,
 )
-from pymilvus.orm.types import infer_dtype_by_scalar_data
+from pymilvus.client.types import infer_dtype_by_scalar_data
+from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2 as common_types
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
+from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, ts_utils, utils

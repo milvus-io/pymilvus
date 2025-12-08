@@ -3,11 +3,21 @@ import time
 from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
-from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.connections import connections
+from pymilvus.client.constants import (
+    DEFAULT_CONSISTENCY_LEVEL,
+    FIELDS,
+    METRIC_TYPE,
+    TYPE,
+    UNLIMITED,
+)
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.iterator import QueryIterator, SearchIterator
+from pymilvus.client.schema import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     CompactionPlans,
+    DataType,
     ExceptionsMessage,
     LoadedSegmentInfo,
     LoadState,
@@ -25,11 +35,6 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
-from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
-from pymilvus.orm.connections import connections
-from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
-from pymilvus.orm.iterator import QueryIterator, SearchIterator
-from pymilvus.orm.types import DataType
 
 from ._utils import create_connection
 from .base import BaseMilvusClient
