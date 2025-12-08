@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
-from pymilvus.orm.schema import Function, FunctionType, StructFieldSchema
+from pymilvus.client.schema import Function, StructFieldSchema
+from pymilvus.client.types import FunctionType
 
 
 class TestCollectionSchema:

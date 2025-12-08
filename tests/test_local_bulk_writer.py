@@ -7,8 +7,8 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 import pytest
 from pymilvus.bulk_writer.constants import MB, BulkFileType
 from pymilvus.bulk_writer.local_bulk_writer import LocalBulkWriter
+from pymilvus.client.schema import CollectionSchema, FieldSchema
 from pymilvus.client.types import DataType
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 
 class TestLocalBulkWriter:
