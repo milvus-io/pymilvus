@@ -242,16 +242,7 @@ class Prepare:
             schema.struct_array_fields.append(struct_schema)
 
         for f in fields.functions:
-            function_schema = schema_types.FunctionSchema(
-                name=f.name,
-                description=f.description,
-                type=f.type,
-                input_field_names=f.input_field_names,
-                output_field_names=f.output_field_names,
-            )
-            for k, v in f.params.items():
-                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
-                function_schema.params.append(kv_pair)
+            function_schema = cls.convert_function_to_function_schema(f)
             schema.functions.append(function_schema)
 
         return schema
@@ -363,6 +354,34 @@ class Prepare:
     @classmethod
     def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def drop_collection_function_request(
+        cls, collection_name: str, function_name: str
+    ) -> milvus_types.DropCollectionFunctionRequest:
+        return milvus_types.DropCollectionFunctionRequest(
+            collection_name=collection_name, function_name=function_name
+        )
+
+    @classmethod
+    def add_collection_function_request(
+        cls, collection_name: str, f: Function
+    ) -> milvus_types.AddCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AddCollectionFunctionRequest(
+            collection_name=collection_name, functionSchema=function_schema
+        )
+
+    @classmethod
+    def alter_collection_function_request(
+        cls, collection_name: str, function_name: str, f: Function
+    ) -> milvus_types.AlterCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AlterCollectionFunctionRequest(
+            collection_name=collection_name,
+            function_name=function_name,
+            functionSchema=function_schema,
+        )
 
     @classmethod
     def add_collection_field_request(
@@ -2447,3 +2466,17 @@ class Prepare:
         return milvus_types.UpdateReplicateConfigurationRequest(
             replicate_configuration=replicate_configuration
         )
+
+    @staticmethod
+    def convert_function_to_function_schema(f: Function) -> schema_types.FunctionSchema:
+        function_schema = schema_types.FunctionSchema(
+            name=f.name,
+            description=f.description,
+            type=f.type,
+            input_field_names=f.input_field_names,
+            output_field_names=f.output_field_names,
+        )
+        for k, v in f.params.items():
+            kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+            function_schema.params.append(kv_pair)
+        return function_schema
