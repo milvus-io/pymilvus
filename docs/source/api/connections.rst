@@ -15,7 +15,7 @@ Constructor
 +-----------------------------------------+---------------------------------------------------------------------------------+
 | Constructor                             | Description                                                                     |
 +=========================================+=================================================================================+
-| `Connections() <#pymilvus.Connection>`_ | A singleton class used to manage connections and correspoinding configurations. |
+| `Connections() <#pymilvus.Connection>`_ | A singleton class used to manage connections and corresponding configurations. |
 +-----------------------------------------+---------------------------------------------------------------------------------+
 
 

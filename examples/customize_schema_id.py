@@ -53,7 +53,7 @@ milvus_client.load_collection(collection_name)
 rng = np.random.default_rng(seed=19530)
 vectors_to_search = rng.random((1, dim))
 
-print(fmt.format(f"Start search with retrieve serveral fields."))
+print(fmt.format(f"Start search with retrieve several fields."))
 result = milvus_client.search(collection_name, vectors_to_search, limit=3, output_fields=["id"])
 for hits in result:
     for hit in hits:
