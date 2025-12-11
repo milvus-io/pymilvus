@@ -20,7 +20,7 @@ from pymilvus.client.entity_helper import (
 )
 from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2 as convert_to_entity
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import ParamError, MilvusException
 from pymilvus.grpc_gen import schema_pb2
 
 # Import additional functions for testing
@@ -768,6 +768,104 @@ class TestEntityHelperExtended:
         assert entity_rows[0] == {"id": 1, "name": "a"}
         assert entity_rows[1] == {"id": 2, "name": "b"}
         assert entity_rows[2] == {"id": 3, "name": "c"}
+
+    def test_extract_row_data_from_fields_data_v2(self):
+        """Test extract_row_data_from_fields_data_v2 function."""
+        field_data = schema_types.FieldData()
+        field_data.field_name = "int_field"
+        field_data.type = DataType.INT64
+        field_data.scalars.long_data.data.extend([1, 2, 3])
+        
+        entity_rows = [{"id": 0}, {"id": 1}, {"id": 2}]
+        is_lazy = convert_to_entity(field_data, entity_rows)
+        
+        # INT64 is not lazy, so should return False
+        assert is_lazy is False
+        assert entity_rows[0]["int_field"] == 1
+        assert entity_rows[1]["int_field"] == 2
+        assert entity_rows[2]["int_field"] == 3
+
+    def test_extract_row_data_from_fields_data_v2_lazy(self):
+        """Test extract_row_data_from_fields_data_v2 with lazy field."""
+        field_data = schema_types.FieldData()
+        field_data.field_name = "vector_field"
+        field_data.type = DataType.FLOAT_VECTOR
+        field_data.vectors.dim = 4
+        field_data.vectors.float_vector.data.extend([0.1, 0.2, 0.3, 0.4])
+        
+        entity_rows = [{"id": 0}]
+        is_lazy = convert_to_entity(field_data, entity_rows)
+        
+        # FLOAT_VECTOR is lazy, so should return True
+        assert is_lazy is True
+        assert "vector_field" not in entity_rows[0]
+
+    def test_extract_row_data_from_fields_data_v2_with_valid_data(self):
+        """Test extract_row_data_from_fields_data_v2 with valid_data."""
+        field_data = schema_types.FieldData()
+        field_data.field_name = "int_field"
+        field_data.type = DataType.INT64
+        field_data.scalars.long_data.data.extend([1, 2, 3])
+        field_data.valid_data.extend([True, False, True])
+        
+        entity_rows = [{"id": 0}, {"id": 1}, {"id": 2}]
+        is_lazy = convert_to_entity(field_data, entity_rows)
+        
+        assert is_lazy is False
+        assert entity_rows[0]["int_field"] == 1
+        assert entity_rows[1]["int_field"] is None  # valid_data[1] is False
+        assert entity_rows[2]["int_field"] == 3
+
+    def test_extract_row_data_from_fields_data_v2_handler_not_found(self):
+        """Test extract_row_data_from_fields_data_v2 with handler not found."""
+        field_data = schema_types.FieldData()
+        field_data.field_name = "unknown_field"
+        field_data.type = 999  # Non-existent type
+        
+        entity_rows = [{"id": 0}]
+        
+        # Should handle gracefully (assume lazy for unknown types)
+        is_lazy = convert_to_entity(field_data, entity_rows)
+        assert is_lazy is True
+
+    def test_extract_row_data_from_fields_data_v2_string_type(self):
+        """Test extract_row_data_from_fields_data_v2 with STRING type."""
+        field_data = schema_types.FieldData()
+        field_data.field_name = "string_field"
+        field_data.type = DataType.STRING
+        
+        entity_rows = [{"id": 0}]
+        
+        # STRING type should raise exception
+        with pytest.raises(MilvusException, match="Not support string"):
+            convert_to_entity(field_data, entity_rows)
+
+    def test_extract_vector_array_row_data(self):
+        """Test extract_vector_array_row_data function."""
+        from pymilvus.client.entity_helper import extract_vector_array_row_data
+        
+        field_data = schema_types.FieldData()
+        field_data.vectors.vector_array.element_type = DataType.FLOAT_VECTOR
+        field_data.vectors.vector_array.data.add()
+        field_data.vectors.vector_array.data[0].dim = 4
+        field_data.vectors.vector_array.data[0].float_vector.data.extend([0.1, 0.2, 0.3, 0.4])
+        
+        result = extract_vector_array_row_data(field_data, 0)
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) == 4
+
+    def test_extract_vector_array_row_data_handler_not_found(self):
+        """Test extract_vector_array_row_data with handler not found."""
+        from pymilvus.client.entity_helper import extract_vector_array_row_data
+        
+        field_data = schema_types.FieldData()
+        field_data.vectors.vector_array.element_type = 999  # Non-existent type
+        field_data.vectors.vector_array.data.add()
+        
+        # Should raise ParamError, not return None
+        with pytest.raises(ParamError, match="Unimplemented type"):
+            extract_vector_array_row_data(field_data, 0)
 
     def test_entity_to_field_data(self):
         """Test converting entity to field data"""

@@ -5,17 +5,17 @@ from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
-import orjson
 
 from pymilvus.exceptions import (
     AutoIDException,
     ExceptionsMessage,
     InvalidConsistencyLevel,
 )
-from pymilvus.grpc_gen import common_pb2, rg_pb2, schema_pb2
+from pymilvus.grpc_gen import common_pb2, rg_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
-from . import utils
+from .data_types import DataType  # Import from independent module
+from .type_handlers import get_type_handler
 
 Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
@@ -96,45 +96,8 @@ class Status:
         return self.code == Status.SUCCESS
 
 
-class DataType(IntEnum):
-    """
-    String of DataType is str of its value, e.g.: str(DataType.BOOL) == "1"
-    """
-
-    NONE = 0  # schema_pb2.None, this is an invalid representation in python
-    BOOL = schema_pb2.Bool
-    INT8 = schema_pb2.Int8
-    INT16 = schema_pb2.Int16
-    INT32 = schema_pb2.Int32
-    INT64 = schema_pb2.Int64
-
-    FLOAT = schema_pb2.Float
-    DOUBLE = schema_pb2.Double
-
-    STRING = schema_pb2.String
-    VARCHAR = schema_pb2.VarChar
-    ARRAY = schema_pb2.Array
-    JSON = schema_pb2.JSON
-    GEOMETRY = schema_pb2.Geometry
-    TIMESTAMPTZ = schema_pb2.Timestamptz
-
-    BINARY_VECTOR = schema_pb2.BinaryVector
-    FLOAT_VECTOR = schema_pb2.FloatVector
-    FLOAT16_VECTOR = schema_pb2.Float16Vector
-    BFLOAT16_VECTOR = schema_pb2.BFloat16Vector
-    SPARSE_FLOAT_VECTOR = schema_pb2.SparseFloatVector
-    INT8_VECTOR = schema_pb2.Int8Vector
-
-    STRUCT = schema_pb2.Struct
-
-    # Internal use only - not exposed to users
-    _ARRAY_OF_VECTOR = schema_pb2.ArrayOfVector
-    _ARRAY_OF_STRUCT = schema_pb2.ArrayOfStruct
-
-    UNKNOWN = 999
-
-    def __str__(self) -> str:
-        return str(self.value)
+# DataType moved to data_types.py to break circular dependency
+# Re-exported here for backward compatibility
 
 
 class FunctionType(IntEnum):
@@ -1083,116 +1046,20 @@ class HybridExtraList(list):
         self._materialized_bitmap = [False] * len(self)
 
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
-        if field_data.type == DataType.JSON:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            try:
-                json_dict = orjson.loads(field_data.scalars.json_data.data[index])
-            except Exception as e:
-                logger.error(
-                    f"HybridExtraList::_extract_lazy_fields::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
-                )
-                raise
-            if not field_data.is_dynamic:
-                row_data[field_data.field_name] = json_dict
-                return
-            if not self._dynamic_fields:
-                # Only update keys that don't exist in row_data
-                row_data.update({k: v for k, v in json_dict.items() if k not in row_data})
-                return
-            # Only update keys that don't exist in row_data and are in dynamic_fields
-            row_data.update(
-                {
-                    k: v
-                    for k, v in json_dict.items()
-                    if k in self._dynamic_fields and k not in row_data
-                }
-            )
-        elif field_data.type == DataType.FLOAT_VECTOR:
-            dim = field_data.vectors.dim
-            start_pos = index * dim
-            end_pos = start_pos + dim
-            if len(field_data.vectors.float_vector.data) >= start_pos:
-                # Here we use numpy.array to convert the float64 values to numpy.float32 values,
-                # and return a list of numpy.float32 to users
-                # By using numpy.array, performance improved by 60% for topk=16384 dim=1536 case.
-                if self._strict_float32:
-                    row_data[field_data.field_name] = self._float_vector_np_array[
-                        field_data.field_name
-                    ][start_pos:end_pos]
-                else:
-                    row_data[field_data.field_name] = field_data.vectors.float_vector.data[
-                        start_pos:end_pos
-                    ]
-        elif field_data.type == DataType.BINARY_VECTOR:
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim // 8
-            start_pos = index * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.binary_vector) >= start_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.binary_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.BFLOAT16_VECTOR:
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim * 2
-            start_pos = index * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.bfloat16_vector) >= start_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.bfloat16_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.FLOAT16_VECTOR:
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim * 2
-            start_pos = index * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.float16_vector) >= start_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.float16_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-            row_data[field_data.field_name] = utils.sparse_parse_single_row(
-                field_data.vectors.sparse_float_vector.contents[index]
-            )
-        elif field_data.type == DataType.INT8_VECTOR:
-            dim = field_data.vectors.dim
-            start_pos = index * dim
-            end_pos = start_pos + dim
-            if len(field_data.vectors.int8_vector) >= start_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.int8_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType._ARRAY_OF_VECTOR:
-            # Handle array of vectors
-            if hasattr(field_data, "vectors") and hasattr(field_data.vectors, "vector_array"):
-                if index < len(field_data.vectors.vector_array.data):
-                    vector_data = field_data.vectors.vector_array.data[index]
-                    dim = vector_data.dim
-                    float_data = vector_data.float_vector.data
-                    num_vectors = len(float_data) // dim
-                    row_vectors = []
-                    for vec_idx in range(num_vectors):
-                        vec_start = vec_idx * dim
-                        vec_end = vec_start + dim
-                        row_vectors.append(list(float_data[vec_start:vec_end]))
-                    row_data[field_data.field_name] = row_vectors
-                else:
-                    row_data[field_data.field_name] = []
-            else:
-                row_data[field_data.field_name] = []
-        elif field_data.type == DataType._ARRAY_OF_STRUCT:
-            # Handle struct arrays - convert column format back to array of structs
-            if hasattr(field_data, "struct_arrays") and field_data.struct_arrays:
-                # Import here to avoid circular imports
-                from .entity_helper import extract_struct_array_from_column_data  # noqa: PLC0415
-
-                row_data[field_data.field_name] = extract_struct_array_from_column_data(
-                    field_data.struct_arrays, index
-                )
-            else:
-                row_data[field_data.field_name] = None
+        # Use type handler for all types
+        try:
+            handler = get_type_handler(field_data.type)
+            context = {
+                "strict_float32": self._strict_float32,
+                "float_vector_np_arrays": self._float_vector_np_array,
+                "dynamic_fields": self._dynamic_fields,  # For JSON handler
+            }
+            handler.extract_from_field_data(field_data, index, row_data, context)
+        except ValueError:
+            # Handler not found, fallback to old behavior or raise
+            msg = f"Unsupported field type: {field_data.type}"
+            logger.warning(f"{msg} - no handler registered")
+            raise
 
     def __getitem__(self, index: Union[int, slice]):
         if isinstance(index, slice):
