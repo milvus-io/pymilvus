@@ -15,9 +15,9 @@ from pymilvus.bulk_writer.volume_restful import (
     delete_volume,
     list_volumes,
 )
+from pymilvus.client.schema import CollectionSchema, FieldSchema
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 
 class TestVolumeRestful:

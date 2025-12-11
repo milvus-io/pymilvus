@@ -20,8 +20,8 @@ from azure.storage.blob import BlobServiceClient
 from minio import Minio
 from minio.error import S3Error
 
+from pymilvus.client.schema import CollectionSchema
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import CollectionSchema
 
 from .constants import (
     DEFAULT_BUCKET_NAME,

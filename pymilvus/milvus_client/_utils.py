@@ -2,8 +2,8 @@ import asyncio
 import hashlib
 import logging
 
+from pymilvus.client.connections import connections
 from pymilvus.exceptions import ConnectionConfigException
-from pymilvus.orm.connections import connections
 
 logger = logging.getLogger(__name__)
 

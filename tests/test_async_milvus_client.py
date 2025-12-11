@@ -4,9 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus import AsyncMilvusClient
+from pymilvus.client.schema import Function, FunctionScore, StructFieldSchema
 from pymilvus.client.types import LoadState
-from pymilvus.orm.collection import Function, FunctionScore
-from pymilvus.orm.schema import StructFieldSchema
 
 
 class TestAsyncMilvusClientNewFeatures:
