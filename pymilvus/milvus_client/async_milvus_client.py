@@ -782,7 +782,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def close(self):
-        await connections.async_remove_connection(self._using)
+        await connections.async_disconnect(self._using)
 
     async def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         conn = self._get_connection()

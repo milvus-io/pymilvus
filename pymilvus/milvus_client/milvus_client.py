@@ -847,7 +847,7 @@ class MilvusClient(BaseMilvusClient):
             self.load_collection(collection_name, timeout=timeout)
 
     def close(self):
-        connections.remove_connection(self._using)
+        connections.disconnect(self._using)
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
