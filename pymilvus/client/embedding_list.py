@@ -4,8 +4,8 @@ from typing import Any, List, Optional, Union
 
 import numpy as np
 
+from pymilvus.client.type_handlers import get_type_registry
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
 
 
 class EmbeddingList:
@@ -87,18 +87,10 @@ class EmbeddingList:
         if isinstance(dtype, str):
             return np.dtype(dtype)
         if isinstance(dtype, DataType):
-            # Map DataType enum to numpy dtype
-            dtype_map = {
-                DataType.FLOAT_VECTOR: np.float32,
-                DataType.FLOAT16_VECTOR: np.float16,
-                DataType.BFLOAT16_VECTOR: np.float16,  # Use float16 as approximation
-                DataType.BINARY_VECTOR: np.uint8,
-                DataType.INT8_VECTOR: np.int8,
-            }
-            if dtype in dtype_map:
-                return np.dtype(dtype_map[dtype])
-            msg = f"Unsupported DataType: {dtype}"
-            raise ParamError(message=msg)
+            # Get numpy dtype from type registry
+            numpy_dtype = get_type_registry().get_numpy_dtype(dtype)
+            if numpy_dtype is not None:
+                return np.dtype(numpy_dtype)
         msg = f"dtype must be numpy dtype, string, or DataType, got {type(dtype)}"
         raise TypeError(msg)
 
