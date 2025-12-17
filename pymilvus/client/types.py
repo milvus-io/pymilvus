@@ -1206,6 +1206,10 @@ class HybridExtraList(list):
             return super().__getitem__(index)
 
         self._pre_materialize_float_vector()
+
+        if index < 0:
+            index = len(self) + index
+
         row = super().__getitem__(index)
         for field_data in self._lazy_field_data:
             self._extract_lazy_fields(index, field_data, row)
