@@ -18,7 +18,7 @@ from pathlib import Path
 from threading import Lock, Thread
 from typing import Callable, Optional
 
-from pymilvus.orm.schema import CollectionSchema
+from pymilvus.client.schema import CollectionSchema
 
 from .bulk_writer import BulkWriter
 from .constants import (

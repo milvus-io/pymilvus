@@ -9,8 +9,8 @@ from pymilvus.client.abstract import AnnSearchRequest, MutationResult, WeightedR
 from pymilvus.client.asynch import MutationFuture, SearchFuture
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.client.search_result import SearchResult
+from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
-from pymilvus.orm.types import DataType
 
 log = logging.getLogger(__name__)
 

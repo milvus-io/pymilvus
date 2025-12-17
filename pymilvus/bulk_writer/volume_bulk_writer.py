@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pymilvus.bulk_writer.volume_file_manager import VolumeFileManager
-from pymilvus.orm.schema import CollectionSchema
+from pymilvus.client.schema import CollectionSchema
 
 from .constants import MB, BulkFileType, ConnectType
 from .local_bulk_writer import LocalBulkWriter

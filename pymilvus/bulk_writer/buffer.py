@@ -18,14 +18,14 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from pymilvus.client.schema import (
+    CollectionSchema,
+    FieldSchema,
+)
 from pymilvus.client.types import (
     DataType,
 )
 from pymilvus.exceptions import MilvusException
-from pymilvus.orm.schema import (
-    CollectionSchema,
-    FieldSchema,
-)
 
 from .constants import (
     DYNAMIC_FIELD_NAME,
