@@ -384,7 +384,7 @@ class TestAsyncGrpcHandler:
             assert call_args.kwargs.get("is_embedding_list") is True
             
             # Verify data was converted (not EmbeddingList objects anymore)
-            passed_data = call_args[0][1]  # data is the second positional argument
+            passed_data = call_args.kwargs.get("data")
             assert isinstance(passed_data, list)
             assert not isinstance(passed_data[0], EmbeddingList)
             # The data should be converted to flat arrays
@@ -469,7 +469,7 @@ class TestAsyncGrpcHandler:
             assert call_args.kwargs.get("is_embedding_list") is True
             
             # Verify data was converted
-            passed_data = call_args[0][1]
+            passed_data = call_args.kwargs.get("data")
             assert isinstance(passed_data, list)
             assert not isinstance(passed_data[0], EmbeddingList)
 

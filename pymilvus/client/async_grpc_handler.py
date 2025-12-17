@@ -30,6 +30,7 @@ from . import entity_helper, ts_utils, utils
 from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchema, MutationResult
 from .async_interceptor import async_header_adder_interceptor
 from .check import (
+    check_id_and_data,
     check_pass_param,
     is_legal_host,
     is_legal_port,
@@ -820,10 +821,11 @@ class AsyncGrpcHandler:
     async def search(
         self,
         collection_name: str,
-        data: Union[List[List[float]], utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
+        data: Optional[Union[List[List[float]], utils.SparseMatrixInputType]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         expression: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -834,11 +836,14 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         await self.ensure_channel_ready()
+        if isinstance(ids, (int, str)):
+            ids = [ids]
+        check_id_and_data(ids, data)
+
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
             anns_field=anns_field,
-            search_data=data,
             partition_name_array=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp"),
@@ -851,15 +856,16 @@ class AsyncGrpcHandler:
             kwargs["is_embedding_list"] = True
 
         request = Prepare.search_requests_with_expr(
-            collection_name,
-            data,
-            anns_field,
-            param,
-            limit,
-            expression,
-            partition_names,
-            output_fields,
-            round_decimal,
+            collection_name=collection_name,
+            data=data,
+            ids=ids,
+            anns_field=anns_field,
+            param=param,
+            limit=limit,
+            expr=expression,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
             **kwargs,
@@ -899,12 +905,12 @@ class AsyncGrpcHandler:
                 req_kwargs["is_embedding_list"] = True
 
             search_request = Prepare.search_requests_with_expr(
-                collection_name,
-                data,
-                req.anns_field,
-                req.param,
-                req.limit,
-                req.expr,
+                collection_name=collection_name,
+                data=data,
+                anns_field=req.anns_field,
+                param=req.param,
+                limit=req.limit,
+                expr=req.expr,
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
