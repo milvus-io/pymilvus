@@ -972,7 +972,7 @@ class LexicalHighlighter:
     def __init__(
         self,
         *,
-        queries: Optional[List] = None,
+        highlight_query: Optional[List] = None,
         highlight_search_text: Optional[bool] = None,
         pre_tags: Optional[List[str]] = None,
         post_tags: Optional[List[str]] = None,
@@ -985,13 +985,13 @@ class LexicalHighlighter:
         self.fragment_offset = fragment_offset
         self.fragment_size = fragment_size
         self.num_of_fragments = num_of_fragments
-        self.queries = queries
+        self.highlight_query = highlight_query
         self.highlight_search_text = highlight_search_text
 
     def with_query(self, field: str, text: str, query_type: str):
-        if self.queries is None:
-            self.queries = []
-        self.queries.append({"type": query_type, "field": field, "text": text})
+        if self.highlight_query is None:
+            self.highlight_query = []
+        self.highlight_query.append({"type": query_type, "field": field, "text": text})
 
     @property
     def params(self) -> Dict[str, Any]:
@@ -1011,8 +1011,8 @@ class LexicalHighlighter:
         if self.num_of_fragments is not None:
             params["num_of_fragments"] = self.num_of_fragments
 
-        if self.queries is not None:
-            params["queries"] = self.queries
+        if self.highlight_query is not None:
+            params["highlight_query"] = self.highlight_query
 
         if self.highlight_search_text is not None:
             params["highlight_search_text"] = self.highlight_search_text
