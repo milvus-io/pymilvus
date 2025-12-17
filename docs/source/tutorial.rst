@@ -143,7 +143,7 @@ Search Entities by Vector Similarity
 
 You can get entities by vector similarity. Assuming there's a ``embedding_A``, and you want to get top 2 entities that are most similar with it.
 
-In the example below, you can perfrom search based on vector similarity.
+In the example below, you can perform search based on vector similarity.
 
 .. note:
     Before searching, you need to load this collection into memory.
@@ -210,4 +210,3 @@ Finally, you can drop an entire collection.
    Once you drop a collection, all the data in this collection will be dropped too.
 
 >>> utility.drop_collection(tutorial.name)
-
