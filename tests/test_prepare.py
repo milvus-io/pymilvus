@@ -4,7 +4,7 @@ import logging
 
 import numpy as np
 import pytest
-from pymilvus import CollectionSchema, DataType, DefaultConfig, FieldSchema, MilvusException
+from pymilvus import CollectionSchema, DataType, DefaultConfig, FieldSchema, MilvusException, Function, FunctionType
 from pymilvus.exceptions import ParamError
 from pymilvus.client.constants import PAGE_RETAIN_ORDER_FIELD
 from pymilvus.client.prepare import Prepare
@@ -24,7 +24,6 @@ class TestPrepare:
         with pytest.raises(MilvusException):
             Prepare.delete_request("coll", "id>1", part_name, 0)
 
-
     def test_search_requests_with_expr_offset(self):
         data = [
             [1., 2.],
@@ -40,7 +39,13 @@ class TestPrepare:
             "params": {"page_retain_order": True}
         }
 
-        ret = Prepare.search_requests_with_expr("name", data, "v", search_params, 100)
+        ret = Prepare.search_requests_with_expr(
+            collection_name="name", 
+            data=data, 
+            anns_field="v", 
+            param=search_params, 
+            limit=100,
+        )
 
         offset_exists = False
         page_retain_order_exists = False
@@ -53,7 +58,7 @@ class TestPrepare:
                 params = json.loads(p.value)
                 if PAGE_RETAIN_ORDER_FIELD in params:
                     page_retain_order_exists = True
-                    assert  params[PAGE_RETAIN_ORDER_FIELD] is True
+                    assert params[PAGE_RETAIN_ORDER_FIELD] is True
 
         assert offset_exists is True
         assert page_retain_order_exists is True
@@ -68,9 +73,11 @@ class TestCreateCollectionRequest:
     def test_create_collection_with_properties(self, valid_properties):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True)
         ])
-        req = Prepare.create_collection_request("c_name", schema, **valid_properties)
+        req = Prepare.create_collection_request(
+            "c_name", schema, **valid_properties)
         assert len(valid_properties.get("properties")) == len(req.properties)
 
     @pytest.mark.parametrize("invalid_fields", [
@@ -82,7 +89,8 @@ class TestCreateCollectionRequest:
         {"fields": [{"name": "test_int64", "type_wrong": True}]},
 
         # wrong type for primary field
-        {"fields": [{"name": "test_int64", "type": DataType.DOUBLE, "is_primary": True}]},
+        {"fields": [{"name": "test_int64",
+                     "type": DataType.DOUBLE, "is_primary": True}]},
 
         # two primary fields
         {"fields": [
@@ -95,7 +103,8 @@ class TestCreateCollectionRequest:
             {"name": "test_int64_2", "type": DataType.INT64, "auto_id": True}]},
 
         # wrong type for auto_id field
-        {"fields": [{"name": "test_double", "type": DataType.DOUBLE, "auto_id": True}]},
+        {"fields": [{"name": "test_double",
+                     "type": DataType.DOUBLE, "auto_id": True}]},
     ])
     def test_param_error_get_schema(self, invalid_fields):
         with pytest.raises(MilvusException):
@@ -103,7 +112,8 @@ class TestCreateCollectionRequest:
 
     @pytest.mark.parametrize("valid_fields", [
         {"fields": [
-            {"name": "test_varchar", "type": DataType.VARCHAR, "is_primary": True, "params": {"dim": "invalid"}},
+            {"name": "test_varchar", "type": DataType.VARCHAR,
+                "is_primary": True, "params": {"dim": "invalid"}},
         ]},
         {"fields": [
             {"name": "test_floatvector", "type": DataType.FLOAT_VECTOR,
@@ -118,7 +128,8 @@ class TestCreateCollectionRequest:
     def test_get_schema_from_collection_schema(self):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
         ])
 
         c_schema = Prepare.get_schema_from_collection_schema("random", schema)
@@ -141,7 +152,8 @@ class TestCreateCollectionRequest:
     def test_get_schema_from_collection_schema_with_enable_dynamic_field(self):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
         ], enable_dynamic_field=True)
 
         c_schema = Prepare.get_schema_from_collection_schema("random", schema)
@@ -168,7 +180,8 @@ class TestCreateCollectionRequest:
     def test_create_collection_request_num_shards(self, kv):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True)
         ])
         req = Prepare.create_collection_request("c_name", schema, **kv)
         assert req.shards_num == next(iter(kv.values()))
@@ -180,7 +193,8 @@ class TestCreateCollectionRequest:
     def test_create_collection_request_num_shards_error(self, kv):
         schema = CollectionSchema([
             FieldSchema("field_vector", DataType.FLOAT_VECTOR, dim=8),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True)
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True)
         ])
 
         with pytest.raises(MilvusException):
@@ -191,7 +205,8 @@ class TestCreateCollectionRequest:
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE)
         ])
         rows = [
@@ -199,7 +214,8 @@ class TestCreateCollectionRequest:
             {"float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
         ]
 
-        Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+        Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()[
+                                 "fields"], enable_dynamic=True)
 
     def test_row_insert_param_with_none(self):
         rng = np.random.default_rng(seed=19530)
@@ -208,30 +224,37 @@ class TestCreateCollectionRequest:
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
             FieldSchema("nullable_field", DataType.INT64, nullable=True),
             FieldSchema("default_field", DataType.FLOAT, default_value=10),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE),
         ])
         rows = [
-            {"float": 1.0,"nullable_field": None, "default_field": None,"float_vector": rng.random((1, dim))[0], "a": 1},
+            {"float": 1.0, "nullable_field": None, "default_field": None,
+                "float_vector": rng.random((1, dim))[0], "a": 1},
             {"float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
         ]
 
-        Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+        Prepare.row_insert_param("", rows, "", fields_info=schema.to_dict()[
+                                 "fields"], enable_dynamic=True)
 
     def test_row_upsert_param_with_auto_id(self):
         rng = np.random.default_rng(seed=19530)
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE)
         ])
         rows = [
-            {"pk_field":1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
-            {"pk_field":2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "b": 1},
         ]
 
-        Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+        Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()[
+                                 "fields"], enable_dynamic=True)
 
     def test_upsert_param_with_none(self):
         rng = np.random.default_rng(seed=19530)
@@ -240,36 +263,45 @@ class TestCreateCollectionRequest:
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
             FieldSchema("nullable_field", DataType.INT64, nullable=True),
             FieldSchema("default_field", DataType.FLOAT, default_value=10),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE),
         ])
         rows = [
-            {"pk_field":1, "float": 1.0,"nullable_field": None, "default_field": None,"float_vector": rng.random((1, dim))[0], "a": 1},
-            {"pk_field":2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+            {"pk_field": 1, "float": 1.0, "nullable_field": None,
+                "default_field": None, "float_vector": rng.random((1, dim))[0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "b": 1},
         ]
 
-        Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()["fields"], enable_dynamic=True)
+        Prepare.row_upsert_param("", rows, "", fields_info=schema.to_dict()[
+                                 "fields"], enable_dynamic=True)
 
     def test_row_upsert_param_with_partial_update_true(self):
         rng = np.random.default_rng(seed=19530)
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE)
         ])
         rows = [
-            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
-            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "b": 1},
         ]
 
-        request = Prepare.row_upsert_param("test_collection", rows, "", 
-                                         fields_info=schema.to_dict()["fields"], 
-                                         enable_dynamic=True, 
-                                         partial_update=True)
-        
+        request = Prepare.row_upsert_param("test_collection", rows, "",
+                                           fields_info=schema.to_dict()[
+                                               "fields"],
+                                           enable_dynamic=True,
+                                           partial_update=True)
+
         # Check that partial_update is set correctly
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is True, "partial_update should be True when explicitly set to True"
 
     def test_row_upsert_param_partial_update_default(self):
@@ -277,69 +309,82 @@ class TestCreateCollectionRequest:
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE)
         ])
         rows = [
-            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[0], "a": 1},
-            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[0], "b": 1},
+            {"pk_field": 1, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "a": 1},
+            {"pk_field": 2, "float": 1.0, "float_vector": rng.random((1, dim))[
+                0], "b": 1},
         ]
 
-        request = Prepare.row_upsert_param("test_collection", rows, "", 
-                                         fields_info=schema.to_dict()["fields"], 
-                                         enable_dynamic=True)
-        
+        request = Prepare.row_upsert_param("test_collection", rows, "",
+                                           fields_info=schema.to_dict()[
+                                               "fields"],
+                                           enable_dynamic=True)
+
         # Check that partial_update defaults to False
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is False, "partial_update should default to False"
 
     def test_batch_upsert_param_with_partial_update_true(self):
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
-            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]},
-            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
+            {"name": "name", "type": DataType.VARCHAR,
+                "values": ["a", "b", "c"]},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR,
+                "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
         ]
-        
+
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True},
             {"name": "name", "type": DataType.VARCHAR},
             {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2}
         ]
 
-        request = Prepare.batch_upsert_param("test_collection", entities, "", 
-                                           fields_info, partial_update=True)
-        
+        request = Prepare.batch_upsert_param("test_collection", entities, "",
+                                             fields_info, partial_update=True)
+
         # Check that partial_update is set correctly
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is True, "partial_update should be True when explicitly set to True"
 
     def test_batch_upsert_param_partial_update_default(self):
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
-            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]},
-            {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
+            {"name": "name", "type": DataType.VARCHAR,
+                "values": ["a", "b", "c"]},
+            {"name": "float_vector", "type": DataType.FLOAT_VECTOR,
+                "values": [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]}
         ]
-        
+
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True},
             {"name": "name", "type": DataType.VARCHAR},
             {"name": "float_vector", "type": DataType.FLOAT_VECTOR, "dim": 2}
         ]
 
-        request = Prepare.batch_upsert_param("test_collection", entities, "", fields_info)
-        
+        request = Prepare.batch_upsert_param(
+            "test_collection", entities, "", fields_info)
+
         # Check that partial_update defaults to False
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is False, "partial_update should default to False"
 
     def test_batch_upsert_param_partial_fields_with_partial_update_true(self):
         # Test partial update with only some fields provided
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
-            {"name": "name", "type": DataType.VARCHAR, "values": ["updated_a", "updated_b", "updated_c"]}
+            {"name": "name", "type": DataType.VARCHAR, "values": [
+                "updated_a", "updated_b", "updated_c"]}
             # Note: float_vector field is intentionally omitted
         ]
-        
+
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True},
             {"name": "name", "type": DataType.VARCHAR},
@@ -348,22 +393,25 @@ class TestCreateCollectionRequest:
         ]
 
         # This should succeed with partial_update=True
-        request = Prepare.batch_upsert_param("test_collection", entities, "", 
-                                           fields_info, partial_update=True)
-        
+        request = Prepare.batch_upsert_param("test_collection", entities, "",
+                                             fields_info, partial_update=True)
+
         # Check that partial_update is set correctly
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is True, "partial_update should be True when explicitly set to True"
-        assert len(request.fields_data) == 2, "Should only contain data for provided fields"
+        assert len(
+            request.fields_data) == 2, "Should only contain data for provided fields"
 
     def test_batch_upsert_param_partial_fields_with_partial_update_false_should_fail(self):
         # Test that partial fields fail when partial_update=False
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
-            {"name": "name", "type": DataType.VARCHAR, "values": ["updated_a", "updated_b", "updated_c"]}
+            {"name": "name", "type": DataType.VARCHAR, "values": [
+                "updated_a", "updated_b", "updated_c"]}
             # Note: float_vector field is intentionally omitted
         ]
-        
+
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True},
             {"name": "name", "type": DataType.VARCHAR},
@@ -372,8 +420,8 @@ class TestCreateCollectionRequest:
 
         # This should fail with partial_update=False due to field count mismatch
         with pytest.raises(ParamError, match="expected number of fields"):
-            Prepare.batch_upsert_param("test_collection", entities, "", 
-                                     fields_info, partial_update=False)
+            Prepare.batch_upsert_param("test_collection", entities, "",
+                                       fields_info, partial_update=False)
 
     def test_row_upsert_param_missing_fields_partial_update_true(self):
         """Test that missing non-nullable fields are handled correctly with partial_update=True"""
@@ -381,24 +429,29 @@ class TestCreateCollectionRequest:
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
-            FieldSchema("required_field", DataType.DOUBLE),  # Non-nullable, no default
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
+            # Non-nullable, no default
+            FieldSchema("required_field", DataType.DOUBLE),
             FieldSchema("nullable_field", DataType.VARCHAR, nullable=True)
         ])
-        
+
         # Entities missing the required_field - should work with partial_update=True
         rows = [
-            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]},  # Missing required_field
-            {"pk_field": 2, "float_vector": rng.random((1, dim))[0]}  
+            {"pk_field": 1, "float_vector": rng.random(
+                (1, dim))[0]},  # Missing required_field
+            {"pk_field": 2, "float_vector": rng.random((1, dim))[0]}
         ]
 
         # This should work because partial_update=True skips missing field validation
-        request = Prepare.row_upsert_param("test_collection", rows, "", 
-                                         fields_info=schema.to_dict()["fields"], 
-                                         enable_dynamic=False, 
-                                         partial_update=True)
-        
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        request = Prepare.row_upsert_param("test_collection", rows, "",
+                                           fields_info=schema.to_dict()[
+                                               "fields"],
+                                           enable_dynamic=False,
+                                           partial_update=True)
+
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is True, "partial_update should be True"
 
     def test_row_upsert_param_missing_fields_partial_update_false_should_fail(self):
@@ -408,21 +461,24 @@ class TestCreateCollectionRequest:
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
-            FieldSchema("required_field", DataType.DOUBLE),  # Non-nullable, no default
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
+            # Non-nullable, no default
+            FieldSchema("required_field", DataType.DOUBLE),
         ])
-        
+
         # Entity missing the required_field - should fail with partial_update=False
         rows = [
-            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]}  # Missing required_field
+            {"pk_field": 1, "float_vector": rng.random(
+                (1, dim))[0]}  # Missing required_field
         ]
 
         # This should fail because required_field is missing and not nullable
         with pytest.raises(DataNotMatchException, match="Insert missed an field"):
-            Prepare.row_upsert_param("test_collection", rows, "", 
-                                   fields_info=schema.to_dict()["fields"], 
-                                   enable_dynamic=False, 
-                                   partial_update=False)
+            Prepare.row_upsert_param("test_collection", rows, "",
+                                     fields_info=schema.to_dict()["fields"],
+                                     enable_dynamic=False,
+                                     partial_update=False)
 
     def test_row_upsert_param_field_length_inconsistency_error(self):
         """Test error when entities have inconsistent field lengths (validation in line 559-562)"""
@@ -431,34 +487,38 @@ class TestCreateCollectionRequest:
         dim = 8
         schema = CollectionSchema([
             FieldSchema("float_vector", DataType.FLOAT_VECTOR, dim=dim),
-            FieldSchema("pk_field", DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema("pk_field", DataType.INT64,
+                        is_primary=True, auto_id=True),
             FieldSchema("float", DataType.DOUBLE)
         ])
-        
+
         # Create entities where the entity field count changes between entries
         # This tests the specific logic at lines 559-562 in prepare.py
         rows = [
-            {"pk_field": 1, "float_vector": rng.random((1, dim))[0]},  # 3 fields
-            {"pk_field": 2, "float": 2.0}  # Only 2 fields - this should trigger the error
+            {"pk_field": 1, "float_vector": rng.random((1, dim))[
+                0]},  # 3 fields
+            # Only 2 fields - this should trigger the error
+            {"pk_field": 2, "float": 2.0}
         ]
 
         # This should raise DataNotMatchException due to field length inconsistency
         # This validation happens regardless of partial_update value
         with pytest.raises(DataNotMatchException, match="The data fields length is inconsistent"):
-            Prepare.row_upsert_param("test_collection", rows, "", 
-                                   fields_info=schema.to_dict()["fields"], 
-                                   enable_dynamic=False, 
-                                   partial_update=True)
+            Prepare.row_upsert_param("test_collection", rows, "",
+                                     fields_info=schema.to_dict()["fields"],
+                                     enable_dynamic=False,
+                                     partial_update=True)
 
     def test_batch_upsert_param_partial_update_field_count_validation_skip(self):
         """Test that field count validation is skipped with partial_update=True for batch operations"""
         # This tests the logic at lines 632-635 in prepare.py
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2, 3]},
-            {"name": "name", "type": DataType.VARCHAR, "values": ["a", "b", "c"]}
+            {"name": "name", "type": DataType.VARCHAR,
+                "values": ["a", "b", "c"]}
             # Intentionally omitting other fields to test partial update
         ]
-        
+
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True},
             {"name": "name", "type": DataType.VARCHAR},
@@ -467,16 +527,20 @@ class TestCreateCollectionRequest:
         ]
 
         # This should work with partial_update=True even though not all fields are provided
-        request = Prepare.batch_upsert_param("test_collection", entities, "", 
-                                           fields_info, partial_update=True)
-        
-        assert hasattr(request, 'partial_update'), "UpsertRequest should have partial_update field"
+        request = Prepare.batch_upsert_param("test_collection", entities, "",
+                                             fields_info, partial_update=True)
+
+        assert hasattr(
+            request, 'partial_update'), "UpsertRequest should have partial_update field"
         assert request.partial_update is True, "partial_update should be True"
-        assert len(request.fields_data) == 2, "Should only contain data for provided fields"
+        assert len(
+            request.fields_data) == 2, "Should only contain data for provided fields"
+
 
 class TestAlterCollectionRequest:
     def test_alter_collection_request(self):
-        req = Prepare.alter_collection_request('foo', {'collection.ttl.seconds': 1800})
+        req = Prepare.alter_collection_request(
+            'foo', {'collection.ttl.seconds': 1800})
         assert req.collection_name == 'foo'
         assert len(req.properties) == 1
         assert req.properties[0].key == 'collection.ttl.seconds'
@@ -485,6 +549,36 @@ class TestAlterCollectionRequest:
 
 class TestLoadCollectionRequest:
     def test_load_collection_request(self):
-        kwargs = {'load_fields': ['pk', 'float_vector', 'string_load', 'int64_load']}
+        kwargs = {'load_fields': [
+            'pk', 'float_vector', 'string_load', 'int64_load']}
         req = Prepare.load_collection('foo', **kwargs)
-        assert req.load_fields == ['pk', 'float_vector', 'string_load', 'int64_load']
+        assert req.load_fields == [
+            'pk', 'float_vector', 'string_load', 'int64_load']
+
+
+class TestFunctionEditor:
+    def test_add_function(self):
+        req = Prepare.add_collection_function_request("test_collection", Function(
+            "test", FunctionType.TEXTEMBEDDING, input_field_names=["text"], output_field_names=["embedding"]))
+        assert req.collection_name == "test_collection"
+        assert req.functionSchema.name == "test"
+        assert req.functionSchema.type == FunctionType.TEXTEMBEDDING
+        assert req.functionSchema.input_field_names == ["text"]
+        assert req.functionSchema.output_field_names == ["embedding"]
+        assert req.functionSchema.description == ""
+
+    def test_alter_function(self):
+        req = Prepare.alter_collection_function_request("test_collection", "test", Function(
+            "test", FunctionType.TEXTEMBEDDING, input_field_names=["text"], output_field_names=["embedding"]))
+        assert req.collection_name == "test_collection"
+        assert req.functionSchema.name == "test"
+        assert req.functionSchema.type == FunctionType.TEXTEMBEDDING
+        assert req.functionSchema.input_field_names == ["text"]
+        assert req.functionSchema.output_field_names == ["embedding"]
+        assert req.functionSchema.description == ""
+
+    def test_drop_function(self):
+        req = Prepare.drop_collection_function_request(
+            "test_collection", "test")
+        assert req.collection_name == "test_collection"
+        assert req.function_name == "test"

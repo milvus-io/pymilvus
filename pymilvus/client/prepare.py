@@ -242,16 +242,7 @@ class Prepare:
             schema.struct_array_fields.append(struct_schema)
 
         for f in fields.functions:
-            function_schema = schema_types.FunctionSchema(
-                name=f.name,
-                description=f.description,
-                type=f.type,
-                input_field_names=f.input_field_names,
-                output_field_names=f.output_field_names,
-            )
-            for k, v in f.params.items():
-                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
-                function_schema.params.append(kv_pair)
+            function_schema = cls.convert_function_to_function_schema(f)
             schema.functions.append(function_schema)
 
         return schema
@@ -363,6 +354,34 @@ class Prepare:
     @classmethod
     def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def drop_collection_function_request(
+        cls, collection_name: str, function_name: str
+    ) -> milvus_types.DropCollectionFunctionRequest:
+        return milvus_types.DropCollectionFunctionRequest(
+            collection_name=collection_name, function_name=function_name
+        )
+
+    @classmethod
+    def add_collection_function_request(
+        cls, collection_name: str, f: Function
+    ) -> milvus_types.AddCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AddCollectionFunctionRequest(
+            collection_name=collection_name, functionSchema=function_schema
+        )
+
+    @classmethod
+    def alter_collection_function_request(
+        cls, collection_name: str, function_name: str, f: Function
+    ) -> milvus_types.AlterCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AlterCollectionFunctionRequest(
+            collection_name=collection_name,
+            function_name=function_name,
+            functionSchema=function_schema,
+        )
 
     @classmethod
     def add_collection_field_request(
@@ -1362,10 +1381,11 @@ class Prepare:
     def search_requests_with_expr(
         cls,
         collection_name: str,
-        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
+        data: Optional[Union[List[List[float]], utils.SparseMatrixInputType]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1497,25 +1517,38 @@ class Prepare:
             for key, value in search_params.items()
         ]
 
-        is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
-        nq = entity_helper.get_input_num_rows(data)
-        plg_str = cls._prepare_placeholder_str(data, is_embedding_list)
-
-        request = milvus_types.SearchRequest(
-            collection_name=collection_name,
-            partition_names=partition_names,
-            output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-            use_default_consistency=use_default_consistency,
-            consistency_level=kwargs.get("consistency_level", 0),
-            nq=nq,
-            placeholder_group=plg_str,
-            dsl_type=common_types.DslType.BoolExprV1,
-            search_params=req_params,
-            expr_template_values=cls.prepare_expression_template(
-                {} if kwargs.get("expr_params") is None else kwargs.get("expr_params")
+        expr_params = kwargs.get("expr_params")
+        request_kwargs = {
+            "collection_name": collection_name,
+            "partition_names": partition_names,
+            "output_fields": output_fields,
+            "guarantee_timestamp": kwargs.get("guarantee_timestamp", 0),
+            "use_default_consistency": use_default_consistency,
+            "consistency_level": kwargs.get("consistency_level", 0),
+            "dsl_type": common_types.DslType.BoolExprV1,
+            "search_params": req_params,
+            "expr_template_values": cls.prepare_expression_template(
+                {} if expr_params is None else expr_params
             ),
-        )
+        }
+
+        is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
+        if data is not None:
+            request_kwargs.update(
+                nq=entity_helper.get_input_num_rows(data),
+                placeholder_group=cls._prepare_placeholder_str(data, is_embedding_list),
+            )
+        elif ids is not None:
+            request_kwargs.update(
+                nq=len(ids),
+                ids=cls._build_ids_proto(ids),
+            )
+        else:
+            err_msg = "Either data or ids must be provided"
+            raise ValueError(err_msg)
+
+        request = milvus_types.SearchRequest(**request_kwargs)
+
         if expr is not None:
             request.dsl = expr
 
@@ -1530,6 +1563,26 @@ class Prepare:
             request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
 
         return request
+
+    @staticmethod
+    def _build_ids_proto(ids: List[Union[int, np.integer, str]]) -> schema_types.IDs:
+        if not ids:
+            raise ParamError(message="ids must not be empty")
+
+        first = ids[0]
+
+        if isinstance(first, (bool, np.bool_)):
+            raise ParamError(message="ids must not contain boolean values")
+
+        if isinstance(first, (int, np.integer)):
+            return schema_types.IDs(
+                int_id=schema_types.LongArray(data=[int(value) for value in ids])
+            )
+
+        if isinstance(first, str):
+            return schema_types.IDs(str_id=schema_types.StringArray(data=list(ids)))
+
+        raise ParamError(message=f"Unsupported id type: {type(first)}")
 
     @classmethod
     def hybrid_search_request_with_ranker(
@@ -2450,3 +2503,17 @@ class Prepare:
         return milvus_types.UpdateReplicateConfigurationRequest(
             replicate_configuration=replicate_configuration
         )
+
+    @staticmethod
+    def convert_function_to_function_schema(f: Function) -> schema_types.FunctionSchema:
+        function_schema = schema_types.FunctionSchema(
+            name=f.name,
+            description=f.description,
+            type=f.type,
+            input_field_names=f.input_field_names,
+            output_field_names=f.output_field_names,
+        )
+        for k, v in f.params.items():
+            kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+            function_schema.params.append(kv_pair)
+        return function_schema

@@ -384,7 +384,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def search(
         self,
         collection_name: str,
-        data: Union[List[list], list],
+        data: Optional[Union[List[list], list]] = None,
         filter: str = "",
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
@@ -393,16 +393,18 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         conn = self._get_connection()
         return await conn.search(
-            collection_name,
-            data,
-            anns_field or "",
-            search_params or {},
+            collection_name=collection_name,
+            anns_field=anns_field or "",
+            param=search_params or {},
             expression=filter,
             limit=limit,
+            data=data,
+            ids=ids,
             output_fields=output_fields,
             partition_names=partition_names,
             expr_params=kwargs.pop("filter_params", {}),
@@ -698,6 +700,85 @@ class AsyncMilvusClient(BaseMilvusClient):
         await conn.add_collection_field(
             collection_name,
             field_schema,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def add_collection_function(
+        self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
+    ):
+        """Add a new function to the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        await conn.add_collection_function(
+            collection_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def alter_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Alter a function in the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be modified
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        await conn.alter_collection_function(
+            collection_name,
+            function_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def drop_collection_function(
+        self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a function from the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be dropped
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        await conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
             **kwargs,
         )

@@ -359,7 +359,7 @@ class MilvusClient(BaseMilvusClient):
     def search(
         self,
         collection_name: str,
-        data: Union[List[list], list],
+        data: Optional[Union[List[list], list]] = None,
         filter: str = "",
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
@@ -369,6 +369,7 @@ class MilvusClient(BaseMilvusClient):
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
         highlighter: Optional[Highlighter] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -377,7 +378,7 @@ class MilvusClient(BaseMilvusClient):
         at init or data needs to have been inserted.
 
         Args:
-            data (Union[List[list], list, List[EmbeddingList]]): The vector/vectors/embedding
+            data (Optional[Union[List[list], list]]): The vector/vectors/embedding
                 list to search.
             limit (int, optional): How many results to return per search. Defaults to 10.
             filter(str, optional): A filter to use for the search. Defaults to None.
@@ -387,7 +388,8 @@ class MilvusClient(BaseMilvusClient):
             ranker (Function, optional): The ranker to use for the search.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
-
+            ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
+                Defaults to None.
         Raises:
             ValueError: The collection being searched doesnt exist. Need to insert data first.
 
@@ -402,10 +404,11 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         return conn.search(
-            collection_name,
-            data,
-            anns_field or "",
-            search_params or {},
+            collection_name=collection_name,
+            data=data,
+            ids=ids,
+            anns_field=anns_field or "",
+            param=search_params or {},
             expression=filter,
             limit=limit,
             output_fields=output_fields,
@@ -1019,6 +1022,85 @@ class MilvusClient(BaseMilvusClient):
         conn.add_collection_field(
             collection_name,
             field_schema,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def add_collection_function(
+        self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
+    ):
+        """Add a new function to the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.add_collection_function(
+            collection_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def alter_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Alter a function in the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be modified
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.alter_collection_function(
+            collection_name,
+            function_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_collection_function(
+        self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a function from the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be dropped
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
             **kwargs,
         )
