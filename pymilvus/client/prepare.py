@@ -356,6 +356,12 @@ class Prepare:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
 
     @classmethod
+    def truncate_collection_request(
+        cls, collection_name: str
+    ) -> milvus_types.TruncateCollectionRequest:
+        return milvus_types.TruncateCollectionRequest(collection_name=collection_name)
+
+    @classmethod
     def drop_collection_function_request(
         cls, collection_name: str, function_name: str
     ) -> milvus_types.DropCollectionFunctionRequest:
