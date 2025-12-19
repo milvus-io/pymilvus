@@ -208,6 +208,7 @@ class QueryIterator:
                     "cursor lines in cp file has exceeded 100 lines, truncate the file and rewrite"
                 )
                 self._buffer_cursor_lines_number = 0
+                self.__save_mvcc_ts()
             self._cp_file_handler.writelines(str(self._next_id) + "\n")
             self._cp_file_handler.flush()
             self._buffer_cursor_lines_number += 1
