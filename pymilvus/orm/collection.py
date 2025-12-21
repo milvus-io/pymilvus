@@ -392,6 +392,32 @@ class Collection:
         conn, context = self._get_connection(**kwargs)
         conn.truncate_collection(self._name, timeout=timeout, context=context, **kwargs)
 
+    def truncate(self, timeout: Optional[float] = None, **kwargs):
+        """Truncate the collection. The same as `utility.truncate_collection()`
+
+        Args:
+            timeout (float, optional): an optional duration of time in seconds to allow
+                for the RPCs. If timeout is not set, the client keeps waiting until the
+                server responds or an error occurs.
+
+        Examples:
+            >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType
+            >>> schema = CollectionSchema([
+            ...     FieldSchema("film_id", DataType.INT64, is_primary=True),
+            ...     FieldSchema("films", dtype=DataType.FLOAT_VECTOR, dim=2)
+            ... ])
+            >>> collection = Collection("test_collection_truncate", schema)
+            >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
+            >>> collection.flush()
+            >>> collection.num_entities
+            2
+            >>> collection.truncate()
+            >>> collection.num_entities
+            0
+        """
+        conn = self._get_connection()
+        conn.truncate_collection(self._name, timeout=timeout, **kwargs)
+
     def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
         """Set properties for the collection
         Args:

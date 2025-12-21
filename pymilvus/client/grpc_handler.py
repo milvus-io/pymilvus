@@ -411,6 +411,16 @@ class GrpcHandler:
         check_status(response.status)
 
     @retry_on_rpc_failure()
+    def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.truncate_collection_request(collection_name)
+
+        response = self._stub.TruncateCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+
+    @retry_on_rpc_failure()
     def add_collection_field(
         self,
         collection_name: str,
