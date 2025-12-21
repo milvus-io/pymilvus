@@ -272,6 +272,18 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
+    async def truncate_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.truncate_collection_request(collection_name)
+        response = await self._async_stub.TruncateCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+
+    @retry_on_rpc_failure()
     async def load_collection(
         self,
         collection_name: str,
