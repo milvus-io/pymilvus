@@ -4,6 +4,8 @@
 
 .vscode
 
+*~
+
 # Python files
 *.pyc
 dist

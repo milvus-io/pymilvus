@@ -154,6 +154,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         await conn.drop_collection(collection_name, timeout=timeout, **kwargs)
 
+    async def truncate_collection(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        await conn.truncate_collection(collection_name, timeout=timeout, **kwargs)
+
     async def rename_collection(
         self,
         old_name: str,
@@ -384,7 +390,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def search(
         self,
         collection_name: str,
-        data: Union[List[list], list],
+        data: Optional[Union[List[list], list]] = None,
         filter: str = "",
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
@@ -393,16 +399,18 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         conn = self._get_connection()
         return await conn.search(
-            collection_name,
-            data,
-            anns_field or "",
-            search_params or {},
+            collection_name=collection_name,
+            anns_field=anns_field or "",
+            param=search_params or {},
             expression=filter,
             limit=limit,
+            data=data,
+            ids=ids,
             output_fields=output_fields,
             partition_names=partition_names,
             expr_params=kwargs.pop("filter_params", {}),

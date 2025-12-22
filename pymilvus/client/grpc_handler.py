@@ -41,6 +41,7 @@ from .asynch import (
     SearchFuture,
 )
 from .check import (
+    check_id_and_data,
     check_pass_param,
     is_legal_host,
     is_legal_port,
@@ -392,6 +393,16 @@ class GrpcHandler:
         check_status(status)
         if collection_name in self.schema_cache:
             self.schema_cache.pop(collection_name)
+
+    @retry_on_rpc_failure()
+    def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.truncate_collection_request(collection_name)
+
+        response = self._stub.TruncateCollection(
+            request, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
 
     @retry_on_rpc_failure()
     def add_collection_field(
@@ -1051,10 +1062,11 @@ class GrpcHandler:
     def search(
         self,
         collection_name: str,
-        data: Union[List[List[float]], utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
+        data: Optional[Union[List[List[float]], utils.SparseMatrixInputType]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         expression: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1064,11 +1076,14 @@ class GrpcHandler:
         highlighter: Optional[Highlighter] = None,
         **kwargs,
     ):
+        if isinstance(ids, (int, str)):
+            ids = [ids]
+        check_id_and_data(ids, data)
+
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
             anns_field=anns_field,
-            search_data=data,
             partition_name_array=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp"),
@@ -1076,15 +1091,16 @@ class GrpcHandler:
         )
 
         request = Prepare.search_requests_with_expr(
-            collection_name,
-            data,
-            anns_field,
-            param,
-            limit,
-            expression,
-            partition_names,
-            output_fields,
-            round_decimal,
+            collection_name=collection_name,
+            anns_field=anns_field,
+            param=param,
+            limit=limit,
+            data=data,
+            ids=ids,
+            expr=expression,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
             **kwargs,
@@ -1123,12 +1139,12 @@ class GrpcHandler:
                 req_kwargs["is_embedding_list"] = True
 
             search_request = Prepare.search_requests_with_expr(
-                collection_name,
-                data,
-                req.anns_field,
-                req.param,
-                req.limit,
-                req.expr,
+                collection_name=collection_name,
+                data=data,
+                anns_field=req.anns_field,
+                param=req.param,
+                limit=req.limit,
+                expr=req.expr,
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
