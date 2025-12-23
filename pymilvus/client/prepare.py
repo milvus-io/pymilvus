@@ -1381,10 +1381,11 @@ class Prepare:
     def search_requests_with_expr(
         cls,
         collection_name: str,
-        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
+        data: Optional[Union[List[List[float]], utils.SparseMatrixInputType]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1516,25 +1517,38 @@ class Prepare:
             for key, value in search_params.items()
         ]
 
-        is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
-        nq = entity_helper.get_input_num_rows(data)
-        plg_str = cls._prepare_placeholder_str(data, is_embedding_list)
-
-        request = milvus_types.SearchRequest(
-            collection_name=collection_name,
-            partition_names=partition_names,
-            output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-            use_default_consistency=use_default_consistency,
-            consistency_level=kwargs.get("consistency_level", 0),
-            nq=nq,
-            placeholder_group=plg_str,
-            dsl_type=common_types.DslType.BoolExprV1,
-            search_params=req_params,
-            expr_template_values=cls.prepare_expression_template(
-                {} if kwargs.get("expr_params") is None else kwargs.get("expr_params")
+        expr_params = kwargs.get("expr_params")
+        request_kwargs = {
+            "collection_name": collection_name,
+            "partition_names": partition_names,
+            "output_fields": output_fields,
+            "guarantee_timestamp": kwargs.get("guarantee_timestamp", 0),
+            "use_default_consistency": use_default_consistency,
+            "consistency_level": kwargs.get("consistency_level", 0),
+            "dsl_type": common_types.DslType.BoolExprV1,
+            "search_params": req_params,
+            "expr_template_values": cls.prepare_expression_template(
+                {} if expr_params is None else expr_params
             ),
-        )
+        }
+
+        is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
+        if data is not None:
+            request_kwargs.update(
+                nq=entity_helper.get_input_num_rows(data),
+                placeholder_group=cls._prepare_placeholder_str(data, is_embedding_list),
+            )
+        elif ids is not None:
+            request_kwargs.update(
+                nq=len(ids),
+                ids=cls._build_ids_proto(ids),
+            )
+        else:
+            err_msg = "Either data or ids must be provided"
+            raise ValueError(err_msg)
+
+        request = milvus_types.SearchRequest(**request_kwargs)
+
         if expr is not None:
             request.dsl = expr
 
@@ -1549,6 +1563,26 @@ class Prepare:
             request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
 
         return request
+
+    @staticmethod
+    def _build_ids_proto(ids: List[Union[int, np.integer, str]]) -> schema_types.IDs:
+        if not ids:
+            raise ParamError(message="ids must not be empty")
+
+        first = ids[0]
+
+        if isinstance(first, (bool, np.bool_)):
+            raise ParamError(message="ids must not contain boolean values")
+
+        if isinstance(first, (int, np.integer)):
+            return schema_types.IDs(
+                int_id=schema_types.LongArray(data=[int(value) for value in ids])
+            )
+
+        if isinstance(first, str):
+            return schema_types.IDs(str_id=schema_types.StringArray(data=list(ids)))
+
+        raise ParamError(message=f"Unsupported id type: {type(first)}")
 
     @classmethod
     def hybrid_search_request_with_ranker(

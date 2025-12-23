@@ -41,7 +41,12 @@ class TestPrepare:
         }
 
         ret = Prepare.search_requests_with_expr(
-            "name", data, "v", search_params, 100)
+            collection_name="name", 
+            data=data, 
+            anns_field="v", 
+            param=search_params, 
+            limit=100,
+        )
 
         offset_exists = False
         page_retain_order_exists = False
