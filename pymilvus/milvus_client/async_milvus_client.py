@@ -10,7 +10,7 @@ from pymilvus.client.types import (
     RoleInfo,
     UserInfo,
 )
-from pymilvus.client.utils import convert_struct_fields_to_user_format
+from pymilvus.client.utils import convert_struct_fields_to_user_format, is_vector_type
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ParamError,
@@ -695,6 +695,10 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        if is_vector_type(data_type) and not kwargs.get("nullable", False):
+            raise ParamError(
+                message="Adding vector field to existing collection requires nullable=True"
+            )
         field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
         conn = self._get_connection()
         await conn.add_collection_field(

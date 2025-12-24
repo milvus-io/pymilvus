@@ -784,3 +784,194 @@ class TestEntityHelperExtended:
         assert result.field_name == "test_field"
         assert result.type == DataType.INT64
         assert list(result.scalars.long_data.data) == [1, 2, 3, 4, 5]
+
+
+class TestNullableVectorSupport:
+    """Test nullable vector support in entity_helper module for all 6 vector types"""
+
+    # Vector type configurations for parametrized tests
+    VECTOR_TYPE_CONFIGS = [
+        {
+            "dtype": DataType.FLOAT_VECTOR,
+            "name": "float_vector",
+            "values": [[1.0, 2.0, 3.0, 4.0], None, [5.0, 6.0, 7.0, 8.0]],
+            "dim": 4,
+            "get_data_len": lambda fd: len(fd.vectors.float_vector.data),
+            "expected_data_len": 8,  # 2 valid vectors * 4 dim
+        },
+        {
+            "dtype": DataType.BINARY_VECTOR,
+            "name": "binary_vector",
+            "values": [b'\x01\x02\x03\x04', None, b'\x05\x06\x07\x08'],
+            "dim": 32,  # 4 bytes * 8 bits
+            "get_data_len": lambda fd: len(fd.vectors.binary_vector),
+            "expected_data_len": 8,  # 2 valid vectors * 4 bytes
+        },
+        {
+            "dtype": DataType.FLOAT16_VECTOR,
+            "name": "float16_vector",
+            "values": [np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes(), None,
+                       np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float16).tobytes()],
+            "dim": 4,
+            "get_data_len": lambda fd: len(fd.vectors.float16_vector),
+            "expected_data_len": 16,  # 2 valid vectors * 4 dim * 2 bytes
+        },
+        {
+            "dtype": DataType.BFLOAT16_VECTOR,
+            "name": "bfloat16_vector",
+            "values": [b'\x00\x3f\x00\x40\x00\x40\x00\x40', None, b'\x00\x40\x00\x40\x00\x40\x00\x40'],
+            "dim": 4,
+            "get_data_len": lambda fd: len(fd.vectors.bfloat16_vector),
+            "expected_data_len": 16,  # 2 valid vectors * 4 dim * 2 bytes
+        },
+        {
+            "dtype": DataType.SPARSE_FLOAT_VECTOR,
+            "name": "sparse_float_vector",
+            "values": [{1: 0.5, 10: 0.3}, None, {5: 0.8}],
+            "dim": None,
+            "get_data_len": lambda fd: len(fd.vectors.sparse_float_vector.contents),
+            "expected_data_len": 2,  # 2 valid sparse vectors
+        },
+        {
+            "dtype": DataType.INT8_VECTOR,
+            "name": "int8_vector",
+            "values": [np.array([1, 2, 3, 4], dtype=np.int8).tobytes(), None,
+                       np.array([5, 6, 7, 8], dtype=np.int8).tobytes()],
+            "dim": 4,
+            "get_data_len": lambda fd: len(fd.vectors.int8_vector),
+            "expected_data_len": 8,  # 2 valid vectors * 4 dim * 1 byte
+        },
+    ]
+
+    @pytest.mark.parametrize("config", VECTOR_TYPE_CONFIGS,
+                             ids=[c["name"] for c in VECTOR_TYPE_CONFIGS])
+    def test_entity_to_field_data_nullable_vector(self, config):
+        """Test entity_to_field_data with nullable vector containing None values"""
+        entity = {
+            "name": f"nullable_{config['name']}",
+            "type": config["dtype"],
+            "values": config["values"]
+        }
+        field_info = {"name": f"nullable_{config['name']}", "nullable": True}
+        if config["dim"]:
+            field_info["params"] = {"dim": config["dim"]}
+
+        result = entity_to_field_data(entity, field_info, 3)
+
+        assert result.field_name == f"nullable_{config['name']}"
+        assert result.type == config["dtype"]
+        assert list(result.valid_data) == [True, False, True]
+        assert config["get_data_len"](result) == config["expected_data_len"]
+
+    @pytest.mark.parametrize("config", VECTOR_TYPE_CONFIGS,
+                             ids=[c["name"] for c in VECTOR_TYPE_CONFIGS])
+    def test_entity_to_field_data_nullable_vector_all_none(self, config):
+        """Test entity_to_field_data with nullable vector where all values are None"""
+        entity = {
+            "name": f"nullable_{config['name']}",
+            "type": config["dtype"],
+            "values": [None, None, None]
+        }
+        field_info = {"name": f"nullable_{config['name']}", "nullable": True}
+        if config["dim"]:
+            field_info["params"] = {"dim": config["dim"]}
+
+        result = entity_to_field_data(entity, field_info, 3)
+
+        assert list(result.valid_data) == [False, False, False]
+        assert config["get_data_len"](result) == 0
+
+    @pytest.mark.parametrize("dtype,name", [
+        (DataType.FLOAT_VECTOR, "float_vector"),
+        (DataType.BINARY_VECTOR, "binary_vector"),
+        (DataType.FLOAT16_VECTOR, "float16_vector"),
+        (DataType.BFLOAT16_VECTOR, "bfloat16_vector"),
+        (DataType.SPARSE_FLOAT_VECTOR, "sparse_float_vector"),
+        (DataType.INT8_VECTOR, "int8_vector"),
+    ])
+    def test_pack_field_value_nullable_vector_none(self, dtype, name):
+        """Test pack_field_value_to_field_data with None value for nullable vector"""
+        field_data = schema_types.FieldData()
+        field_data.type = dtype
+        field_data.field_name = f"nullable_{name}"
+        field_info = {"name": f"nullable_{name}", "nullable": True}
+
+        pack_field_value_to_field_data(None, field_data, field_info)
+
+        # Verify no data added for each type
+        if dtype == DataType.FLOAT_VECTOR:
+            assert len(field_data.vectors.float_vector.data) == 0
+        elif dtype == DataType.BINARY_VECTOR:
+            assert len(field_data.vectors.binary_vector) == 0
+        elif dtype == DataType.FLOAT16_VECTOR:
+            assert len(field_data.vectors.float16_vector) == 0
+        elif dtype == DataType.BFLOAT16_VECTOR:
+            assert len(field_data.vectors.bfloat16_vector) == 0
+        elif dtype == DataType.SPARSE_FLOAT_VECTOR:
+            assert len(field_data.vectors.sparse_float_vector.contents) == 0
+        elif dtype == DataType.INT8_VECTOR:
+            assert len(field_data.vectors.int8_vector) == 0
+
+    def test_extract_row_data_nullable_float_vector(self):
+        """Test extracting nullable float vector from field data"""
+        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.FLOAT_VECTOR
+        field_data.field_name = "nullable_vector"
+        field_data.vectors.dim = 4
+        field_data.vectors.float_vector.data.extend([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
+        field_data.valid_data.extend([True, False, True])
+
+        result0 = extract_row_data_from_fields_data([field_data], 0)
+        assert result0["nullable_vector"] == [1.0, 2.0, 3.0, 4.0]
+
+        result1 = extract_row_data_from_fields_data([field_data], 1)
+        assert result1["nullable_vector"] is None
+
+        result2 = extract_row_data_from_fields_data([field_data], 2)
+        assert result2["nullable_vector"] == [5.0, 6.0, 7.0, 8.0]
+
+    def test_extract_row_data_nullable_sparse_vector(self):
+        """Test extracting nullable sparse vector from field data"""
+        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.SPARSE_FLOAT_VECTOR
+        field_data.field_name = "nullable_sparse"
+        vec1_data = struct.pack('I', 1) + struct.pack('f', 0.5)
+        vec2_data = struct.pack('I', 5) + struct.pack('f', 0.8)
+        field_data.vectors.sparse_float_vector.contents.extend([vec1_data, vec2_data])
+        field_data.valid_data.extend([True, False, True])
+
+        result0 = extract_row_data_from_fields_data([field_data], 0)
+        assert result0["nullable_sparse"] == pytest.approx({1: 0.5})
+
+        result1 = extract_row_data_from_fields_data([field_data], 1)
+        assert result1["nullable_sparse"] is None
+
+        result2 = extract_row_data_from_fields_data([field_data], 2)
+        assert result2["nullable_sparse"] == pytest.approx({5: 0.8})
+
+    def test_extract_row_data_non_nullable_vector_uses_logical_index(self):
+        """Test that non-nullable vectors still use logical index directly"""
+        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.FLOAT_VECTOR
+        field_data.field_name = "regular_vector"
+        field_data.vectors.dim = 4
+        field_data.vectors.float_vector.data.extend([
+            1.0, 2.0, 3.0, 4.0,
+            5.0, 6.0, 7.0, 8.0,
+            9.0, 10.0, 11.0, 12.0
+        ])
+
+        result0 = extract_row_data_from_fields_data([field_data], 0)
+        assert result0["regular_vector"] == [1.0, 2.0, 3.0, 4.0]
+
+        result1 = extract_row_data_from_fields_data([field_data], 1)
+        assert result1["regular_vector"] == [5.0, 6.0, 7.0, 8.0]
+
+        result2 = extract_row_data_from_fields_data([field_data], 2)
+        assert result2["regular_vector"] == [9.0, 10.0, 11.0, 12.0]
