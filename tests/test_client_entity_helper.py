@@ -245,6 +245,32 @@ class TestEntityHelperSparse:
         # Should contain truncated version with "..."
         assert "..." in error_message
 
+    def test_convert_to_json_deeply_nested_dict(self):
+        """Test JSON conversion with deeply nested dictionary to avoid recursion limit"""
+        
+        def create_deep_dict(depth):
+            """Create a deeply nested dictionary with specified depth"""
+            result = {'id_0': '-501'}
+            for i in range(1, depth + 1):
+                result = {'id_' + str(i): result}
+            return result
+        
+        # Test with 512 levels (tests fallback from orjson to standard json library)
+        # orjson fails at ~500 levels, so 512 will trigger fallback to json.dumps
+        deep_dict = create_deep_dict(512)
+        
+        # Should not raise RecursionError
+        result = entity_helper.convert_to_json(deep_dict)
+        assert isinstance(result, bytes)
+        
+        # Verify the structure is preserved
+        parsed = json.loads(result.decode())
+        current = parsed
+        for i in range(512, 0, -1):
+            assert f'id_{i}' in current, f"Missing key id_{i} at depth {512 - i + 1}"
+            current = current[f'id_{i}']
+        assert current == {'id_0': '-501'}, "Final nested value mismatch"
+
     def test_pack_field_value_to_field_data(self):
         """Test packing field values into field data protobuf"""
         # Test with scalar field
