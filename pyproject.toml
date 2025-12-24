@@ -73,6 +73,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "pytest-timeout>=1.3.4",
     "pytest-asyncio",
+    "Cython>=3.0.0",
     "ruff>=0.12.9,<1",
     "black",
     # develop bulk_writer
@@ -82,6 +83,11 @@ dev = [
     "azure-storage-blob",
     "urllib3",
     "scipy",
+    # develop benchmark
+    "py-spy",
+    "memray;sys_platform!='win32'",
+    "pytest-benchmark[histogram]",
+    "ml_dtypes",
 ]
 
 [tool.setuptools.dynamic]

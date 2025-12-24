@@ -1021,6 +1021,10 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
+        if is_vector_type(data_type) and not kwargs.get("nullable", False):
+            raise ParamError(
+                message="Adding vector field to existing collection requires nullable=True"
+            )
         field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
         conn = self._get_connection()
         conn.add_collection_field(
