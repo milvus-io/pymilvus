@@ -1,3 +1,4 @@
+import json
 import logging
 import math
 import struct
@@ -183,19 +184,55 @@ def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True):
 
 def convert_to_json(obj: object):
     def preprocess_numpy_types(obj: Any):
-        if isinstance(obj, dict):
-            return {k: preprocess_numpy_types(v) for k, v in obj.items()}
-        if isinstance(obj, list):
-            return [preprocess_numpy_types(item) for item in obj]
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.bool_):
-            return bool(obj)
-        return obj
+        """
+        Convert numpy types to Python native types using iterative approach
+        to avoid recursion limit for deeply nested structures.
+        """
+        # Use a stack to process nested structures iteratively
+        # Each entry: (value, parent_container, key_or_index)
+        stack = [(obj, None, None)]
+        result = None
+
+        def assign_to_parent(value: Any) -> None:
+            """Helper function to assign value to parent container or result"""
+            nonlocal result
+            if parent is None:
+                result = value
+            elif isinstance(parent, (dict, list)):
+                parent[key_or_idx] = value
+
+        while stack:
+            current, parent, key_or_idx = stack.pop()
+
+            # Handle numpy types (leaf nodes)
+            if isinstance(current, np.ndarray):
+                assign_to_parent(current.tolist())
+            elif isinstance(current, np.integer):
+                assign_to_parent(int(current))
+            elif isinstance(current, np.floating):
+                assign_to_parent(float(current))
+            elif isinstance(current, np.bool_):
+                assign_to_parent(bool(current))
+            elif isinstance(current, dict):
+                # Process dict: create new dict first
+                processed = {}
+                assign_to_parent(processed)
+                # Add items to stack for processing (reverse order to maintain original order)
+                items = list(current.items())
+                for k, v in reversed(items):
+                    stack.append((v, processed, k))
+            elif isinstance(current, list):
+                # Process list: create new list with placeholders first
+                processed = [None] * len(current)
+                assign_to_parent(processed)
+                # Add items to stack for processing (reverse order to maintain original order)
+                for i in reversed(range(len(current))):
+                    stack.append((current[i], processed, i))
+            else:
+                # Primitive type, no processing needed
+                assign_to_parent(current)
+
+        return result
 
     # Handle JSON string input
     if isinstance(obj, str):
@@ -225,7 +262,15 @@ def convert_to_json(obj: object):
 
     processed_obj = preprocess_numpy_types(obj)
 
-    return orjson.dumps(processed_obj)
+    # Try orjson first (faster), fallback to standard json for deeply nested structures
+    try:
+        return orjson.dumps(processed_obj)
+    except (TypeError, RecursionError) as e:
+        # orjson has recursion limits (~500 levels), fallback to standard json library
+        # Standard json.dumps can handle up to ~999 levels with default recursion limit (1000)
+        if "Recursion limit" in str(e) or isinstance(e, RecursionError):
+            return json.dumps(processed_obj).encode(Config.EncodeProtocol)
+        raise
 
 
 def convert_to_json_arr(objs: List[object], field_info: Any):
