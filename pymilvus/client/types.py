@@ -1082,6 +1082,28 @@ class HybridExtraList(list):
         self._strict_float32 = strict_float32
         self._materialized_bitmap = [False] * len(self)
 
+    def _get_physical_index(self, field_data: Any, logical_index: int) -> int:
+        """Calculate physical index for nullable vectors with sparse storage.
+
+        Uses prefix sum for O(1) lookup instead of O(n) iteration.
+        Caches prefix sum in instance variable using field_data id as key.
+        """
+        if not hasattr(self, "_prefix_sum_cache"):
+            self._prefix_sum_cache = {}
+
+        field_id = id(field_data)
+        if field_id not in self._prefix_sum_cache:
+            if len(field_data.valid_data) == 0:
+                self._prefix_sum_cache[field_id] = None
+            else:
+                self._prefix_sum_cache[field_id] = np.cumsum(
+                    [0] + [1 if v else 0 for v in field_data.valid_data]
+                )
+        prefix_sum = self._prefix_sum_cache[field_id]
+        if prefix_sum is None:
+            return logical_index
+        return int(prefix_sum[logical_index])
+
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
         if field_data.type == DataType.JSON:
             if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
@@ -1110,10 +1132,14 @@ class HybridExtraList(list):
                 }
             )
         elif field_data.type == DataType.FLOAT_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
             dim = field_data.vectors.dim
-            start_pos = index * dim
+            phys_idx = self._get_physical_index(field_data, index)
+            start_pos = phys_idx * dim
             end_pos = start_pos + dim
-            if len(field_data.vectors.float_vector.data) >= start_pos:
+            if len(field_data.vectors.float_vector.data) >= end_pos:
                 # Here we use numpy.array to convert the float64 values to numpy.float32 values,
                 # and return a list of numpy.float32 to users
                 # By using numpy.array, performance improved by 60% for topk=16384 dim=1536 case.
@@ -1126,41 +1152,61 @@ class HybridExtraList(list):
                         start_pos:end_pos
                     ]
         elif field_data.type == DataType.BINARY_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
             dim = field_data.vectors.dim
             bytes_per_vector = dim // 8
-            start_pos = index * bytes_per_vector
+            phys_idx = self._get_physical_index(field_data, index)
+            start_pos = phys_idx * bytes_per_vector
             end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.binary_vector) >= start_pos:
+            if len(field_data.vectors.binary_vector) >= end_pos:
                 row_data[field_data.field_name] = [
                     field_data.vectors.binary_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.BFLOAT16_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
             dim = field_data.vectors.dim
             bytes_per_vector = dim * 2
-            start_pos = index * bytes_per_vector
+            phys_idx = self._get_physical_index(field_data, index)
+            start_pos = phys_idx * bytes_per_vector
             end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.bfloat16_vector) >= start_pos:
+            if len(field_data.vectors.bfloat16_vector) >= end_pos:
                 row_data[field_data.field_name] = [
                     field_data.vectors.bfloat16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.FLOAT16_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
             dim = field_data.vectors.dim
             bytes_per_vector = dim * 2
-            start_pos = index * bytes_per_vector
+            phys_idx = self._get_physical_index(field_data, index)
+            start_pos = phys_idx * bytes_per_vector
             end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.float16_vector) >= start_pos:
+            if len(field_data.vectors.float16_vector) >= end_pos:
                 row_data[field_data.field_name] = [
                     field_data.vectors.float16_vector[start_pos:end_pos]
                 ]
         elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
+            phys_idx = self._get_physical_index(field_data, index)
             row_data[field_data.field_name] = utils.sparse_parse_single_row(
-                field_data.vectors.sparse_float_vector.contents[index]
+                field_data.vectors.sparse_float_vector.contents[phys_idx]
             )
         elif field_data.type == DataType.INT8_VECTOR:
+            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+                row_data[field_data.field_name] = None
+                return
             dim = field_data.vectors.dim
-            start_pos = index * dim
+            phys_idx = self._get_physical_index(field_data, index)
+            start_pos = phys_idx * dim
             end_pos = start_pos + dim
-            if len(field_data.vectors.int8_vector) >= start_pos:
+            if len(field_data.vectors.int8_vector) >= end_pos:
                 row_data[field_data.field_name] = [
                     field_data.vectors.int8_vector[start_pos:end_pos]
                 ]

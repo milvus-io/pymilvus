@@ -56,3 +56,104 @@ class TestMilvusClient:
             assert client._using == "http://localhost:19530-test"
             client = MilvusClient(token="foobar")
             assert client._using == "http://localhost:19530-3858f62230ac3c915f300c664312c63f"
+
+    @pytest.mark.parametrize(
+        "data_type",
+        [
+            "FLOAT_VECTOR",
+            "BINARY_VECTOR",
+            "FLOAT16_VECTOR",
+            "BFLOAT16_VECTOR",
+            "SPARSE_FLOAT_VECTOR",
+            "INT8_VECTOR",
+        ],
+    )
+    def test_add_collection_field_vector_requires_nullable(self, data_type):
+        """Test that adding vector field to collection requires nullable=True"""
+        from pymilvus.orm.types import DataType
+
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ):
+            client = MilvusClient()
+            dtype = getattr(DataType, data_type)
+
+            # Should raise ParamError when nullable is not set or False
+            with pytest.raises(
+                ParamError, match="Adding vector field to existing collection requires nullable=True"
+            ):
+                client.add_collection_field(
+                    collection_name="test_collection",
+                    field_name="vector_field",
+                    data_type=dtype,
+                    dim=128,
+                )
+
+            # Should raise ParamError when nullable is explicitly False
+            with pytest.raises(
+                ParamError, match="Adding vector field to existing collection requires nullable=True"
+            ):
+                client.add_collection_field(
+                    collection_name="test_collection",
+                    field_name="vector_field",
+                    data_type=dtype,
+                    dim=128,
+                    nullable=False,
+                )
+
+    def test_add_collection_field_vector_with_nullable_true(self):
+        """Test that adding vector field with nullable=True passes validation"""
+        from pymilvus.orm.types import DataType
+
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_conn = MagicMock()
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ), patch.object(
+            MilvusClient, "_get_connection", return_value=mock_conn
+        ):
+            client = MilvusClient()
+
+            # Should not raise when nullable=True
+            client.add_collection_field(
+                collection_name="test_collection",
+                field_name="vector_field",
+                data_type=DataType.FLOAT_VECTOR,
+                dim=128,
+                nullable=True,
+            )
+            mock_conn.add_collection_field.assert_called_once()
+
+    def test_add_collection_field_non_vector_no_nullable_required(self):
+        """Test that non-vector fields don't require nullable=True"""
+        from pymilvus.orm.types import DataType
+
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_conn = MagicMock()
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ), patch.object(
+            MilvusClient, "_get_connection", return_value=mock_conn
+        ):
+            client = MilvusClient()
+
+            # Non-vector types should not require nullable
+            client.add_collection_field(
+                collection_name="test_collection",
+                field_name="int_field",
+                data_type=DataType.INT64,
+            )
+            mock_conn.add_collection_field.assert_called_once()

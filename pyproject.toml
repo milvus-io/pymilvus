@@ -87,6 +87,7 @@ dev = [
     "py-spy",
     "memray;sys_platform!='win32'",
     "pytest-benchmark[histogram]",
+    "ml_dtypes",
 ]
 
 [tool.setuptools.dynamic]
