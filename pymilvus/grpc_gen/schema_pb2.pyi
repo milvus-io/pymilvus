@@ -41,6 +41,7 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BM25: _ClassVar[FunctionType]
     TextEmbedding: _ClassVar[FunctionType]
     Rerank: _ClassVar[FunctionType]
+    MinHash: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -76,6 +77,7 @@ Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
 Rerank: FunctionType
+MinHash: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -150,7 +152,7 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -164,6 +166,8 @@ class CollectionSchema(_message.Message):
     EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
     EXTERNAL_SPEC_FIELD_NUMBER: _ClassVar[int]
     DO_PHYSICAL_BACKFILL_FIELD_NUMBER: _ClassVar[int]
+    FILE_RESOURCE_IDS_FIELD_NUMBER: _ClassVar[int]
+    ENABLE_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -177,7 +181,9 @@ class CollectionSchema(_message.Message):
     external_source: str
     external_spec: str
     do_physical_backfill: bool
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ...) -> None: ...
+    file_resource_ids: _containers.RepeatedScalarFieldContainer[int]
+    enable_namespace: bool
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params")

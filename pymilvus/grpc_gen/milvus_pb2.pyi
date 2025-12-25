@@ -1250,25 +1250,25 @@ class ClusterInfo(_message.Message):
     def __init__(self, cluster_id: _Optional[str] = ..., cchannel: _Optional[str] = ..., pchannels: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FlushAllResponse(_message.Message):
-    __slots__ = ("status", "flush_all_ts", "flush_results", "flush_all_tss", "cluster_info")
-    class FlushAllTssEntry(_message.Message):
+    __slots__ = ("status", "flush_all_ts", "flush_results", "flush_all_msgs", "cluster_info")
+    class FlushAllMsgsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
         VALUE_FIELD_NUMBER: _ClassVar[int]
         key: str
-        value: int
-        def __init__(self, key: _Optional[str] = ..., value: _Optional[int] = ...) -> None: ...
+        value: _common_pb2.ImmutableMessage
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[_common_pb2.ImmutableMessage, _Mapping]] = ...) -> None: ...
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_ALL_TS_FIELD_NUMBER: _ClassVar[int]
     FLUSH_RESULTS_FIELD_NUMBER: _ClassVar[int]
-    FLUSH_ALL_TSS_FIELD_NUMBER: _ClassVar[int]
+    FLUSH_ALL_MSGS_FIELD_NUMBER: _ClassVar[int]
     CLUSTER_INFO_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     flush_all_ts: int
     flush_results: _containers.RepeatedCompositeFieldContainer[FlushAllResult]
-    flush_all_tss: _containers.ScalarMap[str, int]
+    flush_all_msgs: _containers.MessageMap[str, _common_pb2.ImmutableMessage]
     cluster_info: ClusterInfo
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., flush_results: _Optional[_Iterable[_Union[FlushAllResult, _Mapping]]] = ..., flush_all_tss: _Optional[_Mapping[str, int]] = ..., cluster_info: _Optional[_Union[ClusterInfo, _Mapping]] = ...) -> None: ...
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., flush_all_ts: _Optional[int] = ..., flush_results: _Optional[_Iterable[_Union[FlushAllResult, _Mapping]]] = ..., flush_all_msgs: _Optional[_Mapping[str, _common_pb2.ImmutableMessage]] = ..., cluster_info: _Optional[_Union[ClusterInfo, _Mapping]] = ...) -> None: ...
 
 class FlushAllResult(_message.Message):
     __slots__ = ("db_name", "collection_results")
