@@ -239,6 +239,7 @@ class CollectionSchema:
         self.num_shards = 0
         self.num_partitions = 0
         self.enable_dynamic_field = False
+        self.enable_namespace = False
         self.created_timestamp = 0
         self.update_timestamp = 0
         if self._raw:
@@ -263,6 +264,11 @@ class CollectionSchema:
             self.enable_dynamic_field = raw.schema.enable_dynamic_field
         except Exception:
             self.enable_dynamic_field = False
+
+        try:
+            self.enable_namespace = raw.schema.enable_namespace
+        except Exception:
+            self.enable_namespace = False
 
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -309,6 +315,7 @@ class CollectionSchema:
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
+            "enable_namespace": self.enable_namespace,
         }
 
         if self.created_timestamp != 0:

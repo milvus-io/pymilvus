@@ -144,6 +144,7 @@ class Prepare:
             autoID=fields.auto_id,
             description=coll_description,
             enable_dynamic_field=fields.enable_dynamic_field,
+            enable_namespace=fields.enable_namespace,
         )
         for f in fields.fields:
             field_schema = schema_types.FieldSchema(
@@ -336,11 +337,16 @@ class Prepare:
         if "enable_dynamic_field" in fields:
             enable_dynamic_field = fields["enable_dynamic_field"]
 
+        enable_namespace = kwargs.get("enable_namespace", False)
+        if "enable_namespace" in fields:
+            enable_namespace = fields["enable_namespace"]
+
         schema = schema_types.CollectionSchema(
             name=collection_name,
             autoID=False,
             description=fields.get("description", ""),
             enable_dynamic_field=enable_dynamic_field,
+            enable_namespace=enable_namespace,
         )
 
         primary_field, auto_id_field = None, None
@@ -1034,6 +1040,7 @@ class Prepare:
         struct_fields_info: Optional[Dict] = None,
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
+        namespace: Optional[str] = None,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1045,6 +1052,7 @@ class Prepare:
             partition_name=p_name,
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
+            namespace=namespace,
         )
 
         return cls._parse_row_request(
@@ -1530,6 +1538,7 @@ class Prepare:
             "expr_template_values": cls.prepare_expression_template(
                 {} if expr_params is None else expr_params
             ),
+            "namespace": kwargs.get("namespace"),
         }
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
@@ -1614,6 +1623,7 @@ class Prepare:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
+            namespace=kwargs.get("namespace"),
         )
 
         request.rank_params.extend(
@@ -1984,6 +1994,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            namespace=kwargs.get("namespace"),
         )
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
