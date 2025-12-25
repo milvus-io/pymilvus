@@ -13,6 +13,7 @@ class TestCollectionSchema:
         return {
             "description": "TestCollectionSchema_description",
             "enable_dynamic_field": True,
+            "enable_namespace": True,
             "fields": [
                 {
                     "name": "vec1",
