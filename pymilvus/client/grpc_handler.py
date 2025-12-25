@@ -732,6 +732,7 @@ class GrpcHandler:
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
+        namespace = kwargs.get("namespace")
 
         return Prepare.row_insert_param(
             collection_name,
@@ -741,6 +742,7 @@ class GrpcHandler:
             struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
+            namespace=namespace,
         )
 
     def _get_schema_from_cache_or_remote(
