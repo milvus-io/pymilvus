@@ -41,7 +41,6 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BM25: _ClassVar[FunctionType]
     TextEmbedding: _ClassVar[FunctionType]
     Rerank: _ClassVar[FunctionType]
-    MinHash: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -77,14 +76,13 @@ Unknown: FunctionType
 BM25: FunctionType
 TextEmbedding: FunctionType
 Rerank: FunctionType
-MinHash: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
 FieldDropped: FieldState
 
 class FieldSchema(_message.Message):
-    __slots__ = ("fieldID", "name", "is_primary_key", "description", "data_type", "type_params", "index_params", "autoID", "state", "element_type", "default_value", "is_dynamic", "is_partition_key", "is_clustering_key", "nullable", "is_function_output", "external_field")
+    __slots__ = ("fieldID", "name", "is_primary_key", "description", "data_type", "type_params", "index_params", "autoID", "state", "element_type", "default_value", "is_dynamic", "is_partition_key", "is_clustering_key", "nullable", "is_function_output")
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     IS_PRIMARY_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -101,7 +99,6 @@ class FieldSchema(_message.Message):
     IS_CLUSTERING_KEY_FIELD_NUMBER: _ClassVar[int]
     NULLABLE_FIELD_NUMBER: _ClassVar[int]
     IS_FUNCTION_OUTPUT_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_FIELD_FIELD_NUMBER: _ClassVar[int]
     fieldID: int
     name: str
     is_primary_key: bool
@@ -118,8 +115,7 @@ class FieldSchema(_message.Message):
     is_clustering_key: bool
     nullable: bool
     is_function_output: bool
-    external_field: str
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ..., is_clustering_key: bool = ..., nullable: bool = ..., is_function_output: bool = ..., external_field: _Optional[str] = ...) -> None: ...
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., is_primary_key: bool = ..., description: _Optional[str] = ..., data_type: _Optional[_Union[DataType, str]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., index_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., autoID: bool = ..., state: _Optional[_Union[FieldState, str]] = ..., element_type: _Optional[_Union[DataType, str]] = ..., default_value: _Optional[_Union[ValueField, _Mapping]] = ..., is_dynamic: bool = ..., is_partition_key: bool = ..., is_clustering_key: bool = ..., nullable: bool = ..., is_function_output: bool = ...) -> None: ...
 
 class FunctionSchema(_message.Message):
     __slots__ = ("name", "id", "description", "type", "input_field_names", "input_field_ids", "output_field_names", "output_field_ids", "params")
@@ -152,7 +148,7 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "enable_namespace")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -163,10 +159,6 @@ class CollectionSchema(_message.Message):
     DBNAME_FIELD_NUMBER: _ClassVar[int]
     STRUCT_ARRAY_FIELDS_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
-    EXTERNAL_SPEC_FIELD_NUMBER: _ClassVar[int]
-    DO_PHYSICAL_BACKFILL_FIELD_NUMBER: _ClassVar[int]
-    FILE_RESOURCE_IDS_FIELD_NUMBER: _ClassVar[int]
     ENABLE_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
@@ -178,12 +170,8 @@ class CollectionSchema(_message.Message):
     dbName: str
     struct_array_fields: _containers.RepeatedCompositeFieldContainer[StructArrayFieldSchema]
     version: int
-    external_source: str
-    external_spec: str
-    do_physical_backfill: bool
-    file_resource_ids: _containers.RepeatedScalarFieldContainer[int]
     enable_namespace: bool
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., enable_namespace: bool = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params")
@@ -402,7 +390,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -417,7 +405,6 @@ class SearchResultData(_message.Message):
     RECALLS_FIELD_NUMBER: _ClassVar[int]
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHT_RESULTS_FIELD_NUMBER: _ClassVar[int]
-    ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -432,8 +419,7 @@ class SearchResultData(_message.Message):
     recalls: _containers.RepeatedScalarFieldContainer[float]
     primary_field_name: str
     highlight_results: _containers.RepeatedCompositeFieldContainer[_common_pb2.HighlightResult]
-    element_indices: LongArray
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ...) -> None: ...
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")

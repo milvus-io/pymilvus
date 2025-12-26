@@ -106,11 +106,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 )
-        self.TruncateCollection = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/TruncateCollection',
-                request_serializer=milvus__pb2.TruncateCollectionRequest.SerializeToString,
-                response_deserializer=milvus__pb2.TruncateCollectionResponse.FromString,
-                )
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
@@ -606,51 +601,6 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ReplicateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ReplicateResponse.FromString,
                 )
-        self.ComputePhraseMatchSlop = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ComputePhraseMatchSlop',
-                request_serializer=milvus__pb2.ComputePhraseMatchSlopRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ComputePhraseMatchSlopResponse.FromString,
-                )
-        self.CreateSnapshot = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/CreateSnapshot',
-                request_serializer=milvus__pb2.CreateSnapshotRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.DropSnapshot = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/DropSnapshot',
-                request_serializer=milvus__pb2.DropSnapshotRequest.SerializeToString,
-                response_deserializer=common__pb2.Status.FromString,
-                )
-        self.ListSnapshots = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ListSnapshots',
-                request_serializer=milvus__pb2.ListSnapshotsRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ListSnapshotsResponse.FromString,
-                )
-        self.DescribeSnapshot = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/DescribeSnapshot',
-                request_serializer=milvus__pb2.DescribeSnapshotRequest.SerializeToString,
-                response_deserializer=milvus__pb2.DescribeSnapshotResponse.FromString,
-                )
-        self.RestoreSnapshot = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/RestoreSnapshot',
-                request_serializer=milvus__pb2.RestoreSnapshotRequest.SerializeToString,
-                response_deserializer=milvus__pb2.RestoreSnapshotResponse.FromString,
-                )
-        self.GetRestoreSnapshotState = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/GetRestoreSnapshotState',
-                request_serializer=milvus__pb2.GetRestoreSnapshotStateRequest.SerializeToString,
-                response_deserializer=milvus__pb2.GetRestoreSnapshotStateResponse.FromString,
-                )
-        self.ListRestoreSnapshotJobs = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/ListRestoreSnapshotJobs',
-                request_serializer=milvus__pb2.ListRestoreSnapshotJobsRequest.SerializeToString,
-                response_deserializer=milvus__pb2.ListRestoreSnapshotJobsResponse.FromString,
-                )
-        self.AlterCollectionSchema = channel.unary_unary(
-                '/milvus.proto.milvus.MilvusService/AlterCollectionSchema',
-                request_serializer=milvus__pb2.AlterCollectionSchemaRequest.SerializeToString,
-                response_deserializer=milvus__pb2.AlterCollectionSchemaResponse.FromString,
-                )
 
 
 class MilvusServiceServicer(object):
@@ -735,12 +685,6 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DropCollectionFunction(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def TruncateCollection(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1370,61 +1314,6 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ComputePhraseMatchSlop(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def CreateSnapshot(self, request, context):
-        """snapshot related
-        """
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DropSnapshot(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListSnapshots(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def DescribeSnapshot(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def RestoreSnapshot(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def GetRestoreSnapshotState(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def ListRestoreSnapshotJobs(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def AlterCollectionSchema(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1497,11 +1386,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DropCollectionFunction,
                     request_deserializer=milvus__pb2.DropCollectionFunctionRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'TruncateCollection': grpc.unary_unary_rpc_method_handler(
-                    servicer.TruncateCollection,
-                    request_deserializer=milvus__pb2.TruncateCollectionRequest.FromString,
-                    response_serializer=milvus__pb2.TruncateCollectionResponse.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
                     servicer.CreatePartition,
@@ -1998,51 +1882,6 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.ReplicateRequest.FromString,
                     response_serializer=milvus__pb2.ReplicateResponse.SerializeToString,
             ),
-            'ComputePhraseMatchSlop': grpc.unary_unary_rpc_method_handler(
-                    servicer.ComputePhraseMatchSlop,
-                    request_deserializer=milvus__pb2.ComputePhraseMatchSlopRequest.FromString,
-                    response_serializer=milvus__pb2.ComputePhraseMatchSlopResponse.SerializeToString,
-            ),
-            'CreateSnapshot': grpc.unary_unary_rpc_method_handler(
-                    servicer.CreateSnapshot,
-                    request_deserializer=milvus__pb2.CreateSnapshotRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'DropSnapshot': grpc.unary_unary_rpc_method_handler(
-                    servicer.DropSnapshot,
-                    request_deserializer=milvus__pb2.DropSnapshotRequest.FromString,
-                    response_serializer=common__pb2.Status.SerializeToString,
-            ),
-            'ListSnapshots': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListSnapshots,
-                    request_deserializer=milvus__pb2.ListSnapshotsRequest.FromString,
-                    response_serializer=milvus__pb2.ListSnapshotsResponse.SerializeToString,
-            ),
-            'DescribeSnapshot': grpc.unary_unary_rpc_method_handler(
-                    servicer.DescribeSnapshot,
-                    request_deserializer=milvus__pb2.DescribeSnapshotRequest.FromString,
-                    response_serializer=milvus__pb2.DescribeSnapshotResponse.SerializeToString,
-            ),
-            'RestoreSnapshot': grpc.unary_unary_rpc_method_handler(
-                    servicer.RestoreSnapshot,
-                    request_deserializer=milvus__pb2.RestoreSnapshotRequest.FromString,
-                    response_serializer=milvus__pb2.RestoreSnapshotResponse.SerializeToString,
-            ),
-            'GetRestoreSnapshotState': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetRestoreSnapshotState,
-                    request_deserializer=milvus__pb2.GetRestoreSnapshotStateRequest.FromString,
-                    response_serializer=milvus__pb2.GetRestoreSnapshotStateResponse.SerializeToString,
-            ),
-            'ListRestoreSnapshotJobs': grpc.unary_unary_rpc_method_handler(
-                    servicer.ListRestoreSnapshotJobs,
-                    request_deserializer=milvus__pb2.ListRestoreSnapshotJobsRequest.FromString,
-                    response_serializer=milvus__pb2.ListRestoreSnapshotJobsResponse.SerializeToString,
-            ),
-            'AlterCollectionSchema': grpc.unary_unary_rpc_method_handler(
-                    servicer.AlterCollectionSchema,
-                    request_deserializer=milvus__pb2.AlterCollectionSchemaRequest.FromString,
-                    response_serializer=milvus__pb2.AlterCollectionSchemaResponse.SerializeToString,
-            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'milvus.proto.milvus.MilvusService', rpc_method_handlers)
@@ -2422,33 +2261,6 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/DropCollectionFunction',
             milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
             common__pb2.Status.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def TruncateCollection(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/TruncateCollection',
-            milvus__pb2.TruncateCollectionRequest.SerializeToString,
-            milvus__pb2.TruncateCollectionResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -5122,249 +4934,6 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/CreateReplicateStream',
             milvus__pb2.ReplicateRequest.SerializeToString,
             milvus__pb2.ReplicateResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def ComputePhraseMatchSlop(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/ComputePhraseMatchSlop',
-            milvus__pb2.ComputePhraseMatchSlopRequest.SerializeToString,
-            milvus__pb2.ComputePhraseMatchSlopResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def CreateSnapshot(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/CreateSnapshot',
-            milvus__pb2.CreateSnapshotRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def DropSnapshot(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/DropSnapshot',
-            milvus__pb2.DropSnapshotRequest.SerializeToString,
-            common__pb2.Status.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def ListSnapshots(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/ListSnapshots',
-            milvus__pb2.ListSnapshotsRequest.SerializeToString,
-            milvus__pb2.ListSnapshotsResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def DescribeSnapshot(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/DescribeSnapshot',
-            milvus__pb2.DescribeSnapshotRequest.SerializeToString,
-            milvus__pb2.DescribeSnapshotResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def RestoreSnapshot(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/RestoreSnapshot',
-            milvus__pb2.RestoreSnapshotRequest.SerializeToString,
-            milvus__pb2.RestoreSnapshotResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def GetRestoreSnapshotState(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/GetRestoreSnapshotState',
-            milvus__pb2.GetRestoreSnapshotStateRequest.SerializeToString,
-            milvus__pb2.GetRestoreSnapshotStateResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def ListRestoreSnapshotJobs(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/ListRestoreSnapshotJobs',
-            milvus__pb2.ListRestoreSnapshotJobsRequest.SerializeToString,
-            milvus__pb2.ListRestoreSnapshotJobsResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            )
-
-    @staticmethod
-    def AlterCollectionSchema(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/milvus.proto.milvus.MilvusService/AlterCollectionSchema',
-            milvus__pb2.AlterCollectionSchemaRequest.SerializeToString,
-            milvus__pb2.AlterCollectionSchemaResponse.FromString,
             options,
             channel_credentials,
             insecure,

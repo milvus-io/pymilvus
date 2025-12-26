@@ -141,7 +141,6 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AddCollectionFunction: _ClassVar[MsgType]
     AlterCollectionFunction: _ClassVar[MsgType]
     DropCollectionFunction: _ClassVar[MsgType]
-    TruncateCollection: _ClassVar[MsgType]
     CreatePartition: _ClassVar[MsgType]
     DropPartition: _ClassVar[MsgType]
     HasPartition: _ClassVar[MsgType]
@@ -244,14 +243,6 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeDatabase: _ClassVar[MsgType]
     AddCollectionField: _ClassVar[MsgType]
     AlterWAL: _ClassVar[MsgType]
-    CreateSnapshot: _ClassVar[MsgType]
-    DropSnapshot: _ClassVar[MsgType]
-    ListSnapshots: _ClassVar[MsgType]
-    DescribeSnapshot: _ClassVar[MsgType]
-    RestoreSnapshot: _ClassVar[MsgType]
-    GetRestoreSnapshotState: _ClassVar[MsgType]
-    ListRestoreSnapshotJobs: _ClassVar[MsgType]
-    AlterCollectionSchema: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -366,12 +357,6 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
-    PrivilegeCreateSnapshot: _ClassVar[ObjectPrivilege]
-    PrivilegeDropSnapshot: _ClassVar[ObjectPrivilege]
-    PrivilegeDescribeSnapshot: _ClassVar[ObjectPrivilege]
-    PrivilegeListSnapshots: _ClassVar[ObjectPrivilege]
-    PrivilegeRestoreSnapshot: _ClassVar[ObjectPrivilege]
-    PrivilegeAlterCollectionSchema: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -523,7 +508,6 @@ AlterCollectionField: MsgType
 AddCollectionFunction: MsgType
 AlterCollectionFunction: MsgType
 DropCollectionFunction: MsgType
-TruncateCollection: MsgType
 CreatePartition: MsgType
 DropPartition: MsgType
 HasPartition: MsgType
@@ -626,14 +610,6 @@ AlterDatabase: MsgType
 DescribeDatabase: MsgType
 AddCollectionField: MsgType
 AlterWAL: MsgType
-CreateSnapshot: MsgType
-DropSnapshot: MsgType
-ListSnapshots: MsgType
-DescribeSnapshot: MsgType
-RestoreSnapshot: MsgType
-GetRestoreSnapshotState: MsgType
-ListRestoreSnapshotJobs: MsgType
-AlterCollectionSchema: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -730,12 +706,6 @@ PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
 PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
-PrivilegeCreateSnapshot: ObjectPrivilege
-PrivilegeDropSnapshot: ObjectPrivilege
-PrivilegeDescribeSnapshot: ObjectPrivilege
-PrivilegeListSnapshots: ObjectPrivilege
-PrivilegeRestoreSnapshot: ObjectPrivilege
-PrivilegeAlterCollectionSchema: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -804,16 +774,14 @@ class Blob(_message.Message):
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
 class PlaceholderValue(_message.Message):
-    __slots__ = ("tag", "type", "values", "element_level")
+    __slots__ = ("tag", "type", "values")
     TAG_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
-    ELEMENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
     tag: str
     type: PlaceholderType
     values: _containers.RepeatedScalarFieldContainer[bytes]
-    element_level: bool
-    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ..., element_level: bool = ...) -> None: ...
+    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ...) -> None: ...
 
 class PlaceholderGroup(_message.Message):
     __slots__ = ("placeholders",)
