@@ -537,6 +537,66 @@ class TestCreateCollectionRequest:
             request.fields_data) == 2, "Should only contain data for provided fields"
 
 
+class TestCreateIndexRequest:
+    def test_create_index_request_with_false_boolean_param(self):
+        """Test that boolean False values are preserved in index parameters"""
+        params = {
+            "index_type": "SCANN",
+            "metric_type": "L2",
+            "with_raw_data": False,
+            "nlist": 1024,
+        }
+        req = Prepare.create_index_request("test_collection", "vector_field", params)
+        
+        # Verify that with_raw_data=False is included in extra_params
+        param_keys = [p.key for p in req.extra_params]
+        param_values = {p.key: p.value for p in req.extra_params}
+        
+        assert "with_raw_data" in param_keys, "with_raw_data parameter should be included"
+        assert param_values["with_raw_data"] == "false", "with_raw_data should be serialized as 'false'"
+        assert "index_type" in param_keys
+        # String values are serialized as plain strings (without quotes) for compatibility
+        assert param_values["index_type"] == "SCANN", "index_type should be serialized as plain string"
+        assert param_values["metric_type"] == "L2", "metric_type should be serialized as plain string"
+        assert "nlist" in param_keys
+        # Numbers are serialized as plain strings
+        assert param_values["nlist"] == "1024", "nlist should be serialized as string"
+
+    def test_create_index_request_with_true_boolean_param(self):
+        """Test that boolean True values are preserved in index parameters"""
+        params = {
+            "index_type": "SCANN",
+            "metric_type": "L2",
+            "with_raw_data": True,
+        }
+        req = Prepare.create_index_request("test_collection", "vector_field", params)
+        
+        param_keys = [p.key for p in req.extra_params]
+        param_values = {p.key: p.value for p in req.extra_params}
+        
+        assert "with_raw_data" in param_keys, "with_raw_data parameter should be included"
+        assert param_values["with_raw_data"] == "true", "with_raw_data should be serialized as 'true'"
+        assert param_values["index_type"] == "SCANN", "index_type should be serialized as plain string"
+        assert param_values["metric_type"] == "L2", "metric_type should be serialized as plain string"
+
+    def test_create_index_request_filters_none_values(self):
+        """Test that None values are filtered out from index parameters"""
+        params = {
+            "index_type": "SCANN",
+            "metric_type": "L2",
+            "with_raw_data": None,
+            "nlist": 1024,
+        }
+        req = Prepare.create_index_request("test_collection", "vector_field", params)
+        
+        param_keys = [p.key for p in req.extra_params]
+        
+        assert "with_raw_data" not in param_keys, "None values should be filtered out"
+        assert "index_type" in param_keys
+        assert "metric_type" in param_keys
+        assert "nlist" in param_keys
+
+
 class TestAlterCollectionRequest:
     def test_alter_collection_request(self):
         req = Prepare.alter_collection_request(
