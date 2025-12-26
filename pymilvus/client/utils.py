@@ -315,7 +315,12 @@ def get_server_type(host: str):
 
 
 def dumps(v: Union[dict, str]) -> str:
-    return orjson.dumps(v).decode(Config.EncodeProtocol) if isinstance(v, dict) else str(v)
+    # Use JSON serialization for dicts and booleans to ensure consistent formatting
+    # (e.g., booleans are serialized as 'true'/'false' not 'True'/'False')
+    # For other types (strings, numbers), use str() to maintain compatibility
+    if isinstance(v, (dict, bool)):
+        return orjson.dumps(v).decode(Config.EncodeProtocol)
+    return str(v)
 
 
 class SciPyHelper:
