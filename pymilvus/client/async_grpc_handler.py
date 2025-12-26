@@ -626,6 +626,7 @@ class AsyncGrpcHandler:
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
+        namespace = kwargs.get("namespace")
 
         return Prepare.row_insert_param(
             collection_name,
@@ -635,6 +636,7 @@ class AsyncGrpcHandler:
             struct_fields_info,
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
+            namespace=namespace,
         )
 
     @retry_on_rpc_failure()

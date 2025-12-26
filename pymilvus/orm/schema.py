@@ -104,6 +104,7 @@ class CollectionSchema:
         self._description = description
         # if "enable_dynamic_field" is not in kwargs, we keep None here
         self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", None)
+        self._enable_namespace = self._kwargs.get("enable_namespace", None)
         self._primary_field = None
         self._partition_key_field = None
         self._clustering_key_field = None
@@ -281,12 +282,14 @@ class CollectionSchema:
         else:
             functions = []
         enable_dynamic_field = raw.get("enable_dynamic_field", False)
+        enable_namespace = raw.get("enable_namespace", False)
         return CollectionSchema(
             fields,
             struct_fields=struct_fields,
             description=raw.get("description", ""),
             functions=functions,
             enable_dynamic_field=enable_dynamic_field,
+            enable_namespace=enable_namespace,
         )
 
     @property
@@ -378,12 +381,21 @@ class CollectionSchema:
     def enable_dynamic_field(self, value: bool):
         self._enable_dynamic_field = bool(value)
 
+    @property
+    def enable_namespace(self):
+        return bool(self._enable_namespace)
+
+    @enable_namespace.setter
+    def enable_namespace(self, value: bool):
+        self._enable_namespace = bool(value)
+
     def to_dict(self):
         res = {
             "auto_id": self.auto_id,
             "description": self._description,
             "fields": [s.to_dict() for s in self._fields],
             "enable_dynamic_field": self.enable_dynamic_field,
+            "enable_namespace": self.enable_namespace,
         }
         if self._functions is not None and len(self._functions) > 0:
             res["functions"] = [s.to_dict() for s in self._functions]

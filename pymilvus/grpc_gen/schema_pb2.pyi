@@ -148,7 +148,7 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "enable_namespace")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -159,6 +159,7 @@ class CollectionSchema(_message.Message):
     DBNAME_FIELD_NUMBER: _ClassVar[int]
     STRUCT_ARRAY_FIELDS_FIELD_NUMBER: _ClassVar[int]
     VERSION_FIELD_NUMBER: _ClassVar[int]
+    ENABLE_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -169,7 +170,8 @@ class CollectionSchema(_message.Message):
     dbName: str
     struct_array_fields: _containers.RepeatedCompositeFieldContainer[StructArrayFieldSchema]
     version: int
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ...) -> None: ...
+    enable_namespace: bool
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., enable_namespace: bool = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params")
