@@ -554,7 +554,8 @@ class TestCreateIndexRequest:
         param_values = {p.key: p.value for p in req.extra_params}
         
         assert "with_raw_data" in param_keys, "with_raw_data parameter should be included"
-        assert param_values["with_raw_data"] == "false", "with_raw_data should be serialized as 'false'"
+        # Short-term fix: booleans are serialized as uppercase "False"/"True" for e2e compatibility
+        assert param_values["with_raw_data"] == "False", "with_raw_data should be serialized as 'False'"
         assert "index_type" in param_keys
         # String values are serialized as plain strings (without quotes) for compatibility
         assert param_values["index_type"] == "SCANN", "index_type should be serialized as plain string"
@@ -576,7 +577,8 @@ class TestCreateIndexRequest:
         param_values = {p.key: p.value for p in req.extra_params}
         
         assert "with_raw_data" in param_keys, "with_raw_data parameter should be included"
-        assert param_values["with_raw_data"] == "true", "with_raw_data should be serialized as 'true'"
+        # Short-term fix: booleans are serialized as uppercase "False"/"True" for e2e compatibility
+        assert param_values["with_raw_data"] == "True", "with_raw_data should be serialized as 'True'"
         assert param_values["index_type"] == "SCANN", "index_type should be serialized as plain string"
         assert param_values["metric_type"] == "L2", "metric_type should be serialized as plain string"
 
