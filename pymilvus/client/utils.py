@@ -316,10 +316,9 @@ def get_server_type(host: str):
 
 
 def dumps(v: Union[dict, str]) -> str:
-    # Use JSON serialization for dicts and booleans to ensure consistent formatting
-    # (e.g., booleans are serialized as 'true'/'false' not 'True'/'False')
-    # For other types (strings, numbers), use str() to maintain compatibility
-    if isinstance(v, (dict, bool)):
+    # Use JSON serialization for dicts to ensure proper formatting
+    # For other types (strings, numbers, booleans), use str() to maintain compatibility
+    if isinstance(v, dict):
         return orjson.dumps(v).decode(Config.EncodeProtocol)
     return str(v)
 
