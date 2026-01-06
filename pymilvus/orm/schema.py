@@ -482,7 +482,9 @@ class FieldSchema:
             if self.default_value.WhichOneof("data") is None:
                 self.default_value = None
         else:
-            self.default_value = infer_default_value_bydata(kwargs.get("default_value"))
+            self.default_value = infer_default_value_bydata(
+                kwargs.get("default_value"), dtype=self._dtype
+            )
         self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
@@ -1211,13 +1213,13 @@ def check_schema(schema: CollectionSchema):
         raise SchemaNotReadyException(message=ExceptionsMessage.NoVector)
 
 
-def infer_default_value_bydata(data: Any):
+def infer_default_value_bydata(data: Any, dtype: DataType = None):
     if data is None:
         return None
     default_data = schema_types.ValueField()
     d_type = DataType.UNKNOWN
     if is_scalar(data):
-        d_type = infer_dtype_by_scalar_data(data)
+        d_type = infer_dtype_by_scalar_data(data, dtype)
     if d_type is DataType.BOOL:
         default_data.bool_data = data
     elif d_type in (DataType.INT8, DataType.INT16, DataType.INT32):
