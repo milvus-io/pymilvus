@@ -157,7 +157,7 @@ class OptimizeTask(threading.Thread):
         with self._condition:
             return self._progress_stage
 
-    def progress_history(self) -> list[str]:
+    def progress_history(self) -> List[str]:
         with self._condition:
             return list(self._progress_history)
 
