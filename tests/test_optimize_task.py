@@ -1,9 +1,8 @@
 import asyncio
 from typing import Any, Optional
-
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from pymilvus import AsyncMilvusClient
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.milvus_client.async_optimize_task import AsyncOptimizeTask
@@ -120,6 +119,7 @@ def test_parse_target_size_converts_valid_values(input_value: Any, expected_mb: 
     [
         "abc",
         "10XB",
+        "1KB",
         "-1GB",
         object(),
     ],

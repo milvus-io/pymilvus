@@ -66,7 +66,7 @@ def parse_target_size(target_size: str | float) -> int:
         )
 
     size_mb = int(value * unit_to_bytes[unit] / (1024 ** 2))
-    if size_mb < 0:
+    if size_mb <= 0:
         raise ParamError(
             message=f"target size too small: {target_size}, must be at least 1MB"
         )
