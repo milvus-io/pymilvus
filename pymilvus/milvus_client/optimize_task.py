@@ -64,7 +64,9 @@ def parse_target_size(target_size: Union[str, float, int, None]) -> int:
         unit = match.group(2) or "b"
 
         if unit not in unit_to_bytes:
-            raise ParamError(message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB")
+            raise ParamError(
+                message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB"
+            )
 
         size_bytes = value * unit_to_bytes[unit]
 
