@@ -88,6 +88,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         """
         self._alias_config = {}
         self._alias_handlers = {}
+        self._alias_ref_counts = {}
         self._env_uri = None
 
         if Config.MILVUS_URI != "":
@@ -225,6 +226,20 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return addr, None
 
+    def _incr_ref(self, alias: str):
+        """Increment reference count for an alias."""
+        self._alias_ref_counts[alias] = self._alias_ref_counts.get(alias, 0) + 1
+
+    def _decr_ref_and_check(self, alias: str) -> bool:
+        """Decrement reference count. Returns True if connection should be closed."""
+        if alias not in self._alias_ref_counts:
+            return True
+        self._alias_ref_counts[alias] -= 1
+        if self._alias_ref_counts[alias] <= 0:
+            self._alias_ref_counts.pop(alias, None)
+            return True
+        return False
+
     def disconnect(self, alias: str):
         """Disconnects connection from the registry.
 
@@ -234,12 +249,18 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
 
+        if not self._decr_ref_and_check(alias):
+            return  # Other clients still using this connection
+
         if alias in self._alias_handlers:
             self._alias_handlers.pop(alias).close()
 
     async def async_disconnect(self, alias: str):
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+
+        if not self._decr_ref_and_check(alias):
+            return  # Other clients still using this connection
 
         if alias in self._alias_handlers:
             await self._alias_handlers.pop(alias).close()
