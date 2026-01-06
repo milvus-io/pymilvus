@@ -2,7 +2,7 @@ import re
 import threading
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 from pymilvus.exceptions import MilvusException, ParamError
 
@@ -16,7 +16,7 @@ unit_to_bytes = {
 }
 
 
-def parse_target_size(target_size: str | float) -> int:
+def parse_target_size(target_size: Union[str, float, int, None]) -> int:
     """Parse target size string or number and return size in MB.
 
     Args:
@@ -46,26 +46,29 @@ def parse_target_size(target_size: str | float) -> int:
             message=f"target_size must be a string or number, got {type(target_size).__name__}"
         )
 
+    size_bytes = 0
     if isinstance(target_size, (int, float)):
-        return int(target_size / (1024 * 1024))
+        size_bytes = target_size
+    else:
+        target_str = str(target_size).strip().lower()
+        pattern = r"^(\d+(?:\.\d+)?)\s*([a-z]*)$"
+        match = re.match(pattern, target_str)
 
-    target_str = str(target_size).strip().lower()
-    pattern = r"^(\d+(?:\.\d+)?)\s*([a-z]*)$"
-    match = re.match(pattern, target_str)
+        if not match:
+            raise ParamError(
+                message=f"Invalid target_size format: '{target_size}'. "
+                f"Expected format: '1000', '1000MB', '1GB', '1.2gb', '1000B', '500KB', '2TB'"
+            )
 
-    if not match:
-        raise ParamError(
-            message=f"Invalid target_size format: '{target_size}'. "
-            f"Expected format: '1000', '1000MB', '1GB', '1.2gb', '1000B', '500KB', '2TB'"
-        )
+        value = float(match.group(1))
+        unit = match.group(2) or "b"
 
-    value = float(match.group(1))
-    unit = match.group(2) or "b"
+        if unit not in unit_to_bytes:
+            raise ParamError(message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB")
 
-    if unit not in unit_to_bytes:
-        raise ParamError(message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB")
+        size_bytes = value * unit_to_bytes[unit]
 
-    size_mb = int(value * unit_to_bytes[unit] / (1024**2))
+    size_mb = int(size_bytes / (1024**2))
     if size_mb <= 0:
         raise ParamError(message=f"target size too small: {target_size}, must be at least 1MB")
     return size_mb

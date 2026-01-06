@@ -121,6 +121,7 @@ def test_parse_target_size_converts_valid_values(input_value: Any, expected_mb: 
         "10XB",
         "1KB",
         "-1GB",
+        "-100",
         object(),
     ],
 )

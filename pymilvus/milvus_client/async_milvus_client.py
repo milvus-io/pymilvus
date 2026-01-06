@@ -1295,14 +1295,20 @@ class AsyncMilvusClient(BaseMilvusClient):
             return []
 
         all_indexes = await self.list_indexes(collection_name, **kwargs)
-        vector_indexes = []
-        for index_name in all_indexes:
-            index_info = await self.describe_index(
-                collection_name, index_name, timeout=timeout, **kwargs
-            )
-            if index_info and index_info.get("field_name") in vector_fields:
-                vector_indexes.append(index_name)
 
+        vector_indexes = []
+        if all_indexes:
+            describe_tasks = [
+                self.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+                for index_name in all_indexes
+            ]
+            index_infos = await asyncio.gather(*describe_tasks)
+
+            vector_indexes = [
+                all_indexes[i]
+                for i, index_info in enumerate(index_infos)
+                if index_info and index_info.get("field_name") in vector_fields
+            ]
         return vector_indexes
 
     async def _wait_for_indexes(
@@ -1316,22 +1322,20 @@ class AsyncMilvusClient(BaseMilvusClient):
         if not index_names:
             return
 
-        start = time.time()
-        for index_name in index_names:
-            task.check_cancelled()
+        task.check_cancelled()
 
-            if timeout is not None:
-                elapsed = time.time() - start
-                if elapsed >= timeout:
-                    raise MilvusException(
-                        message=f"Timeout waiting for indexes to complete on collection {collection_name}"
-                    )
+        conn = self._get_connection()
+        wait_tasks = [
+            conn.wait_for_creating_index(collection_name, index_name, **kwargs)
+            for index_name in index_names
+        ]
 
-            remaining_timeout = None if timeout is None else timeout - elapsed
-            conn = self._get_connection()
-            await conn.wait_for_creating_index(
-                collection_name, index_name, timeout=remaining_timeout, **kwargs
-            )
+        try:
+            await asyncio.wait_for(asyncio.gather(*wait_tasks), timeout=timeout)
+        except asyncio.TimeoutError as e:
+            raise MilvusException(
+                message=f"Timeout waiting for indexes to complete on collection {collection_name}"
+            ) from e
 
     async def _wait_for_compaction_with_cancel(
         self, task: AsyncOptimizeTask, compaction_id: int, timeout: Optional[float] = None, **kwargs
