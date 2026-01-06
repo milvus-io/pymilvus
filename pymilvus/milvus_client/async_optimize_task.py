@@ -34,7 +34,7 @@ class AsyncOptimizeTask:
                     collection_name=self._collection_name,
                     size_mb=parse_target_size(self._target_size),
                     timeout=self._task_timeout,
-                    **self._kwargs
+                    **self._kwargs,
                 )
             except asyncio.CancelledError as e:
                 self._progress_stage = ProgressStage.CANCELLED

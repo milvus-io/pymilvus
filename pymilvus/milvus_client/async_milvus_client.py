@@ -1276,22 +1276,18 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def _is_collection_loaded(
-        self,
-        collection_name: str,
-        timeout: Optional[float] = None
+        self, collection_name: str, timeout: Optional[float] = None
     ) -> bool:
         state_dict = await self.get_load_state(collection_name, timeout=timeout)
         return state_dict.get("state") == LoadState.Loaded
 
     async def _list_vector_indexes(
-        self,
-        collection_name: str,
-        timeout: Optional[float] = None,
-        **kwargs
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         schema_dict = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
         vector_fields = {
-            field["name"] for field in schema_dict.get("fields", [])
+            field["name"]
+            for field in schema_dict.get("fields", [])
             if is_vector_type(field.get("type"))
         }
 
@@ -1301,7 +1297,9 @@ class AsyncMilvusClient(BaseMilvusClient):
         all_indexes = await self.list_indexes(collection_name, **kwargs)
         vector_indexes = []
         for index_name in all_indexes:
-            index_info = await self.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+            index_info = await self.describe_index(
+                collection_name, index_name, timeout=timeout, **kwargs
+            )
             if index_info and index_info.get("field_name") in vector_fields:
                 vector_indexes.append(index_name)
 
@@ -1331,14 +1329,12 @@ class AsyncMilvusClient(BaseMilvusClient):
 
             remaining_timeout = None if timeout is None else timeout - elapsed
             conn = self._get_connection()
-            await conn.wait_for_creating_index(collection_name, index_name, timeout=remaining_timeout, **kwargs)
+            await conn.wait_for_creating_index(
+                collection_name, index_name, timeout=remaining_timeout, **kwargs
+            )
 
     async def _wait_for_compaction_with_cancel(
-        self,
-        task: AsyncOptimizeTask,
-        compaction_id: int,
-        timeout: Optional[float] = None,
-        **kwargs
+        self, task: AsyncOptimizeTask, compaction_id: int, timeout: Optional[float] = None, **kwargs
     ) -> None:
         start = time.time()
         conn = self._get_connection()
@@ -1355,7 +1351,9 @@ class AsyncMilvusClient(BaseMilvusClient):
             else:
                 remaining_timeout = None
 
-            state = await conn.get_compaction_state(compaction_id, timeout=remaining_timeout, **kwargs)
+            state = await conn.get_compaction_state(
+                compaction_id, timeout=remaining_timeout, **kwargs
+            )
             if state.state == 2:
                 break
             if state.state == 3:
@@ -1455,11 +1453,15 @@ class AsyncMilvusClient(BaseMilvusClient):
             return max(0, timeout - elapsed)
 
         task.check_cancelled()
-        vector_indexes = await self._list_vector_indexes(collection_name, timeout=remaining_timeout(), **kwargs)
+        vector_indexes = await self._list_vector_indexes(
+            collection_name, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_INDEXES)
-        await self._wait_for_indexes(task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs)
+        await self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.COMPACTING)
@@ -1468,16 +1470,20 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             target_size=size_mb,
             timeout=remaining_timeout(),
-            **kwargs
+            **kwargs,
         )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_COMPACTION)
-        await self._wait_for_compaction_with_cancel(task, compaction_id, timeout=remaining_timeout(), **kwargs)
+        await self._wait_for_compaction_with_cancel(
+            task, compaction_id, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_INDEX_REBUILD)
-        await self._wait_for_indexes(task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs)
+        await self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         if await self._is_collection_loaded(collection_name, timeout=remaining_timeout()):

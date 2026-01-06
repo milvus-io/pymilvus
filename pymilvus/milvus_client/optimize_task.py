@@ -7,12 +7,12 @@ from typing import Callable, List, Optional
 from pymilvus.exceptions import MilvusException, ParamError
 
 unit_to_bytes = {
-    'b': 1,
-    'kb': 1024,
-    'mb': 1024 ** 2,
-    'gb': 1024 ** 3,
-    'tb': 1024 ** 4,
-    'pb': 1024 ** 5,
+    "b": 1,
+    "kb": 1024,
+    "mb": 1024**2,
+    "gb": 1024**3,
+    "tb": 1024**4,
+    "pb": 1024**5,
 }
 
 
@@ -39,37 +39,35 @@ def parse_target_size(target_size: str | float) -> int:
         1
     """
     if target_size is None:
-        return 1<<63 - 1
+        return 1 << 63 - 1
 
     if not isinstance(target_size, (str, int, float)):
-        raise ParamError(message=f"target_size must be a string or number, got {type(target_size).__name__}")
+        raise ParamError(
+            message=f"target_size must be a string or number, got {type(target_size).__name__}"
+        )
 
     if isinstance(target_size, (int, float)):
         return int(target_size / (1024 * 1024))
 
     target_str = str(target_size).strip().lower()
-    pattern = r'^(\d+(?:\.\d+)?)\s*([a-z]*)$'
+    pattern = r"^(\d+(?:\.\d+)?)\s*([a-z]*)$"
     match = re.match(pattern, target_str)
 
     if not match:
         raise ParamError(
             message=f"Invalid target_size format: '{target_size}'. "
-                   f"Expected format: '1000', '1000MB', '1GB', '1.2gb', '1000B', '500KB', '2TB'"
+            f"Expected format: '1000', '1000MB', '1GB', '1.2gb', '1000B', '500KB', '2TB'"
         )
 
     value = float(match.group(1))
-    unit = match.group(2) or 'b'
+    unit = match.group(2) or "b"
 
     if unit not in unit_to_bytes:
-        raise ParamError(
-            message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB"
-        )
+        raise ParamError(message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB")
 
-    size_mb = int(value * unit_to_bytes[unit] / (1024 ** 2))
+    size_mb = int(value * unit_to_bytes[unit] / (1024**2))
     if size_mb <= 0:
-        raise ParamError(
-            message=f"target size too small: {target_size}, must be at least 1MB"
-        )
+        raise ParamError(message=f"target size too small: {target_size}, must be at least 1MB")
     return size_mb
 
 
@@ -94,6 +92,7 @@ class OptimizeResult:
         target_size: Target segment size that was requested.
         progress: List of progress stages completed during optimization.
     """
+
     status: str
     collection_name: str
     compaction_id: int
@@ -133,7 +132,7 @@ class OptimizeTask(threading.Thread):
                 collection_name=self._collection_name,
                 size_mb=parse_target_size(self._target_size),
                 timeout=self._task_timeout,
-                **self._kwargs
+                **self._kwargs,
             )
             if not self._cancelled:
                 self._set_result(result)

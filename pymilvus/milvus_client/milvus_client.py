@@ -1958,7 +1958,8 @@ class MilvusClient(BaseMilvusClient):
     ) -> List[str]:
         schema_dict = self.describe_collection(collection_name, timeout=timeout, **kwargs)
         vector_fields = {
-            field["name"] for field in schema_dict.get("fields", [])
+            field["name"]
+            for field in schema_dict.get("fields", [])
             if is_vector_type(field.get("type"))
         }
 
@@ -1987,18 +1988,20 @@ class MilvusClient(BaseMilvusClient):
 
         start = time.time()
         for index_name in index_names:
-                task.check_cancelled()
+            task.check_cancelled()
 
-                if timeout is not None:
-                    elapsed = time.time() - start
-                    if elapsed >= timeout:
-                        raise MilvusException(
-                            message=f"Timeout waiting for indexes to complete on collection {collection_name}"
-                        )
+            if timeout is not None:
+                elapsed = time.time() - start
+                if elapsed >= timeout:
+                    raise MilvusException(
+                        message=f"Timeout waiting for indexes to complete on collection {collection_name}"
+                    )
 
-                remaining_timeout = None if timeout is None else timeout - elapsed
-                conn = self._get_connection()
-                conn.wait_for_creating_index(collection_name, index_name, timeout=remaining_timeout, **kwargs)
+            remaining_timeout = None if timeout is None else timeout - elapsed
+            conn = self._get_connection()
+            conn.wait_for_creating_index(
+                collection_name, index_name, timeout=remaining_timeout, **kwargs
+            )
 
     def _wait_for_compaction_with_cancel(
         self, task: OptimizeTask, compaction_id: int, timeout: Optional[float] = None, **kwargs
@@ -2118,11 +2121,15 @@ class MilvusClient(BaseMilvusClient):
             return max(0, timeout - elapsed)
 
         task.check_cancelled()
-        vector_indexes = self._list_vector_indexes(collection_name, timeout=remaining_timeout(), **kwargs)
+        vector_indexes = self._list_vector_indexes(
+            collection_name, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_INDEXES)
-        self._wait_for_indexes(task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.COMPACTING)
@@ -2131,16 +2138,20 @@ class MilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             target_size=size_mb,
             timeout=remaining_timeout(),
-            **kwargs
+            **kwargs,
         )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_COMPACTION)
-        self._wait_for_compaction_with_cancel(task, compaction_id, timeout=remaining_timeout(), **kwargs)
+        self._wait_for_compaction_with_cancel(
+            task, compaction_id, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         task.set_progress(ProgressStage.WAITING_FOR_INDEX_REBUILD)
-        self._wait_for_indexes(task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
 
         task.check_cancelled()
         if self._is_collection_loaded(collection_name, timeout=remaining_timeout()):
