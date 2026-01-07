@@ -51,6 +51,7 @@ from .orm.schema import (
     Function,
     FunctionScore,
     LexicalHighlighter,
+    SemanticHighlighter,
     StructFieldSchema,
 )
 from .orm.utility import (
@@ -116,6 +117,7 @@ __all__ = [
     "Role",
     "SearchFuture",
     "SearchResult",
+    "SemanticHighlighter",
     "Shard",
     "Status",
     "StructFieldSchema",
