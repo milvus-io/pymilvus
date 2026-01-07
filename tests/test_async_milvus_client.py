@@ -183,7 +183,7 @@ class TestAsyncMilvusClientNewFeatures:
             client = AsyncMilvusClient()
             await client.flush_all(timeout=10)
             
-            mock_handler.flush_all.assert_called_once_with(timeout=10)
+            mock_handler.flush_all.assert_called_once_with(timeout=10, db_name='default')
 
     @pytest.mark.asyncio
     async def test_get_flush_all_state(self):
@@ -198,7 +198,7 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_flush_all_state(timeout=10)
             
             assert result is True
-            mock_handler.get_flush_all_state.assert_called_once_with(timeout=10)
+            mock_handler.get_flush_all_state.assert_called_once_with(timeout=10, db_name='default')
 
     @pytest.mark.asyncio
     async def test_get_compaction_plans(self):
@@ -217,7 +217,7 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_compaction_plans(job_id=123, timeout=10)
             
             assert result == mock_plans
-            mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10)
+            mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10, db_name='default')
 
     @pytest.mark.asyncio
     async def test_update_replicate_configuration(self):
@@ -250,7 +250,8 @@ class TestAsyncMilvusClientNewFeatures:
             mock_handler.update_replicate_configuration.assert_called_once_with(
                 clusters=clusters,
                 cross_cluster_topology=cross_cluster_topology,
-                timeout=10
+                timeout=10,
+                db_name='default'
             )
 
     def test_create_struct_field_schema(self):

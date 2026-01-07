@@ -1,5 +1,7 @@
+import functools
+import inspect
 import logging
-from typing import Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
@@ -38,6 +40,37 @@ from .index import IndexParam, IndexParams
 logger = logging.getLogger(__name__)
 
 
+def _inject_db_name(func: Callable) -> Callable:
+    """Decorator to automatically inject db_name into kwargs for all API methods.
+
+    This ensures that each MilvusClient instance maintains its own database context
+    even when sharing the same underlying connection.
+    """
+    arg_spec = inspect.getfullargspec(func)
+
+    @functools.wraps(func)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # 1. If 'db_name' is already in kwargs, don't overwrite it.
+        # 2. If 'db_name' is a formal parameter of the function, and it's being
+        #    passed as a positional argument, don't inject it into kwargs.
+        if "db_name" not in kwargs:
+            should_inject = True
+            if "db_name" in arg_spec.args:
+                # Calculate the index of db_name in the positional arguments.
+                # Note: self is at index 0 in arg_spec.args
+                db_name_index = arg_spec.args.index("db_name")
+                # If the number of positional args (including self) is enough to cover db_name
+                if len(args) + 1 > db_name_index:
+                    should_inject = False
+
+            if should_inject:
+                kwargs["db_name"] = self._db_name
+
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
 class MilvusClient(BaseMilvusClient):
     """The Milvus Client"""
 
@@ -69,6 +102,8 @@ class MilvusClient(BaseMilvusClient):
         self._using = create_connection(
             uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
         )
+        # Store db_name as instance variable for per-client database context
+        self._db_name = db_name or "default"
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
     def create_collection(
@@ -102,6 +137,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name, schema, index_params, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def _fast_create_collection(
         self,
         collection_name: str,
@@ -161,6 +197,7 @@ class MilvusClient(BaseMilvusClient):
         for index_param in index_params:
             self._create_index(collection_name, index_param, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def _create_index(
         self,
         collection_name: str,
@@ -178,6 +215,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def insert(
         self,
         collection_name: str,
@@ -233,6 +271,7 @@ class MilvusClient(BaseMilvusClient):
             }
         )
 
+    @_inject_db_name
     def upsert(
         self,
         collection_name: str,
@@ -295,6 +334,7 @@ class MilvusClient(BaseMilvusClient):
             }
         )
 
+    @_inject_db_name
     def hybrid_search(
         self,
         collection_name: str,
@@ -356,6 +396,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def search(
         self,
         collection_name: str,
@@ -420,6 +461,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def query(
         self,
         collection_name: str,
@@ -474,6 +516,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def query_iterator(
         self,
         collection_name: str,
@@ -505,6 +548,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def search_iterator(
         self,
         collection_name: str,
@@ -653,6 +697,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def get(
         self,
         collection_name: str,
@@ -700,6 +745,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def delete(
         self,
         collection_name: str,
@@ -786,6 +832,7 @@ class MilvusClient(BaseMilvusClient):
 
         return OmitZeroDict({"delete_count": res.delete_count, "cost": res.cost})
 
+    @_inject_db_name
     def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None) -> Dict:
         conn = self._get_connection()
         stats = conn.get_collection_stats(collection_name, timeout=timeout)
@@ -794,6 +841,7 @@ class MilvusClient(BaseMilvusClient):
             result["row_count"] = int(result["row_count"])
         return result
 
+    @_inject_db_name
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         result = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
@@ -806,23 +854,28 @@ class MilvusClient(BaseMilvusClient):
 
         return result
 
+    @_inject_db_name
     def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         return conn.has_collection(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def list_collections(self, **kwargs):
         conn = self._get_connection()
         return conn.list_collections(**kwargs)
 
+    @_inject_db_name
     def drop_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Delete the collection stored in this object"""
         conn = self._get_connection()
         conn.drop_collection(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         conn.truncate_collection(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def rename_collection(
         self,
         old_name: str,
@@ -834,6 +887,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.rename_collections(old_name, new_name, target_db, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def _create_collection_with_schema(
         self,
         collection_name: str,
@@ -856,15 +910,18 @@ class MilvusClient(BaseMilvusClient):
     def close(self):
         connections.remove_connection(self._using)
 
+    @_inject_db_name
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
         conn = self._get_connection()
         conn.load_collection(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         conn.release_collection(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def get_load_state(
         self,
         collection_name: str,
@@ -888,11 +945,13 @@ class MilvusClient(BaseMilvusClient):
 
         return ret
 
+    @_inject_db_name
     def refresh_load(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         kwargs.pop("_refresh", None)
         conn = self._get_connection()
         conn.load_collection(collection_name, timeout=timeout, _refresh=True, **kwargs)
 
+    @_inject_db_name
     def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         """List all indexes of collection. If `field_name` is not specified,
             return all the indexes of this collection, otherwise this interface will return
@@ -917,18 +976,21 @@ class MilvusClient(BaseMilvusClient):
                 index_name_list.append(index.index_name)
         return index_name_list
 
+    @_inject_db_name
     def drop_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.drop_index(collection_name, "", index_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def describe_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
         conn = self._get_connection()
         return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def alter_index_properties(
         self,
         collection_name: str,
@@ -942,6 +1004,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name, index_name, properties=properties, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def drop_index_properties(
         self,
         collection_name: str,
@@ -955,6 +1018,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def alter_collection_properties(
         self, collection_name: str, properties: dict, timeout: Optional[float] = None, **kwargs
     ):
@@ -966,6 +1030,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def drop_collection_properties(
         self,
         collection_name: str,
@@ -978,6 +1043,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name, property_keys=property_keys, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def alter_collection_field(
         self,
         collection_name: str,
@@ -995,6 +1061,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def add_collection_field(
         self,
         collection_name: str,
@@ -1034,6 +1101,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def add_collection_function(
         self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
     ):
@@ -1058,6 +1126,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def alter_collection_function(
         self,
         collection_name: str,
@@ -1089,6 +1158,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def drop_collection_function(
         self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
     ):
@@ -1113,30 +1183,35 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.create_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def drop_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.drop_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def has_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> bool:
         conn = self._get_connection()
         return conn.has_partition(collection_name, partition_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def list_partitions(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         conn = self._get_connection()
         return conn.list_partitions(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def load_partitions(
         self,
         collection_name: str,
@@ -1150,6 +1225,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.load_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def release_partitions(
         self,
         collection_name: str,
@@ -1162,6 +1238,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.release_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
@@ -1175,14 +1252,17 @@ class MilvusClient(BaseMilvusClient):
             result["row_count"] = int(result["row_count"])
         return result
 
+    @_inject_db_name
     def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         return conn.create_user(user_name, password, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def drop_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         return conn.delete_user(user_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def update_password(
         self,
         user_name: str,
@@ -1198,10 +1278,12 @@ class MilvusClient(BaseMilvusClient):
             conn._setup_authorization_interceptor(user_name, new_password, None)
             conn._setup_grpc_channel()
 
+    @_inject_db_name
     def list_users(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         return conn.list_usernames(timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         try:
@@ -1213,26 +1295,31 @@ class MilvusClient(BaseMilvusClient):
             return {"user_name": user_name, "roles": item.roles}
         return {}
 
+    @_inject_db_name
     def grant_role(self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         conn.add_user_to_role(user_name, role_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def revoke_role(
         self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.remove_user_from_role(user_name, role_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         conn.create_role(role_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def drop_role(
         self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.drop_role(role_name, force_drop=force_drop, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
@@ -1245,6 +1332,7 @@ class MilvusClient(BaseMilvusClient):
         ret["privileges"] = [dict(i) for i in res.groups]
         return ret
 
+    @_inject_db_name
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         try:
@@ -1255,6 +1343,7 @@ class MilvusClient(BaseMilvusClient):
         groups = res.groups
         return [g.role_name for g in groups]
 
+    @_inject_db_name
     def grant_privilege(
         self,
         role_name: str,
@@ -1270,6 +1359,7 @@ class MilvusClient(BaseMilvusClient):
             role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def revoke_privilege(
         self,
         role_name: str,
@@ -1285,6 +1375,7 @@ class MilvusClient(BaseMilvusClient):
             role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def grant_privilege_v2(
         self,
         role_name: str,
@@ -1319,6 +1410,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def revoke_privilege_v2(
         self,
         role_name: str,
@@ -1353,26 +1445,31 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def create_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.create_alias(collection_name, alias, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         conn.drop_alias(alias, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def alter_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
         conn.alter_alias(collection_name, alias, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         return conn.describe_alias(alias, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def list_aliases(
         self, collection_name: str = "", timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
@@ -1384,8 +1481,15 @@ class MilvusClient(BaseMilvusClient):
         self.use_database(db_name, **kwargs)
 
     def use_database(self, db_name: str, **kwargs):
-        conn = self._get_connection()
-        conn.reset_db_name(db_name)
+        """Switch to a different database.
+
+        This updates the database context for this client instance only.
+        Other clients sharing the same connection will not be affected.
+
+        Args:
+            db_name (str): The name of the database to use.
+        """
+        self._db_name = db_name
 
     def create_database(
         self,
@@ -1401,6 +1505,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.drop_database(db_name, **kwargs)
 
+    @_inject_db_name
     def list_databases(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         conn = self._get_connection()
         return conn.list_database(timeout=timeout, **kwargs)
@@ -1417,6 +1522,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.drop_database_properties(db_name, property_keys, **kwargs)
 
+    @_inject_db_name
     def flush(
         self,
         collection_name: str,
@@ -1438,6 +1544,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.flush([collection_name], timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def compact(
         self,
         collection_name: str,
@@ -1467,6 +1574,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name, is_clustering=is_clustering, is_l0=is_l0, timeout=timeout, **kwargs
         )
 
+    @_inject_db_name
     def get_compaction_state(
         self,
         job_id: int,
@@ -1491,6 +1599,7 @@ class MilvusClient(BaseMilvusClient):
         result = conn.get_compaction_state(job_id, timeout=timeout, **kwargs)
         return result.state_name
 
+    @_inject_db_name
     def get_server_version(
         self,
         timeout: Optional[float] = None,
@@ -1512,6 +1621,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.get_server_version(timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def create_privilege_group(
         self,
         group_name: str,
@@ -1532,6 +1642,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.create_privilege_group(group_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def drop_privilege_group(
         self,
         group_name: str,
@@ -1552,6 +1663,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.drop_privilege_group(group_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def list_privilege_groups(
         self,
         timeout: Optional[float] = None,
@@ -1577,6 +1689,7 @@ class MilvusClient(BaseMilvusClient):
             ret.append({"privilege_group": g.privilege_group, "privileges": g.privileges})
         return ret
 
+    @_inject_db_name
     def add_privileges_to_group(
         self,
         group_name: str,
@@ -1600,6 +1713,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.add_privileges_to_group(group_name, privileges, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def remove_privileges_from_group(
         self,
         group_name: str,
@@ -1622,6 +1736,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
         """Create a resource group
             It will success whether or not the resource group exists.
@@ -1634,6 +1749,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.create_resource_group(name, timeout, **kwargs)
 
+    @_inject_db_name
     def update_resource_groups(
         self,
         configs: Dict[str, ResourceGroupConfig],
@@ -1651,6 +1767,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.update_resource_groups(configs, timeout)
 
+    @_inject_db_name
     def drop_resource_group(
         self,
         name: str,
@@ -1668,6 +1785,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.drop_resource_group(name, timeout)
 
+    @_inject_db_name
     def describe_resource_group(self, name: str, timeout: Optional[float] = None):
         """Drop a resource group
             It will success if the resource group is existed and empty, otherwise fail.
@@ -1683,6 +1801,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.describe_resource_group(name, timeout)
 
+    @_inject_db_name
     def list_resource_groups(self, timeout: Optional[float] = None):
         """list all resource group names
 
@@ -1696,6 +1815,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.list_resource_groups(timeout)
 
+    @_inject_db_name
     def transfer_replica(
         self,
         source_group: str,
@@ -1721,6 +1841,7 @@ class MilvusClient(BaseMilvusClient):
             source_group, target_group, collection_name, num_replicas, timeout
         )
 
+    @_inject_db_name
     def describe_replica(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[ReplicaInfo]:
@@ -1737,6 +1858,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.describe_replica(collection_name, timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def run_analyzer(
         self,
         texts: Union[str, List[str]],
@@ -1768,6 +1890,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
         )
 
+    @_inject_db_name
     def update_replicate_configuration(
         self,
         clusters: Optional[List[Dict]] = None,
@@ -1841,6 +1964,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @_inject_db_name
     def flush_all(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Flush all collections.
 
@@ -1850,6 +1974,7 @@ class MilvusClient(BaseMilvusClient):
         """
         self._get_connection().flush_all(timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def get_flush_all_state(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Get the flush all state.
 
@@ -1862,6 +1987,7 @@ class MilvusClient(BaseMilvusClient):
         """
         return self._get_connection().get_flush_all_state(timeout=timeout, **kwargs)
 
+    @_inject_db_name
     def list_loaded_segments(
         self,
         collection_name: str,
@@ -1896,6 +2022,7 @@ class MilvusClient(BaseMilvusClient):
             for info in infos
         ]
 
+    @_inject_db_name
     def list_persistent_segments(
         self,
         collection_name: str,
@@ -1929,6 +2056,7 @@ class MilvusClient(BaseMilvusClient):
             for info in infos
         ]
 
+    @_inject_db_name
     def get_compaction_plans(
         self,
         job_id: int,
