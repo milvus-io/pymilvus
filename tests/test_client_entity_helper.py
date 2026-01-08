@@ -13,6 +13,8 @@ from pymilvus.client.entity_helper import (
     entity_type_to_dtype,
     extract_array_row_data,
     extract_dynamic_field_from_result,
+    flush_int8_vector_bytes,
+    flush_vector_bytes,
     get_max_len_of_var_char,
     pack_field_value_to_field_data,
     sparse_proto_to_rows,
@@ -1001,3 +1003,307 @@ class TestNullableVectorSupport:
 
         result2 = extract_row_data_from_fields_data([field_data], 2)
         assert result2["regular_vector"] == [9.0, 10.0, 11.0, 12.0]
+
+    def test_pack_field_value_to_field_data_int8_vector(self):
+        """Test packing int8 vector field values"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 768}
+        }
+
+        # Pack a single int8 vector
+        vector = np.array([i % 128 - 64 for i in range(768)], dtype=np.int8)
+        pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Flush to merge collected bytes
+        flush_int8_vector_bytes(field_data)
+
+        # Check the result
+        assert field_data.type == DataType.INT8_VECTOR
+        assert field_data.vectors.dim == 768
+        assert len(field_data.vectors.int8_vector) == 768
+
+        # Verify data correctness
+        expected_bytes = vector.tobytes()
+        assert field_data.vectors.int8_vector == expected_bytes
+
+    def test_pack_field_value_to_field_data_int8_vector_multiple(self):
+        """Test packing multiple int8 vectors to verify memory optimization"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 768}
+        }
+
+        # Pack multiple vectors (simulating batch insert)
+        num_vectors = 1000
+        vectors = []
+        for i in range(num_vectors):
+            vector = np.array([(i + j) % 128 - 64 for j in range(768)], dtype=np.int8)
+            vectors.append(vector)
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Flush to merge all collected bytes
+        flush_int8_vector_bytes(field_data)
+
+        # Verify final result
+        assert field_data.vectors.dim == 768
+        expected_total_size = num_vectors * 768
+        assert len(field_data.vectors.int8_vector) == expected_total_size
+
+        # Verify data correctness for sample vectors
+        for idx in [0, 100, 500, 999]:
+            expected_bytes = vectors[idx].tobytes()
+            actual_bytes = field_data.vectors.int8_vector[idx * 768:(idx + 1) * 768]
+            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
+
+    def test_flush_int8_vector_bytes(self):
+        """Test flush_int8_vector_bytes function"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 128}
+        }
+
+        # Pack some vectors
+        vectors = []
+        for i in range(10):
+            vector = np.array([i % 128 - 64 for _ in range(128)], dtype=np.int8)
+            vectors.append(vector)
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Before flush, data might be in cache
+        # Flush to merge all bytes
+        flush_int8_vector_bytes(field_data)
+
+        # Verify all data is merged
+        expected_size = 10 * 128
+        assert len(field_data.vectors.int8_vector) == expected_size
+
+        # Verify data correctness
+        for idx in range(10):
+            expected_bytes = vectors[idx].tobytes()
+            actual_bytes = field_data.vectors.int8_vector[idx * 128:(idx + 1) * 128]
+            assert expected_bytes == actual_bytes
+
+    def test_pack_field_value_to_field_data_int8_vector_large_batch(self):
+        """Test packing large batch of int8 vectors to verify O(n) performance"""
+        import time
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 768}
+        }
+
+        # Pack a large number of vectors (similar to the bug scenario)
+        num_vectors = 10000
+        vectors = []
+
+        start_time = time.time()
+        for i in range(num_vectors):
+            vector = np.array([(i + j) % 128 - 64 for j in range(768)], dtype=np.int8)
+            vectors.append(vector)
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Flush to merge all collected bytes
+        flush_int8_vector_bytes(field_data)
+        elapsed_time = time.time() - start_time
+
+        # Verify performance: should complete in reasonable time (< 10 seconds)
+        assert elapsed_time < 10.0, f"Operation took {elapsed_time:.2f} seconds, expected < 10 seconds"
+
+        # Verify data correctness
+        expected_total_size = num_vectors * 768
+        assert len(field_data.vectors.int8_vector) == expected_total_size
+
+        # Sample verification
+        sample_indices = [0, 1000, 5000, 9999]
+        for idx in sample_indices:
+            expected_bytes = vectors[idx].tobytes()
+            actual_bytes = field_data.vectors.int8_vector[idx * 768:(idx + 1) * 768]
+            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
+
+    def test_pack_field_value_to_field_data_int8_vector_invalid_dtype(self):
+        """Test error handling for invalid int8 vector dtype"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 768}
+        }
+
+        # Try to pack with wrong dtype
+        vector = np.array([1, 2, 3], dtype=np.int32)
+        with pytest.raises(ParamError, match="invalid input for int8 vector"):
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+    def test_pack_field_value_to_field_data_int8_vector_none(self):
+        """Test handling None value for int8 vector"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.INT8_VECTOR
+        field_data.field_name = "int8_vector_field"
+        field_info = {
+            "name": "int8_vector_field",
+            "params": {"dim": 768}
+        }
+
+        # Pack None value
+        pack_field_value_to_field_data(None, field_data, field_info)
+
+        # Dimension should be set from params
+        assert field_data.vectors.dim == 768
+
+    def test_pack_field_value_to_field_data_binary_vector_multiple(self):
+        """Test packing multiple binary vectors to verify memory optimization"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.BINARY_VECTOR
+        field_data.field_name = "binary_vector_field"
+        field_info = {
+            "name": "binary_vector_field",
+            "params": {"dim": 128}
+        }
+
+        # Pack multiple vectors
+        num_vectors = 1000
+        vectors = []
+        for i in range(num_vectors):
+            vector = bytes([(i + j) % 256 for j in range(16)])  # 128 bits = 16 bytes
+            vectors.append(vector)
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Flush to merge all collected bytes
+        flush_vector_bytes(field_data)
+
+        # Verify final result
+        assert field_data.vectors.dim == 128
+        expected_total_size = num_vectors * 16
+        assert len(field_data.vectors.binary_vector) == expected_total_size
+
+        # Verify data correctness for sample vectors
+        for idx in [0, 100, 500, 999]:
+            expected_bytes = vectors[idx]
+            actual_bytes = field_data.vectors.binary_vector[idx * 16:(idx + 1) * 16]
+            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
+
+    def test_pack_field_value_to_field_data_float16_vector_multiple(self):
+        """Test packing multiple float16 vectors to verify memory optimization"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.FLOAT16_VECTOR
+        field_data.field_name = "float16_vector_field"
+        field_info = {
+            "name": "float16_vector_field",
+            "params": {"dim": 128}
+        }
+
+        # Pack multiple vectors
+        num_vectors = 1000
+        vectors = []
+        for i in range(num_vectors):
+            vector = np.array([float(i + j) for j in range(128)], dtype=np.float16)
+            vectors.append(vector)
+            pack_field_value_to_field_data(vector, field_data, field_info)
+
+        # Flush to merge all collected bytes
+        flush_vector_bytes(field_data)
+
+        # Verify final result
+        assert field_data.vectors.dim == 128
+        expected_total_size = num_vectors * 128 * 2  # float16 = 2 bytes per element
+        assert len(field_data.vectors.float16_vector) == expected_total_size
+
+        # Verify data correctness for sample vectors
+        for idx in [0, 100, 500, 999]:
+            expected_bytes = vectors[idx].view(np.uint8).tobytes()
+            actual_bytes = field_data.vectors.float16_vector[idx * 128 * 2:(idx + 1) * 128 * 2]
+            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
+
+    def test_pack_field_value_to_field_data_bfloat16_vector_multiple(self):
+        """Test packing multiple bfloat16 vectors to verify memory optimization"""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.BFLOAT16_VECTOR
+        field_data.field_name = "bfloat16_vector_field"
+        field_info = {
+            "name": "bfloat16_vector_field",
+            "params": {"dim": 128}
+        }
+
+        # Pack multiple vectors using bytes format (since bfloat16 dtype may not be available)
+        num_vectors = 1000
+        vectors = []
+        for i in range(num_vectors):
+            # Create bytes directly for bfloat16 (2 bytes per element)
+            vector_bytes = bytes([(i + j) % 256 for j in range(128 * 2)])
+            vectors.append(vector_bytes)
+            pack_field_value_to_field_data(vector_bytes, field_data, field_info)
+
+        # Flush to merge all collected bytes
+        flush_vector_bytes(field_data)
+
+        # Verify final result
+        assert field_data.vectors.dim == 128
+        expected_total_size = num_vectors * 128 * 2  # bfloat16 = 2 bytes per element
+        assert len(field_data.vectors.bfloat16_vector) == expected_total_size
+
+        # Verify data correctness for sample vectors
+        for idx in [0, 100, 500, 999]:
+            expected_bytes = vectors[idx]
+            actual_bytes = field_data.vectors.bfloat16_vector[idx * 128 * 2:(idx + 1) * 128 * 2]
+            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
+
+    def test_flush_vector_bytes_all_types(self):
+        """Test flush_vector_bytes function for all bytes vector types"""
+        vector_types = [
+            (DataType.INT8_VECTOR, "int8_vector", 768),
+            (DataType.BINARY_VECTOR, "binary_vector", 128),
+            (DataType.FLOAT16_VECTOR, "float16_vector", 128),
+            (DataType.BFLOAT16_VECTOR, "bfloat16_vector", 128),
+        ]
+
+        for vector_type, vector_attr, dim in vector_types:
+            field_data = schema_types.FieldData()
+            field_data.type = vector_type
+            field_data.field_name = f"{vector_attr}_field"
+            field_info = {
+                "name": f"{vector_attr}_field",
+                "params": {"dim": dim}
+            }
+
+            # Pack some vectors
+            num_vectors = 10
+            for i in range(num_vectors):
+                if vector_type == DataType.INT8_VECTOR:
+                    vector = np.array([i % 128 - 64 for _ in range(dim)], dtype=np.int8)
+                elif vector_type == DataType.BINARY_VECTOR:
+                    vector = bytes([i % 256 for _ in range(dim // 8)])
+                elif vector_type == DataType.FLOAT16_VECTOR:
+                    vector = np.array([float(i) for _ in range(dim)], dtype=np.float16)
+                else:  # BFLOAT16_VECTOR
+                    # Use bytes format for bfloat16 since dtype may not be available
+                    vector = bytes([i % 256 for _ in range(dim * 2)])
+                
+                pack_field_value_to_field_data(vector, field_data, field_info)
+
+            # Flush to merge all bytes
+            flush_vector_bytes(field_data)
+
+            # Verify all data is merged
+            vector_data = getattr(field_data.vectors, vector_attr)
+            if vector_type == DataType.INT8_VECTOR:
+                expected_size = num_vectors * dim
+            elif vector_type == DataType.BINARY_VECTOR:
+                expected_size = num_vectors * (dim // 8)
+            else:  # FLOAT16_VECTOR or BFLOAT16_VECTOR
+                expected_size = num_vectors * dim * 2
+            
+            assert len(vector_data) == expected_size, f"{vector_attr} size mismatch"
