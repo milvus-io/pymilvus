@@ -2037,6 +2037,7 @@ class AsyncGrpcHandler:
         collection_name: str,
         is_clustering: Optional[bool] = False,
         is_l0: Optional[bool] = False,
+        target_size: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -2048,7 +2049,11 @@ class AsyncGrpcHandler:
         check_status(response.status)
 
         req = Prepare.manual_compaction(
-            collection_name, is_clustering, is_l0, response.collectionID
+            collection_name=collection_name,
+            is_clustering=is_clustering,
+            is_l0=is_l0,
+            collection_id=response.collectionID,
+            target_size=target_size,
         )
         response = await self._async_stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         check_status(response.status)
