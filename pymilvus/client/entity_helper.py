@@ -371,30 +371,22 @@ def flush_vector_bytes(field_data: schema_types.FieldData):
     if field_id not in _vector_bytes_cache:
         return
 
-    bytes_list = _vector_bytes_cache[field_id]
+    bytes_list = _vector_bytes_cache.pop(field_id, None)
     if not bytes_list:
-        del _vector_bytes_cache[field_id]
         return
 
-    field_type = field_data.type
-    if field_type == DataType.INT8_VECTOR:
-        existing_bytes = field_data.vectors.int8_vector
-        all_bytes = [existing_bytes, *bytes_list] if len(existing_bytes) > 0 else bytes_list
-        field_data.vectors.int8_vector = b"".join(all_bytes)
-    elif field_type == DataType.BINARY_VECTOR:
-        existing_bytes = field_data.vectors.binary_vector
-        all_bytes = [existing_bytes, *bytes_list] if len(existing_bytes) > 0 else bytes_list
-        field_data.vectors.binary_vector = b"".join(all_bytes)
-    elif field_type == DataType.FLOAT16_VECTOR:
-        existing_bytes = field_data.vectors.float16_vector
-        all_bytes = [existing_bytes, *bytes_list] if len(existing_bytes) > 0 else bytes_list
-        field_data.vectors.float16_vector = b"".join(all_bytes)
-    elif field_type == DataType.BFLOAT16_VECTOR:
-        existing_bytes = field_data.vectors.bfloat16_vector
-        all_bytes = [existing_bytes, *bytes_list] if len(existing_bytes) > 0 else bytes_list
-        field_data.vectors.bfloat16_vector = b"".join(all_bytes)
+    vector_attr_map = {
+        DataType.INT8_VECTOR: "int8_vector",
+        DataType.BINARY_VECTOR: "binary_vector",
+        DataType.FLOAT16_VECTOR: "float16_vector",
+        DataType.BFLOAT16_VECTOR: "bfloat16_vector",
+    }
 
-    del _vector_bytes_cache[field_id]
+    attr_name = vector_attr_map.get(field_data.type)
+    if attr_name:
+        existing_bytes = getattr(field_data.vectors, attr_name)
+        all_bytes_list = [existing_bytes, *bytes_list] if existing_bytes else bytes_list
+        setattr(field_data.vectors, attr_name, b"".join(all_bytes_list))
 
 
 def flush_int8_vector_bytes(field_data: schema_types.FieldData):
@@ -516,6 +508,7 @@ def pack_field_value_to_field_data(
                 if field_id not in _vector_bytes_cache:
                     if len(field_data.vectors.binary_vector) > 0:
                         _vector_bytes_cache[field_id] = [field_data.vectors.binary_vector]
+                        field_data.vectors.binary_vector = b""
                     else:
                         _vector_bytes_cache[field_id] = []
 
