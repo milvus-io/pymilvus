@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -34,6 +35,7 @@ from ._utils import create_connection
 from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
+from .optimize_task import OptimizeResult, OptimizeTask, ProgressStage
 
 logger = logging.getLogger(__name__)
 
@@ -1946,3 +1948,220 @@ class MilvusClient(BaseMilvusClient):
             CompactionPlans: The compaction plans for the specified job.
         """
         return self._get_connection().get_compaction_plans(job_id, timeout=timeout, **kwargs)
+
+    def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:
+        state_dict = self.get_load_state(collection_name, timeout=timeout)
+        return state_dict.get("state") == LoadState.Loaded
+
+    def _list_vector_indexes(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        schema_dict = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        vector_fields = {
+            field["name"]
+            for field in schema_dict.get("fields", [])
+            if is_vector_type(field.get("type"))
+        }
+
+        if not vector_fields:
+            return []
+
+        all_indexes = self.list_indexes(collection_name, **kwargs)
+        vector_indexes = []
+        for index_name in all_indexes:
+            index_info = self.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+            if index_info and index_info.get("field_name") in vector_fields:
+                vector_indexes.append(index_name)
+
+        return vector_indexes
+
+    def _wait_for_indexes(
+        self,
+        task: OptimizeTask,
+        collection_name: str,
+        index_names: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        if not index_names:
+            return
+
+        start = time.time()
+        for index_name in index_names:
+            task.check_cancelled()
+
+            if timeout is not None:
+                elapsed = time.time() - start
+                if elapsed >= timeout:
+                    raise MilvusException(
+                        message=f"Timeout waiting for indexes to complete on collection {collection_name}"
+                    )
+
+            remaining_timeout = None if timeout is None else timeout - elapsed
+            conn = self._get_connection()
+            conn.wait_for_creating_index(
+                collection_name, index_name, timeout=remaining_timeout, **kwargs
+            )
+
+    def _wait_for_compaction_with_cancel(
+        self, task: OptimizeTask, compaction_id: int, timeout: Optional[float] = None, **kwargs
+    ) -> None:
+        start = time.time()
+        conn = self._get_connection()
+        while True:
+            task.check_cancelled()
+
+            if timeout is not None:
+                elapsed = time.time() - start
+                if elapsed >= timeout:
+                    raise MilvusException(
+                        message=f"Timeout waiting for compaction {compaction_id} to complete"
+                    )
+                remaining_timeout = timeout - elapsed
+            else:
+                remaining_timeout = None
+
+            state = conn.get_compaction_state(compaction_id, timeout=remaining_timeout, **kwargs)
+            if state.state == 2:
+                break
+            if state.state == 3:
+                raise MilvusException(message=f"Compaction {compaction_id} failed")
+
+            time.sleep(0.5)
+
+    def optimize(
+        self,
+        collection_name: str,
+        target_size: Optional[str] = None,
+        wait: bool = True,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Union[OptimizeResult, OptimizeTask]:
+        """Optimize collection to adjust segment sizes for better query performance.
+
+        WARNING: This is a Preview version feature for non-production use only (Benchmark, POC).
+
+        This method performs the following operations:
+        1. Waits for all indexes to complete building
+        2. Triggers force merge compaction with optional target size
+        3. Waits for compaction to complete
+        4. Waits for index rebuild to complete
+        5. Refreshes collection load if collection is loaded
+
+        Args:
+            collection_name (str): The name of the collection to optimize.
+            target_size (Optional[str]): Target segment size. Format: '1000MB', '1GB', '1.2gb'.
+                If not provided, uses system default.
+            wait (bool): Whether to wait for optimization to complete. Defaults to True.
+                If False, returns an OptimizeTask for async tracking.
+            timeout (Optional[float]): Maximum time in seconds to wait for optimization.
+                Only applies when wait=True.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Union[OptimizeResult, OptimizeTask]: If wait=True, returns OptimizeResult with:
+                - status: "success"
+                - collection_name: str
+                - compaction_id: int
+                - target_size: str or None
+                - progress: list of progress stages completed
+            If wait=False, returns OptimizeTask for progress tracking.
+
+        Raises:
+            ParamError: If collection_name is invalid or target_size format is incorrect.
+            MilvusException: If index build fails, compaction fails, or timeout occurs.
+
+        Examples:
+            Synchronous usage:
+            >>> client.optimize("my_collection", target_size="512MB")
+
+            Asynchronous usage:
+            >>> task = client.optimize("my_collection", target_size="512MB", wait=False)
+            >>> while not task.done():
+            ...     print(f"Progress: {task.progress()}")
+            ...     time.sleep(1)
+            >>> result = task.result()
+
+            Cancelling a task:
+            >>> task = client.optimize("my_collection", target_size="512MB", wait=False)
+            >>> # ... do some work ...
+            >>> if task.cancel():
+            ...     print("Task cancelled successfully")
+        """
+        validate_param("collection_name", collection_name, str)
+
+        task = OptimizeTask(
+            collection_name=collection_name,
+            target_size=target_size,
+            task_timeout=timeout,
+            execute_fn=self._execute_optimize,
+            **kwargs,
+        )
+        task.start()
+
+        if wait:
+            return task.result(timeout=timeout)
+
+        return task
+
+    def _execute_optimize(
+        self,
+        task: OptimizeTask,
+        collection_name: str,
+        size_mb: Optional[int],
+        timeout: Optional[float],
+        **kwargs,
+    ) -> OptimizeResult:
+        start = time.time()
+
+        def remaining_timeout() -> Optional[float]:
+            if timeout is None:
+                return None
+            elapsed = time.time() - start
+            return max(0, timeout - elapsed)
+
+        task.check_cancelled()
+        vector_indexes = self._list_vector_indexes(
+            collection_name, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_INDEXES)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.COMPACTING)
+        conn = self._get_connection()
+        compaction_id = conn.compact(
+            collection_name=collection_name,
+            target_size=size_mb,
+            timeout=remaining_timeout(),
+            **kwargs,
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_COMPACTION)
+        self._wait_for_compaction_with_cancel(
+            task, compaction_id, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_INDEX_REBUILD)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        if self._is_collection_loaded(collection_name, timeout=remaining_timeout()):
+            task.set_progress(ProgressStage.REFRESHING_LOAD)
+            self.refresh_load(collection_name, timeout=remaining_timeout(), **kwargs)
+
+        return OptimizeResult(
+            status="success",
+            collection_name=collection_name,
+            compaction_id=compaction_id,
+            target_size=task._target_size,
+            progress=task.progress_history(),
+        )
