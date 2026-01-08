@@ -761,6 +761,10 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
 
+        # Local cache for temporary byte lists for bytes vector fields
+        # key: field_data object id, value: list of bytes
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
         (
             struct_fields_data,
             struct_info_map,
@@ -799,7 +803,9 @@ class Prepare:
                             "default_value", None
                         ):
                             field_data.valid_data.append(v is not None)
-                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            v, field_data, field_info, vector_bytes_cache
+                        )
                     elif k in struct_fields_data:
                         # Array of structs format
                         try:
@@ -823,7 +829,9 @@ class Prepare:
                     field_info, field_data = field_info_map[key], fields_data[key]
                     if field_info.get("nullable", False) or field_info.get("default_value", None):
                         field_data.valid_data.append(False)
-                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            None, field_data, field_info, vector_bytes_cache
+                        )
                     else:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
@@ -860,7 +868,7 @@ class Prepare:
                 DataType.FLOAT16_VECTOR,
                 DataType.BFLOAT16_VECTOR,
             ):
-                entity_helper.flush_vector_bytes(field_data)
+                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
         request.fields_data.extend(struct_fields_data.values())
@@ -898,6 +906,10 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
         field_len = {field["name"]: 0 for field in input_fields_info}
+
+        # Local cache for temporary byte lists for bytes vector fields
+        # key: field_data object id, value: list of bytes
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Use common struct data setup (only if not partial update)
         if partial_update:
@@ -946,7 +958,9 @@ class Prepare:
                             "default_value", None
                         ):
                             field_data.valid_data.append(v is not None)
-                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            v, field_data, field_info, vector_bytes_cache
+                        )
                         field_len[k] += 1
                     elif k in struct_fields_data:
                         # Handle struct field (array of structs)
@@ -976,7 +990,9 @@ class Prepare:
                     if field_info.get("nullable", False) or field_info.get("default_value", None):
                         field_data.valid_data.append(False)
                         field_len[key] += 1
-                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            None, field_data, field_info, vector_bytes_cache
+                        )
                     else:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
@@ -1016,7 +1032,7 @@ class Prepare:
                 DataType.FLOAT16_VECTOR,
                 DataType.BFLOAT16_VECTOR,
             ):
-                entity_helper.flush_vector_bytes(field_data)
+                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         if struct_fields_data:
             # reconstruct the struct array fields data (same as in insert)

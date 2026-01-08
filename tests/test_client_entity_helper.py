@@ -1,6 +1,6 @@
 import json
 import struct
-from typing import List
+from typing import Dict, List
 from unittest.mock import patch
 
 import numpy as np
@@ -13,7 +13,6 @@ from pymilvus.client.entity_helper import (
     entity_type_to_dtype,
     extract_array_row_data,
     extract_dynamic_field_from_result,
-    flush_int8_vector_bytes,
     flush_vector_bytes,
     get_max_len_of_var_char,
     pack_field_value_to_field_data,
@@ -279,9 +278,10 @@ class TestEntityHelperSparse:
         field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT64
         field_info = {"name": "test_field"}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         value = 42
-        entity_helper.pack_field_value_to_field_data(value, field_data, field_info)
+        entity_helper.pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
 
         assert len(field_data.scalars.long_data.data) == 1
         assert field_data.scalars.long_data.data[0] == value
@@ -291,10 +291,11 @@ class TestEntityHelperSparse:
         field_data = schema_pb2.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
         field_info = {"name": "vector_field"}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         value = [1.0, 2.0, 3.0, 4.0]
 
-        entity_helper.pack_field_value_to_field_data(value, field_data, field_info)
+        entity_helper.pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
 
         assert field_data.vectors.dim == 4
         assert list(field_data.vectors.float_vector.data) == value
@@ -619,12 +620,14 @@ class TestEntityHelperExtended:
         field_data.type = DataType.FLOAT_VECTOR
         field_data.field_name = "vector_field"
         field_info = {"name": "vector_field"}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a single vector
         pack_field_value_to_field_data(
             np.array([1.0, 2.0]),
             field_data,
-            field_info
+            field_info,
+            vector_bytes_cache
         )
 
         # Check the result
@@ -637,13 +640,15 @@ class TestEntityHelperExtended:
         field_data.type = DataType.SPARSE_FLOAT_VECTOR
         field_data.field_name = "sparse_field"
         field_info = {"name": "sparse_field"}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a single sparse vector
         sparse_data = {1: 0.5, 10: 0.3}
         pack_field_value_to_field_data(
             sparse_data,
             field_data,
-            field_info
+            field_info,
+            vector_bytes_cache
         )
 
         # Check the result
@@ -657,11 +662,13 @@ class TestEntityHelperExtended:
         field_data.type = DataType.INT64
         field_data.field_name = "int_field"
         field_info = {"name": "int_field"}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         pack_field_value_to_field_data(
             42,
             field_data,
-            field_info
+            field_info,
+            vector_bytes_cache
         )
 
         assert field_data.type == DataType.INT64
@@ -923,8 +930,9 @@ class TestNullableVectorSupport:
         field_data.type = dtype
         field_data.field_name = f"nullable_{name}"
         field_info = {"name": f"nullable_{name}", "nullable": True}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
-        pack_field_value_to_field_data(None, field_data, field_info)
+        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
 
         # Verify no data added for each type
         if dtype == DataType.FLOAT_VECTOR:
@@ -1013,13 +1021,14 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 768}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a single int8 vector
         vector = np.array([i % 128 - 64 for i in range(768)], dtype=np.int8)
-        pack_field_value_to_field_data(vector, field_data, field_info)
+        pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge collected bytes
-        flush_int8_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Check the result
         assert field_data.type == DataType.INT8_VECTOR
@@ -1039,6 +1048,7 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 768}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors (simulating batch insert)
         num_vectors = 1000
@@ -1046,10 +1056,10 @@ class TestNullableVectorSupport:
         for i in range(num_vectors):
             vector = np.array([(i + j) % 128 - 64 for j in range(768)], dtype=np.int8)
             vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge all collected bytes
-        flush_int8_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Verify final result
         assert field_data.vectors.dim == 768
@@ -1063,7 +1073,7 @@ class TestNullableVectorSupport:
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_flush_int8_vector_bytes(self):
-        """Test flush_int8_vector_bytes function"""
+        """Test flush_vector_bytes function for int8 vectors"""
         field_data = schema_types.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
@@ -1071,17 +1081,18 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 128}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack some vectors
         vectors = []
         for i in range(10):
             vector = np.array([i % 128 - 64 for _ in range(128)], dtype=np.int8)
             vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Before flush, data might be in cache
         # Flush to merge all bytes
-        flush_int8_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Verify all data is merged
         expected_size = 10 * 128
@@ -1104,6 +1115,7 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 768}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a large number of vectors (similar to the bug scenario)
         num_vectors = 10000
@@ -1113,10 +1125,10 @@ class TestNullableVectorSupport:
         for i in range(num_vectors):
             vector = np.array([(i + j) % 128 - 64 for j in range(768)], dtype=np.int8)
             vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge all collected bytes
-        flush_int8_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
         elapsed_time = time.time() - start_time
 
         # Verify performance: should complete in reasonable time (< 10 seconds)
@@ -1142,11 +1154,12 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 768}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Try to pack with wrong dtype
         vector = np.array([1, 2, 3], dtype=np.int32)
         with pytest.raises(ParamError, match="invalid input for int8 vector"):
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
     def test_pack_field_value_to_field_data_int8_vector_none(self):
         """Test handling None value for int8 vector"""
@@ -1157,9 +1170,10 @@ class TestNullableVectorSupport:
             "name": "int8_vector_field",
             "params": {"dim": 768}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack None value
-        pack_field_value_to_field_data(None, field_data, field_info)
+        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
 
         # Dimension should be set from params
         assert field_data.vectors.dim == 768
@@ -1173,6 +1187,7 @@ class TestNullableVectorSupport:
             "name": "binary_vector_field",
             "params": {"dim": 128}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors
         num_vectors = 1000
@@ -1180,10 +1195,10 @@ class TestNullableVectorSupport:
         for i in range(num_vectors):
             vector = bytes([(i + j) % 256 for j in range(16)])  # 128 bits = 16 bytes
             vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge all collected bytes
-        flush_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Verify final result
         assert field_data.vectors.dim == 128
@@ -1205,6 +1220,7 @@ class TestNullableVectorSupport:
             "name": "float16_vector_field",
             "params": {"dim": 128}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors
         num_vectors = 1000
@@ -1212,10 +1228,10 @@ class TestNullableVectorSupport:
         for i in range(num_vectors):
             vector = np.array([float(i + j) for j in range(128)], dtype=np.float16)
             vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info)
+            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge all collected bytes
-        flush_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Verify final result
         assert field_data.vectors.dim == 128
@@ -1237,6 +1253,7 @@ class TestNullableVectorSupport:
             "name": "bfloat16_vector_field",
             "params": {"dim": 128}
         }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors using bytes format (since bfloat16 dtype may not be available)
         num_vectors = 1000
@@ -1245,10 +1262,10 @@ class TestNullableVectorSupport:
             # Create bytes directly for bfloat16 (2 bytes per element)
             vector_bytes = bytes([(i + j) % 256 for j in range(128 * 2)])
             vectors.append(vector_bytes)
-            pack_field_value_to_field_data(vector_bytes, field_data, field_info)
+            pack_field_value_to_field_data(vector_bytes, field_data, field_info, vector_bytes_cache)
 
         # Flush to merge all collected bytes
-        flush_vector_bytes(field_data)
+        flush_vector_bytes(field_data, vector_bytes_cache)
 
         # Verify final result
         assert field_data.vectors.dim == 128
@@ -1278,6 +1295,7 @@ class TestNullableVectorSupport:
                 "name": f"{vector_attr}_field",
                 "params": {"dim": dim}
             }
+            vector_bytes_cache: Dict[int, List[bytes]] = {}
 
             # Pack some vectors
             num_vectors = 10
@@ -1292,10 +1310,10 @@ class TestNullableVectorSupport:
                     # Use bytes format for bfloat16 since dtype may not be available
                     vector = bytes([i % 256 for _ in range(dim * 2)])
                 
-                pack_field_value_to_field_data(vector, field_data, field_info)
+                pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
             # Flush to merge all bytes
-            flush_vector_bytes(field_data)
+            flush_vector_bytes(field_data, vector_bytes_cache)
 
             # Verify all data is merged
             vector_data = getattr(field_data.vectors, vector_attr)
