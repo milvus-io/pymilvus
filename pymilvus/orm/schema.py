@@ -1037,7 +1037,73 @@ class LexicalHighlighter:
         return HighlightType.LEXICAL
 
 
-Highlighter = LexicalHighlighter  # Use Union[...] to add more highlighter types in the future
+class SemanticHighlighter:
+    """
+    Represents the configuration for semantic highlighting in search results.
+
+    This class encapsulates parameters used to identify and mark relevant text
+    segments based on semantic similarity rather than just keyword matching.
+    """
+
+    def __init__(
+        self,
+        queries: List[str],
+        input_fields: List[str],
+        *,
+        pre_tags: Optional[List[str]] = None,
+        post_tags: Optional[List[str]] = None,
+        threshold: Optional[float] = None,
+        highlight_only: Optional[bool] = None,
+        model_deployment_id: Optional[str] = None,
+        max_client_batch_size: Optional[int] = None,
+    ):
+        """
+        Initializes the SemanticHighlighter instance.
+
+        Args:
+            queries: A list of search queries to match against the document.
+            input_fields: The schema fields to highlight.
+            pre_tags: HTML tags or strings to insert before the highlighted text.
+            post_tags: HTML tags or strings to insert after the highlighted text.
+            threshold: The minimum confidence score (0.0 to 1.0) to trigger highlighting.
+            highlight_only: If True, returns only the highlighted snippets instead of full text.
+            model_deployment_id: The ID of the deployed model used for semantic inference.
+            max_client_batch_size: Limits the number of items processed in a single batch.
+        """
+
+        self.queries = queries
+        self.input_fields = input_fields
+        self.pre_tags = pre_tags
+        self.post_tags = post_tags
+        self.threshold = threshold
+        self.highlight_only = highlight_only
+        self.model_deployment_id = model_deployment_id
+        self.max_client_batch_size = max_client_batch_size
+
+    @property
+    def params(self) -> Dict[str, Any]:
+        params = {
+            "queries": self.queries,
+            "input_fields": self.input_fields,
+        }
+
+        optional_params = {
+            "pre_tags": self.pre_tags,
+            "post_tags": self.post_tags,
+            "threshold": self.threshold,
+            "highlight_only": self.highlight_only,
+            "model_deployment_id": self.model_deployment_id,
+            "max_client_batch_size": self.max_client_batch_size,
+        }
+        params.update({k: v for k, v in optional_params.items() if v is not None})
+        return params
+
+    @property
+    def type(self) -> HighlightType:
+        return HighlightType.SEMANTIC
+
+
+Highlighter = Union[LexicalHighlighter, SemanticHighlighter]
 
 
 def is_valid_insert_data(data: Union[pd.DataFrame, list, dict]) -> bool:
