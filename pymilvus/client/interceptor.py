@@ -29,6 +29,11 @@ def _api_level_md(**kwargs) -> Optional[List[Tuple]]:
     client_request_id = kwargs.get("client-request-id", kwargs.get("client_request_id"))
     if client_request_id:
         metadata.append(("client-request-id", client_request_id))
+
+    db_name = kwargs.get("db_name")
+    if db_name:
+        metadata.append(("dbname", db_name))
+
     return metadata
 
 
@@ -102,11 +107,11 @@ def header_adder_interceptor(headers: List, values: List):
         client_call_details: Any,
         request_iterator: Any,
     ):
-        metadata = []
-        if client_call_details.metadata is not None:
-            metadata = list(client_call_details.metadata)
-        for item in zip(headers, values):
-            metadata.append(item)
+        metadata = list(client_call_details.metadata) if client_call_details.metadata else []
+
+        for key, value in zip(headers, values):
+            metadata.append((key, value))
+
         client_call_details = _ClientCallDetails(
             client_call_details.method,
             client_call_details.timeout,
