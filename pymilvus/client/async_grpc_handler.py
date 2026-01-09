@@ -39,6 +39,7 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
+from .schema_cache import GlobalSchemaCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -73,7 +74,6 @@ class AsyncGrpcHandler:
     ) -> None:
         self._async_stub = None
         self._async_channel = channel
-        self.schema_cache: Dict[str, dict] = {}
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -137,15 +137,10 @@ class AsyncGrpcHandler:
 
     def _setup_db_name(self, db_name: str):
         if db_name is None:
-            new_db = None
+            self._db_name = ""
         else:
             check_pass_param(db_name=db_name)
-            new_db = db_name
-
-        if getattr(self, "_db_name", None) != new_db:
-            self.schema_cache.clear()
-
-        self._db_name = new_db
+            self._db_name = db_name
 
     def _setup_grpc_channel(self, **kwargs):
         if self._async_channel is None:
@@ -270,6 +265,11 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(response)
+        # Invalidate global schema cache
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._db_name or "", collection_name
+        )
+        GlobalSchemaCache().invalidate(cache_key)
 
     @retry_on_rpc_failure()
     async def truncate_collection(
@@ -544,13 +544,21 @@ class AsyncGrpcHandler:
     async def update_schema(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> dict:
-        self.schema_cache.pop(collection_name, None)
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._db_name or "", collection_name
+        )
+        GlobalSchemaCache().invalidate(cache_key)
+
         schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
         schema_timestamp = schema.get("update_timestamp", 0)
-        self.schema_cache[collection_name] = {
-            "schema": schema,
-            "schema_timestamp": schema_timestamp,
-        }
+
+        GlobalSchemaCache().set(
+            cache_key,
+            {
+                "schema": schema,
+                "schema_timestamp": schema_timestamp,
+            },
+        )
         return schema
 
     async def _get_schema_from_cache_or_remote(
@@ -560,17 +568,25 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> Tuple[dict, int]:
-        if collection_name in self.schema_cache:
-            cached = self.schema_cache[collection_name]
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._db_name or "", collection_name
+        )
+        cached = GlobalSchemaCache().get(cache_key)
+
+        if cached is not None:
             return cached["schema"], cached["schema_timestamp"]
 
         if not isinstance(schema, dict):
             schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
         schema_timestamp = schema.get("update_timestamp", 0)
-        self.schema_cache[collection_name] = {
-            "schema": schema,
-            "schema_timestamp": schema_timestamp,
-        }
+
+        GlobalSchemaCache().set(
+            cache_key,
+            {
+                "schema": schema,
+                "schema_timestamp": schema_timestamp,
+            },
+        )
         return schema, schema_timestamp
 
     @retry_on_rpc_failure()

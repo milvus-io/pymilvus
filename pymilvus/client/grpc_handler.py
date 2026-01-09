@@ -50,6 +50,7 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
+from .schema_cache import GlobalSchemaCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -158,7 +159,6 @@ class GrpcHandler:
         self._setup_db_interceptor(kwargs.get("db_name"))
         self._setup_grpc_channel()
         self.callbacks = []
-        self.schema_cache = {}
         self._reconnect_handler = None
 
     def register_reconnect_handler(self, handler: ReconnectHandler):
@@ -236,7 +236,6 @@ class GrpcHandler:
             self._channel = None
 
     def reset_db_name(self, db_name: str):
-        self.schema_cache.clear()
         self._setup_db_interceptor(db_name)
         self._setup_grpc_channel()
         self._setup_identifier_interceptor(self._user)
@@ -260,8 +259,10 @@ class GrpcHandler:
     def _setup_db_interceptor(self, db_name: str):
         if db_name is None:
             self._db_interceptor = None
+            self._db_name = ""
         else:
             check_pass_param(db_name=db_name)
+            self._db_name = db_name
             self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
 
     def _setup_grpc_channel(self):
@@ -391,8 +392,11 @@ class GrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(status)
-        if collection_name in self.schema_cache:
-            self.schema_cache.pop(collection_name)
+        # Invalidate global schema cache
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._get_db_name(), collection_name
+        )
+        GlobalSchemaCache().invalidate(cache_key)
 
     @retry_on_rpc_failure()
     def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
@@ -701,16 +705,23 @@ class GrpcHandler:
         return MutationResult(resp)
 
     def update_schema(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        self.schema_cache.pop(collection_name, None)
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._get_db_name(), collection_name
+        )
+        GlobalSchemaCache().invalidate(cache_key)
+
         schema = self.describe_collection(
             collection_name, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         schema_timestamp = schema.get("update_timestamp", 0)
 
-        self.schema_cache[collection_name] = {
-            "schema": schema,
-            "schema_timestamp": schema_timestamp,
-        }
+        GlobalSchemaCache().set(
+            cache_key,
+            {
+                "schema": schema,
+                "schema_timestamp": schema_timestamp,
+            },
+        )
 
         return schema
 
@@ -745,27 +756,37 @@ class GrpcHandler:
             namespace=namespace,
         )
 
+    def _get_db_name(self) -> str:
+        """Get current database name."""
+        return getattr(self, "_db_name", "")
+
     def _get_schema_from_cache_or_remote(
         self, collection_name: str, schema: Optional[dict] = None, timeout: Optional[float] = None
     ):
         """
-        checks the cache for the schema. If not found, it fetches it remotely and updates the cache
+        Checks the cache for the schema. If not found, it fetches it remotely and updates the cache.
         """
-        if collection_name in self.schema_cache:
-            # Use the cached schema and timestamp
-            schema = self.schema_cache[collection_name]["schema"]
-            schema_timestamp = self.schema_cache[collection_name]["schema_timestamp"]
-        else:
-            # Fetch the schema remotely if not in cache
-            if not isinstance(schema, dict):
-                schema = self.describe_collection(collection_name, timeout=timeout)
-            schema_timestamp = schema.get("update_timestamp", 0)
+        cache_key = GlobalSchemaCache.format_key(
+            self.server_address, self._get_db_name(), collection_name
+        )
+        cached = GlobalSchemaCache().get(cache_key)
 
-            # Cache the fetched schema and timestamp
-            self.schema_cache[collection_name] = {
+        if cached is not None:
+            return cached["schema"], cached["schema_timestamp"]
+
+        # Fetch the schema remotely if not in cache
+        if not isinstance(schema, dict):
+            schema = self.describe_collection(collection_name, timeout=timeout)
+        schema_timestamp = schema.get("update_timestamp", 0)
+
+        # Cache the fetched schema and timestamp
+        GlobalSchemaCache().set(
+            cache_key,
+            {
                 "schema": schema,
                 "schema_timestamp": schema_timestamp,
-            }
+            },
+        )
 
         return schema, schema_timestamp
 
