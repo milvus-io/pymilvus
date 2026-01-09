@@ -766,10 +766,9 @@ class GrpcHandler:
         """
         Checks the cache for the schema. If not found, it fetches it remotely and updates the cache.
         """
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._get_db_name(), collection_name
-        )
-        cached = GlobalSchemaCache().get(cache_key)
+        cache = GlobalSchemaCache()
+        cache_key = cache.format_key(self.server_address, self._get_db_name(), collection_name)
+        cached = cache.get(cache_key)
 
         if cached is not None:
             return cached["schema"], cached["schema_timestamp"]
@@ -780,7 +779,7 @@ class GrpcHandler:
         schema_timestamp = schema.get("update_timestamp", 0)
 
         # Cache the fetched schema and timestamp
-        GlobalSchemaCache().set(
+        cache.set(
             cache_key,
             {
                 "schema": schema,

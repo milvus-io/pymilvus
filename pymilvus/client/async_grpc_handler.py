@@ -568,10 +568,9 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ) -> Tuple[dict, int]:
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._db_name or "", collection_name
-        )
-        cached = GlobalSchemaCache().get(cache_key)
+        cache = GlobalSchemaCache()
+        cache_key = cache.format_key(self.server_address, self._db_name or "", collection_name)
+        cached = cache.get(cache_key)
 
         if cached is not None:
             return cached["schema"], cached["schema_timestamp"]
@@ -580,7 +579,7 @@ class AsyncGrpcHandler:
             schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
         schema_timestamp = schema.get("update_timestamp", 0)
 
-        GlobalSchemaCache().set(
+        cache.set(
             cache_key,
             {
                 "schema": schema,
