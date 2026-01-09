@@ -366,9 +366,6 @@ def flush_vector_bytes(
     Supports: INT8_VECTOR, BINARY_VECTOR, FLOAT16_VECTOR, BFLOAT16_VECTOR
     """
     field_id = id(field_data)
-    if field_id not in vector_bytes_cache:
-        return
-
     bytes_list = vector_bytes_cache.pop(field_id, None)
     if not bytes_list:
         return
@@ -382,9 +379,7 @@ def flush_vector_bytes(
 
     attr_name = vector_attr_map.get(field_data.type)
     if attr_name:
-        existing_bytes = getattr(field_data.vectors, attr_name)
-        all_bytes_list = [existing_bytes, *bytes_list] if existing_bytes else bytes_list
-        setattr(field_data.vectors, attr_name, b"".join(all_bytes_list))
+        setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
 
 def pack_field_value_to_field_data(
@@ -498,28 +493,10 @@ def pack_field_value_to_field_data(
                 field_data.vectors.dim = len(field_value) * 8
                 b_bytes = bytes(field_value)
 
-                # Optimization: use temporary list to collect bytes, avoiding O(n²) += operations
                 field_id = id(field_data)
-
                 if field_id not in vector_bytes_cache:
-                    if len(field_data.vectors.binary_vector) > 0:
-                        vector_bytes_cache[field_id] = [field_data.vectors.binary_vector]
-                        field_data.vectors.binary_vector = b""
-                    else:
-                        vector_bytes_cache[field_id] = []
-
-                vector_bytes_cache[field_id].append(b_bytes)
-
-                # Batch merge when list reaches threshold
-                if len(vector_bytes_cache[field_id]) >= 1000:
-                    if len(field_data.vectors.binary_vector) > 0:
-                        all_bytes = [field_data.vectors.binary_vector] + vector_bytes_cache[
-                            field_id
-                        ]
-                        field_data.vectors.binary_vector = b"".join(all_bytes)
-                    else:
-                        field_data.vectors.binary_vector = b"".join(vector_bytes_cache[field_id])
                     vector_bytes_cache[field_id] = []
+                vector_bytes_cache[field_id].append(b_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -547,27 +524,10 @@ def pack_field_value_to_field_data(
 
                 field_data.vectors.dim = len(v_bytes) // 2
 
-                # Optimization: use temporary list to collect bytes, avoiding O(n²) += operations
                 field_id = id(field_data)
-
                 if field_id not in vector_bytes_cache:
-                    if len(field_data.vectors.float16_vector) > 0:
-                        vector_bytes_cache[field_id] = [field_data.vectors.float16_vector]
-                    else:
-                        vector_bytes_cache[field_id] = []
-
-                vector_bytes_cache[field_id].append(v_bytes)
-
-                # Batch merge when list reaches threshold
-                if len(vector_bytes_cache[field_id]) >= 1000:
-                    if len(field_data.vectors.float16_vector) > 0:
-                        all_bytes = [field_data.vectors.float16_vector] + vector_bytes_cache[
-                            field_id
-                        ]
-                        field_data.vectors.float16_vector = b"".join(all_bytes)
-                    else:
-                        field_data.vectors.float16_vector = b"".join(vector_bytes_cache[field_id])
                     vector_bytes_cache[field_id] = []
+                vector_bytes_cache[field_id].append(v_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -595,27 +555,10 @@ def pack_field_value_to_field_data(
 
                 field_data.vectors.dim = len(v_bytes) // 2
 
-                # Optimization: use temporary list to collect bytes, avoiding O(n²) += operations
                 field_id = id(field_data)
-
                 if field_id not in vector_bytes_cache:
-                    if len(field_data.vectors.bfloat16_vector) > 0:
-                        vector_bytes_cache[field_id] = [field_data.vectors.bfloat16_vector]
-                    else:
-                        vector_bytes_cache[field_id] = []
-
-                vector_bytes_cache[field_id].append(v_bytes)
-
-                # Batch merge when list reaches threshold
-                if len(vector_bytes_cache[field_id]) >= 1000:
-                    if len(field_data.vectors.bfloat16_vector) > 0:
-                        all_bytes = [field_data.vectors.bfloat16_vector] + vector_bytes_cache[
-                            field_id
-                        ]
-                        field_data.vectors.bfloat16_vector = b"".join(all_bytes)
-                    else:
-                        field_data.vectors.bfloat16_vector = b"".join(vector_bytes_cache[field_id])
                     vector_bytes_cache[field_id] = []
+                vector_bytes_cache[field_id].append(v_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -662,25 +605,10 @@ def pack_field_value_to_field_data(
 
                 field_data.vectors.dim = len(i_bytes)
 
-                # Optimization: use temporary list to collect bytes, avoiding O(n²) += operations
                 field_id = id(field_data)
-
                 if field_id not in vector_bytes_cache:
-                    if len(field_data.vectors.int8_vector) > 0:
-                        vector_bytes_cache[field_id] = [field_data.vectors.int8_vector]
-                    else:
-                        vector_bytes_cache[field_id] = []
-
-                vector_bytes_cache[field_id].append(i_bytes)
-
-                # Batch merge when list reaches threshold
-                if len(vector_bytes_cache[field_id]) >= 1000:
-                    if len(field_data.vectors.int8_vector) > 0:
-                        all_bytes = [field_data.vectors.int8_vector] + vector_bytes_cache[field_id]
-                        field_data.vectors.int8_vector = b"".join(all_bytes)
-                    else:
-                        field_data.vectors.int8_vector = b"".join(vector_bytes_cache[field_id])
                     vector_bytes_cache[field_id] = []
+                vector_bytes_cache[field_id].append(i_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
