@@ -181,4 +181,4 @@ def struct_validator(x: object, max_cap: int):
     for k in x:
         if not isinstance(k, dict):
             raise MilvusException(message="only accept list of dict for STRUCT type field")
-    return x
+    return True
