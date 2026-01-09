@@ -697,11 +697,12 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             field_data.scalars.int_data.data.extend(entity_values)
         elif entity_type == DataType.INT64:
             field_data.scalars.long_data.data.extend(entity_values)
+        elif entity_type == DataType.TIMESTAMPTZ:
+            field_data.scalars.string_data.data.extend(entity_values)
         elif entity_type == DataType.FLOAT:
             field_data.scalars.float_data.data.extend(entity_values)
         elif entity_type == DataType.DOUBLE:
             field_data.scalars.double_data.data.extend(entity_values)
-
         elif entity_type == DataType.FLOAT_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0])
