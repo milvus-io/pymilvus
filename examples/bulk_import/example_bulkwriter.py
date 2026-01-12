@@ -14,11 +14,13 @@ import json
 import logging
 import threading
 import time
+from pathlib import Path
 from typing import List
+
 import numpy as np
 import pandas as pd
 
-from examples.orm_deprecated.bulk_import.data_gengerator import *
+from examples.bulk_import.data_gengerator import *
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,6 +39,9 @@ from pymilvus.bulk_writer import (
     bulk_import,
     get_import_progress,
 )
+
+LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert/"
+Path(LOCAL_FILES_PATH).mkdir(exist_ok=True)
 
 # minio
 MINIO_ADDRESS = "0.0.0.0:9000"
@@ -121,7 +126,7 @@ def local_writer_simple(schema: CollectionSchema, file_type: BulkFileType):
     print(f"\n===================== local writer ({file_type.name}) ====================")
     with LocalBulkWriter(
             schema=schema,
-            local_path="/tmp/bulk_writer",
+            local_path=LOCAL_FILES_PATH,
             segment_size=128*1024*1024,
             file_type=file_type,
     ) as local_writer:
@@ -181,7 +186,7 @@ def parallel_append(schema: CollectionSchema):
 
     local_writer = LocalBulkWriter(
         schema=schema,
-        local_path="/tmp/bulk_writer",
+        local_path=LOCAL_FILES_PATH,
         segment_size=128 * 1024 * 1024, # 128MB
         file_type=BulkFileType.JSON,
     )

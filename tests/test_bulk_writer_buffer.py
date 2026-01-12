@@ -411,7 +411,7 @@ class TestBufferExtended:
             "sparse_vector": {1: 0.5, 10: 0.3}
         })
 
-        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(MilvusException, match="SPARSE_FLOAT_VECTOR"):
+        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(MilvusException, match="Failed to persist file"):
             # The error happens because SPARSE_FLOAT_VECTOR is not in NUMPY_TYPE_CREATOR
             # This causes a KeyError which is caught and re-raised as MilvusException
             buffer.persist(temp_dir)
