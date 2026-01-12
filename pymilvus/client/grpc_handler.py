@@ -11,10 +11,15 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure, upgrade_reminder
+from pymilvus.decorators import (
+    SchemaMismatchRetryable,
+    ignore_unimplemented,
+    retry_on_rpc_failure,
+    retry_on_schema_mismatch,
+    upgrade_reminder,
+)
 from pymilvus.exceptions import (
     AmbiguousIndexName,
-    DataNotMatchException,
     DescribeCollectionException,
     ErrorCode,
     ExceptionsMessage,
@@ -663,6 +668,7 @@ class GrpcHandler:
         return fields_info, enable_dynamic
 
     @retry_on_rpc_failure()
+    @retry_on_schema_mismatch()
     def insert_rows(
         self,
         collection_name: str,
@@ -672,32 +678,11 @@ class GrpcHandler:
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        try:
-            request = self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-        except DataNotMatchException:
-            # try to update schema and retry
-            schema = self.update_schema(collection_name, timeout, **kwargs)
-            request = self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-        except Exception as ex:
-            raise ex from ex
-
+        request = self._prepare_row_insert_request(
+            collection_name, entities, partition_name, schema, timeout, **kwargs
+        )
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
-        if resp.status.error_code == common_pb2.SchemaMismatch:
-            schema = self.update_schema(collection_name, timeout, **kwargs)
-            # recursively calling `insert_rows` handling another schema change happens during retry
-            return self.insert_rows(
-                collection_name=collection_name,
-                entities=entities,
-                partition_name=partition_name,
-                schema=schema,
-                timeout=timeout,
-                **kwargs,
-            )
-        check_status(resp.status)
+        self._check_schema_mismatch(resp.status, collection_name)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
 
@@ -767,6 +752,16 @@ class GrpcHandler:
     def _invalidate_db_schemas(self, db_name: str) -> None:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
+
+    def _check_schema_mismatch(self, status: common_pb2.Status, collection_name: str) -> None:
+        """Check response status and raise SchemaMismatchRetryable if schema mismatch.
+
+        This method should be called after gRPC calls that may return SchemaMismatch.
+        It allows the @retry_on_schema_mismatch decorator to catch and retry.
+        """
+        if status.error_code == common_pb2.SchemaMismatch:
+            raise SchemaMismatchRetryable(collection_name, status.reason)
+        check_status(status)
 
     def _prepare_batch_insert_request(
         self,
@@ -969,6 +964,7 @@ class GrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    @retry_on_schema_mismatch()
     def upsert_rows(
         self,
         collection_name: str,
@@ -980,31 +976,11 @@ class GrpcHandler:
         if isinstance(entities, dict):
             entities = [entities]
 
-        try:
-            request = self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-        except DataNotMatchException:
-            # try to update schema and retry
-            self.update_schema(collection_name, timeout, **kwargs)
-            request = self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-        except Exception as ex:
-            raise ex from ex
-
+        request = self._prepare_row_upsert_request(
+            collection_name, entities, partition_name, timeout, **kwargs
+        )
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
-        if response.status.error_code == common_pb2.SchemaMismatch:
-            self.update_schema(collection_name, timeout)
-            # recursively calling `upsert_rows` handling another schema change happens during retry
-            return self.upsert_rows(
-                collection_name=collection_name,
-                entities=entities,
-                partition_name=partition_name,
-                timeout=timeout,
-                **kwargs,
-            )
-        check_status(response.status)
+        self._check_schema_mismatch(response.status, collection_name)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)
         return m

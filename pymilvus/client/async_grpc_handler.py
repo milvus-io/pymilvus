@@ -11,10 +11,14 @@ import grpc
 from grpc._cython import cygrpc
 
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
-from pymilvus.decorators import ignore_unimplemented, retry_on_rpc_failure
+from pymilvus.decorators import (
+    SchemaMismatchRetryable,
+    ignore_unimplemented,
+    retry_on_rpc_failure,
+    retry_on_schema_mismatch,
+)
 from pymilvus.exceptions import (
     AmbiguousIndexName,
-    DataNotMatchException,
     DescribeCollectionException,
     ErrorCode,
     ExceptionsMessage,
@@ -579,6 +583,16 @@ class AsyncGrpcHandler:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
 
+    def _check_schema_mismatch(self, status: common_pb2.Status, collection_name: str) -> None:
+        """Check response status and raise SchemaMismatchRetryable if schema mismatch.
+
+        This method should be called after gRPC calls that may return SchemaMismatch.
+        It allows the @retry_on_schema_mismatch decorator to catch and retry.
+        """
+        if status.error_code == common_pb2.SchemaMismatch:
+            raise SchemaMismatchRetryable(collection_name, status.reason)
+        check_status(status)
+
     @retry_on_rpc_failure()
     async def release_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
@@ -592,6 +606,7 @@ class AsyncGrpcHandler:
         check_status(response)
 
     @retry_on_rpc_failure()
+    @retry_on_schema_mismatch()
     async def insert_rows(
         self,
         collection_name: str,
@@ -602,27 +617,13 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         await self.ensure_channel_ready()
-        try:
-            request = await self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-        except DataNotMatchException:
-            schema = await self.update_schema(collection_name, timeout, **kwargs)
-            request = await self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
+        request = await self._prepare_row_insert_request(
+            collection_name, entities, partition_name, schema, timeout, **kwargs
+        )
         resp = await self._async_stub.Insert(
             request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        if resp.status.error_code == common_pb2.SchemaMismatch:
-            schema = await self.update_schema(collection_name, timeout, **kwargs)
-            request = await self._prepare_row_insert_request(
-                collection_name, entities, partition_name, schema, timeout, **kwargs
-            )
-            resp = await self._async_stub.Insert(
-                request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
-            )
-        check_status(resp.status)
+        self._check_schema_mismatch(resp.status, collection_name)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
 
@@ -638,7 +639,7 @@ class AsyncGrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = await self._get_schema_from_cache_or_remote(
+        schema, schema_timestamp = await self._get_schema(
             collection_name, schema=schema, timeout=timeout, **kwargs
         )
         fields_info = schema.get("fields")
@@ -706,7 +707,7 @@ class AsyncGrpcHandler:
         partial_update = kwargs.get("partial_update", False)
 
         schema = kwargs.get("schema")
-        schema, _ = await self._get_schema_from_cache_or_remote(
+        schema, _ = await self._get_schema(
             collection_name, schema=schema, timeout=timeout, **kwargs
         )
 
@@ -776,6 +777,7 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    @retry_on_schema_mismatch()
     async def upsert_rows(
         self,
         collection_name: str,
@@ -787,27 +789,13 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         if isinstance(entities, dict):
             entities = [entities]
-        try:
-            request = await self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, **kwargs
-            )
-        except DataNotMatchException:
-            schema = await self.update_schema(collection_name, timeout, **kwargs)
-            request = await self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, schema=schema, **kwargs
-            )
+        request = await self._prepare_row_upsert_request(
+            collection_name, entities, partition_name, timeout, **kwargs
+        )
         response = await self._async_stub.Upsert(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        if response.status.error_code == common_pb2.SchemaMismatch:
-            schema = await self.update_schema(collection_name, timeout, **kwargs)
-            request = await self._prepare_row_upsert_request(
-                collection_name, entities, partition_name, timeout, schema=schema, **kwargs
-            )
-            response = await self._async_stub.Upsert(
-                request, timeout=timeout, metadata=_api_level_md(**kwargs)
-            )
-        check_status(response.status)
+        self._check_schema_mismatch(response.status, collection_name)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)
         return m
