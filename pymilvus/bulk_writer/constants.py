@@ -13,6 +13,7 @@
 from enum import Enum, IntEnum
 
 import numpy as np
+import pyarrow as pa
 
 from pymilvus.client.types import (
     DataType,
@@ -81,8 +82,30 @@ NUMPY_TYPE_CREATOR = {
     DataType.BINARY_VECTOR.name: np.dtype("uint8"),
     DataType.FLOAT16_VECTOR.name: np.dtype("uint8"),
     DataType.BFLOAT16_VECTOR.name: np.dtype("uint8"),
-    DataType.SPARSE_FLOAT_VECTOR: None,
+    DataType.SPARSE_FLOAT_VECTOR.name: None,
     DataType.INT8_VECTOR.name: np.dtype("int8"),
+    DataType.ARRAY.name: None,
+    DataType.STRUCT.name: None,
+}
+
+ARROW_TYPE_CREATOR = {
+    DataType.BOOL.name: pa.bool_(),
+    DataType.INT8.name: pa.int8(),
+    DataType.INT16.name: pa.int16(),
+    DataType.INT32.name: pa.int32(),
+    DataType.INT64.name: pa.int64(),
+    DataType.FLOAT.name: pa.float32(),
+    DataType.DOUBLE.name: pa.float64(),
+    DataType.VARCHAR.name: pa.string(),
+    DataType.JSON.name: pa.string(),  # in numpy/parquet file, json objects are stored as string
+    DataType.TIMESTAMPTZ.name: pa.string(),
+    DataType.GEOMETRY.name: pa.string(),
+    DataType.FLOAT_VECTOR.name: pa.list_(pa.float32()),
+    DataType.BINARY_VECTOR.name: pa.list_(pa.uint8()),
+    DataType.FLOAT16_VECTOR.name: pa.list_(pa.uint8()),
+    DataType.BFLOAT16_VECTOR.name: pa.list_(pa.uint8()),
+    DataType.SPARSE_FLOAT_VECTOR.name: pa.string(),  # in numpy/parquet file, sparse vectors are stored as string
+    DataType.INT8_VECTOR.name: pa.list_(pa.int8()),
     DataType.ARRAY.name: None,
     DataType.STRUCT.name: None,
 }

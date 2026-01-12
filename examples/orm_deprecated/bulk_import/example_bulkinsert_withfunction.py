@@ -4,6 +4,8 @@ import csv
 import time
 import os
 
+from pathlib import Path
+
 from pymilvus import (
     connections,
     FieldSchema, CollectionSchema, DataType,
@@ -14,7 +16,8 @@ from pymilvus import (
 )
 
 
-LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert"
+LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert/"
+Path(LOCAL_FILES_PATH).mkdir(exist_ok=True)
 
 # Milvus service address
 _HOST = '127.0.0.1'
