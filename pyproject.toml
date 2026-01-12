@@ -29,8 +29,7 @@ dependencies=[
     "python-dotenv>=1.0.1, <2.0.0",
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
-    "cachetools>=5.0.0,<6.0.0;python_version<='3.8'",  # Python 3.8 compatibility
-    "cachetools>=5.0.0;python_version>='3.9'",  # Python 3.9+ can use latest
+    "cachetools>=5.0.0", 
 ]
 
 classifiers=[
