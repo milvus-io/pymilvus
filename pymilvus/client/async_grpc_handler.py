@@ -39,7 +39,7 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
-from .schema_cache import GlobalSchemaCache
+from .schema_cache import GlobalCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -266,10 +266,7 @@ class AsyncGrpcHandler:
         )
         check_status(response)
         # Invalidate global schema cache
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._db_name or "", collection_name
-        )
-        GlobalSchemaCache().invalidate(cache_key)
+        self._invalidate_schema(collection_name)
 
     @retry_on_rpc_failure()
     async def truncate_collection(
@@ -532,8 +529,8 @@ class AsyncGrpcHandler:
 
     async def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         schema = kwargs.get("schema")
-        schema, schema_timestamp = await self._get_schema_from_cache_or_remote(
-            collection_name, schema=schema, timeout=timeout, **kwargs
+        schema, schema_timestamp = await self._get_schema(
+            collection_name, timeout=timeout, **kwargs
         )
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])
@@ -544,49 +541,43 @@ class AsyncGrpcHandler:
     async def update_schema(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> dict:
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._db_name or "", collection_name
-        )
-        GlobalSchemaCache().invalidate(cache_key)
-
-        schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
-        schema_timestamp = schema.get("update_timestamp", 0)
-
-        GlobalSchemaCache().set(
-            cache_key,
-            {
-                "schema": schema,
-                "schema_timestamp": schema_timestamp,
-            },
-        )
+        """Force refresh schema from server and update cache."""
+        self._invalidate_schema(collection_name)
+        schema, _ = await self._get_schema(collection_name, timeout=timeout, **kwargs)
         return schema
 
-    async def _get_schema_from_cache_or_remote(
+    async def _get_schema(
         self,
         collection_name: str,
-        schema: Optional[dict] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> Tuple[dict, int]:
-        cache = GlobalSchemaCache()
-        cache_key = cache.format_key(self.server_address, self._db_name or "", collection_name)
-        cached = cache.get(cache_key)
+        """
+        Get collection schema, using cache when available.
 
+        Returns:
+            Tuple of (schema_dict, schema_timestamp)
+        """
+        cache = GlobalCache.schema
+        endpoint = self.server_address
+        db_name = self._db_name or ""
+
+        cached = cache.get(endpoint, db_name, collection_name)
         if cached is not None:
-            return cached["schema"], cached["schema_timestamp"]
+            return cached, cached.get("update_timestamp", 0)
 
-        if not isinstance(schema, dict):
-            schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
-        schema_timestamp = schema.get("update_timestamp", 0)
+        # Fetch from server and cache
+        schema = await self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        cache.set(endpoint, db_name, collection_name, schema)
+        return schema, schema.get("update_timestamp", 0)
 
-        cache.set(
-            cache_key,
-            {
-                "schema": schema,
-                "schema_timestamp": schema_timestamp,
-            },
-        )
-        return schema, schema_timestamp
+    def _invalidate_schema(self, collection_name: str) -> None:
+        """Invalidate cached schema for a collection."""
+        GlobalCache.schema.invalidate(self.server_address, self._db_name or "", collection_name)
+
+    def _invalidate_db_schemas(self, db_name: str) -> None:
+        """Invalidate all cached schemas for a database."""
+        GlobalCache.schema.invalidate_db(self.server_address, db_name)
 
     @retry_on_rpc_failure()
     async def release_collection(

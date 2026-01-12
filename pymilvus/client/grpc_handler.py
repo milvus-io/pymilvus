@@ -50,7 +50,7 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
-from .schema_cache import GlobalSchemaCache
+from .schema_cache import GlobalCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -393,10 +393,7 @@ class GrpcHandler:
         )
         check_status(status)
         # Invalidate global schema cache
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._get_db_name(), collection_name
-        )
-        GlobalSchemaCache().invalidate(cache_key)
+        self._invalidate_schema(collection_name)
 
     @retry_on_rpc_failure()
     def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
@@ -705,24 +702,9 @@ class GrpcHandler:
         return MutationResult(resp)
 
     def update_schema(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        cache_key = GlobalSchemaCache.format_key(
-            self.server_address, self._get_db_name(), collection_name
-        )
-        GlobalSchemaCache().invalidate(cache_key)
-
-        schema = self.describe_collection(
-            collection_name, timeout=timeout, metadata=_api_level_md(**kwargs)
-        )
-        schema_timestamp = schema.get("update_timestamp", 0)
-
-        GlobalSchemaCache().set(
-            cache_key,
-            {
-                "schema": schema,
-                "schema_timestamp": schema_timestamp,
-            },
-        )
-
+        """Force refresh schema from server and update cache."""
+        self._invalidate_schema(collection_name)
+        schema, _ = self._get_schema(collection_name, timeout=timeout, **kwargs)
         return schema
 
     def _prepare_row_insert_request(
@@ -737,9 +719,7 @@ class GrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = self._get_schema_from_cache_or_remote(
-            collection_name, schema, timeout
-        )
+        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout)
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -760,34 +740,33 @@ class GrpcHandler:
         """Get current database name."""
         return getattr(self, "_db_name", "")
 
-    def _get_schema_from_cache_or_remote(
-        self, collection_name: str, schema: Optional[dict] = None, timeout: Optional[float] = None
-    ):
+    def _get_schema(self, collection_name: str, timeout: Optional[float] = None, **kwargs) -> tuple:
         """
-        Checks the cache for the schema. If not found, it fetches it remotely and updates the cache.
-        """
-        cache = GlobalSchemaCache()
-        cache_key = cache.format_key(self.server_address, self._get_db_name(), collection_name)
-        cached = cache.get(cache_key)
+        Get collection schema, using cache when available.
 
+        Returns:
+            Tuple of (schema_dict, schema_timestamp)
+        """
+        cache = GlobalCache.schema
+        endpoint = self.server_address
+        db_name = self._get_db_name()
+
+        cached = cache.get(endpoint, db_name, collection_name)
         if cached is not None:
-            return cached["schema"], cached["schema_timestamp"]
+            return cached, cached.get("update_timestamp", 0)
 
-        # Fetch the schema remotely if not in cache
-        if not isinstance(schema, dict):
-            schema = self.describe_collection(collection_name, timeout=timeout)
-        schema_timestamp = schema.get("update_timestamp", 0)
+        # Fetch from server and cache
+        schema = self.describe_collection(collection_name, timeout=timeout)
+        cache.set(endpoint, db_name, collection_name, schema)
+        return schema, schema.get("update_timestamp", 0)
 
-        # Cache the fetched schema and timestamp
-        cache.set(
-            cache_key,
-            {
-                "schema": schema,
-                "schema_timestamp": schema_timestamp,
-            },
-        )
+    def _invalidate_schema(self, collection_name: str) -> None:
+        """Invalidate cached schema for a collection."""
+        GlobalCache.schema.invalidate(self.server_address, self._get_db_name(), collection_name)
 
-        return schema, schema_timestamp
+    def _invalidate_db_schemas(self, db_name: str) -> None:
+        """Invalidate all cached schemas for a database."""
+        GlobalCache.schema.invalidate_db(self.server_address, db_name)
 
     def _prepare_batch_insert_request(
         self,
@@ -974,9 +953,7 @@ class GrpcHandler:
         # Extract partial_update parameter from kwargs
         partial_update = kwargs.get("partial_update", False)
 
-        schema, schema_timestamp = self._get_schema_from_cache_or_remote(
-            collection_name, timeout=timeout
-        )
+        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout)
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
