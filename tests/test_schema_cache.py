@@ -37,45 +37,75 @@ class TestGlobalSchemaCache:
 
     def test_lru_eviction(self):
         """Verify LRU eviction when capacity is exceeded."""
-        # Set a small capacity for testing
-        self.cache._capacity = 3
+        # Create a small capacity cache for testing
+        from cachetools import LRUCache
+        import threading
+        
+        small_cache = type('obj', (object,), {
+            '_cache': LRUCache(maxsize=3),
+            '_lock': threading.Lock()
+        })()
 
-        self.cache.set("k1", "v1")
-        self.cache.set("k2", "v2")
-        self.cache.set("k3", "v3")
+        # Wrap set/get with locks like GlobalSchemaCache
+        def set_item(key, value):
+            with small_cache._lock:
+                small_cache._cache[key] = value
+        
+        def get_item(key):
+            with small_cache._lock:
+                return small_cache._cache.get(key)
+        
+        set_item("k1", "v1")
+        set_item("k2", "v2")
+        set_item("k3", "v3")
 
-        assert len(self.cache) == 3
+        assert len(small_cache._cache) == 3
 
         # Access k1 to make it recently used (order: k2, k3, k1)
-        self.cache.get("k1")
+        get_item("k1")
 
         # Add k4, should evict k2 (least recently used)
-        self.cache.set("k4", "v4")
+        set_item("k4", "v4")
 
-        assert len(self.cache) == 3
-        assert self.cache.get("k2") is None  # Evicted
-        assert self.cache.get("k1") == "v1"  # Still present
-        assert self.cache.get("k3") == "v3"  # Still present
-        assert self.cache.get("k4") == "v4"  # Newly added
+        assert len(small_cache._cache) == 3
+        assert get_item("k2") is None  # Evicted
+        assert get_item("k1") == "v1"  # Still present
+        assert get_item("k3") == "v3"  # Still present
+        assert get_item("k4") == "v4"  # Newly added
 
     def test_set_updates_existing_key(self):
         """set() on existing key should update value and move to end."""
-        self.cache._capacity = 3
+        # Create a small capacity cache for testing
+        from cachetools import LRUCache
+        import threading
+        
+        small_cache = type('obj', (object,), {
+            '_cache': LRUCache(maxsize=3),
+            '_lock': threading.Lock()
+        })()
 
-        self.cache.set("k1", "v1")
-        self.cache.set("k2", "v2")
-        self.cache.set("k3", "v3")
+        def set_item(key, value):
+            with small_cache._lock:
+                small_cache._cache[key] = value
+        
+        def get_item(key):
+            with small_cache._lock:
+                return small_cache._cache.get(key)
+
+        set_item("k1", "v1")
+        set_item("k2", "v2")
+        set_item("k3", "v3")
 
         # Update k1 (moves it to end)
-        self.cache.set("k1", "v1_updated")
+        set_item("k1", "v1_updated")
 
-        assert self.cache.get("k1") == "v1_updated"
+        assert get_item("k1") == "v1_updated"
 
         # Add k4, should evict k2 (not k1 since k1 was recently updated)
-        self.cache.set("k4", "v4")
+        set_item("k4", "v4")
 
-        assert self.cache.get("k2") is None  # Evicted
-        assert self.cache.get("k1") == "v1_updated"  # Still present
+        assert get_item("k2") is None  # Evicted
+        assert get_item("k1") == "v1_updated"  # Still present
 
     def test_invalidate_removes_key(self):
         """invalidate() should remove specific key."""

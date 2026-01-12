@@ -1,7 +1,8 @@
 import logging
 import threading
-from collections import OrderedDict
 from typing import Any, ClassVar, Optional
+
+from cachetools import LRUCache
 
 logger = logging.getLogger(__name__)
 
@@ -38,34 +39,23 @@ class GlobalSchemaCache(metaclass=Singleton):
     DEFAULT_CAPACITY = 4096
 
     def __init__(self):
-        self._capacity = self.DEFAULT_CAPACITY
-        self._cache: OrderedDict[str, Any] = OrderedDict()
+        self._cache: LRUCache = LRUCache(maxsize=self.DEFAULT_CAPACITY)
         self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache. Returns None if not found."""
         with self._lock:
-            if key not in self._cache:
-                return None
-            # Move to end (most recently used)
-            self._cache.move_to_end(key)
-            return self._cache[key]
+            return self._cache.get(key)
 
     def set(self, key: str, value: Any) -> None:
         """Set value in cache. Evicts LRU entry if over capacity."""
         with self._lock:
             self._cache[key] = value
-            self._cache.move_to_end(key)
-            if len(self._cache) > self._capacity:
-                evicted_key, _ = self._cache.popitem(last=False)
-                logger.debug(f"Schema cache evicted: {evicted_key}")
 
     def invalidate(self, key: str) -> None:
         """Remove a specific key from cache."""
         with self._lock:
-            if key in self._cache:
-                del self._cache[key]
-                logger.debug(f"Schema cache invalidated: {key}")
+            self._cache.pop(key, None)
 
     def clear(self) -> None:
         """Clear all entries from cache."""
