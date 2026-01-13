@@ -262,15 +262,16 @@ class TestGrpcHandlerStateManagement:
     def test_reset_db_name(self) -> None:
         with patch('pymilvus.client.grpc_handler.grpc.insecure_channel') as mock_channel:
             mock_channel.return_value = MagicMock()
-            handler = GrpcHandler(uri="http://localhost:19530")
+            handler = GrpcHandler(uri="http://localhost:19530", db_name="old_db")
 
-            # Add some dummy data to schema_cache
-            handler.schema_cache["test_collection"] = {"field": "value"}
+            # Verify initial db_name is set
+            assert handler._db_name == "old_db"
 
             with patch.object(handler, '_setup_identifier_interceptor'):
                 handler.reset_db_name("new_db")
 
-            assert len(handler.schema_cache) == 0
+            # Verify db_name is updated
+            assert handler._db_name == "new_db"
 
     def test_set_onetime_loglevel(self) -> None:
         with patch('pymilvus.client.grpc_handler.grpc.insecure_channel') as mock_channel:
