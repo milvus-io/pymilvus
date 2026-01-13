@@ -8,11 +8,77 @@ from typing import Any, Callable, Optional
 
 import grpc
 
-from .exceptions import ErrorCode, MilvusException
+from .exceptions import (
+    DataNotMatchException,
+    ErrorCode,
+    MilvusException,
+    SchemaMismatchRetryableException,
+)
 from .grpc_gen import common_pb2
 
 LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
+
+
+def retry_on_schema_mismatch():
+    """
+    Decorator that handles schema mismatch errors with automatic retry.
+
+    Catches:
+    - DataNotMatchException: Client-side schema validation failed
+    - SchemaMismatchRetryableException: Server returned SchemaMismatch error
+
+    On catch:
+    1. Invalidates schema cache for the collection
+    2. Retries the operation once
+
+    Usage:
+        @retry_on_rpc_failure()
+        @retry_on_schema_mismatch()
+        def insert_rows(self, collection_name, ...):
+            ...
+    """
+
+    def wrapper(func: Callable):
+        if asyncio.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_handler(self: Any, collection_name: str, *args, **kwargs):
+                for attempt in range(2):  # max 2 attempts
+                    try:
+                        return await func(self, collection_name, *args, **kwargs)
+                    except (DataNotMatchException, SchemaMismatchRetryableException) as e:
+                        if attempt == 0:
+                            LOGGER.debug(
+                                f"[{func.__name__}] Schema mismatch detected, "
+                                f"invalidating cache and retrying: {e}"
+                            )
+                            self._invalidate_schema(collection_name)
+                            continue  # retry once
+                        raise e from e
+                return None  # unreachable, for type checker
+
+            return async_handler
+
+        @functools.wraps(func)
+        def handler(self: Any, collection_name: str, *args, **kwargs):
+            for attempt in range(2):  # max 2 attempts
+                try:
+                    return func(self, collection_name, *args, **kwargs)
+                except (DataNotMatchException, SchemaMismatchRetryableException) as e:
+                    if attempt == 0:
+                        LOGGER.debug(
+                            f"[{func.__name__}] Schema mismatch detected, "
+                            f"invalidating cache and retrying: {e}"
+                        )
+                        self._invalidate_schema(collection_name)
+                        continue  # retry once
+                    raise e from e
+            return None  # unreachable, for type checker
+
+        return handler
+
+    return wrapper
 
 
 def deprecated(func: Any):
