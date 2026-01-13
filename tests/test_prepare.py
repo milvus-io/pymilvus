@@ -537,6 +537,36 @@ class TestCreateCollectionRequest:
             request.fields_data) == 2, "Should only contain data for provided fields"
 
 
+
+    def test_row_upsert_param_partial_update_with_float16_vector_cached(self):
+        """Test that cached vector types (float16) are flushed correctly with partial_update=True"""
+        dim = 8
+        schema = CollectionSchema([
+             FieldSchema("float16_vector", DataType.FLOAT16_VECTOR, dim=dim),
+             FieldSchema("pk", DataType.INT64, is_primary=True)
+        ])
+        
+        # simulated float16 data (numpy float16 array)
+        vector_data = np.zeros((1, dim), dtype=np.float16)
+        
+        rows = [
+            {"pk": 1, "float16_vector": vector_data[0]}
+        ]
+        
+        req = Prepare.row_upsert_param("test_collection", rows, "", 
+                                     fields_info=schema.to_dict()["fields"], 
+                                     partial_update=True)
+        
+        found = False
+        for field_data in req.fields_data:
+            if field_data.field_name == "float16_vector":
+                found = True
+                # Should have data
+                # 1 vector * 8 dim * 2 bytes = 16 bytes
+                assert len(field_data.vectors.float16_vector) == 16, "Vector data empty!"
+        assert found, "Vector field not found in request"
+
+
 class TestCreateIndexRequest:
     def test_create_index_request_with_false_boolean_param(self):
         """Test that boolean False values are preserved in index parameters"""
