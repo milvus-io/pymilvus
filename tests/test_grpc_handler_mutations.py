@@ -606,25 +606,37 @@ class TestGrpcHandlerHelperMethods:
             assert fields_info == [{"name": "id", "type": DataType.INT64}]
             assert enable_dynamic is False
 
-    def test_get_schema_from_cache_or_remote_cached(self) -> None:
+    def test_get_schema_cached(self) -> None:
+        from pymilvus.client.cache import GlobalCache
+
+        # Reset singleton for clean test
+        GlobalCache._reset_for_testing()
+
         handler = GrpcHandler(channel=None)
 
-        # Add to cache
+        # Add to global cache
         cached_schema = {
             "fields": [{"name": "id", "type": DataType.INT64}],
             "update_timestamp": 100
         }
-        handler.schema_cache["test_collection"] = {
-            "schema": cached_schema,
-            "schema_timestamp": 100
-        }
+        GlobalCache.schema.set(
+            handler.server_address, handler._get_db_name(), "test_collection", cached_schema
+        )
 
-        schema, timestamp = handler._get_schema_from_cache_or_remote("test_collection")
+        schema, timestamp = handler._get_schema("test_collection")
 
         assert schema == cached_schema
         assert timestamp == 100
 
-    def test_get_schema_from_cache_or_remote_not_cached(self) -> None:
+        # Cleanup
+        GlobalCache._reset_for_testing()
+
+    def test_get_schema_not_cached(self) -> None:
+        from pymilvus.client.cache import GlobalCache
+
+        # Reset singleton for clean test
+        GlobalCache._reset_for_testing()
+
         handler = GrpcHandler(channel=None)
 
         with patch.object(handler, 'describe_collection') as mock_describe:
@@ -634,10 +646,16 @@ class TestGrpcHandlerHelperMethods:
             }
             mock_describe.return_value = remote_schema
 
-            schema, timestamp = handler._get_schema_from_cache_or_remote("test_collection")
+            schema, timestamp = handler._get_schema("test_collection")
 
             assert schema == remote_schema
             assert timestamp == 200
-            # Check it was cached
-            assert handler.schema_cache["test_collection"]["schema"] == remote_schema
-            assert handler.schema_cache["test_collection"]["schema_timestamp"] == 200
+
+            # Check it was cached in global cache
+            cached = GlobalCache.schema.get(
+                handler.server_address, handler._get_db_name(), "test_collection"
+            )
+            assert cached == remote_schema
+
+        # Cleanup
+        GlobalCache._reset_for_testing()
