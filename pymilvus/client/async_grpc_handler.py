@@ -12,7 +12,6 @@ from grpc._cython import cygrpc
 
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import (
-    SchemaMismatchRetryable,
     ignore_unimplemented,
     retry_on_rpc_failure,
     retry_on_schema_mismatch,
@@ -24,6 +23,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     MilvusException,
     ParamError,
+    SchemaMismatchRetryableException,
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -542,14 +542,6 @@ class AsyncGrpcHandler:
 
         return fields_info, struct_fields_info, enable_dynamic, schema_timestamp
 
-    async def update_schema(
-        self, collection_name: str, timeout: Optional[float] = None, **kwargs
-    ) -> dict:
-        """Force refresh schema from server and update cache."""
-        self._invalidate_schema(collection_name)
-        schema, _ = await self._get_schema(collection_name, timeout=timeout, **kwargs)
-        return schema
-
     async def _get_schema(
         self,
         collection_name: str,
@@ -583,15 +575,14 @@ class AsyncGrpcHandler:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
 
-    def _check_schema_mismatch(self, status: common_pb2.Status, collection_name: str) -> None:
-        """Check response status and raise SchemaMismatchRetryable if schema mismatch.
+    def _check_schema_mismatch(self, status: common_pb2.Status) -> None:
+        """Check response status and raise SchemaMismatchRetryableException if schema mismatch.
 
         This method should be called after gRPC calls that may return SchemaMismatch.
         It allows the @retry_on_schema_mismatch decorator to catch and retry.
         """
         if status.error_code == common_pb2.SchemaMismatch:
-            raise SchemaMismatchRetryable(collection_name, status.reason)
-        check_status(status)
+            raise SchemaMismatchRetryableException(status.reason)
 
     @retry_on_rpc_failure()
     async def release_collection(
@@ -623,7 +614,8 @@ class AsyncGrpcHandler:
         resp = await self._async_stub.Insert(
             request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        self._check_schema_mismatch(resp.status, collection_name)
+        self._check_schema_mismatch(resp.status)
+        check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
 
@@ -795,7 +787,8 @@ class AsyncGrpcHandler:
         response = await self._async_stub.Upsert(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        self._check_schema_mismatch(response.status, collection_name)
+        self._check_schema_mismatch(response.status)
+        check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)
         return m

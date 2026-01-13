@@ -7,27 +7,6 @@ from cachetools import LRUCache
 logger = logging.getLogger(__name__)
 
 
-class Singleton(type):
-    """Thread-safe singleton metaclass."""
-
-    _instances: ClassVar[dict] = {}
-    _lock: ClassVar[threading.Lock] = threading.Lock()
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            with cls._lock:
-                # Double-check locking pattern
-                if cls not in cls._instances:
-                    cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-    @classmethod
-    def _reset_for_testing(cls):
-        """Reset all singleton instances. Only for testing."""
-        with cls._lock:
-            cls._instances.clear()
-
-
 class CacheRegion:
     """
     Thread-safe LRU cache base class.
@@ -105,7 +84,7 @@ class SchemaCache(CacheRegion):
         return (endpoint, db, collection_name)
 
 
-class GlobalCache(metaclass=Singleton):
+class GlobalCache:
     """
     Global access point for all cache instances.
 

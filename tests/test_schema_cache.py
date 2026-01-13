@@ -2,7 +2,7 @@ import threading
 
 import pytest
 
-from pymilvus.client.schema_cache import CacheRegion, GlobalCache, SchemaCache, Singleton
+from pymilvus.client.schema_cache import CacheRegion, GlobalCache, SchemaCache
 
 
 class TestSchemaCache:
@@ -10,13 +10,11 @@ class TestSchemaCache:
 
     def setup_method(self):
         """Reset singleton and clear cache before each test."""
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
         self.cache = GlobalCache.schema
 
     def teardown_method(self):
         """Clean up after each test."""
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
 
     def test_global_cache_returns_same_schema_instance(self):

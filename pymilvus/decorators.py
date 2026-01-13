@@ -8,23 +8,16 @@ from typing import Any, Callable, Optional
 
 import grpc
 
-from .exceptions import DataNotMatchException, ErrorCode, MilvusException
+from .exceptions import (
+    DataNotMatchException,
+    ErrorCode,
+    MilvusException,
+    SchemaMismatchRetryableException,
+)
 from .grpc_gen import common_pb2
 
 LOGGER = logging.getLogger(__name__)
 WARNING_COLOR = "\033[93m{}\033[0m"
-
-
-class SchemaMismatchRetryable(Exception):
-    """Exception to signal schema mismatch that should trigger retry.
-
-    This exception is raised when the server returns a SchemaMismatch error,
-    indicating that the cached schema is stale and needs to be refreshed.
-    """
-
-    def __init__(self, collection_name: str, message: str = ""):
-        self.collection_name = collection_name
-        super().__init__(message or f"Schema mismatch for collection '{collection_name}'")
 
 
 def retry_on_schema_mismatch():
@@ -33,7 +26,7 @@ def retry_on_schema_mismatch():
 
     Catches:
     - DataNotMatchException: Client-side schema validation failed
-    - SchemaMismatchRetryable: Server returned SchemaMismatch error
+    - SchemaMismatchRetryableException: Server returned SchemaMismatch error
 
     On catch:
     1. Invalidates schema cache for the collection
@@ -54,7 +47,7 @@ def retry_on_schema_mismatch():
                 for attempt in range(2):  # max 2 attempts
                     try:
                         return await func(self, collection_name, *args, **kwargs)
-                    except (DataNotMatchException, SchemaMismatchRetryable) as e:
+                    except (DataNotMatchException, SchemaMismatchRetryableException) as e:
                         if attempt == 0:
                             LOGGER.debug(
                                 f"[{func.__name__}] Schema mismatch detected, "
@@ -72,7 +65,7 @@ def retry_on_schema_mismatch():
             for attempt in range(2):  # max 2 attempts
                 try:
                     return func(self, collection_name, *args, **kwargs)
-                except (DataNotMatchException, SchemaMismatchRetryable) as e:
+                except (DataNotMatchException, SchemaMismatchRetryableException) as e:
                     if attempt == 0:
                         LOGGER.debug(
                             f"[{func.__name__}] Schema mismatch detected, "

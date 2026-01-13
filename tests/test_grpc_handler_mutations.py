@@ -607,10 +607,9 @@ class TestGrpcHandlerHelperMethods:
             assert enable_dynamic is False
 
     def test_get_schema_cached(self) -> None:
-        from pymilvus.client.schema_cache import GlobalCache, Singleton
+        from pymilvus.client.schema_cache import GlobalCache
 
         # Reset singleton for clean test
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
 
         handler = GrpcHandler(channel=None)
@@ -630,14 +629,12 @@ class TestGrpcHandlerHelperMethods:
         assert timestamp == 100
 
         # Cleanup
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
 
     def test_get_schema_not_cached(self) -> None:
-        from pymilvus.client.schema_cache import GlobalCache, Singleton
+        from pymilvus.client.schema_cache import GlobalCache
 
         # Reset singleton for clean test
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
 
         handler = GrpcHandler(channel=None)
@@ -661,5 +658,4 @@ class TestGrpcHandlerHelperMethods:
             assert cached == remote_schema
 
         # Cleanup
-        Singleton._reset_for_testing()
         GlobalCache._reset_for_testing()
