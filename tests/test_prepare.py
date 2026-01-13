@@ -557,14 +557,13 @@ class TestCreateCollectionRequest:
                                      fields_info=schema.to_dict()["fields"], 
                                      partial_update=True)
         
-        found = False
-        for field_data in req.fields_data:
-            if field_data.field_name == "float16_vector":
-                found = True
-                # Should have data
-                # 1 vector * 8 dim * 2 bytes = 16 bytes
-                assert len(field_data.vectors.float16_vector) == 16, "Vector data empty!"
-        assert found, "Vector field not found in request"
+        vector_field_data = next((fd for fd in req.fields_data if fd.field_name == "float16_vector"), None)
+        assert vector_field_data is not None, "Vector field 'float16_vector' not found in request"
+
+        # Should have data
+        # 1 vector * 8 dim * 2 bytes = 16 bytes
+        expected_bytes = 1 * dim * 2
+        assert len(vector_field_data.vectors.float16_vector) == expected_bytes, f"Vector data has incorrect size! Expected {expected_bytes} bytes."
 
 
 class TestCreateIndexRequest:
