@@ -447,9 +447,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         if ids:
             try:
-                schema_dict, _ = await conn._get_schema_from_cache_or_remote(
-                    collection_name, timeout=timeout
-                )
+                schema_dict, _ = await conn._get_schema(collection_name, timeout=timeout)
             except Exception as ex:
                 raise ex from ex
             filter = self._pack_pks_expr(schema_dict, ids)
@@ -484,9 +482,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         try:
-            schema_dict, _ = await conn._get_schema_from_cache_or_remote(
-                collection_name, timeout=timeout
-            )
+            schema_dict, _ = await conn._get_schema(collection_name, timeout=timeout)
         except Exception as ex:
             raise ex from ex
 
@@ -542,9 +538,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         if len(pks) > 0:
             try:
-                schema_dict, _ = await conn._get_schema_from_cache_or_remote(
-                    collection_name, timeout=timeout
-                )
+                schema_dict, _ = await conn._get_schema(collection_name, timeout=timeout)
             except Exception as ex:
                 raise ex from ex
             expr = self._pack_pks_expr(schema_dict, pks)
