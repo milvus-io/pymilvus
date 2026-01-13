@@ -6,6 +6,7 @@ from typing import List
 
 from minio import Minio
 from minio.error import S3Error
+from pathlib import Path
 
 from pymilvus import (
     DataType,
@@ -18,7 +19,8 @@ from pymilvus.bulk_writer import (
 )
 
 # Local path to generate JSON files
-LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert"
+LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert/"
+Path(LOCAL_FILES_PATH).mkdir(exist_ok=True)
 
 # Milvus service address
 _HOST = '127.0.0.1'

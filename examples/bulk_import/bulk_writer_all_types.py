@@ -2,6 +2,7 @@ import datetime
 import pytz
 import time
 import numpy as np
+from pathlib import Path
 from typing import List
 
 from pymilvus import (
@@ -15,6 +16,9 @@ from pymilvus.bulk_writer import (
     bulk_import,
     get_import_progress,
 )
+
+LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert/"
+Path(LOCAL_FILES_PATH).mkdir(exist_ok=True)
 
 # minio
 MINIO_ADDRESS = "0.0.0.0:9000"
@@ -216,7 +220,7 @@ def remote_writer(schema: CollectionSchema, file_type: BulkFileType):
     with RemoteBulkWriter(
             schema=schema,
             remote_path="bulk_data",
-            local_path="/tmp/PARQUET",
+            local_path=LOCAL_FILES_PATH,
             connect_param=RemoteBulkWriter.S3ConnectParam(
                 endpoint=MINIO_ADDRESS,
                 access_key=MINIO_ACCESS_KEY,
@@ -269,7 +273,7 @@ def local_writer(schema: CollectionSchema, file_type: BulkFileType):
     print(f"\n===================== local writer ({file_type.name}) ====================")
     writer = LocalBulkWriter(
         schema=schema,
-        local_path="./" + file_type.name,
+        local_path=LOCAL_FILES_PATH,
         chunk_size=16 * 1024 * 1024,
         file_type=file_type
     )
