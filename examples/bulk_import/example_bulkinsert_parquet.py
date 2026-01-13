@@ -2,6 +2,7 @@ import random
 import json
 import time
 import os
+from pathlib import Path
 from typing import List
 
 from minio import Minio
@@ -22,6 +23,7 @@ from pymilvus.bulk_writer import (
 
 # Local path to generate files
 LOCAL_FILES_PATH = "/tmp/milvus_bulkinsert/"
+Path(LOCAL_FILES_PATH).mkdir(exist_ok=True)
 
 # Milvus service address
 _HOST = '127.0.0.1'
@@ -282,6 +284,7 @@ def verify(data):
               f"{getValue(_GEOMETRY_FIELD_NAME, i)}"
               )
     ids = [data[_ID_FIELD_NAME][k] for k in indices]
+    ids = [int(val) if isinstance(val, np.int64) else val for val in ids]
     results = client.query(collection_name=_COLLECTION_NAME,
                            filter=f"{_ID_FIELD_NAME} in {ids}",
                            output_fields=["*"])
