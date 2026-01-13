@@ -23,7 +23,6 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     MilvusException,
     ParamError,
-    SchemaMismatchRetryableException,
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -33,6 +32,7 @@ from pymilvus.settings import Config
 from . import entity_helper, ts_utils, utils
 from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchema, MutationResult
 from .async_interceptor import async_header_adder_interceptor
+from .cache import GlobalCache
 from .check import (
     check_id_and_data,
     check_pass_param,
@@ -43,7 +43,6 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
-from .schema_cache import GlobalCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -575,15 +574,6 @@ class AsyncGrpcHandler:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
 
-    def _check_schema_mismatch(self, status: common_pb2.Status) -> None:
-        """Check response status and raise SchemaMismatchRetryableException if schema mismatch.
-
-        This method should be called after gRPC calls that may return SchemaMismatch.
-        It allows the @retry_on_schema_mismatch decorator to catch and retry.
-        """
-        if status.error_code == common_pb2.SchemaMismatch:
-            raise SchemaMismatchRetryableException(status.reason)
-
     @retry_on_rpc_failure()
     async def release_collection(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
@@ -614,7 +604,6 @@ class AsyncGrpcHandler:
         resp = await self._async_stub.Insert(
             request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        self._check_schema_mismatch(resp.status)
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
@@ -787,7 +776,6 @@ class AsyncGrpcHandler:
         response = await self._async_stub.Upsert(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
-        self._check_schema_mismatch(response.status)
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)

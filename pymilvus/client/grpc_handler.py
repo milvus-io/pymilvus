@@ -24,7 +24,6 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     MilvusException,
     ParamError,
-    SchemaMismatchRetryableException,
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -45,6 +44,7 @@ from .asynch import (
     MutationFuture,
     SearchFuture,
 )
+from .cache import GlobalCache
 from .check import (
     check_id_and_data,
     check_pass_param,
@@ -55,7 +55,6 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .interceptor import _api_level_md
 from .prepare import Prepare
-from .schema_cache import GlobalCache
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -682,7 +681,6 @@ class GrpcHandler:
             collection_name, entities, partition_name, schema, timeout, **kwargs
         )
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
-        self._check_schema_mismatch(resp.status)
         check_status(resp.status)
         ts_utils.update_collection_ts(collection_name, resp.timestamp)
         return MutationResult(resp)
@@ -747,15 +745,6 @@ class GrpcHandler:
     def _invalidate_db_schemas(self, db_name: str) -> None:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
-
-    def _check_schema_mismatch(self, status: common_pb2.Status) -> None:
-        """Check response status and raise SchemaMismatchRetryableException if schema mismatch.
-
-        This method should be called after gRPC calls that may return SchemaMismatch.
-        It allows the @retry_on_schema_mismatch decorator to catch and retry.
-        """
-        if status.error_code == common_pb2.SchemaMismatch:
-            raise SchemaMismatchRetryableException(status.reason)
 
     def _prepare_batch_insert_request(
         self,
@@ -974,7 +963,6 @@ class GrpcHandler:
             collection_name, entities, partition_name, timeout, **kwargs
         )
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
-        self._check_schema_mismatch(response.status)
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(collection_name, m.timestamp)

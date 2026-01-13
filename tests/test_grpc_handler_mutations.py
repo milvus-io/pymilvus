@@ -607,7 +607,7 @@ class TestGrpcHandlerHelperMethods:
             assert enable_dynamic is False
 
     def test_get_schema_cached(self) -> None:
-        from pymilvus.client.schema_cache import GlobalCache
+        from pymilvus.client.cache import GlobalCache
 
         # Reset singleton for clean test
         GlobalCache._reset_for_testing()
@@ -632,7 +632,7 @@ class TestGrpcHandlerHelperMethods:
         GlobalCache._reset_for_testing()
 
     def test_get_schema_not_cached(self) -> None:
-        from pymilvus.client.schema_cache import GlobalCache
+        from pymilvus.client.cache import GlobalCache
 
         # Reset singleton for clean test
         GlobalCache._reset_for_testing()

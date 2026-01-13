@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Un
 import orjson
 from dateutil.parser import isoparse
 
-from pymilvus.exceptions import MilvusException, ParamError
-from pymilvus.grpc_gen.common_pb2 import Status
+from pymilvus.exceptions import MilvusException, ParamError, SchemaMismatchRetryableException
+from pymilvus.grpc_gen import common_pb2
 from pymilvus.settings import Config
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
@@ -62,12 +62,14 @@ valid_binary_metric_types = [
 ]
 
 
-def check_status(status: Status):
+def check_status(status: common_pb2.Status):
     if status.code != 0 or status.error_code != 0:
+        if status.error_code == common_pb2.SchemaMismatch:
+            raise SchemaMismatchRetryableException(status.reason)
         raise MilvusException(status.code, status.reason, status.error_code)
 
 
-def is_successful(status: Status):
+def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
 
 

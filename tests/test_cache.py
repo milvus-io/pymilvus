@@ -2,7 +2,7 @@ import threading
 
 import pytest
 
-from pymilvus.client.schema_cache import CacheRegion, GlobalCache, SchemaCache
+from pymilvus.client.cache import CacheRegion, GlobalCache, SchemaCache
 
 
 class TestSchemaCache:
