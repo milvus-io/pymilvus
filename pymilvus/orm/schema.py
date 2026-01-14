@@ -35,6 +35,7 @@ from pymilvus.client.schema import (
     validate_partition_key,
     validate_primary_key,
 )
+
 # Also re-export FunctionType from types for backward compatibility
 from pymilvus.client.types import FunctionType
 
