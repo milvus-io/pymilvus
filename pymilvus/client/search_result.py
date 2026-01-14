@@ -1,4 +1,5 @@
 import logging
+from collections import UserDict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -98,7 +99,10 @@ class HybridHits(list):
         if len(highlight_results) > 0:
             for i, hit in enumerate(top_k_res):
                 hit["highlight"] = {
-                    result.field_name: list(result.datas[i + start].fragments)
+                    result.field_name: {
+                        "fragments": list(result.datas[i + start].fragments),
+                        "scores": list(result.datas[i + start].scores),
+                    }
                     for result in highlight_results
                 }
 
@@ -709,9 +713,6 @@ class Hits(list):
         return f"{self[:10]}{reminder}"
 
     __repr__ = __str__
-
-
-from collections import UserDict
 
 
 class Hit(UserDict):

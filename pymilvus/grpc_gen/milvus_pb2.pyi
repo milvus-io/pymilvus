@@ -2989,3 +2989,25 @@ class AlterCollectionSchemaResponse(_message.Message):
     alter_status: _common_pb2.Status
     index_status: _common_pb2.Status
     def __init__(self, alter_status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., index_status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ...) -> None: ...
+
+class BatchUpdateManifestRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "field_names", "items")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    FIELD_NAMES_FIELD_NUMBER: _ClassVar[int]
+    ITEMS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    field_names: _containers.RepeatedScalarFieldContainer[str]
+    items: _containers.RepeatedCompositeFieldContainer[BatchUpdateManifestItem]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., field_names: _Optional[_Iterable[str]] = ..., items: _Optional[_Iterable[_Union[BatchUpdateManifestItem, _Mapping]]] = ...) -> None: ...
+
+class BatchUpdateManifestItem(_message.Message):
+    __slots__ = ("segment_id", "manifest_version")
+    SEGMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    MANIFEST_VERSION_FIELD_NUMBER: _ClassVar[int]
+    segment_id: int
+    manifest_version: int
+    def __init__(self, segment_id: _Optional[int] = ..., manifest_version: _Optional[int] = ...) -> None: ...
