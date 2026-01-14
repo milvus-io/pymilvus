@@ -1445,7 +1445,9 @@ class Prepare:
         highlighter: Optional[Highlighter] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, kwargs.get("_endpoint", ""), kwargs.get("_db_name", "")
+        )
 
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
@@ -1648,7 +1650,9 @@ class Prepare:
         round_decimal: int = -1,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, kwargs.get("_endpoint", ""), kwargs.get("_db_name", "")
+        )
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         rerank_param = {}
@@ -2026,7 +2030,9 @@ class Prepare:
         partition_names: List[str],
         **kwargs,
     ):
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, kwargs.get("_endpoint", ""), kwargs.get("_db_name", "")
+        )
         req = milvus_types.QueryRequest(
             db_name="",
             collection_name=collection_name,

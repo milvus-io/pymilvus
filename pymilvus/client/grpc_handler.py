@@ -682,7 +682,9 @@ class GrpcHandler:
         )
         resp = self._stub.Insert(request=request, timeout=timeout, metadata=_api_level_md(**kwargs))
         check_status(resp.status)
-        ts_utils.update_collection_ts(collection_name, resp.timestamp)
+        ts_utils.update_collection_ts(
+            collection_name, resp.timestamp, self.server_address, self._get_db_name()
+        )
         return MutationResult(resp)
 
     def _prepare_row_insert_request(
@@ -794,7 +796,11 @@ class GrpcHandler:
             if kwargs.get("_async", False):
                 cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
-                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                f.add_callback(
+                    ts_utils.update_ts_on_mutation(
+                        collection_name, self.server_address, self._get_db_name()
+                    )
+                )
                 return f
 
             response = rf.result()
@@ -832,13 +838,19 @@ class GrpcHandler:
             if kwargs.get("_async", False):
                 cb = kwargs.pop("_callback", None)
                 f = MutationFuture(future, cb, timeout=timeout, **kwargs)
-                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                f.add_callback(
+                    ts_utils.update_ts_on_mutation(
+                        collection_name, self.server_address, self._get_db_name()
+                    )
+                )
                 return f
 
             response = future.result()
             check_status(response.status)
             m = MutationResult(response)
-            ts_utils.update_collection_ts(collection_name, m.timestamp)
+            ts_utils.update_collection_ts(
+                collection_name, m.timestamp, self.server_address, self._get_db_name()
+            )
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
@@ -903,13 +915,19 @@ class GrpcHandler:
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
-                f.add_callback(ts_utils.update_ts_on_mutation(collection_name))
+                f.add_callback(
+                    ts_utils.update_ts_on_mutation(
+                        collection_name, self.server_address, self._get_db_name()
+                    )
+                )
                 return f
 
             response = rf.result()
             check_status(response.status)
             m = MutationResult(response)
-            ts_utils.update_collection_ts(collection_name, m.timestamp)
+            ts_utils.update_collection_ts(
+                collection_name, m.timestamp, self.server_address, self._get_db_name()
+            )
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
@@ -965,7 +983,9 @@ class GrpcHandler:
         response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(**kwargs))
         check_status(response.status)
         m = MutationResult(response)
-        ts_utils.update_collection_ts(collection_name, m.timestamp)
+        ts_utils.update_collection_ts(
+            collection_name, m.timestamp, self.server_address, self._get_db_name()
+        )
         return m
 
     def _execute_search(
@@ -1061,6 +1081,8 @@ class GrpcHandler:
             round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
+            _endpoint=self.server_address,
+            _db_name=self._get_db_name(),
             **kwargs,
         )
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
@@ -1092,6 +1114,8 @@ class GrpcHandler:
             # Convert EmbeddingList to flat array if present in the request data
             data = req.data
             req_kwargs = dict(kwargs)
+            req_kwargs["_endpoint"] = self.server_address
+            req_kwargs["_db_name"] = self._get_db_name()
             if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
@@ -1118,6 +1142,8 @@ class GrpcHandler:
             partition_names,
             output_fields,
             round_decimal,
+            _endpoint=self.server_address,
+            _db_name=self._get_db_name(),
             **kwargs,
         )
         return self._execute_hybrid_search(
@@ -1819,7 +1845,13 @@ class GrpcHandler:
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
         request = Prepare.query_request(
-            collection_name, expr, output_fields, partition_names, **kwargs
+            collection_name,
+            expr,
+            output_fields,
+            partition_names,
+            _endpoint=self.server_address,
+            _db_name=self._get_db_name(),
+            **kwargs,
         )
 
         response = self._stub.Query(request, timeout=timeout, metadata=_api_level_md(**kwargs))
