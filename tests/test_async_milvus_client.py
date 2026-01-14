@@ -87,6 +87,49 @@ class TestAsyncMilvusClientNewFeatures:
             mock_handler.describe_collection.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_list_persistent_segments(self):
+        with patch('pymilvus.milvus_client.async_milvus_client.create_connection', return_value="test"), \
+             patch('pymilvus.orm.connections.Connections._fetch_handler') as mock_fetch:
+            # Mock connection and its get_persistent_segment_infos method
+            mock_conn = AsyncMock()
+            mock_fetch.return_value = mock_conn
+            
+            # Create a mock segment info
+            mock_segment_info = MagicMock()
+            mock_segment_info.segmentID = 1001
+            mock_segment_info.collectionID = 2001
+            mock_segment_info.num_rows = 1000
+            mock_segment_info.is_sorted = True
+            mock_segment_info.state = 3  # FLUSHED
+            mock_segment_info.level = 1
+            mock_segment_info.storage_version = 1
+            
+            mock_conn.get_persistent_segment_infos.return_value = [mock_segment_info]
+
+            # Initialize AsyncMilvusClient
+            client = AsyncMilvusClient(uri="http://localhost:19530")
+
+            # Call list_persistent_segments
+            result = await client.list_persistent_segments("test_collection")
+
+            # Verify the result
+            assert len(result) == 1
+            segment_info = result[0]
+            assert segment_info.segment_id == 1001
+            assert segment_info.collection_id == 2001
+            assert segment_info.collection_name == "test_collection"
+            assert segment_info.num_rows == 1000
+            assert segment_info.is_sorted is True
+            assert segment_info.state == 3
+            assert segment_info.level == 1
+            assert segment_info.storage_version == 1
+
+            # Verify call arguments
+            mock_conn.get_persistent_segment_infos.assert_called_once_with(
+                "test_collection", timeout=None
+            )
+
+    @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self):
         """Test describe_collection works normally when no struct_array_fields"""
         with patch('pymilvus.milvus_client.async_milvus_client.create_connection', return_value="test"), \
