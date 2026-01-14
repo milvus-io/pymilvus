@@ -10,6 +10,7 @@ from pymilvus.client.types import (
     OmitZeroDict,
     ResourceGroupConfig,
     RoleInfo,
+    SegmentInfo,
     UserInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, is_vector_type
@@ -1164,6 +1165,39 @@ class AsyncMilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return await conn.get_flush_all_state(timeout=timeout, **kwargs)
+
+    async def list_persistent_segments(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List persistent segments for a collection.
+
+        Args:
+            collection_name (str): The name of the collection.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[SegmentInfo]: A list of persistent segment information.
+        """
+        infos = await self._get_connection().get_persistent_segment_infos(
+            collection_name, timeout=timeout, **kwargs
+        )
+        return [
+            SegmentInfo(
+                info.segmentID,
+                info.collectionID,
+                collection_name,
+                info.num_rows,
+                info.is_sorted,
+                info.state,
+                info.level,
+                info.storage_version,
+            )
+            for info in infos
+        ]
 
     async def compact(
         self,

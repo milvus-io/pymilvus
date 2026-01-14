@@ -640,6 +640,16 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    async def get_persistent_segment_infos(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[milvus_types.PersistentSegmentInfo]:
+        req = Prepare.get_persistent_segment_info_request(collection_name)
+        response = await self._async_stub.GetPersistentSegmentInfo(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.infos
+
     async def delete(
         self,
         collection_name: str,
