@@ -1182,19 +1182,20 @@ class AsyncMilvusClient(BaseMilvusClient):
         Returns:
             List[SegmentInfo]: A list of persistent segment information.
         """
+        validate_param("collection_name", collection_name, str)
         infos = await self._get_connection().get_persistent_segment_infos(
             collection_name, timeout=timeout, **kwargs
         )
         return [
             SegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
+                segment_id=info.segmentID,
+                collection_id=info.collectionID,
+                collection_name=collection_name,
+                num_rows=info.num_rows,
+                is_sorted=info.is_sorted,
+                state=info.state,
+                level=info.level,
+                storage_version=info.storage_version,
             )
             for info in infos
         ]

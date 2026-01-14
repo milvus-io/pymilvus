@@ -88,25 +88,27 @@ class TestAsyncMilvusClientNewFeatures:
 
     @pytest.mark.asyncio
     async def test_list_persistent_segments(self):
-        # Mock connection and its get_persistent_segment_infos method
-        mock_conn = MagicMock()
-        mock_conn.get_persistent_segment_infos = AsyncMock()
-        
-        # Create a mock segment info
-        mock_segment_info = MagicMock()
-        mock_segment_info.segmentID = 1001
-        mock_segment_info.collectionID = 2001
-        mock_segment_info.num_rows = 1000
-        mock_segment_info.is_sorted = True
-        mock_segment_info.state = 3  # FLUSHED
-        mock_segment_info.level = 1
-        mock_segment_info.storage_version = 1
-        
-        mock_conn.get_persistent_segment_infos.return_value = [mock_segment_info]
+        with patch('pymilvus.milvus_client.async_milvus_client.create_connection', return_value="test"), \
+             patch('pymilvus.orm.connections.Connections._fetch_handler') as mock_fetch:
+            # Mock connection and its get_persistent_segment_infos method
+            mock_conn = AsyncMock()
+            mock_fetch.return_value = mock_conn
+            
+            # Create a mock segment info
+            mock_segment_info = MagicMock()
+            mock_segment_info.segmentID = 1001
+            mock_segment_info.collectionID = 2001
+            mock_segment_info.num_rows = 1000
+            mock_segment_info.is_sorted = True
+            mock_segment_info.state = 3  # FLUSHED
+            mock_segment_info.level = 1
+            mock_segment_info.storage_version = 1
+            
+            mock_conn.get_persistent_segment_infos.return_value = [mock_segment_info]
 
-        # Initialize AsyncMilvusClient with mocked connection
-        client = AsyncMilvusClient(uri="http://localhost:19530")
-        with patch.object(client, "_get_connection", return_value=mock_conn):
+            # Initialize AsyncMilvusClient
+            client = AsyncMilvusClient(uri="http://localhost:19530")
+
             # Call list_persistent_segments
             result = await client.list_persistent_segments("test_collection")
 

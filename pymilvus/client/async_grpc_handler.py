@@ -643,6 +643,8 @@ class AsyncGrpcHandler:
     async def get_persistent_segment_infos(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[milvus_types.PersistentSegmentInfo]:
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = await self._async_stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(**kwargs)
