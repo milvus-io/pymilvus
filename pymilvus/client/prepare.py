@@ -1016,8 +1016,6 @@ class Prepare:
                 )
 
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
-        request.fields_data.extend(fields_data.values())
-
         # Flush all bytes vector field temporary byte lists to optimize memory usage
         for field_data in fields_data.values():
             if field_data.type in (
@@ -1027,6 +1025,8 @@ class Prepare:
                 DataType.BFLOAT16_VECTOR,
             ):
                 entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
+
+        request.fields_data.extend(fields_data.values())
 
         if struct_fields_data:
             # reconstruct the struct array fields data (same as in insert)
