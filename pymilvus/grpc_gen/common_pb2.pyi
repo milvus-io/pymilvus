@@ -994,10 +994,12 @@ class ReplicateCheckpoint(_message.Message):
     def __init__(self, cluster_id: _Optional[str] = ..., pchannel: _Optional[str] = ..., message_id: _Optional[_Union[MessageID, _Mapping]] = ..., time_tick: _Optional[int] = ...) -> None: ...
 
 class HighlightData(_message.Message):
-    __slots__ = ("fragments",)
+    __slots__ = ("fragments", "scores")
     FRAGMENTS_FIELD_NUMBER: _ClassVar[int]
+    SCORES_FIELD_NUMBER: _ClassVar[int]
     fragments: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, fragments: _Optional[_Iterable[str]] = ...) -> None: ...
+    scores: _containers.RepeatedScalarFieldContainer[float]
+    def __init__(self, fragments: _Optional[_Iterable[str]] = ..., scores: _Optional[_Iterable[float]] = ...) -> None: ...
 
 class HighlightResult(_message.Message):
     __slots__ = ("field_name", "datas")
