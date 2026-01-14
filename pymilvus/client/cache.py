@@ -126,7 +126,7 @@ class GlobalCache:
         GlobalCache.schema.get(endpoint, db_name, collection_name)
         GlobalCache.schema.set(endpoint, db_name, collection_name, schema)
         GlobalCache.collection_ts.get(endpoint, db_name, collection_name)
-        GlobalCache.collection_ts.update(endpoint, db_name, collection_name, ts)
+        GlobalCache.collection_ts.set(endpoint, db_name, collection_name, ts)
     """
 
     schema: ClassVar[SchemaCache] = SchemaCache()
