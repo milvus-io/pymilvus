@@ -2,6 +2,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pymilvus.client.types import RestoreSnapshotJobInfo, SnapshotInfo
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient
@@ -180,7 +181,6 @@ class TestMilvusClientSnapshot:
 
             mock_handler.create_snapshot.assert_called_once_with(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="test_collection",
                 description="Test description",
                 timeout=None
@@ -238,7 +238,6 @@ class TestMilvusClientSnapshot:
 
             assert snapshots == ["snapshot1", "snapshot2"]
             mock_handler.list_snapshots.assert_called_once_with(
-                db_name="",
                 collection_name="test_collection",
                 timeout=None
             )
@@ -264,14 +263,14 @@ class TestMilvusClientSnapshot:
         """Test describe_snapshot method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
-        mock_handler.describe_snapshot.return_value = {
-            "name": "test_snapshot",
-            "description": "Test description",
-            "collection_name": "test_collection",
-            "partition_names": ["_default"],
-            "create_ts": 1234567890,
-            "s3_location": "s3://bucket/path"
-        }
+        mock_handler.describe_snapshot.return_value = SnapshotInfo(
+            name="test_snapshot",
+            description="Test description",
+            collection_name="test_collection",
+            partition_names=["_default"],
+            create_ts=1234567890,
+            s3_location="s3://bucket/path"
+        )
 
         with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
              patch('pymilvus.orm.connections.Connections._fetch_handler', return_value=mock_handler):
@@ -279,12 +278,12 @@ class TestMilvusClientSnapshot:
 
             info = client.describe_snapshot(snapshot_name="test_snapshot")
 
-            assert info["name"] == "test_snapshot"
-            assert info["description"] == "Test description"
-            assert info["collection_name"] == "test_collection"
-            assert info["partition_names"] == ["_default"]
-            assert info["create_ts"] == 1234567890
-            assert info["s3_location"] == "s3://bucket/path"
+            assert info.name == "test_snapshot"
+            assert info.description == "Test description"
+            assert info.collection_name == "test_collection"
+            assert info.partition_names == ["_default"]
+            assert info.create_ts == 1234567890
+            assert info.s3_location == "s3://bucket/path"
 
             mock_handler.describe_snapshot.assert_called_once_with(
                 snapshot_name="test_snapshot",
@@ -309,7 +308,6 @@ class TestMilvusClientSnapshot:
             assert job_id == 12345
             mock_handler.restore_snapshot.assert_called_once_with(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="restored_collection",
                 rewrite_data=False,
                 timeout=None
@@ -319,15 +317,17 @@ class TestMilvusClientSnapshot:
         """Test get_restore_snapshot_state method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
-        mock_handler.get_restore_snapshot_state.return_value = {
-            "job_id": 12345,
-            "snapshot_name": "test_snapshot",
-            "collection_id": 100,
-            "state": 2,  # Completed
-            "progress": 100,
-            "reason": "",
-            "time_cost": 5000
-        }
+        mock_handler.get_restore_snapshot_state.return_value = RestoreSnapshotJobInfo(
+            job_id=12345,
+            snapshot_name="test_snapshot",
+            db_name="default",
+            collection_name="test_collection",
+            state="RestoreSnapshotCompleted",
+            progress=100,
+            reason="",
+            start_time=1234567890,
+            time_cost=5000
+        )
 
         with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
              patch('pymilvus.orm.connections.Connections._fetch_handler', return_value=mock_handler):
@@ -335,12 +335,12 @@ class TestMilvusClientSnapshot:
 
             state = client.get_restore_snapshot_state(job_id=12345)
 
-            assert state["job_id"] == 12345
-            assert state["snapshot_name"] == "test_snapshot"
-            assert state["collection_id"] == 100
-            assert state["state"] == 2
-            assert state["progress"] == 100
-            assert state["time_cost"] == 5000
+            assert state.job_id == 12345
+            assert state.snapshot_name == "test_snapshot"
+            assert state.collection_name == "test_collection"
+            assert state.state == "RestoreSnapshotCompleted"
+            assert state.progress == 100
+            assert state.time_cost == 5000
 
             mock_handler.get_restore_snapshot_state.assert_called_once_with(
                 job_id=12345,
@@ -352,24 +352,28 @@ class TestMilvusClientSnapshot:
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
         mock_handler.list_restore_snapshot_jobs.return_value = [
-            {
-                "job_id": 12345,
-                "snapshot_name": "snapshot1",
-                "collection_id": 100,
-                "state": 2,
-                "progress": 100,
-                "reason": "",
-                "time_cost": 5000
-            },
-            {
-                "job_id": 12346,
-                "snapshot_name": "snapshot2",
-                "collection_id": 101,
-                "state": 1,
-                "progress": 50,
-                "reason": "",
-                "time_cost": 2500
-            }
+            RestoreSnapshotJobInfo(
+                job_id=12345,
+                snapshot_name="snapshot1",
+                db_name="default",
+                collection_name="collection1",
+                state="RestoreSnapshotCompleted",
+                progress=100,
+                reason="",
+                start_time=1234567890,
+                time_cost=5000
+            ),
+            RestoreSnapshotJobInfo(
+                job_id=12346,
+                snapshot_name="snapshot2",
+                db_name="default",
+                collection_name="collection2",
+                state="RestoreSnapshotExecuting",
+                progress=50,
+                reason="",
+                start_time=1234567890,
+                time_cost=2500
+            )
         ]
 
         with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
@@ -379,10 +383,10 @@ class TestMilvusClientSnapshot:
             jobs = client.list_restore_snapshot_jobs(collection_name="test_collection")
 
             assert len(jobs) == 2
-            assert jobs[0]["job_id"] == 12345
-            assert jobs[0]["progress"] == 100
-            assert jobs[1]["job_id"] == 12346
-            assert jobs[1]["progress"] == 50
+            assert jobs[0].job_id == 12345
+            assert jobs[0].progress == 100
+            assert jobs[1].job_id == 12346
+            assert jobs[1].progress == 50
 
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
                 collection_name="test_collection",

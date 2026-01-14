@@ -52,7 +52,9 @@ from .types import (
     IndexState,
     LoadState,
     ReplicaInfo,
+    RestoreSnapshotJobInfo,
     Shard,
+    SnapshotInfo,
     State,
     Status,
     get_extra_info,
@@ -2177,15 +2179,14 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
 
-        # Convert response to dict
-        return {
-            "name": response.name,
-            "description": response.description,
-            "collection_name": response.collection_name,
-            "partition_names": list(response.partition_names),
-            "create_ts": response.create_ts,
-            "s3_location": response.s3_location,
-        }
+        return SnapshotInfo(
+            name=response.name,
+            description=response.description,
+            collection_name=response.collection_name,
+            partition_names=list(response.partition_names),
+            create_ts=response.create_ts,
+            s3_location=response.s3_location,
+        )
 
     @retry_on_rpc_failure()
     async def restore_snapshot(
@@ -2222,21 +2223,18 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
 
-        # Convert response to dict
-        # Access fields from response.info instead of response directly
-        # Note: If job_id doesn't exist, check_status will raise MilvusException above
         info = response.info
-        return {
-            "job_id": info.job_id,
-            "snapshot_name": info.snapshot_name,
-            "db_name": info.db_name,
-            "collection_name": info.collection_name,
-            "state": info.state,
-            "progress": info.progress,
-            "reason": info.reason,
-            "start_time": info.start_time,
-            "time_cost": info.time_cost,
-        }
+        return RestoreSnapshotJobInfo(
+            job_id=info.job_id,
+            snapshot_name=info.snapshot_name,
+            db_name=info.db_name,
+            collection_name=info.collection_name,
+            state=milvus_types.RestoreSnapshotState.Name(info.state),
+            progress=info.progress,
+            reason=info.reason,
+            start_time=info.start_time,
+            time_cost=info.time_cost,
+        )
 
     @retry_on_rpc_failure()
     async def list_restore_snapshot_jobs(
@@ -2251,18 +2249,17 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
 
-        # Convert list of RestoreSnapshotInfo to list of dicts
         return [
-            {
-                "job_id": info.job_id,
-                "snapshot_name": info.snapshot_name,
-                "db_name": info.db_name,
-                "collection_name": info.collection_name,
-                "state": info.state,
-                "progress": info.progress,
-                "reason": info.reason,
-                "start_time": info.start_time,
-                "time_cost": info.time_cost,
-            }
+            RestoreSnapshotJobInfo(
+                job_id=info.job_id,
+                snapshot_name=info.snapshot_name,
+                db_name=info.db_name,
+                collection_name=info.collection_name,
+                state=milvus_types.RestoreSnapshotState.Name(info.state),
+                progress=info.progress,
+                reason=info.reason,
+                start_time=info.start_time,
+                time_cost=info.time_cost,
+            )
             for info in response.jobs
         ]

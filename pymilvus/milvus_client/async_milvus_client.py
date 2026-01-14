@@ -9,8 +9,10 @@ from pymilvus.client.types import (
     LoadState,
     OmitZeroDict,
     ResourceGroupConfig,
+    RestoreSnapshotJobInfo,
     RoleInfo,
     SegmentInfo,
+    SnapshotInfo,
     UserInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, is_vector_type
@@ -1560,7 +1562,6 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         await conn.create_snapshot(
             snapshot_name=snapshot_name,
-            db_name="",
             collection_name=collection_name,
             description=description,
             timeout=timeout,
@@ -1600,16 +1601,14 @@ class AsyncMilvusClient(BaseMilvusClient):
             List[str]: A list of snapshot names.
         """
         conn = self._get_connection()
-        return await conn.list_snapshots(
-            db_name="", collection_name=collection_name, timeout=timeout, **kwargs
-        )
+        return await conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
 
     async def describe_snapshot(
         self,
         snapshot_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> dict:
+    ) -> SnapshotInfo:
         """Get detailed information about a snapshot (async).
 
         Args:
@@ -1618,7 +1617,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: Snapshot information dictionary.
+            SnapshotInfo: Snapshot information dataclass.
         """
         conn = self._get_connection()
         return await conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
@@ -1644,7 +1643,6 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return await conn.restore_snapshot(
             snapshot_name=snapshot_name,
-            db_name="",
             collection_name=collection_name,
             rewrite_data=False,
             timeout=timeout,
@@ -1656,7 +1654,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         job_id: int,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> dict:
+    ) -> RestoreSnapshotJobInfo:
         """Query the status of a restore snapshot job (async).
 
         Args:
@@ -1665,7 +1663,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: Restore job information dictionary.
+            RestoreSnapshotJobInfo: Restore job information dataclass.
         """
         conn = self._get_connection()
         return await conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
@@ -1675,7 +1673,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         collection_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[dict]:
+    ) -> List[RestoreSnapshotJobInfo]:
         """List all restore snapshot jobs (async).
 
         Args:
@@ -1684,7 +1682,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            List[dict]: A list of restore job information dictionaries.
+            List[RestoreSnapshotJobInfo]: A list of RestoreSnapshotJobInfo dataclasses.
         """
         conn = self._get_connection()
         return await conn.list_restore_snapshot_jobs(

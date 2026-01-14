@@ -626,9 +626,9 @@ class TestAsyncGrpcHandler:
             result = await handler.describe_snapshot(snapshot_name="test_snapshot", timeout=30)
 
             mock_prepare.describe_snapshot_req.assert_called_once_with("test_snapshot")
-            assert result["name"] == "test_snapshot"
-            assert result["description"] == "test description"
-            assert result["collection_name"] == "test_collection"
+            assert result.name == "test_snapshot"
+            assert result.description == "test description"
+            assert result.collection_name == "test_collection"
 
     @pytest.mark.asyncio
     async def test_restore_snapshot(self) -> None:
@@ -702,7 +702,7 @@ class TestAsyncGrpcHandler:
         mock_info.snapshot_name = "test_snapshot"
         mock_info.db_name = ""
         mock_info.collection_name = "test_collection"
-        mock_info.state = "InProgress"
+        mock_info.state = 1  # Integer enum value for RestoreSnapshotExecuting
         mock_info.progress = 50
         mock_info.reason = ""
         mock_info.start_time = 1234567890
@@ -713,16 +713,17 @@ class TestAsyncGrpcHandler:
 
         with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
              patch('pymilvus.client.async_grpc_handler.check_status'), \
-             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}):
+             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}), \
+             patch('pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name', return_value="RestoreSnapshotExecuting"):
             mock_request = MagicMock()
             mock_prepare.get_restore_snapshot_state_req.return_value = mock_request
 
             result = await handler.get_restore_snapshot_state(job_id=12345, timeout=30)
 
             mock_prepare.get_restore_snapshot_state_req.assert_called_once_with(12345)
-            assert result["state"] == "InProgress"
-            assert result["progress"] == 50
-            assert result["time_cost"] == 120
+            assert result.state == "RestoreSnapshotExecuting"
+            assert result.progress == 50
+            assert result.time_cost == 120
 
     @pytest.mark.asyncio
     async def test_list_restore_snapshot_jobs(self) -> None:
@@ -744,14 +745,21 @@ class TestAsyncGrpcHandler:
         mock_status.error_code = 0
         mock_status.reason = ""
         mock_response.status = mock_status
-        mock_job1 = MagicMock(job_id=1, snapshot_name="snap1")
-        mock_job2 = MagicMock(job_id=2, snapshot_name="snap2")
+        mock_job1 = MagicMock(
+            job_id=1, snapshot_name="snap1", db_name="", collection_name="col1",
+            state=2, progress=100, reason="", start_time=1234567890, time_cost=1000
+        )
+        mock_job2 = MagicMock(
+            job_id=2, snapshot_name="snap2", db_name="", collection_name="col2",
+            state=1, progress=50, reason="", start_time=1234567890, time_cost=500
+        )
         mock_response.jobs = [mock_job1, mock_job2]
         mock_stub.ListRestoreSnapshotJobs = AsyncMock(return_value=mock_response)
 
         with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
              patch('pymilvus.client.async_grpc_handler.check_status'), \
-             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}):
+             patch('pymilvus.client.async_grpc_handler._api_level_md', return_value={}), \
+             patch('pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name', side_effect=lambda x: f"State{x}"):
             mock_request = MagicMock()
             mock_prepare.list_restore_snapshot_jobs_req.return_value = mock_request
 
@@ -759,3 +767,5 @@ class TestAsyncGrpcHandler:
 
             mock_prepare.list_restore_snapshot_jobs_req.assert_called_once_with(collection_name="test_collection")
             assert len(result) == 2
+            assert result[0].job_id == 1
+            assert result[1].job_id == 2

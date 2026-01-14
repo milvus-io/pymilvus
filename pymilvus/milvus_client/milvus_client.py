@@ -14,7 +14,9 @@ from pymilvus.client.types import (
     OmitZeroDict,
     ReplicaInfo,
     ResourceGroupConfig,
+    RestoreSnapshotJobInfo,
     SegmentInfo,
+    SnapshotInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, get_params, is_vector_type
 from pymilvus.exceptions import (
@@ -2200,7 +2202,6 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         conn.create_snapshot(
             snapshot_name=snapshot_name,
-            db_name="",
             collection_name=collection_name,
             description=description,
             timeout=timeout,
@@ -2253,16 +2254,14 @@ class MilvusClient(BaseMilvusClient):
             ['backup_20240101', 'backup_20240102']
         """
         conn = self._get_connection()
-        return conn.list_snapshots(
-            db_name="", collection_name=collection_name, timeout=timeout, **kwargs
-        )
+        return conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
 
     def describe_snapshot(
         self,
         snapshot_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> dict:
+    ) -> SnapshotInfo:
         """Get detailed information about a specific snapshot.
 
         Args:
@@ -2271,7 +2270,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: A dictionary containing snapshot information with the following keys:
+            SnapshotInfo: A dataclass containing snapshot information with the following fields:
                 - name (str): The snapshot name
                 - description (str): The snapshot description
                 - collection_name (str): The collection name
@@ -2281,9 +2280,9 @@ class MilvusClient(BaseMilvusClient):
 
         Example:
             >>> info = client.describe_snapshot(snapshot_name="backup_20240101")
-            >>> print(f"Snapshot: {info['name']}")
-            >>> print(f"Collection: {info['collection_name']}")
-            >>> print(f"Created: {info['create_ts']}")
+            >>> print(f"Snapshot: {info.name}")
+            >>> print(f"Collection: {info.collection_name}")
+            >>> print(f"Created: {info.create_ts}")
         """
         conn = self._get_connection()
         return conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
@@ -2334,7 +2333,6 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.restore_snapshot(
             snapshot_name=snapshot_name,
-            db_name="",
             collection_name=collection_name,
             rewrite_data=False,
             timeout=timeout,
@@ -2346,7 +2344,7 @@ class MilvusClient(BaseMilvusClient):
         job_id: int,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> dict:
+    ) -> RestoreSnapshotJobInfo:
         """Query the status and progress of a restore snapshot job.
 
         Args:
@@ -2355,22 +2353,30 @@ class MilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            dict: A dictionary containing restore job information with the following keys:
+            RestoreSnapshotJobInfo: A dataclass containing restore job information
+                with the following fields:
                 - job_id (int): The restore job ID
                 - snapshot_name (str): The snapshot name being restored
-                - collection_id (int): The target collection ID
-                - state (int): Current state (Pending/InProgress/Completed/Failed)
+                - db_name (str): The target database name
+                - collection_name (str): The target collection name
+                - state (str): Current state. Possible values:
+                    - 'RestoreSnapshotNone'
+                    - 'RestoreSnapshotPending'
+                    - 'RestoreSnapshotExecuting'
+                    - 'RestoreSnapshotCompleted'
+                    - 'RestoreSnapshotFailed'
                 - progress (int): Progress percentage (0-100)
                 - reason (str): Error reason if failed
+                - start_time (int): Start timestamp in milliseconds
                 - time_cost (int): Time cost in milliseconds
 
         Example:
             >>> state = client.get_restore_snapshot_state(job_id=12345)
-            >>> print(f"Job ID: {state['job_id']}")
-            >>> print(f"State: {state['state']}")
-            >>> print(f"Progress: {state['progress']}%")
-            >>> if state['state'] == 'RestoreSnapshotFailed':
-            ...     print(f"Failure Reason: {state['reason']}")
+            >>> print(f"Job ID: {state.job_id}")
+            >>> print(f"State: {state.state}")
+            >>> print(f"Progress: {state.progress}%")
+            >>> if state.state == 'RestoreSnapshotFailed':
+            ...     print(f"Failure Reason: {state.reason}")
         """
         conn = self._get_connection()
         return conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
@@ -2380,7 +2386,7 @@ class MilvusClient(BaseMilvusClient):
         collection_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[dict]:
+    ) -> List[RestoreSnapshotJobInfo]:
         """List all restore snapshot jobs.
 
         Args:
@@ -2390,20 +2396,14 @@ class MilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
 
         Returns:
-            List[dict]: A list of restore job information dictionaries. Each dict contains:
-                - job_id (int): The restore job ID
-                - snapshot_name (str): The snapshot name being restored
-                - collection_id (int): The target collection ID
-                - state (int): Current state
-                - progress (int): Progress percentage (0-100)
-                - reason (str): Error reason if failed
-                - time_cost (int): Time cost in milliseconds
+            List[RestoreSnapshotJobInfo]: A list of RestoreSnapshotJobInfo dataclasses.
+                Each contains the same fields as get_restore_snapshot_state().
 
         Example:
             >>> # List all restore jobs
             >>> jobs = client.list_restore_snapshot_jobs()
             >>> for job in jobs:
-            ...     print(f"Job {job['job_id']}: {job['snapshot_name']} - {job['progress']}%")
+            ...     print(f"Job {job.job_id}: {job.snapshot_name} - {job.progress}%")
             >>>
             >>> # List restore jobs for a specific collection
             >>> jobs = client.list_restore_snapshot_jobs(collection_name="my_collection")

@@ -110,12 +110,12 @@ def demo_describe_snapshot(client: MilvusClient):
     info = client.describe_snapshot(snapshot_name=SNAPSHOT_NAME)
 
     print(f"Snapshot Information:")
-    print(f"  Name:             {info['name']}")
-    print(f"  Description:      {info['description']}")
-    print(f"  Collection:       {info['collection_name']}")
-    print(f"  Partitions:       {info['partition_names']}")
-    print(f"  Create Timestamp: {info['create_ts']}")
-    print(f"  S3 Location:      {info['s3_location']}")
+    print(f"  Name:             {info.name}")
+    print(f"  Description:      {info.description}")
+    print(f"  Collection:       {info.collection_name}")
+    print(f"  Partitions:       {info.partition_names}")
+    print(f"  Create Timestamp: {info.create_ts}")
+    print(f"  S3 Location:      {info.s3_location}")
 
 
 def demo_restore_snapshot(client: MilvusClient):
@@ -140,23 +140,15 @@ def demo_restore_snapshot(client: MilvusClient):
     while True:
         state = client.get_restore_snapshot_state(job_id=job_id)
 
-        job_id_val = state['job_id']
-        snapshot_name = state['snapshot_name']
-        collection_name = state['collection_name']
-        progress = state['progress']
-        state_value = state['state']
-        time_cost = state['time_cost']
-
-        print(f"  Job {job_id_val}: {snapshot_name} -> Collection {collection_name}")
-        print(f"  State: {state_value}, Progress: {progress}%, Time: {time_cost}ms")
+        print(f"  Job {state.job_id}: {state.snapshot_name} -> Collection {state.collection_name}")
+        print(f"  State: {state.state}, Progress: {state.progress}%, Time: {state.time_cost}ms")
 
         # Check if completed
-        if state_value == 2:  # RestoreSnapshotCompleted
-            print(f"\n✓ Restore completed successfully in {time_cost}ms!")
+        if state.state == "RestoreSnapshotCompleted":
+            print(f"\n✓ Restore completed successfully in {state.time_cost}ms!")
             break
-        elif state_value == 3:  # RestoreSnapshotFailed
-            reason = state.get('reason', 'Unknown error')
-            print(f"\n✗ Restore failed: {reason}")
+        elif state.state == "RestoreSnapshotFailed":
+            print(f"\n✗ Restore failed: {state.reason}")
             return False
 
         time.sleep(1)
@@ -188,14 +180,14 @@ def demo_list_restore_jobs(client: MilvusClient):
     print(f"Found {len(jobs)} restore job(s):")
 
     for job in jobs:
-        print(f"  Job {job['job_id']}:")
-        print(f"    Snapshot: {job['snapshot_name']}")
-        print(f"    Collection: {job['collection_name']}")
-        print(f"    State: {job['state']}")
-        print(f"    Progress: {job['progress']}%")
-        print(f"    Time Cost: {job['time_cost']}ms")
-        if job.get('reason'):
-            print(f"    Reason: {job['reason']}")
+        print(f"  Job {job.job_id}:")
+        print(f"    Snapshot: {job.snapshot_name}")
+        print(f"    Collection: {job.collection_name}")
+        print(f"    State: {job.state}")
+        print(f"    Progress: {job.progress}%")
+        print(f"    Time Cost: {job.time_cost}ms")
+        if job.reason:
+            print(f"    Reason: {job.reason}")
 
     # List jobs for specific collection
     collection_jobs = client.list_restore_snapshot_jobs(
@@ -327,10 +319,10 @@ async def async_demo():
         print("\n[4] Describing snapshot...")
         snapshot_info = await client.describe_snapshot(snapshot_name=snapshot_name)
         print(f"✓ Snapshot details:")
-        print(f"  Name: {snapshot_info['name']}")
-        print(f"  Collection: {snapshot_info['collection_name']}")
-        print(f"  Description: {snapshot_info['description']}")
-        print(f"  Partitions: {snapshot_info['partition_names']}")
+        print(f"  Name: {snapshot_info.name}")
+        print(f"  Collection: {snapshot_info.collection_name}")
+        print(f"  Description: {snapshot_info.description}")
+        print(f"  Partitions: {snapshot_info.partition_names}")
 
         # 5. Restore snapshot
         print("\n[5] Restoring snapshot to new collection...")
@@ -345,19 +337,17 @@ async def async_demo():
         print("\n[6] Monitoring restore progress...")
         while True:
             state = await client.get_restore_snapshot_state(job_id=job_id)
-            progress = state["progress"]
-            state_value = state["state"]
 
-            print(f"  Job {job_id}: State {state_value} - {progress}% complete", end="\r")
+            print(f"  Job {job_id}: State {state.state} - {state.progress}% complete", end="\r")
 
-            # Check if completed (state: 2=Completed, 3=Failed)
-            if state_value == 2:  # RestoreSnapshotCompleted
+            # Check if completed
+            if state.state == "RestoreSnapshotCompleted":
                 print()  # New line
                 print(f"✓ Restore completed successfully!")
                 break
-            elif state_value == 3:  # RestoreSnapshotFailed
+            elif state.state == "RestoreSnapshotFailed":
                 print()  # New line
-                print(f"✗ Restore failed: {state.get('reason', 'Unknown error')}")
+                print(f"✗ Restore failed: {state.reason}")
                 break
 
             await asyncio.sleep(1)
@@ -367,8 +357,8 @@ async def async_demo():
         jobs = await client.list_restore_snapshot_jobs()
         print(f"✓ Found {len(jobs)} restore job(s):")
         for job in jobs:
-            print(f"  - Job {job['job_id']}: {job['snapshot_name']} -> "
-                  f"{job['collection_name']} ({job['state']})")
+            print(f"  - Job {job.job_id}: {job.snapshot_name} -> "
+                  f"{job.collection_name} ({job.state})")
 
         # Cleanup
         print("\n[Cleanup] Removing test resources...")
