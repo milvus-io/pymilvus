@@ -14,7 +14,7 @@ packages = ["pymilvus"]
 [project]
 name="pymilvus"
 authors = [
-  {name='Milvus Team', email="milvus-team@zilliz.com"},
+  {name='PyMilvus Team', email="pymilvus@zilliz.com"},
 ]
 requires-python = '>=3.8'
 description = "Python Sdk for Milvus"
@@ -28,7 +28,7 @@ dependencies=[
     "python-dotenv>=1.0.1, <2.0.0",
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
-    "cachetools>=5.0.0", 
+    "cachetools>=5.0.0",
 ]
 
 classifiers=[
