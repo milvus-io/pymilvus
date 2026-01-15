@@ -1250,10 +1250,8 @@ class AsyncGrpcHandler:
             raise MilvusException(message="The length of fields data is inconsistent")
 
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
-
         keys = [field_data.field_name for field_data in response.fields_data]
         filtered_keys = [k for k in keys if k != "$meta"]
-
         results = [dict.fromkeys(filtered_keys) for _ in range(num_entities)]
         lazy_field_data = []
         for field_data in response.fields_data:

@@ -1589,7 +1589,7 @@ class Prepare:
         }
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
-        is_element_level = not is_embedding_list
+        is_element_level = not is_embedding_list and expr is not None and "element_filter(" in expr
         if data is not None:
             request_kwargs.update(
                 nq=entity_helper.get_input_num_rows(data),
