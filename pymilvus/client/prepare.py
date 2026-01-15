@@ -40,6 +40,7 @@ from .constants import (
     ITERATOR_FIELD,
     JSON_PATH,
     JSON_TYPE,
+    ORDER_BY_FIELDS,
     PAGE_RETAIN_ORDER_FIELD,
     QUERY_GROUP_BY_FIELDS,
     RANK_GROUP_SCORER,
@@ -352,7 +353,7 @@ class Prepare:
 
         primary_field, auto_id_field = None, None
         for field in all_fields:
-            (field_schema, primary_field, auto_id_field) = cls.get_field_schema(
+            field_schema, primary_field, auto_id_field = cls.get_field_schema(
                 field, primary_field, auto_id_field
             )
             schema.fields.append(field_schema)
@@ -402,7 +403,7 @@ class Prepare:
         collection_name: str,
         field_schema: FieldSchema,
     ) -> milvus_types.AddCollectionFieldRequest:
-        (field_schema_proto, _, _) = cls.get_field_schema(field=field_schema.to_dict())
+        field_schema_proto, _, _ = cls.get_field_schema(field=field_schema.to_dict())
         return milvus_types.AddCollectionFieldRequest(
             collection_name=collection_name,
             schema=bytes(field_schema_proto.SerializeToString()),
@@ -1517,6 +1518,28 @@ class Prepare:
         strict_group_size = kwargs.get(STRICT_GROUP_SIZE)
         if strict_group_size is not None:
             search_params[STRICT_GROUP_SIZE] = strict_group_size
+
+        order_by_fields = kwargs.get(ORDER_BY_FIELDS)
+        if order_by_fields is not None:
+            # Convert list of dict to field_name:direction format, separated by comma
+            if isinstance(order_by_fields, list):
+                formatted_fields = []
+                for item in order_by_fields:
+                    if isinstance(item, dict):
+                        field_name = item.get("field")
+                        if not field_name:
+                            raise ParamError(
+                                message="Invalid order_by_fields item: 'field' key is required and cannot be empty"
+                            )
+                        direction = item.get("order", "asc")
+                        formatted_fields.append(f"{field_name}:{direction}")
+                    else:
+                        raise ParamError(
+                            message=f"Invalid order_by_fields item format, expect dict with 'field' and 'order' keys, got {type(item)}"
+                        )
+                search_params[ORDER_BY_FIELDS] = ",".join(formatted_fields)
+            else:
+                search_params[ORDER_BY_FIELDS] = order_by_fields
 
         json_path = kwargs.get(JSON_PATH)
         if json_path is not None:
