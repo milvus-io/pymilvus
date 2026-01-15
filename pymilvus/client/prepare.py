@@ -22,7 +22,7 @@ from pymilvus.orm.schema import (
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
 
-from . import __version__, blob, check, entity_helper, ts_utils, utils
+from . import __version__, blob, check, entity_helper, utils
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties
 from .constants import (
@@ -1443,9 +1443,9 @@ class Prepare:
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
         highlighter: Optional[Highlighter] = None,
+        use_default_consistency: bool = True,
         **kwargs,
     ) -> milvus_types.SearchRequest:
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
 
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
@@ -1646,10 +1646,11 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
+        use_default_consistency: bool = True,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
+
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
@@ -2024,9 +2025,9 @@ class Prepare:
         expr: str,
         output_fields: List[str],
         partition_names: List[str],
+        use_default_consistency: bool = True,
         **kwargs,
     ):
-        use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
         req = milvus_types.QueryRequest(
             db_name="",
             collection_name=collection_name,
