@@ -61,7 +61,7 @@ print("Describe collection", coll)
 
 rng = np.random.default_rng(seed=19530)
 
-N = 10000
+N = 100
 content = ["aaa",
            "jjj",
            "sss",
