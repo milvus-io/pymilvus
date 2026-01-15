@@ -31,6 +31,7 @@ class HybridHits(list):
         fields_data: List[schema_pb2.FieldData],
         output_fields: List[str],
         pk_name: str,
+        all_offsets: Optional[List[int]] = None,
     ):
         self.ids = all_pks[start:end]
         self.distances = all_scores[start:end]
@@ -40,10 +41,16 @@ class HybridHits(list):
         self.lazy_field_data = []
         self.has_materialized = False
         self.start = start
-        top_k_res = [
-            Hit({pk_name: all_pks[i], "distance": all_scores[i], "entity": {}}, pk_name=pk_name)
-            for i in range(start, end)
-        ]
+
+        # Create Hit objects with offset field if element_indices is provided
+        top_k_res = []
+        for i in range(start, end):
+            hit_data = {pk_name: all_pks[i], "distance": all_scores[i]}
+            # Add offset after distance, before entity
+            if all_offsets is not None:
+                hit_data["offset"] = all_offsets[i]
+            hit_data["entity"] = {}
+            top_k_res.append(Hit(hit_data, pk_name=pk_name))
         for field_data in fields_data:
             data = get_field_data(field_data)
             has_valid = len(field_data.valid_data) > 0
@@ -318,6 +325,15 @@ class SearchResult(list):
         else:
             all_scores = res.scores
 
+        # Extract element_indices if present
+        all_offsets: Optional[List[int]] = None
+        if res.element_indices and len(res.element_indices.data) > 0:
+            all_offsets = list(res.element_indices.data)
+            # Debug: print received element_indices
+            logger.info(f"DEBUG: Received element_indices from server: {all_offsets}")
+            logger.info(f"DEBUG: Received PKs: {all_pks[:20] if len(all_pks) > 20 else all_pks}")
+            logger.info(f"DEBUG: Received scores: {all_scores[:20] if len(all_scores) > 20 else all_scores}")
+
         data = []
         nq_thres = 0
 
@@ -332,6 +348,7 @@ class SearchResult(list):
                     res.fields_data,
                     res.output_fields,
                     _pk_name,
+                    all_offsets,
                 )
             )
             nq_thres += topk

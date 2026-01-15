@@ -1066,6 +1066,7 @@ class HybridExtraList(list):
         extra: Optional[Dict] = None,
         dynamic_fields: Optional[List] = None,
         strict_float32: bool = False,
+        element_indices: Optional[List[List[int]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -1076,6 +1077,7 @@ class HybridExtraList(list):
         self._has_materialized_float_vector = False
         self._strict_float32 = strict_float32
         self._materialized_bitmap = [False] * len(self)
+        self._element_indices = element_indices
 
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
         if field_data.type == DataType.JSON:
@@ -1204,6 +1206,10 @@ class HybridExtraList(list):
         row = super().__getitem__(index)
         for field_data in self._lazy_field_data:
             self._extract_lazy_fields(index, field_data, row)
+
+        # Add element_indices (offset) if available
+        if self._element_indices is not None and index < len(self._element_indices):
+            row["offset"] = self._element_indices[index]
 
         self._materialized_bitmap[index] = True
         return row

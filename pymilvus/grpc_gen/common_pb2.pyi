@@ -171,6 +171,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FlushSegment: _ClassVar[MsgType]
     CreateSegment: _ClassVar[MsgType]
     Import: _ClassVar[MsgType]
+    FlushAll: _ClassVar[MsgType]
     Search: _ClassVar[MsgType]
     SearchResult: _ClassVar[MsgType]
     GetIndexState: _ClassVar[MsgType]
@@ -241,6 +242,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AlterDatabase: _ClassVar[MsgType]
     DescribeDatabase: _ClassVar[MsgType]
     AddCollectionField: _ClassVar[MsgType]
+    AlterWAL: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -354,9 +356,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeAddFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
-    PrivilegeAddCollectionFunction: _ClassVar[ObjectPrivilege]
-    PrivilegeAlterCollectionFunction: _ClassVar[ObjectPrivilege]
-    PrivilegeDropCollectionFunction: _ClassVar[ObjectPrivilege]
+    PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -538,6 +538,7 @@ ManualFlush: MsgType
 FlushSegment: MsgType
 CreateSegment: MsgType
 Import: MsgType
+FlushAll: MsgType
 Search: MsgType
 SearchResult: MsgType
 GetIndexState: MsgType
@@ -608,6 +609,7 @@ ListDatabases: MsgType
 AlterDatabase: MsgType
 DescribeDatabase: MsgType
 AddCollectionField: MsgType
+AlterWAL: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -703,9 +705,7 @@ PrivilegeAddCollectionField: ObjectPrivilege
 PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
-PrivilegeAddCollectionFunction: ObjectPrivilege
-PrivilegeAlterCollectionFunction: ObjectPrivilege
-PrivilegeDropCollectionFunction: ObjectPrivilege
+PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -774,14 +774,16 @@ class Blob(_message.Message):
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
 class PlaceholderValue(_message.Message):
-    __slots__ = ("tag", "type", "values")
+    __slots__ = ("tag", "type", "values", "element_level")
     TAG_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
     tag: str
     type: PlaceholderType
     values: _containers.RepeatedScalarFieldContainer[bytes]
-    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ...) -> None: ...
+    element_level: bool
+    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ..., element_level: bool = ...) -> None: ...
 
 class PlaceholderGroup(_message.Message):
     __slots__ = ("placeholders",)
