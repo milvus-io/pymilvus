@@ -20,6 +20,7 @@ from urllib import parse
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
+from pymilvus.client.utils import AsyncDbNameInjector, DbNameInjector
 from pymilvus.exceptions import (
     ConnectionConfigException,
     ConnectionNotExistException,
@@ -186,6 +187,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             alias_config = {
                 "address": addr,
                 "user": config.get("user", ""),
+                "db_name": config.get("db_name", "default"),
             }
 
             if parsed_uri is not None and parsed_uri.scheme == "https":
@@ -355,9 +357,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
             config_to_keep = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["password", "token", "db_name", "keep_alive"]
+                k: v for k, v in kwargs.items() if k not in ["password", "token", "keep_alive"]
             }
             self._alias_handlers[alias] = gh
             self._alias_config[alias] = config_to_keep
@@ -419,6 +419,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 if parsed_uri.scheme == "https":
                     kwargs["secure"] = True
 
+            if "db_name" in kwargs:
+                kwargs.pop("db_name")
             connect_milvus(**kwargs, user=user, password=password, token=token, db_name=db_name)
             return
 
@@ -434,6 +436,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if parsed_uri.scheme == "https":
                 kwargs["secure"] = True
 
+            if "db_name" in kwargs:
+                kwargs.pop("db_name")
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
 
@@ -441,7 +445,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if alias in self._alias_config:
             connect_alias = dict(self._alias_config[alias].items())
             connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password, db_name=db_name, **kwargs)
+            connect_milvus(**connect_alias, password=password, **kwargs)
             return
 
         # No params, env, and cached configs for the alias
@@ -483,6 +487,24 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return self._alias_config.get(alias, {})
 
+    def update_db_name(self, alias: str, db_name: str):
+        """Update the db_name for an existing connection alias.
+
+        This allows switching databases for ORM layer without creating a new connection.
+
+        Args:
+            alias: The connection alias to update.
+            db_name: The new database name to use.
+
+        Raises:
+            ConnectionNotExistException: If the connection alias doesn't exist.
+        """
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+        if alias not in self._alias_config:
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+        self._alias_config[alias]["db_name"] = db_name
+
     def has_connection(self, alias: str) -> bool:
         """Check if connection named alias exists.
 
@@ -504,7 +526,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return alias in self._alias_handlers
 
     def _fetch_handler(
-        self, alias: str = Config.MILVUS_CONN_ALIAS
+        self, alias: str = Config.MILVUS_CONN_ALIAS, db_name: str = ""
     ) -> Union[GrpcHandler, AsyncGrpcHandler]:
         """Retrieves a GrpcHandler by alias."""
         if not isinstance(alias, str):
@@ -513,8 +535,13 @@ class Connections(metaclass=SingleInstanceMetaClass):
         conn = self._alias_handlers.get(alias, None)
         if conn is None:
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+        config = self._alias_config.get(alias, {})
+        if not db_name:
+            db_name = config.get("db_name", "")
 
-        return conn
+        if isinstance(conn, AsyncGrpcHandler):
+            return AsyncDbNameInjector(conn, db_name)
+        return DbNameInjector(conn, db_name)
 
 
 # Singleton Mode in Python

@@ -1,6 +1,9 @@
+import asyncio
 import datetime
 import importlib.util
+import inspect
 import struct
+import time
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -71,6 +74,37 @@ def check_status(status: common_pb2.Status):
 
 def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
+
+
+def current_time_ms() -> str:
+    """Get current time in milliseconds as string."""
+    return str(time.time_ns() // 1_000_000)
+
+
+def _api_level_md(**kwargs) -> Optional[List[Tuple]]:
+    """Generate API-level gRPC metadata for each request.
+
+    This function creates metadata headers that are sent with each gRPC request,
+    including timestamp, db_name, and optional client request ID.
+
+    Args:
+        **kwargs: May contain 'db_name' and 'client_request_id' or 'client-request-id'.
+
+    Returns:
+        List of (key, value) tuples for gRPC metadata.
+    """
+    metadata = []
+    metadata.append(("client-request-unixmsec", current_time_ms()))
+
+    # Per-request db_name from kwargs
+    db_name = kwargs.get("db_name")
+    if db_name:
+        metadata.append(("dbname", db_name))
+
+    client_request_id = kwargs.get("client-request-id", kwargs.get("client_request_id"))
+    if client_request_id:
+        metadata.append(("client-request-id", client_request_id))
+    return metadata
 
 
 def hybridts_to_unixtime(ts: int):
@@ -545,3 +579,101 @@ def validate_iso_timestamp(s: str) -> bool:
         return False
     else:
         return True
+
+
+# Global cache for method signature analysis to avoid repeated introspection.
+# Key: (handler_class, method_name), Value: bool (whether method accepts db_name)
+_METHOD_ACCEPTS_DB_NAME_CACHE: Dict[Tuple[type, str], bool] = {}
+
+# Methods that are known to never need db_name injection
+_SKIP_DB_INJECTION_METHODS = frozenset({"close", "get_server_type"})
+
+
+def _method_accepts_db_name(handler_class: type, method_name: str, method: Any) -> bool:
+    """Check if a method accepts db_name, with caching for performance."""
+    cache_key = (handler_class, method_name)
+    if cache_key in _METHOD_ACCEPTS_DB_NAME_CACHE:
+        return _METHOD_ACCEPTS_DB_NAME_CACHE[cache_key]
+
+    try:
+        sig = inspect.signature(method)
+        params = sig.parameters
+        accepts = "db_name" in params or any(p.kind == p.VAR_KEYWORD for p in params.values())
+    except (ValueError, TypeError):
+        # If signature introspection fails, assume it doesn't accept db_name
+        accepts = False
+
+    _METHOD_ACCEPTS_DB_NAME_CACHE[cache_key] = accepts
+    return accepts
+
+
+class DbNameInjector:
+    """Proxy that auto-injects db_name into kwargs for all handler method calls.
+
+    Uses a global cache to avoid repeated signature introspection overhead.
+    """
+
+    def __init__(self, handler: Any, db_name: str):
+        self._handler = handler
+        self._db_name = db_name
+        self._handler_class = type(handler)
+
+    def __getattr__(self, name: str):
+        attr = getattr(self._handler, name)
+        if not callable(attr):
+            return attr
+
+        # Fast path: skip known methods that don't need injection
+        if name in _SKIP_DB_INJECTION_METHODS:
+            return attr
+
+        # Check cache for whether this method accepts db_name
+        if not _method_accepts_db_name(self._handler_class, name, attr):
+            return attr
+
+        # Create wrapper that injects db_name
+        def wrapper(*args, **kwargs):
+            kwargs.setdefault("db_name", self._db_name)
+            return attr(*args, **kwargs)
+
+        return wrapper
+
+
+class AsyncDbNameInjector:
+    """Async proxy that auto-injects db_name into kwargs for all handler method calls.
+
+    Uses a global cache to avoid repeated signature introspection overhead.
+    """
+
+    def __init__(self, handler: Any, db_name: str):
+        self._handler = handler
+        self._db_name = db_name
+        self._handler_class = type(handler)
+
+    def __getattr__(self, name: str):
+        attr = getattr(self._handler, name)
+        if not callable(attr):
+            return attr
+
+        # Fast path: skip known methods that don't need injection
+        if name in _SKIP_DB_INJECTION_METHODS:
+            return attr
+
+        # Check cache for whether this method accepts db_name
+        if not _method_accepts_db_name(self._handler_class, name, attr):
+            return attr
+
+        # Create appropriate wrapper based on method type
+        if asyncio.iscoroutinefunction(attr):
+
+            async def async_wrapper(*args, **kwargs):
+                kwargs.setdefault("db_name", self._db_name)
+                return await attr(*args, **kwargs)
+
+            return async_wrapper
+
+        def sync_wrapper(*args, **kwargs):
+            kwargs.setdefault("db_name", self._db_name)
+            return attr(*args, **kwargs)
+
+        return sync_wrapper

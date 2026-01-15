@@ -16,7 +16,11 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     SegmentInfo,
 )
-from pymilvus.client.utils import convert_struct_fields_to_user_format, get_params, is_vector_type
+from pymilvus.client.utils import (
+    convert_struct_fields_to_user_format,
+    get_params,
+    is_vector_type,
+)
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ErrorCode,
@@ -50,7 +54,7 @@ class MilvusClient(BaseMilvusClient):
         uri: str = "http://localhost:19530",
         user: str = "",
         password: str = "",
-        db_name: str = "",
+        db_name: str = "default",
         token: str = "",
         timeout: Optional[float] = None,
         **kwargs,
@@ -68,10 +72,15 @@ class MilvusClient(BaseMilvusClient):
                 to None.
                 Unit: second
         """
+        self._db_name = db_name
         self._using = create_connection(
             uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
         )
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
+
+    def _get_connection(self):
+        """Get the connection handler wrapped with db_name injection."""
+        return connections._fetch_handler(self._using, self._db_name)
 
     def create_collection(
         self,
@@ -460,7 +469,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
 
         if ids:
-            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
+            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -687,7 +696,7 @@ class MilvusClient(BaseMilvusClient):
             return []
 
         conn = self._get_connection()
-        schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
+        schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
 
         if not output_fields:
             output_fields = ["*"]
@@ -763,7 +772,7 @@ class MilvusClient(BaseMilvusClient):
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
+            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
@@ -1386,8 +1395,8 @@ class MilvusClient(BaseMilvusClient):
         self.use_database(db_name, **kwargs)
 
     def use_database(self, db_name: str, **kwargs):
-        conn = self._get_connection()
-        conn.reset_db_name(db_name)
+        """Switch to a different database. Future operations will use this database."""
+        self._db_name = db_name
 
     def create_database(
         self,

@@ -264,14 +264,8 @@ class TestGrpcHandlerStateManagement:
             mock_channel.return_value = MagicMock()
             handler = GrpcHandler(uri="http://localhost:19530", db_name="old_db")
 
-            # Verify initial db_name is set
-            assert handler._db_name == "old_db"
-
-            with patch.object(handler, '_setup_identifier_interceptor'):
-                handler.reset_db_name("new_db")
-
-            # Verify db_name is updated
-            assert handler._db_name == "new_db"
+            # reset_db_name is deprecated and no-op, verify it doesn't raise error
+            handler.reset_db_name("new_db")
 
     def test_set_onetime_loglevel(self) -> None:
         with patch('pymilvus.client.grpc_handler.grpc.insecure_channel') as mock_channel:

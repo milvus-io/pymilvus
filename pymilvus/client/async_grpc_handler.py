@@ -41,7 +41,6 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
-from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -58,6 +57,7 @@ from .types import (
     get_extra_info,
 )
 from .utils import (
+    _api_level_md,
     check_invalid_binary_vector,
     check_status,
     get_server_type,
@@ -83,7 +83,6 @@ class AsyncGrpcHandler:
         self._log_level = None
         self._user = kwargs.get("user")
         self._set_authorization(**kwargs)
-        self._setup_db_name(kwargs.get("db_name"))
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
         self.callbacks = []  # Do nothing
@@ -137,13 +136,6 @@ class AsyncGrpcHandler:
             self._final_channel._unary_unary_interceptors.append(
                 self._async_authorization_interceptor
             )
-
-    def _setup_db_name(self, db_name: str):
-        if db_name is None:
-            self._db_name = ""
-        else:
-            check_pass_param(db_name=db_name)
-            self._db_name = db_name
 
     def _setup_grpc_channel(self, **kwargs):
         if self._async_channel is None:
@@ -202,9 +194,6 @@ class AsyncGrpcHandler:
                 kwargs.get("password"),
                 kwargs.get("token"),
             )
-        if self._db_name:
-            async_db_interceptor = async_header_adder_interceptor(["dbname"], [self._db_name])
-            self._final_channel._unary_unary_interceptors.append(async_db_interceptor)
         if self._log_level:
             async_log_level_interceptor = async_header_adder_interceptor(
                 ["log-level"], [self._log_level]
@@ -269,7 +258,7 @@ class AsyncGrpcHandler:
         )
         check_status(response)
         # Invalidate global schema cache
-        self._invalidate_schema(collection_name)
+        self._invalidate_schema(collection_name, db_name=kwargs.get("db_name"))
 
     @retry_on_rpc_failure()
     async def truncate_collection(
@@ -555,7 +544,7 @@ class AsyncGrpcHandler:
         """
         cache = GlobalCache.schema
         endpoint = self.server_address
-        db_name = self._db_name or ""
+        db_name = kwargs.get("db_name", "")
 
         cached = cache.get(endpoint, db_name, collection_name)
         if cached is not None:
@@ -566,9 +555,9 @@ class AsyncGrpcHandler:
         cache.set(endpoint, db_name, collection_name, schema)
         return schema, schema.get("update_timestamp", 0)
 
-    def _invalidate_schema(self, collection_name: str) -> None:
+    def _invalidate_schema(self, collection_name: str, db_name: str = "") -> None:
         """Invalidate cached schema for a collection."""
-        GlobalCache.schema.invalidate(self.server_address, self._db_name or "", collection_name)
+        GlobalCache.schema.invalidate(self.server_address, db_name, collection_name)
 
     def _invalidate_db_schemas(self, db_name: str) -> None:
         """Invalidate all cached schemas for a database."""
@@ -1507,8 +1496,11 @@ class AsyncGrpcHandler:
         return response.aliases
 
     def reset_db_name(self, db_name: str):
-        self._setup_db_name(db_name)
-        self._setup_grpc_channel()
+        """Deprecated: db_name is now passed per-request via kwargs.
+
+        This method is kept for backward compatibility but does nothing.
+        Use AsyncMilvusClient.use_database() instead.
+        """
 
     @retry_on_rpc_failure()
     async def create_database(

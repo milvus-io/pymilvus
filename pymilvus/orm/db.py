@@ -14,7 +14,7 @@ def using_database(db_name: str, using: str = "default"):
     :type  db_name: str
 
     """
-    _get_connection(using).reset_db_name(db_name)
+    connections.update_db_name(using, db_name)
 
 
 def create_database(
