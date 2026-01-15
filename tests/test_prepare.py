@@ -682,12 +682,10 @@ class TestSnapshotRequests:
         """Test create snapshot request."""
         req = Prepare.create_snapshot_req(
             snapshot_name="test_snapshot",
-            db_name="test_db",
             collection_name="test_collection",
             description="Test description"
         )
         assert req.name == "test_snapshot"
-        assert req.db_name == "test_db"
         assert req.collection_name == "test_collection"
         assert req.description == "Test description"
 
@@ -697,7 +695,6 @@ class TestSnapshotRequests:
             snapshot_name="test_snapshot", collection_name="test_collection"
         )
         assert req.name == "test_snapshot"
-        assert req.db_name == ""
         assert req.collection_name == "test_collection"
         assert req.description == ""
 
@@ -731,16 +728,13 @@ class TestSnapshotRequests:
     def test_list_snapshots_req(self):
         """Test list snapshots request."""
         req = Prepare.list_snapshots_req(
-            db_name="test_db",
             collection_name="test_collection"
         )
-        assert req.db_name == "test_db"
         assert req.collection_name == "test_collection"
 
     def test_list_snapshots_req_defaults(self):
         """Test list snapshots request with defaults."""
         req = Prepare.list_snapshots_req()
-        assert req.db_name == ""
         assert req.collection_name == ""
 
     def test_describe_snapshot_req(self):
@@ -758,12 +752,10 @@ class TestSnapshotRequests:
         """Test restore snapshot request."""
         req = Prepare.restore_snapshot_req(
             snapshot_name="test_snapshot",
-            db_name="test_db",
             collection_name="test_collection",
             rewrite_data=True
         )
         assert req.name == "test_snapshot"
-        assert req.db_name == "test_db"
         assert req.collection_name == "test_collection"
         assert req.rewrite_data is True
 
@@ -774,7 +766,6 @@ class TestSnapshotRequests:
             collection_name="test_collection"
         )
         assert req.name == "test_snapshot"
-        assert req.db_name == ""
         assert req.collection_name == "test_collection"
         assert req.rewrite_data is False
 

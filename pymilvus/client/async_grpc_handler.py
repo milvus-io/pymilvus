@@ -2123,16 +2123,14 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_snapshot(
         self,
+        collection_name: str,
         snapshot_name: str,
-        db_name: str = "",
-        collection_name: str = "",
         description: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> None:
         request = Prepare.create_snapshot_req(
             snapshot_name=snapshot_name,
-            db_name=db_name,
             collection_name=collection_name,
             description=description,
         )
@@ -2142,7 +2140,9 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
-    async def drop_snapshot(self, snapshot_name: str, timeout: Optional[float] = None, **kwargs):
+    async def drop_snapshot(
+        self, snapshot_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> None:
         request = Prepare.drop_snapshot_req(snapshot_name)
         status = await self._async_stub.DropSnapshot(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -2152,12 +2152,11 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def list_snapshots(
         self,
-        db_name: str = "",
         collection_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ):
-        request = Prepare.list_snapshots_req(db_name=db_name, collection_name=collection_name)
+    ) -> List[str]:
+        request = Prepare.list_snapshots_req(collection_name=collection_name)
         response = await self._async_stub.ListSnapshots(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
@@ -2172,7 +2171,7 @@ class AsyncGrpcHandler:
         snapshot_name: str,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> SnapshotInfo:
         request = Prepare.describe_snapshot_req(snapshot_name)
         response = await self._async_stub.DescribeSnapshot(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -2191,16 +2190,14 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def restore_snapshot(
         self,
+        collection_name: str,
         snapshot_name: str,
-        db_name: str = "",
-        collection_name: str = "",
         rewrite_data: bool = False,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> int:
         request = Prepare.restore_snapshot_req(
             snapshot_name=snapshot_name,
-            db_name=db_name,
             collection_name=collection_name,
             rewrite_data=rewrite_data,
         )
@@ -2216,7 +2213,7 @@ class AsyncGrpcHandler:
         job_id: int,
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> RestoreSnapshotJobInfo:
         request = Prepare.get_restore_snapshot_state_req(job_id)
         response = await self._async_stub.GetRestoreSnapshotState(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
@@ -2242,7 +2239,7 @@ class AsyncGrpcHandler:
         collection_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
-    ):
+    ) -> List[RestoreSnapshotJobInfo]:
         request = Prepare.list_restore_snapshot_jobs_req(collection_name=collection_name)
         response = await self._async_stub.ListRestoreSnapshotJobs(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)

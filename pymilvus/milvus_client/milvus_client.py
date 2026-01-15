@@ -2247,6 +2247,9 @@ class MilvusClient(BaseMilvusClient):
         Returns:
             List[str]: A list of snapshot names.
 
+        Raises:
+            MilvusException: If the operation fails.
+
         Example:
             >>> # List all snapshots for a collection
             >>> snapshots = client.list_snapshots(collection_name="my_collection")
@@ -2277,6 +2280,9 @@ class MilvusClient(BaseMilvusClient):
                 - partition_names (List[str]): List of partition names
                 - create_ts (int): Creation timestamp
                 - s3_location (str): S3 storage location
+
+        Raises:
+            MilvusException: If the operation fails.
 
         Example:
             >>> info = client.describe_snapshot(snapshot_name="backup_20240101")
@@ -2321,13 +2327,13 @@ class MilvusClient(BaseMilvusClient):
             >>> import time
             >>> while True:
             ...     state = client.get_restore_snapshot_state(job_id=job_id)
-            ...     if state["state"] == "RestoreSnapshotCompleted":
+            ...     if state.state == "RestoreSnapshotCompleted":
             ...         print("Restore completed!")
             ...         break
-            ...     elif state["state"] == "RestoreSnapshotFailed":
-            ...         print(f"Restore failed: {state['reason']}")
+            ...     elif state.state == "RestoreSnapshotFailed":
+            ...         print(f"Restore failed: {state.reason}")
             ...         break
-            ...     print(f"Progress: {state['progress']}%")
+            ...     print(f"Progress: {state.progress}%")
             ...     time.sleep(1)
         """
         conn = self._get_connection()

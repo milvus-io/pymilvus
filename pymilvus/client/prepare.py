@@ -2591,7 +2591,6 @@ class Prepare:
     def create_snapshot_req(
         cls,
         snapshot_name: str,
-        db_name: str = "",
         collection_name: str = "",
         description: str = "",
     ):
@@ -2603,7 +2602,6 @@ class Prepare:
             raise ParamError(message=msg)
         return milvus_types.CreateSnapshotRequest(
             name=snapshot_name,
-            db_name=db_name,
             collection_name=collection_name,
             description=description,
         )
@@ -2616,9 +2614,8 @@ class Prepare:
         return milvus_types.DropSnapshotRequest(name=snapshot_name)
 
     @classmethod
-    def list_snapshots_req(cls, db_name: str = "", collection_name: str = ""):
+    def list_snapshots_req(cls, collection_name: str = ""):
         return milvus_types.ListSnapshotsRequest(
-            db_name=db_name,
             collection_name=collection_name,
         )
 
@@ -2633,7 +2630,6 @@ class Prepare:
     def restore_snapshot_req(
         cls,
         snapshot_name: str,
-        db_name: str = "",
         collection_name: str = "",
         rewrite_data: bool = False,
     ):
@@ -2645,7 +2641,6 @@ class Prepare:
             raise ParamError(message=msg)
         return milvus_types.RestoreSnapshotRequest(
             name=snapshot_name,
-            db_name=db_name,
             collection_name=collection_name,
             rewrite_data=rewrite_data,
         )

@@ -506,7 +506,6 @@ class TestAsyncGrpcHandler:
 
             await handler.create_snapshot(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="test_collection",
                 description="test description",
                 timeout=30
@@ -514,7 +513,6 @@ class TestAsyncGrpcHandler:
 
             mock_prepare.create_snapshot_req.assert_called_once_with(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="test_collection",
                 description="test description"
             )
@@ -581,10 +579,9 @@ class TestAsyncGrpcHandler:
             mock_request = MagicMock()
             mock_prepare.list_snapshots_req.return_value = mock_request
 
-            result = await handler.list_snapshots(db_name="", collection_name="test_collection", timeout=30)
+            result = await handler.list_snapshots(collection_name="test_collection", timeout=30)
 
             mock_prepare.list_snapshots_req.assert_called_once_with(
-                db_name="",
                 collection_name="test_collection"
             )
             assert len(result) == 2
@@ -661,7 +658,6 @@ class TestAsyncGrpcHandler:
 
             job_id = await handler.restore_snapshot(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="new_collection",
                 rewrite_data=False,
                 timeout=30
@@ -669,7 +665,6 @@ class TestAsyncGrpcHandler:
 
             mock_prepare.restore_snapshot_req.assert_called_once_with(
                 snapshot_name="test_snapshot",
-                db_name="",
                 collection_name="new_collection",
                 rewrite_data=False
             )
