@@ -248,10 +248,10 @@ class HybridHits(list):
                     if struct_arrays and hasattr(struct_arrays, "fields"):
                         for i in range(len(self)):
                             item = self.get_raw_item(i)
-                            item["entity"][field_name] = (
-                                entity_helper.extract_struct_array_from_column_data(
-                                    struct_arrays, idx
-                                )
+                            item["entity"][
+                                field_name
+                            ] = entity_helper.extract_struct_array_from_column_data(
+                                struct_arrays, idx
                             )
                             idx += 1
                     else:
@@ -393,7 +393,9 @@ class SearchResult(list):
             # Debug: print received element_indices
             logger.info(f"DEBUG: Received element_indices from server: {all_offsets}")
             logger.info(f"DEBUG: Received PKs: {all_pks[:20] if len(all_pks) > 20 else all_pks}")
-            logger.info(f"DEBUG: Received scores: {all_scores[:20] if len(all_scores) > 20 else all_scores}")
+            logger.info(
+                f"DEBUG: Received scores: {all_scores[:20] if len(all_scores) > 20 else all_scores}"
+            )
 
         data = []
         nq_thres = 0

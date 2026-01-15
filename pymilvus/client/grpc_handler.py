@@ -1844,8 +1844,7 @@ class GrpcHandler:
         element_indices = None
         if response.element_indices and len(response.element_indices) > 0:
             element_indices = [
-                list(ei.indices.data) if ei.indices else []
-                for ei in response.element_indices
+                list(ei.indices.data) if ei.indices else [] for ei in response.element_indices
             ]
 
         keys = [field_data.field_name for field_data in response.fields_data]
