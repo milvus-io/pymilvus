@@ -127,7 +127,8 @@ embeddingList.add(np.random.randn(EMBEDDING_DIM))
 
 queries.append(embeddingList)
 
-field = "struct_field[struct_float_vec]"
+print("EmbeddingList search")
+field = "struct_field2[struct_float_vec]"
 res = milvus_client.search(COLLECTION_NAME, data=queries, limit=10, anns_field=field,
                      output_fields=["struct_field[struct_str]"])
 
@@ -137,6 +138,8 @@ for i, (hits, query) in enumerate(zip(res, queries)):
         print(f"    Hit id: {hit.id}, distance: {hit.distance}")
         print(f"        entity: {hit}")
 
+
+print("Embedding search with element filter")
 field = "struct_field[struct_float_vec]"
 query_vec = [np.random.randn(EMBEDDING_DIM)]
 # Element filter
