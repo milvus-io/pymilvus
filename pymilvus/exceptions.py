@@ -105,6 +105,13 @@ class DataNotMatchException(MilvusException):
     """Raise when insert data isn't match with schema"""
 
 
+class SchemaMismatchRetryableException(MilvusException):
+    """Exception to signal schema mismatch that should trigger retry.
+    This exception is raised when the server returns a SchemaMismatch error,
+    indicating that the cached schema is stale and needs to be refreshed.
+    """
+
+
 class ConnectionNotExistException(MilvusException):
     """Raise when connections doesn't exist"""
 

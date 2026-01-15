@@ -17,6 +17,7 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
 
 from pymilvus.client.types import (
     DataType,
@@ -28,6 +29,7 @@ from pymilvus.orm.schema import (
 )
 
 from .constants import (
+    ARROW_TYPE_CREATOR,
     DYNAMIC_FIELD_NAME,
     MB,
     NUMPY_TYPE_CREATOR,
@@ -260,6 +262,33 @@ class Buffer:
         logger.info(f"Successfully persist file {file_path}, row count: {len(rows)}")
         return [str(file_path)]
 
+    def _deduce_arrow_schema(self):
+        arrow_list = []
+        for field_name, field in self._fields.items():
+            if isinstance(field, FieldSchema) and (
+                (field.is_primary and field.auto_id) or field.is_function_output
+            ):
+                continue
+
+            if field.dtype.name not in ARROW_TYPE_CREATOR:
+                self._throw(f"Unsupported data type: {field.dtype.name}")
+
+            if field.dtype == DataType.ARRAY:
+                arrow_list.append(
+                    pa.field(field_name, pa.list_(ARROW_TYPE_CREATOR[field.element_type.name]))
+                )
+            elif field.dtype == DataType.STRUCT:
+                sub_list = []
+                for sub_field in field.fields:
+                    sub_list.append(
+                        pa.field(sub_field.name, ARROW_TYPE_CREATOR[sub_field.dtype.name])
+                    )
+                arrow_list.append(pa.field(field_name, pa.list_(pa.struct(sub_list))))
+            else:
+                arrow_list.append(pa.field(field_name, ARROW_TYPE_CREATOR[field.dtype.name]))
+
+        return pa.schema(arrow_list)
+
     def _persist_parquet(self, local_path: str, **kwargs):
         file_path = Path(local_path + ".parquet")
 
@@ -271,16 +300,7 @@ class Buffer:
                 str_arr = []
                 for val in v:
                     str_arr.append(json.dumps(val))
-                data[k] = pd.Series(str_arr, dtype=None)
-            elif field_schema.dtype in {
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT_VECTOR,
-                DataType.INT8_VECTOR,
-            }:
-                arr = []
-                for val in v:
-                    arr.append(np.array(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name]))
-                data[k] = pd.Series(arr)
+                data[k] = str_arr
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 # special process for float16 vector, the self._buffer stores bytes for
                 # float16 vector, convert the bytes to uint8 array
@@ -289,25 +309,9 @@ class Buffer:
                     arr.append(
                         np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
                     )
-                data[k] = pd.Series(arr)
-            elif field_schema.dtype == DataType.ARRAY:
-                dt = NUMPY_TYPE_CREATOR[field_schema.element_type.name]
-                arr = []
-                for val in v:
-                    arr.append(None if val is None else np.array(val, dtype=dt))
-                data[k] = pd.Series(arr)
-            elif field_schema.dtype == DataType.STRUCT:
-                # bulk_import accepts struct array as list[dict],
-                data[k] = pd.Series(v, dtype=None)
-            elif field_schema.dtype.name in NUMPY_TYPE_CREATOR:
-                dt = NUMPY_TYPE_CREATOR[field_schema.dtype.name]
-                arr = []
-                for val in v:
-                    arr.append(None if val is None else dt.type(val))
-                data[k] = np.array(arr)
+                data[k] = arr
             else:
-                # dtype is null, let pandas deduce the type, might not work
-                data[k] = pd.Series(v)
+                data[k] = v
 
         # calculate a proper row group size
         row_group_size_min = 1000
@@ -329,7 +333,10 @@ class Buffer:
         # write to Parquet file
         data_frame = pd.DataFrame(data=data)
         data_frame.to_parquet(
-            file_path, row_group_size=row_group_size, engine="pyarrow"
+            file_path,
+            row_group_size=row_group_size,
+            engine="pyarrow",
+            schema=self._deduce_arrow_schema(),
         )  # don't use fastparquet
 
         logger.info(

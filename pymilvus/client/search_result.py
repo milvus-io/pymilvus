@@ -1,4 +1,5 @@
 import logging
+from collections import UserDict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -30,6 +31,7 @@ class HybridHits(list):
         all_scores: List[float],
         fields_data: List[schema_pb2.FieldData],
         output_fields: List[str],
+        highlight_results: List[common_pb2.HighlightResult],
         pk_name: str,
         all_offsets: Optional[List[int]] = None,
     ):
@@ -100,6 +102,17 @@ class HybridHits(list):
             else:
                 msg = f"Unsupported field type: {field_data.type}"
                 raise MilvusException(msg)
+
+        if len(highlight_results) > 0:
+            for i, hit in enumerate(top_k_res):
+                hit["highlight"] = {
+                    result.field_name: {
+                        "fragments": list(result.datas[i + start].fragments),
+                        "scores": list(result.datas[i + start].scores),
+                    }
+                    for result in highlight_results
+                }
+
         super().__init__(top_k_res)
 
     def __str__(self) -> str:
@@ -119,10 +132,33 @@ class HybridHits(list):
         self.materialize()
         return super().__iter__()
 
+    def _get_physical_index(self, field_data: Any, logical_index: int) -> int:
+        """Calculate physical index for nullable vectors with sparse storage.
+
+        Uses prefix sum for O(1) lookup instead of O(n) iteration.
+        Caches prefix sum in instance variable using field_data id as key.
+        """
+        if not hasattr(self, "_prefix_sum_cache"):
+            self._prefix_sum_cache = {}
+
+        field_id = id(field_data)
+        if field_id not in self._prefix_sum_cache:
+            if len(field_data.valid_data) == 0:
+                self._prefix_sum_cache[field_id] = None
+            else:
+                self._prefix_sum_cache[field_id] = np.cumsum(
+                    [0] + [1 if v else 0 for v in field_data.valid_data]
+                )
+        prefix_sum = self._prefix_sum_cache[field_id]
+        if prefix_sum is None:
+            return logical_index
+        return int(prefix_sum[logical_index])
+
     def materialize(self):
         if not self.has_materialized:
             for field_data in self.lazy_field_data:
                 field_name = field_data.field_name
+                has_valid = len(field_data.valid_data) > 0
 
                 if field_data.type in [
                     DataType.FLOAT_VECTOR,
@@ -137,19 +173,44 @@ class HybridHits(list):
                         dim = dim // 8
                     elif field_data.type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
                         dim = dim * 2
-                    idx = self.start * dim
-                    for i in range(len(self)):
-                        item = self.get_raw_item(i)
-                        item["entity"][field_name] = data[idx : idx + dim]
-                        idx += dim
+
+                    if has_valid:
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            actual_idx = self.start + i
+                            if not field_data.valid_data[actual_idx]:
+                                item["entity"][field_name] = None
+                            else:
+                                phys_idx = self._get_physical_index(field_data, actual_idx)
+                                item["entity"][field_name] = data[
+                                    phys_idx * dim : (phys_idx + 1) * dim
+                                ]
+                    else:
+                        idx = self.start * dim
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = data[idx : idx + dim]
+                            idx += dim
                 elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-                    idx = self.start
-                    for i in range(len(self)):
-                        item = self.get_raw_item(i)
-                        item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
-                            field_data.vectors.sparse_float_vector, idx, idx + 1
-                        )[0]
-                        idx += 1
+                    if has_valid:
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            actual_idx = self.start + i
+                            if not field_data.valid_data[actual_idx]:
+                                item["entity"][field_name] = None
+                            else:
+                                phys_idx = self._get_physical_index(field_data, actual_idx)
+                                item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
+                                    field_data.vectors.sparse_float_vector, phys_idx, phys_idx + 1
+                                )[0]
+                    else:
+                        idx = self.start
+                        for i in range(len(self)):
+                            item = self.get_raw_item(i)
+                            item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
+                                field_data.vectors.sparse_float_vector, idx, idx + 1
+                            )[0]
+                            idx += 1
                 elif field_data.type == DataType.JSON:
                     idx = self.start
                     for i in range(len(self)):
@@ -347,10 +408,12 @@ class SearchResult(list):
                     all_scores,
                     res.fields_data,
                     res.output_fields,
+                    res.highlight_results,
                     _pk_name,
                     all_offsets,
                 )
             )
+
             nq_thres += topk
         return data
 
@@ -669,9 +732,6 @@ class Hits(list):
     __repr__ = __str__
 
 
-from collections import UserDict
-
-
 class Hit(UserDict):
     """Enhanced result in dict that can get data in dict[dict]
 
@@ -739,6 +799,10 @@ class Hit(UserDict):
     def score(self) -> float:
         """Alias of distance, will be deprecated soon"""
         return self.distance
+
+    @property
+    def highlight(self) -> Dict[str, Any]:
+        return self.data.get("highlight")
 
     @property
     def fields(self) -> Dict[str, Any]:

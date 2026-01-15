@@ -16,6 +16,7 @@ from pymilvus.orm.schema import (
     FieldSchema,
     Function,
     FunctionScore,
+    Highlighter,
     isVectorDataType,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
@@ -40,6 +41,7 @@ from .constants import (
     JSON_PATH,
     JSON_TYPE,
     PAGE_RETAIN_ORDER_FIELD,
+    QUERY_GROUP_BY_FIELDS,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
     STRICT_CAST,
@@ -143,6 +145,7 @@ class Prepare:
             autoID=fields.auto_id,
             description=coll_description,
             enable_dynamic_field=fields.enable_dynamic_field,
+            enable_namespace=fields.enable_namespace,
         )
         for f in fields.fields:
             field_schema = schema_types.FieldSchema(
@@ -241,16 +244,7 @@ class Prepare:
             schema.struct_array_fields.append(struct_schema)
 
         for f in fields.functions:
-            function_schema = schema_types.FunctionSchema(
-                name=f.name,
-                description=f.description,
-                type=f.type,
-                input_field_names=f.input_field_names,
-                output_field_names=f.output_field_names,
-            )
-            for k, v in f.params.items():
-                kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
-                function_schema.params.append(kv_pair)
+            function_schema = cls.convert_function_to_function_schema(f)
             schema.functions.append(function_schema)
 
         return schema
@@ -344,11 +338,16 @@ class Prepare:
         if "enable_dynamic_field" in fields:
             enable_dynamic_field = fields["enable_dynamic_field"]
 
+        enable_namespace = kwargs.get("enable_namespace", False)
+        if "enable_namespace" in fields:
+            enable_namespace = fields["enable_namespace"]
+
         schema = schema_types.CollectionSchema(
             name=collection_name,
             autoID=False,
             description=fields.get("description", ""),
             enable_dynamic_field=enable_dynamic_field,
+            enable_namespace=enable_namespace,
         )
 
         primary_field, auto_id_field = None, None
@@ -362,6 +361,40 @@ class Prepare:
     @classmethod
     def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def truncate_collection_request(
+        cls, collection_name: str
+    ) -> milvus_types.TruncateCollectionRequest:
+        return milvus_types.TruncateCollectionRequest(collection_name=collection_name)
+
+    @classmethod
+    def drop_collection_function_request(
+        cls, collection_name: str, function_name: str
+    ) -> milvus_types.DropCollectionFunctionRequest:
+        return milvus_types.DropCollectionFunctionRequest(
+            collection_name=collection_name, function_name=function_name
+        )
+
+    @classmethod
+    def add_collection_function_request(
+        cls, collection_name: str, f: Function
+    ) -> milvus_types.AddCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AddCollectionFunctionRequest(
+            collection_name=collection_name, functionSchema=function_schema
+        )
+
+    @classmethod
+    def alter_collection_function_request(
+        cls, collection_name: str, function_name: str, f: Function
+    ) -> milvus_types.AlterCollectionFunctionRequest:
+        function_schema = cls.convert_function_to_function_schema(f)
+        return milvus_types.AlterCollectionFunctionRequest(
+            collection_name=collection_name,
+            function_name=function_name,
+            functionSchema=function_schema,
+        )
 
     @classmethod
     def add_collection_field_request(
@@ -543,6 +576,10 @@ class Prepare:
             struct_sub_field_info: Two-level dict [struct_name][field_name] -> field info
             struct_sub_fields_data: Two-level dict [struct_name][field_name] -> FieldData
         """
+        # Convert numpy ndarray to list if needed
+        if isinstance(values, np.ndarray):
+            values = values.tolist()
+
         if not isinstance(values, list):
             msg = f"Field '{field_name}': Expected list, got {type(values).__name__}"
             raise TypeError(msg)
@@ -725,6 +762,10 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
 
+        # Local cache for temporary byte lists for bytes vector fields
+        # key: field_data object id, value: list of bytes
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
         (
             struct_fields_data,
             struct_info_map,
@@ -763,7 +804,9 @@ class Prepare:
                             "default_value", None
                         ):
                             field_data.valid_data.append(v is not None)
-                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            v, field_data, field_info, vector_bytes_cache
+                        )
                     elif k in struct_fields_data:
                         # Array of structs format
                         try:
@@ -787,7 +830,9 @@ class Prepare:
                     field_info, field_data = field_info_map[key], fields_data[key]
                     if field_info.get("nullable", False) or field_info.get("default_value", None):
                         field_data.valid_data.append(False)
-                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            None, field_data, field_info, vector_bytes_cache
+                        )
                     else:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
@@ -815,6 +860,16 @@ class Prepare:
                 struct_field_data.struct_arrays.fields.append(
                     struct_sub_fields_data[struct_name][field_name]
                 )
+
+        # Flush all bytes vector field temporary byte lists to optimize memory usage
+        for field_data in fields_data.values():
+            if field_data.type in (
+                DataType.INT8_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+            ):
+                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
         request.fields_data.extend(struct_fields_data.values())
@@ -852,6 +907,10 @@ class Prepare:
         }
         field_info_map = {field["name"]: field for field in input_fields_info}
         field_len = {field["name"]: 0 for field in input_fields_info}
+
+        # Local cache for temporary byte lists for bytes vector fields
+        # key: field_data object id, value: list of bytes
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Use common struct data setup (only if not partial update)
         if partial_update:
@@ -900,7 +959,9 @@ class Prepare:
                             "default_value", None
                         ):
                             field_data.valid_data.append(v is not None)
-                        entity_helper.pack_field_value_to_field_data(v, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            v, field_data, field_info, vector_bytes_cache
+                        )
                         field_len[k] += 1
                     elif k in struct_fields_data:
                         # Handle struct field (array of structs)
@@ -930,7 +991,9 @@ class Prepare:
                     if field_info.get("nullable", False) or field_info.get("default_value", None):
                         field_data.valid_data.append(False)
                         field_len[key] += 1
-                        entity_helper.pack_field_value_to_field_data(None, field_data, field_info)
+                        entity_helper.pack_field_value_to_field_data(
+                            None, field_data, field_info, vector_bytes_cache
+                        )
                     else:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
@@ -960,6 +1023,16 @@ class Prepare:
                 )
 
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
+        # Flush all bytes vector field temporary byte lists to optimize memory usage
+        for field_data in fields_data.values():
+            if field_data.type in (
+                DataType.INT8_VECTOR,
+                DataType.BINARY_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+            ):
+                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
+
         request.fields_data.extend(fields_data.values())
 
         if struct_fields_data:
@@ -1010,6 +1083,7 @@ class Prepare:
         struct_fields_info: Optional[Dict] = None,
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
+        namespace: Optional[str] = None,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1021,6 +1095,7 @@ class Prepare:
             partition_name=p_name,
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
+            namespace=namespace,
         )
 
         return cls._parse_row_request(
@@ -1357,15 +1432,17 @@ class Prepare:
     def search_requests_with_expr(
         cls,
         collection_name: str,
-        data: Union[List, utils.SparseMatrixInputType],
         anns_field: str,
         param: Dict,
         limit: int,
+        data: Optional[Union[List[List[float]], utils.SparseMatrixInputType]] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         expr: Optional[str] = None,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        highlighter: Optional[Highlighter] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         use_default_consistency = ts_utils.construct_guarantee_ts(collection_name, kwargs)
@@ -1491,26 +1568,40 @@ class Prepare:
             for key, value in search_params.items()
         ]
 
+        expr_params = kwargs.get("expr_params")
+        request_kwargs = {
+            "collection_name": collection_name,
+            "partition_names": partition_names,
+            "output_fields": output_fields,
+            "guarantee_timestamp": kwargs.get("guarantee_timestamp", 0),
+            "use_default_consistency": use_default_consistency,
+            "consistency_level": kwargs.get("consistency_level", 0),
+            "dsl_type": common_types.DslType.BoolExprV1,
+            "search_params": req_params,
+            "expr_template_values": cls.prepare_expression_template(
+                {} if expr_params is None else expr_params
+            ),
+            "namespace": kwargs.get("namespace"),
+        }
+
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
         is_element_level = not is_embedding_list
-        nq = entity_helper.get_input_num_rows(data)
-        plg_str = cls._prepare_placeholder_str(data, is_embedding_list, is_element_level)
+        if data is not None:
+            request_kwargs.update(
+                nq=entity_helper.get_input_num_rows(data),
+                placeholder_group=cls._prepare_placeholder_str(data, is_embedding_list, is_element_level),
+            )
+        elif ids is not None:
+            request_kwargs.update(
+                nq=len(ids),
+                ids=cls._build_ids_proto(ids),
+            )
+        else:
+            err_msg = "Either data or ids must be provided"
+            raise ValueError(err_msg)
 
-        request = milvus_types.SearchRequest(
-            collection_name=collection_name,
-            partition_names=partition_names,
-            output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
-            use_default_consistency=use_default_consistency,
-            consistency_level=kwargs.get("consistency_level", 0),
-            nq=nq,
-            placeholder_group=plg_str,
-            dsl_type=common_types.DslType.BoolExprV1,
-            search_params=req_params,
-            expr_template_values=cls.prepare_expression_template(
-                {} if kwargs.get("expr_params") is None else kwargs.get("expr_params")
-            ),
-        )
+        request = milvus_types.SearchRequest(**request_kwargs)
+
         if expr is not None:
             request.dsl = expr
 
@@ -1521,7 +1612,30 @@ class Prepare:
         elif ranker is not None:
             raise ParamError(message="The search ranker must be a Function or FunctionScore.")
 
+        if highlighter is not None:
+            request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
+
         return request
+
+    @staticmethod
+    def _build_ids_proto(ids: List[Union[int, np.integer, str]]) -> schema_types.IDs:
+        if not ids:
+            raise ParamError(message="ids must not be empty")
+
+        first = ids[0]
+
+        if isinstance(first, (bool, np.bool_)):
+            raise ParamError(message="ids must not contain boolean values")
+
+        if isinstance(first, (int, np.integer)):
+            return schema_types.IDs(
+                int_id=schema_types.LongArray(data=[int(value) for value in ids])
+            )
+
+        if isinstance(first, str):
+            return schema_types.IDs(str_id=schema_types.StringArray(data=list(ids)))
+
+        raise ParamError(message=f"Unsupported id type: {type(first)}")
 
     @classmethod
     def hybrid_search_request_with_ranker(
@@ -1553,6 +1667,7 @@ class Prepare:
             guarantee_timestamp=kwargs.get("guarantee_timestamp", 0),
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
+            namespace=kwargs.get("namespace"),
         )
 
         request.rank_params.extend(
@@ -1609,6 +1724,16 @@ class Prepare:
         return str(v)
 
     @staticmethod
+    def highlighter_schema(highlighter: Highlighter) -> common_types.Highlighter:
+        return common_types.Highlighter(
+            type=highlighter.type,
+            params=[
+                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                for k, v in highlighter.params.items()
+            ],
+        )
+
+    @staticmethod
     def function_score_schema(function_score: FunctionScore) -> schema_types.FunctionScore:
         functions = [
             schema_types.FunctionSchema(
@@ -1616,20 +1741,28 @@ class Prepare:
                 type=ranker.type,
                 description=ranker.description,
                 input_field_names=ranker.input_field_names,
-                params=[
-                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
-                    for k, v in ranker.params.items()
-                ],
+                params=(
+                    [
+                        common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                        for k, v in ranker.params.items()
+                    ]
+                    if ranker.params
+                    else []
+                ),
             )
             for ranker in function_score.functions
         ]
 
         return schema_types.FunctionScore(
             functions=functions,
-            params=[
-                common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
-                for k, v in function_score.params.items()
-            ],
+            params=(
+                [
+                    common_types.KeyValuePair(key=str(k), value=Prepare.common_kv_value(v))
+                    for k, v in function_score.params.items()
+                ]
+                if function_score.params
+                else []
+            ),
         )
 
     @staticmethod
@@ -1684,7 +1817,7 @@ class Prepare:
             for tk, tv in params.items():
                 if tk == "dim" and (not tv or not isinstance(tv, int)):
                     raise ParamError(message="dim must be of int!")
-                if tv:
+                if tv is not None:
                     kv_pair = common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
                     index_params.extra_params.append(kv_pair)
 
@@ -1905,6 +2038,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            namespace=kwargs.get("namespace"),
         )
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
@@ -1942,6 +2076,20 @@ class Prepare:
         req.query_params.append(
             common_types.KeyValuePair(key=REDUCE_STOP_FOR_BEST, value=str(stop_reduce_for_best))
         )
+
+        # parse query group-by fields
+        query_group_by_fields = kwargs.get(QUERY_GROUP_BY_FIELDS, [])
+        if not isinstance(query_group_by_fields, list):
+            msg = "group_by_fields must be a list"
+            raise TypeError(msg)
+        if len(query_group_by_fields) > 0:
+            query_group_by_fields_str = ",".join(query_group_by_fields)
+            req.query_params.append(
+                common_types.KeyValuePair(
+                    key=QUERY_GROUP_BY_FIELDS, value=query_group_by_fields_str
+                )
+            )
+
         return req
 
     @classmethod
@@ -1966,18 +2114,21 @@ class Prepare:
         is_clustering: bool,
         is_l0: bool,
         collection_id: Optional[int] = None,
+        target_size: Optional[int] = None,
     ):
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
         if is_l0 is None or not isinstance(is_l0, bool):
             raise ParamError(message=f"is_l0 value {is_l0} is illegal")
 
-        request = milvus_types.ManualCompactionRequest()
+        request = milvus_types.ManualCompactionRequest(
+            collection_name=collection_name,
+            majorCompaction=is_clustering,
+            l0Compaction=is_l0,
+            target_size=target_size,
+        )
         if collection_id is not None:
             request.collectionID = collection_id
-        request.collection_name = collection_name
-        request.majorCompaction = is_clustering
-        request.l0Compaction = is_l0
         return request
 
     @classmethod
@@ -2421,3 +2572,17 @@ class Prepare:
         return milvus_types.UpdateReplicateConfigurationRequest(
             replicate_configuration=replicate_configuration
         )
+
+    @staticmethod
+    def convert_function_to_function_schema(f: Function) -> schema_types.FunctionSchema:
+        function_schema = schema_types.FunctionSchema(
+            name=f.name,
+            description=f.description,
+            type=f.type,
+            input_field_names=f.input_field_names,
+            output_field_names=f.output_field_names,
+        )
+        for k, v in f.params.items():
+            kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
+            function_schema.params.append(kv_pair)
+        return function_schema

@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pymilvus.bulk_writer.stage_file_manager import StageFileManager
+from pymilvus.bulk_writer.volume_file_manager import VolumeFileManager
 from pymilvus.orm.schema import CollectionSchema
 
 from .constants import MB, BulkFileType, ConnectType
@@ -12,8 +12,8 @@ from .local_bulk_writer import LocalBulkWriter
 logger = logging.getLogger(__name__)
 
 
-class StageBulkWriter(LocalBulkWriter):
-    """StageBulkWriter handles writing local bulk files to a remote stage."""
+class VolumeBulkWriter(LocalBulkWriter):
+    """VolumeBulkWriter handles writing local bulk files to a remote volume."""
 
     def __init__(
         self,
@@ -21,7 +21,7 @@ class StageBulkWriter(LocalBulkWriter):
         remote_path: str,
         cloud_endpoint: str,
         api_key: str,
-        stage_name: str,
+        volume_name: str,
         chunk_size: int = 1024 * MB,
         file_type: BulkFileType = BulkFileType.PARQUET,
         config: Optional[dict] = None,
@@ -33,11 +33,11 @@ class StageBulkWriter(LocalBulkWriter):
         remote_dir_path = Path(remote_path) / super().uuid
         self._remote_path = str(remote_dir_path) + "/"
         self._remote_files: List[List[str]] = []
-        self._stage_name = stage_name
-        self._stage_file_manager = StageFileManager(
+        self._volume_name = volume_name
+        self._volume_file_manager = VolumeFileManager(
             cloud_endpoint=cloud_endpoint,
             api_key=api_key,
-            stage_name=stage_name,
+            volume_name=volume_name,
             connect_type=ConnectType.AUTO,
         )
 
@@ -50,7 +50,7 @@ class StageBulkWriter(LocalBulkWriter):
         super().append_row(row, **kwargs)
 
     def commit(self, **kwargs):
-        """Commit local bulk files and upload to remote stage."""
+        """Commit local bulk files and upload to remote volume."""
         super().commit(call_back=self._upload)
 
     @property
@@ -61,8 +61,8 @@ class StageBulkWriter(LocalBulkWriter):
     def batch_files(self) -> List[List[str]]:
         return self._remote_files
 
-    def get_stage_upload_result(self) -> Dict[str, str]:
-        return {"stage_name": self._stage_name, "path": str(self._remote_path)}
+    def get_volume_upload_result(self) -> Dict[str, str]:
+        return {"volume_name": self._volume_name, "path": str(self._remote_path)}
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
         super().__exit__(exc_type, exc_val, exc_tb)
@@ -84,7 +84,7 @@ class StageBulkWriter(LocalBulkWriter):
             logger.warning(f"Failed to delete local file: {file_path}")
 
     def _upload(self, file_list: List[str]) -> List[str]:
-        """Upload files to remote stage and remove local copies."""
+        """Upload files to remote volume and remove local copies."""
         uploaded_files: List[str] = []
 
         for file_path in file_list:
@@ -105,5 +105,5 @@ class StageBulkWriter(LocalBulkWriter):
 
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
-        self._stage_file_manager.upload_file_to_stage(file_path, self._remote_path)
+        self._volume_file_manager.upload_file_to_volume(file_path, self._remote_path)
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")

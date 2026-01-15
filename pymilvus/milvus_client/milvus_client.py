@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -24,21 +25,22 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
-from pymilvus.orm.collection import CollectionSchema, FieldSchema, Function, FunctionScore
+from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
-from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
 
 from ._utils import create_connection
+from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
+from .optimize_task import OptimizeResult, OptimizeTask, ProgressStage
 
 logger = logging.getLogger(__name__)
 
 
-class MilvusClient:
+class MilvusClient(BaseMilvusClient):
     """The Milvus Client"""
 
     # pylint: disable=logging-too-many-args, too-many-instance-attributes
@@ -221,7 +223,7 @@ class MilvusClient:
         # Insert into the collection.
         try:
             res = conn.insert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout
+                collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
             )
         except Exception as ex:
             raise ex from ex
@@ -359,7 +361,7 @@ class MilvusClient:
     def search(
         self,
         collection_name: str,
-        data: Union[List[list], list],
+        data: Optional[Union[List[list], list]] = None,
         filter: str = "",
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
@@ -368,6 +370,8 @@ class MilvusClient:
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        highlighter: Optional[Highlighter] = None,
+        ids: Optional[Union[List[int], List[str], str, int]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -376,7 +380,7 @@ class MilvusClient:
         at init or data needs to have been inserted.
 
         Args:
-            data (Union[List[list], list, List[EmbeddingList]]): The vector/vectors/embedding
+            data (Optional[Union[List[list], list]]): The vector/vectors/embedding
                 list to search.
             limit (int, optional): How many results to return per search. Defaults to 10.
             filter(str, optional): A filter to use for the search. Defaults to None.
@@ -386,7 +390,8 @@ class MilvusClient:
             ranker (Function, optional): The ranker to use for the search.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
-
+            ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
+                Defaults to None.
         Raises:
             ValueError: The collection being searched doesnt exist. Need to insert data first.
 
@@ -401,10 +406,11 @@ class MilvusClient:
 
         conn = self._get_connection()
         return conn.search(
-            collection_name,
-            data,
-            anns_field or "",
-            search_params or {},
+            collection_name=collection_name,
+            data=data,
+            ids=ids,
+            anns_field=anns_field or "",
+            param=search_params or {},
             expression=filter,
             limit=limit,
             output_fields=output_fields,
@@ -412,6 +418,7 @@ class MilvusClient:
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            highlighter=highlighter,
             **kwargs,
         )
 
@@ -453,7 +460,7 @@ class MilvusClient:
         conn = self._get_connection()
 
         if ids:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
+            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -680,7 +687,7 @@ class MilvusClient:
             return []
 
         conn = self._get_connection()
-        schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
+        schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
 
         if not output_fields:
             output_fields = ["*"]
@@ -756,7 +763,7 @@ class MilvusClient:
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict, _ = conn._get_schema_from_cache_or_remote(collection_name, timeout=timeout)
+            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout)
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
@@ -814,6 +821,10 @@ class MilvusClient:
         conn = self._get_connection()
         conn.drop_collection(collection_name, timeout=timeout, **kwargs)
 
+    def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        conn = self._get_connection()
+        conn.truncate_collection(collection_name, timeout=timeout, **kwargs)
+
     def rename_collection(
         self,
         old_name: str,
@@ -824,40 +835,6 @@ class MilvusClient:
     ):
         conn = self._get_connection()
         conn.rename_collections(old_name, new_name, target_db, timeout=timeout, **kwargs)
-
-    @classmethod
-    def create_schema(cls, **kwargs):
-        kwargs["check_fields"] = False  # do not check fields for now
-        return CollectionSchema([], **kwargs)
-
-    @classmethod
-    def create_struct_field_schema(cls) -> StructFieldSchema:
-        return StructFieldSchema()
-
-    @classmethod
-    def create_field_schema(
-        cls, name: str, data_type: DataType, desc: str = "", **kwargs
-    ) -> FieldSchema:
-        """Create a field schema. Wrapping orm.FieldSchema.
-
-        Args:
-            name (str): The name of the field.
-            dtype (DataType): The data type of the field.
-            desc (str): The description of the field.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            FieldSchema: the FieldSchema created.
-        """
-        return FieldSchema(name, data_type, desc, **kwargs)
-
-    @classmethod
-    def prepare_index_params(cls, field_name: str = "", **kwargs) -> IndexParams:
-        index_params = IndexParams()
-        if field_name:
-            validate_param("field_name", field_name, str)
-            index_params.add_index(field_name, **kwargs)
-        return index_params
 
     def _create_collection_with_schema(
         self,
@@ -880,34 +857,6 @@ class MilvusClient:
 
     def close(self):
         connections.remove_connection(self._using)
-
-    def _get_connection(self):
-        return connections._fetch_handler(self._using)
-
-    def _extract_primary_field(self, schema_dict: Dict) -> dict:
-        fields = schema_dict.get("fields", [])
-        if not fields:
-            return {}
-
-        for field_dict in fields:
-            if field_dict.get("is_primary", None) is not None:
-                return field_dict
-
-        return {}
-
-    def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
-        primary_field = self._extract_primary_field(schema_dict)
-        pk_field_name = primary_field["name"]
-        data_type = primary_field["type"]
-
-        # Varchar pks need double quotes around the values
-        if data_type == DataType.VARCHAR:
-            ids = ["'" + str(entry) + "'" for entry in pks]
-            expr = f"""{pk_field_name} in [{",".join(ids)}]"""
-        else:
-            ids = [str(entry) for entry in pks]
-            expr = f"{pk_field_name} in [{','.join(ids)}]"
-        return expr
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
@@ -1074,11 +1023,94 @@ class MilvusClient:
         Raises:
             MilvusException: If anything goes wrong
         """
+        if is_vector_type(data_type) and not kwargs.get("nullable", False):
+            raise ParamError(
+                message="Adding vector field to existing collection requires nullable=True"
+            )
         field_schema = self.create_field_schema(field_name, data_type, desc, **kwargs)
         conn = self._get_connection()
         conn.add_collection_field(
             collection_name,
             field_schema,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def add_collection_function(
+        self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
+    ):
+        """Add a new function to the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.add_collection_function(
+            collection_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def alter_collection_function(
+        self,
+        collection_name: str,
+        function_name: str,
+        function: Function,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Alter a function in the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be modified
+            function(``Function``):  The function schema.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.alter_collection_function(
+            collection_name,
+            function_name,
+            function,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_collection_function(
+        self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a function from the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            function_name(``string``): The function name that needs to be dropped
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+            **kwargs (``dict``): Optional field params
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = self._get_connection()
+        conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
             **kwargs,
         )
@@ -1853,8 +1885,8 @@ class MilvusClient:
         )
         return [
             LoadedSegmentInfo(
-                info.segment_id,
-                info.collection_id,
+                info.segmentID,
+                info.collectionID,
                 collection_name,
                 info.num_rows,
                 info.is_sorted,
@@ -1887,8 +1919,8 @@ class MilvusClient:
         )
         return [
             SegmentInfo(
-                info.segment_id,
-                info.collection_id,
+                info.segmentID,
+                info.collectionID,
                 collection_name,
                 info.num_rows,
                 info.is_sorted,
@@ -1898,14 +1930,6 @@ class MilvusClient:
             )
             for info in infos
         ]
-
-    def get_server_type(self):
-        """Get the server type.
-
-        Returns:
-            str: The server type (e.g., "milvus", "zilliz").
-        """
-        return self._get_connection().get_server_type()
 
     def get_compaction_plans(
         self,
@@ -1924,3 +1948,220 @@ class MilvusClient:
             CompactionPlans: The compaction plans for the specified job.
         """
         return self._get_connection().get_compaction_plans(job_id, timeout=timeout, **kwargs)
+
+    def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:
+        state_dict = self.get_load_state(collection_name, timeout=timeout)
+        return state_dict.get("state") == LoadState.Loaded
+
+    def _list_vector_indexes(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[str]:
+        schema_dict = self.describe_collection(collection_name, timeout=timeout, **kwargs)
+        vector_fields = {
+            field["name"]
+            for field in schema_dict.get("fields", [])
+            if is_vector_type(field.get("type"))
+        }
+
+        if not vector_fields:
+            return []
+
+        all_indexes = self.list_indexes(collection_name, **kwargs)
+        vector_indexes = []
+        for index_name in all_indexes:
+            index_info = self.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+            if index_info and index_info.get("field_name") in vector_fields:
+                vector_indexes.append(index_name)
+
+        return vector_indexes
+
+    def _wait_for_indexes(
+        self,
+        task: OptimizeTask,
+        collection_name: str,
+        index_names: List[str],
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        if not index_names:
+            return
+
+        start = time.time()
+        for index_name in index_names:
+            task.check_cancelled()
+
+            if timeout is not None:
+                elapsed = time.time() - start
+                if elapsed >= timeout:
+                    raise MilvusException(
+                        message=f"Timeout waiting for indexes to complete on collection {collection_name}"
+                    )
+
+            remaining_timeout = None if timeout is None else timeout - elapsed
+            conn = self._get_connection()
+            conn.wait_for_creating_index(
+                collection_name, index_name, timeout=remaining_timeout, **kwargs
+            )
+
+    def _wait_for_compaction_with_cancel(
+        self, task: OptimizeTask, compaction_id: int, timeout: Optional[float] = None, **kwargs
+    ) -> None:
+        start = time.time()
+        conn = self._get_connection()
+        while True:
+            task.check_cancelled()
+
+            if timeout is not None:
+                elapsed = time.time() - start
+                if elapsed >= timeout:
+                    raise MilvusException(
+                        message=f"Timeout waiting for compaction {compaction_id} to complete"
+                    )
+                remaining_timeout = timeout - elapsed
+            else:
+                remaining_timeout = None
+
+            state = conn.get_compaction_state(compaction_id, timeout=remaining_timeout, **kwargs)
+            if state.state == 2:
+                break
+            if state.state == 3:
+                raise MilvusException(message=f"Compaction {compaction_id} failed")
+
+            time.sleep(0.5)
+
+    def optimize(
+        self,
+        collection_name: str,
+        target_size: Optional[str] = None,
+        wait: bool = True,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Union[OptimizeResult, OptimizeTask]:
+        """Optimize collection to adjust segment sizes for better query performance.
+
+        WARNING: This is a Preview version feature for non-production use only (Benchmark, POC).
+
+        This method performs the following operations:
+        1. Waits for all indexes to complete building
+        2. Triggers force merge compaction with optional target size
+        3. Waits for compaction to complete
+        4. Waits for index rebuild to complete
+        5. Refreshes collection load if collection is loaded
+
+        Args:
+            collection_name (str): The name of the collection to optimize.
+            target_size (Optional[str]): Target segment size. Format: '1000MB', '1GB', '1.2gb'.
+                If not provided, uses system default.
+            wait (bool): Whether to wait for optimization to complete. Defaults to True.
+                If False, returns an OptimizeTask for async tracking.
+            timeout (Optional[float]): Maximum time in seconds to wait for optimization.
+                Only applies when wait=True.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Union[OptimizeResult, OptimizeTask]: If wait=True, returns OptimizeResult with:
+                - status: "success"
+                - collection_name: str
+                - compaction_id: int
+                - target_size: str or None
+                - progress: list of progress stages completed
+            If wait=False, returns OptimizeTask for progress tracking.
+
+        Raises:
+            ParamError: If collection_name is invalid or target_size format is incorrect.
+            MilvusException: If index build fails, compaction fails, or timeout occurs.
+
+        Examples:
+            Synchronous usage:
+            >>> client.optimize("my_collection", target_size="512MB")
+
+            Asynchronous usage:
+            >>> task = client.optimize("my_collection", target_size="512MB", wait=False)
+            >>> while not task.done():
+            ...     print(f"Progress: {task.progress()}")
+            ...     time.sleep(1)
+            >>> result = task.result()
+
+            Cancelling a task:
+            >>> task = client.optimize("my_collection", target_size="512MB", wait=False)
+            >>> # ... do some work ...
+            >>> if task.cancel():
+            ...     print("Task cancelled successfully")
+        """
+        validate_param("collection_name", collection_name, str)
+
+        task = OptimizeTask(
+            collection_name=collection_name,
+            target_size=target_size,
+            task_timeout=timeout,
+            execute_fn=self._execute_optimize,
+            **kwargs,
+        )
+        task.start()
+
+        if wait:
+            return task.result(timeout=timeout)
+
+        return task
+
+    def _execute_optimize(
+        self,
+        task: OptimizeTask,
+        collection_name: str,
+        size_mb: Optional[int],
+        timeout: Optional[float],
+        **kwargs,
+    ) -> OptimizeResult:
+        start = time.time()
+
+        def remaining_timeout() -> Optional[float]:
+            if timeout is None:
+                return None
+            elapsed = time.time() - start
+            return max(0, timeout - elapsed)
+
+        task.check_cancelled()
+        vector_indexes = self._list_vector_indexes(
+            collection_name, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_INDEXES)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.COMPACTING)
+        conn = self._get_connection()
+        compaction_id = conn.compact(
+            collection_name=collection_name,
+            target_size=size_mb,
+            timeout=remaining_timeout(),
+            **kwargs,
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_COMPACTION)
+        self._wait_for_compaction_with_cancel(
+            task, compaction_id, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        task.set_progress(ProgressStage.WAITING_FOR_INDEX_REBUILD)
+        self._wait_for_indexes(
+            task, collection_name, vector_indexes, timeout=remaining_timeout(), **kwargs
+        )
+
+        task.check_cancelled()
+        if self._is_collection_loaded(collection_name, timeout=remaining_timeout()):
+            task.set_progress(ProgressStage.REFRESHING_LOAD)
+            self.refresh_load(collection_name, timeout=remaining_timeout(), **kwargs)
+
+        return OptimizeResult(
+            status="success",
+            collection_name=collection_name,
+            compaction_id=compaction_id,
+            target_size=task._target_size,
+            progress=task.progress_history(),
+        )

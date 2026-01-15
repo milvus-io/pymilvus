@@ -1,5 +1,5 @@
 unittest:
-	PYTHONPATH=`pwd` python3 -m pytest tests --cov=pymilvus -v
+	PYTHONPATH=`pwd` python3 -m pytest tests --ignore=tests/benchmark --cov=pymilvus -v
 
 lint:
 	PYTHONPATH=`pwd` python3 -m black pymilvus --check

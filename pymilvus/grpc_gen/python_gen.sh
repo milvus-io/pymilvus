@@ -14,7 +14,8 @@ if [[ $(uname -s) == "Darwin" ]]; then
     if ! brew --prefix --installed gnu-sed >/dev/null 2>&1; then
         brew install gnu-sed
     fi
-    export PATH="/usr/local/opt/gsed/libexec/gnubin:$PATH"
+    GSED_PREFIX=$(brew --prefix gnu-sed)
+    export PATH="${GSED_PREFIX}/libexec/gnubin:$PATH"
 fi
 
 sed -i 's/import common_pb2 as common__pb2/from . import common_pb2 as common__pb2/' $OUTDIR/*py

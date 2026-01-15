@@ -4,6 +4,8 @@
 
 .vscode
 
+*~
+
 # Python files
 *.pyc
 dist
@@ -42,3 +44,13 @@ uv.lock
 
 # AI rules
 WARP.md
+CLAUDE.md
+
+# perf
+*.svg
+**/.benchmarks/**
+*.html
+
+#cython
+*.so
+*.c

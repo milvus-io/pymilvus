@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Un
 import orjson
 from dateutil.parser import isoparse
 
-from pymilvus.exceptions import MilvusException, ParamError
-from pymilvus.grpc_gen.common_pb2 import Status
+from pymilvus.exceptions import MilvusException, ParamError, SchemaMismatchRetryableException
+from pymilvus.grpc_gen import common_pb2
 from pymilvus.settings import Config
 
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
@@ -62,12 +62,14 @@ valid_binary_metric_types = [
 ]
 
 
-def check_status(status: Status):
+def check_status(status: common_pb2.Status):
     if status.code != 0 or status.error_code != 0:
+        if status.error_code == common_pb2.SchemaMismatch:
+            raise SchemaMismatchRetryableException(status.reason)
         raise MilvusException(status.code, status.reason, status.error_code)
 
 
-def is_successful(status: Status):
+def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
 
 
@@ -186,6 +188,9 @@ def len_of(field_data: Any) -> int:
         raise MilvusException(message="Unsupported scalar type")
 
     if field_data.HasField("vectors"):
+        if len(field_data.valid_data) > 0:
+            return len(field_data.valid_data)
+
         dim = field_data.vectors.dim
         if field_data.vectors.HasField("float_vector"):
             total_len = len(field_data.vectors.float_vector.data)
@@ -313,7 +318,11 @@ def get_server_type(host: str):
 
 
 def dumps(v: Union[dict, str]) -> str:
-    return orjson.dumps(v).decode(Config.EncodeProtocol) if isinstance(v, dict) else str(v)
+    # Use JSON serialization for dicts to ensure proper formatting
+    # For other types (strings, numbers, booleans), use str() to maintain compatibility
+    if isinstance(v, dict):
+        return orjson.dumps(v).decode(Config.EncodeProtocol)
+    return str(v)
 
 
 class SciPyHelper:

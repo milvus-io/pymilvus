@@ -32,6 +32,8 @@ from .local_bulk_writer import LocalBulkWriter
 
 logger = logging.getLogger(__name__)
 
+TEMP_LOCAL_PATH = "local_path"
+
 
 class RemoteBulkWriter(LocalBulkWriter):
     class S3ConnectParam:
@@ -112,8 +114,12 @@ class RemoteBulkWriter(LocalBulkWriter):
         config: Optional[dict] = None,
         **kwargs,
     ):
-        local_path = Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer")
-        super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
+        temp_local_path = str(Path(sys.argv[0]).resolve().parent.joinpath("bulk_writer"))
+        if TEMP_LOCAL_PATH in kwargs:
+            temp_local_path = kwargs.get(TEMP_LOCAL_PATH)
+            kwargs.pop(TEMP_LOCAL_PATH)
+        super().__init__(schema, temp_local_path, chunk_size, file_type, config, **kwargs)
+
         self._remote_path = Path("/").joinpath(remote_path).joinpath(super().uuid)
         self._connect_param = connect_param
         self._client = None
@@ -218,7 +224,7 @@ class RemoteBulkWriter(LocalBulkWriter):
 
     def _bucket_exists(self) -> bool:
         if isinstance(self._client, Minio):
-            return self._client.bucket_exists(self._connect_param._bucket_name)
+            return self._client.bucket_exists(bucket_name=self._connect_param._bucket_name)
         if isinstance(self._client, BlobServiceClient):
             containers = self._client.list_containers()
             for container in containers:
@@ -240,7 +246,7 @@ class RemoteBulkWriter(LocalBulkWriter):
         elif isinstance(self._client, BlobServiceClient):
             logger.info(f"Target bucket: '{self._connect_param._container_name}'")
             container_client = self._client.get_container_client(
-                self._connect_param._container_name
+                container=self._connect_param._container_name
             )
             with Path(file_path).open("rb") as data:
                 container_client.upload_blob(

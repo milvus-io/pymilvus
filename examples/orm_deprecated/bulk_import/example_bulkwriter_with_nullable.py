@@ -4,7 +4,7 @@ import math
 import time
 from typing import List
 
-from examples.orm_deprecated.bulk_import.data_gengerator import *
+from examples.bulk_import.data_gengerator import *
 
 logging.basicConfig(level=logging.INFO)
 

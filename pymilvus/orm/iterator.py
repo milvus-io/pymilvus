@@ -208,6 +208,7 @@ class QueryIterator:
                     "cursor lines in cp file has exceeded 100 lines, truncate the file and rewrite"
                 )
                 self._buffer_cursor_lines_number = 0
+                self.__save_mvcc_ts()
             self._cp_file_handler.writelines(str(self._next_id) + "\n")
             self._cp_file_handler.flush()
             self._buffer_cursor_lines_number += 1
@@ -736,15 +737,17 @@ class SearchIterator:
     ) -> SearchPage:
         log.debug(f"search_iterator_next_expr:{next_expr}, next_params:{next_params}")
         res = self._conn.search(
-            self._iterator_params["collection_name"],
-            self._iterator_params["data"],
-            self._iterator_params["ann_field"],
-            next_params,
-            extend_batch_size(self._iterator_params[BATCH_SIZE], next_params, to_extend_batch),
-            next_expr,
-            self._iterator_params["partition_names"],
-            self._iterator_params["output_fields"],
-            self._iterator_params["round_decimal"],
+            collection_name=self._iterator_params["collection_name"],
+            anns_field=self._iterator_params["ann_field"],
+            param=next_params,
+            limit=extend_batch_size(
+                self._iterator_params[BATCH_SIZE], next_params, to_extend_batch
+            ),
+            data=self._iterator_params["data"],
+            expression=next_expr,
+            partition_names=self._iterator_params["partition_names"],
+            output_fields=self._iterator_params["output_fields"],
+            round_decimal=self._iterator_params["round_decimal"],
             timeout=self._iterator_params["timeout"],
             schema=self._schema,
             **self._kwargs,

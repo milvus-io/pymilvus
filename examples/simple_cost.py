@@ -65,7 +65,7 @@ print(f"delete result: {delete_result}\ndelete cost: {delete_result['cost']}")
 rng = np.random.default_rng(seed=19530)
 vectors_to_search = rng.random((1, dim))
 
-print(fmt.format(f"Start search with retrieve serveral fields."))
+print(fmt.format(f"Start search with retrieve several fields."))
 result = milvus_client.search(collection_name, vectors_to_search, limit=3, output_fields=["pk", "a", "b"])
 print(f"search result: {result}\nsearch cost: {result.extra['cost']}")
 
