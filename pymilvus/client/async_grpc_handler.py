@@ -864,6 +864,10 @@ class AsyncGrpcHandler:
             data = [emb_list.to_flat_array() for emb_list in data]
             kwargs["is_embedding_list"] = True
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._db_name
+        )
+
         request = Prepare.search_requests_with_expr(
             collection_name=collection_name,
             data=data,
@@ -877,8 +881,7 @@ class AsyncGrpcHandler:
             round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
-            _endpoint=self.server_address,
-            _db_name=self._db_name,
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return await self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
@@ -906,12 +909,14 @@ class AsyncGrpcHandler:
             timeout=timeout,
         )
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._db_name
+        )
+
         requests = []
         for req in reqs:
             data = req.data
             req_kwargs = dict(kwargs)
-            req_kwargs["_endpoint"] = self.server_address
-            req_kwargs["_db_name"] = self._db_name
             # Convert EmbeddingList to flat array if present
             if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
@@ -927,6 +932,7 @@ class AsyncGrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
             requests.append(search_request)
@@ -939,8 +945,7 @@ class AsyncGrpcHandler:
             partition_names,
             output_fields,
             round_decimal,
-            _endpoint=self.server_address,
-            _db_name=self._db_name,
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return await self._execute_hybrid_search(
@@ -1214,15 +1219,20 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._db_name
+        )
+
         request = Prepare.query_request(
             collection_name,
             expr,
             output_fields,
             partition_names,
-            _endpoint=self.server_address,
-            _db_name=self._db_name,
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
+
         response = await self._async_stub.Query(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )

@@ -1068,6 +1068,10 @@ class GrpcHandler:
             timeout=timeout,
         )
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._get_db_name()
+        )
+
         request = Prepare.search_requests_with_expr(
             collection_name=collection_name,
             anns_field=anns_field,
@@ -1081,8 +1085,7 @@ class GrpcHandler:
             round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
-            _endpoint=self.server_address,
-            _db_name=self._get_db_name(),
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
@@ -1109,13 +1112,15 @@ class GrpcHandler:
             timeout=timeout,
         )
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._get_db_name()
+        )
+
         requests = []
         for req in reqs:
             # Convert EmbeddingList to flat array if present in the request data
             data = req.data
             req_kwargs = dict(kwargs)
-            req_kwargs["_endpoint"] = self.server_address
-            req_kwargs["_db_name"] = self._get_db_name()
             if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
@@ -1130,6 +1135,7 @@ class GrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
             requests.append(search_request)
@@ -1142,8 +1148,7 @@ class GrpcHandler:
             partition_names,
             output_fields,
             round_decimal,
-            _endpoint=self.server_address,
-            _db_name=self._get_db_name(),
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return self._execute_hybrid_search(
@@ -1844,13 +1849,17 @@ class GrpcHandler:
     ):
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, self._get_db_name()
+        )
+
         request = Prepare.query_request(
             collection_name,
             expr,
             output_fields,
             partition_names,
-            _endpoint=self.server_address,
-            _db_name=self._get_db_name(),
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
 
