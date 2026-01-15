@@ -1221,22 +1221,8 @@ class AsyncGrpcHandler:
 
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
 
-        # Extract element_indices if present
-        element_indices = None
-        if response.element_indices and len(response.element_indices) > 0:
-            element_indices = [
-                list(ei.indices.data) if ei.indices else [] for ei in response.element_indices
-            ]
-
         keys = [field_data.field_name for field_data in response.fields_data]
         filtered_keys = [k for k in keys if k != "$meta"]
-
-        # Insert "offset" after primary key field if element_indices is present
-        if element_indices is not None and response.primary_field_name:
-            pk_name = response.primary_field_name
-            if pk_name in filtered_keys:
-                pk_index = filtered_keys.index(pk_name)
-                filtered_keys.insert(pk_index + 1, "offset")
 
         results = [dict.fromkeys(filtered_keys) for _ in range(num_entities)]
         lazy_field_data = []
@@ -1253,7 +1239,6 @@ class AsyncGrpcHandler:
             extra=extra_dict,
             dynamic_fields=dynamic_fields,
             strict_float32=strict_float32,
-            element_indices=element_indices,
         )
 
     @retry_on_rpc_failure()
