@@ -113,32 +113,31 @@ print("Query", result)
 rng = np.random.default_rng(seed=19530)
 
 
+# Create search queries using EmbeddingList
+# For testing purposes, using random test data
+queries = [
+    EmbeddingList._from_random_test(7, EMBEDDING_DIM, seed=19530),  # Query with 7 vectors
+    EmbeddingList._from_random_test(4, EMBEDDING_DIM, seed=19531),  # Query with 4 vectors
+]
 
-# # Create search queries using EmbeddingList
-# # For testing purposes, using random test data
-# queries = [
-#     EmbeddingList._from_random_test(7, EMBEDDING_DIM, seed=19530),  # Query with 7 vectors
-#     EmbeddingList._from_random_test(4, EMBEDDING_DIM, seed=19531),  # Query with 4 vectors
-# ]
-#
-# embeddingList = EmbeddingList()
-# # Query with 2 vectors
-# embeddingList.add(np.random.randn(EMBEDDING_DIM))
-# embeddingList.add(np.random.randn(EMBEDDING_DIM))
-#
-# queries.append(embeddingList)
-#
+embeddingList = EmbeddingList()
+# Query with 2 vectors
+embeddingList.add(np.random.randn(EMBEDDING_DIM))
+embeddingList.add(np.random.randn(EMBEDDING_DIM))
+
+queries.append(embeddingList)
+
 field = "struct_field[struct_float_vec]"
-# res = milvus_client.search(COLLECTION_NAME, data=queries, limit=10, anns_field=field,
-#                      output_fields=["struct_field[struct_str]"])
-#
-# for i, (hits, query) in enumerate(zip(res, queries)):
-#     print(f"============== Search {i+1} ({query}) - Total hits: {len(hits)}")
-#     for hit in hits:
-#         print(f"    {hit}")
+res = milvus_client.search(COLLECTION_NAME, data=queries, limit=10, anns_field=field,
+                     output_fields=["struct_field[struct_str]"])
 
-# time.sleep(10)  # wait for index to be ready
+for i, (hits, query) in enumerate(zip(res, queries)):
+    print(f"============== Query {i+1} ({query}) - Total hits: {len(hits)}")
+    for hit in hits:
+        print(f"    Hit id: {hit.id}, distance: {hit.distance}")
+        print(f"        entity: {hit}")
 
+field = "struct_field[struct_float_vec]"
 query_vec = [np.random.randn(EMBEDDING_DIM)]
 # Element filter
 filter = "content == 'aaa' && element_filter(struct_field, $[struct_int] == 3 || $[struct_int] == 5 || $[struct_int] == 7)"
