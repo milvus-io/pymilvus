@@ -806,7 +806,9 @@ class GrpcHandler:
             response = rf.result()
             check_status(response.status)
             m = MutationResult(response)
-            ts_utils.update_collection_ts(collection_name, m.timestamp)
+            ts_utils.update_collection_ts(
+                collection_name, m.timestamp, self.server_address, self._get_db_name()
+            )
         except Exception as err:
             if kwargs.get("_async", False):
                 return MutationFuture(None, None, err)
