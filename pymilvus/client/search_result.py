@@ -390,12 +390,6 @@ class SearchResult(list):
         all_offsets: Optional[List[int]] = None
         if res.element_indices and len(res.element_indices.data) > 0:
             all_offsets = list(res.element_indices.data)
-            # Debug: print received element_indices
-            logger.info(f"DEBUG: Received element_indices from server: {all_offsets}")
-            logger.info(f"DEBUG: Received PKs: {all_pks[:20] if len(all_pks) > 20 else all_pks}")
-            logger.info(
-                f"DEBUG: Received scores: {all_scores[:20] if len(all_scores) > 20 else all_scores}"
-            )
 
         data = []
         nq_thres = 0
