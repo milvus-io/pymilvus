@@ -1657,7 +1657,6 @@ class Prepare:
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
-
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
