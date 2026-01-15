@@ -84,6 +84,40 @@ class SchemaCache(CacheRegion):
         return (endpoint, db, collection_name)
 
 
+class CollectionTsCache(CacheRegion):
+    """
+    Collection timestamp cache with tuple-based keys.
+
+    Key: (endpoint, db_name, collection_name)
+    Value: timestamp (int)
+    """
+
+    def get(self, endpoint: str, db_name: str, collection_name: str) -> int:
+        """Get timestamp from cache."""
+        key = self._make_key(endpoint, db_name, collection_name)
+        return super().get(key) or 0
+
+    def set(self, endpoint: str, db_name: str, collection_name: str, ts: int) -> None:
+        """Set timestamp in cache."""
+        key = self._make_key(endpoint, db_name, collection_name)
+        with self._lock:
+            # Only update if new timestamp is greater
+            old_ts = self._cache.get(key, 0)
+            if ts > old_ts:
+                self._cache[key] = ts
+
+    def invalidate(self, endpoint: str, db_name: str, collection_name: str) -> None:
+        """Invalidate timestamp for a specific collection."""
+        key = self._make_key(endpoint, db_name, collection_name)
+        super().invalidate(key)
+
+    @staticmethod
+    def _make_key(endpoint: str, db_name: str, collection_name: str) -> Tuple[str, str, str]:
+        """Create tuple key from components."""
+        db = db_name if db_name else "default"
+        return (endpoint, db, collection_name)
+
+
 class GlobalCache:
     """
     Global access point for all cache instances.
@@ -91,11 +125,15 @@ class GlobalCache:
     Usage:
         GlobalCache.schema.get(endpoint, db_name, collection_name)
         GlobalCache.schema.set(endpoint, db_name, collection_name, schema)
+        GlobalCache.collection_ts.get(endpoint, db_name, collection_name)
+        GlobalCache.collection_ts.set(endpoint, db_name, collection_name, ts)
     """
 
     schema: ClassVar[SchemaCache] = SchemaCache()
+    collection_ts: ClassVar[CollectionTsCache] = CollectionTsCache()
 
     @classmethod
     def _reset_for_testing(cls) -> None:
         """Reset cache for testing. Creates new instances."""
         cls.schema = SchemaCache()
+        cls.collection_ts = CollectionTsCache()

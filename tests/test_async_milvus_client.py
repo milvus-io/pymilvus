@@ -87,6 +87,49 @@ class TestAsyncMilvusClientNewFeatures:
             mock_handler.describe_collection.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_list_persistent_segments(self):
+        with patch('pymilvus.milvus_client.async_milvus_client.create_connection', return_value="test"), \
+             patch('pymilvus.orm.connections.Connections._fetch_handler') as mock_fetch:
+            # Mock connection and its get_persistent_segment_infos method
+            mock_conn = AsyncMock()
+            mock_fetch.return_value = mock_conn
+            
+            # Create a mock segment info
+            mock_segment_info = MagicMock()
+            mock_segment_info.segmentID = 1001
+            mock_segment_info.collectionID = 2001
+            mock_segment_info.num_rows = 1000
+            mock_segment_info.is_sorted = True
+            mock_segment_info.state = 3  # FLUSHED
+            mock_segment_info.level = 1
+            mock_segment_info.storage_version = 1
+            
+            mock_conn.get_persistent_segment_infos.return_value = [mock_segment_info]
+
+            # Initialize AsyncMilvusClient
+            client = AsyncMilvusClient(uri="http://localhost:19530")
+
+            # Call list_persistent_segments
+            result = await client.list_persistent_segments("test_collection")
+
+            # Verify the result
+            assert len(result) == 1
+            segment_info = result[0]
+            assert segment_info.segment_id == 1001
+            assert segment_info.collection_id == 2001
+            assert segment_info.collection_name == "test_collection"
+            assert segment_info.num_rows == 1000
+            assert segment_info.is_sorted is True
+            assert segment_info.state == 3
+            assert segment_info.level == 1
+            assert segment_info.storage_version == 1
+
+            # Verify call arguments
+            mock_conn.get_persistent_segment_infos.assert_called_once_with(
+                "test_collection", timeout=None
+            )
+
+    @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self):
         """Test describe_collection works normally when no struct_array_fields"""
         with patch('pymilvus.milvus_client.async_milvus_client.create_connection', return_value="test"), \
@@ -258,3 +301,86 @@ class TestAsyncMilvusClientNewFeatures:
         result = AsyncMilvusClient.create_struct_field_schema()
         assert isinstance(result, StructFieldSchema)
 
+
+class TestAsyncDbNameInjector:
+    """Test cases for AsyncDbNameInjector"""
+
+    @pytest.mark.asyncio
+    async def test_async_injection(self):
+        """Test db_name injection for async methods"""
+        from pymilvus.client.utils import AsyncDbNameInjector
+        
+        class RealAsyncHandler:
+            async def async_method(self, **kwargs):
+                pass
+            def sync_method(self, **kwargs):
+                pass
+            async def close(self):
+                pass
+        
+        real_handler = RealAsyncHandler()
+        real_handler.async_method = AsyncMock()
+        real_handler.sync_method = MagicMock()
+        real_handler.close = AsyncMock()
+        
+        injector = AsyncDbNameInjector(real_handler, "test_db")
+        
+        # Test async injection
+        await injector.async_method(arg1="value")
+        real_handler.async_method.assert_called_once()
+        assert real_handler.async_method.call_args.kwargs.get("db_name") == "test_db"
+        assert real_handler.async_method.call_args.kwargs.get("arg1") == "value"
+
+    @pytest.mark.asyncio
+    async def test_async_injection_skip_existing(self):
+        """Test db_name injection respects existing db_name"""
+        from pymilvus.client.utils import AsyncDbNameInjector
+        
+        class RealAsyncHandler:
+            async def async_method(self, **kwargs):
+                pass
+        
+        real_handler = RealAsyncHandler()
+        real_handler.async_method = AsyncMock()
+        
+        injector = AsyncDbNameInjector(real_handler, "test_db")
+        await injector.async_method(db_name="specific_db")
+        
+        assert real_handler.async_method.call_args.kwargs.get("db_name") == "specific_db"
+
+    def test_sync_injection(self):
+        """Test db_name injection for sync methods"""
+        from pymilvus.client.utils import AsyncDbNameInjector
+        
+        class RealAsyncHandler:
+            def sync_method(self, **kwargs):
+                pass
+        
+        real_handler = RealAsyncHandler()
+        real_handler.sync_method = MagicMock()
+        
+        injector = AsyncDbNameInjector(real_handler, "test_db")
+        injector.sync_method(arg1="value")
+        
+        real_handler.sync_method.assert_called_once()
+        assert real_handler.sync_method.call_args.kwargs.get("db_name") == "test_db"
+
+    @pytest.mark.asyncio
+    async def test_skip_injection(self):
+        """Test db_name injection is skipped for excluded methods"""
+        from pymilvus.client.utils import AsyncDbNameInjector, _SKIP_DB_INJECTION_METHODS
+        
+        class RealAsyncHandler:
+            async def close(self):
+                pass
+        
+        real_handler = RealAsyncHandler()
+        real_handler.close = AsyncMock()
+        
+        injector = AsyncDbNameInjector(real_handler, "test_db")
+        assert "close" in _SKIP_DB_INJECTION_METHODS
+        
+        await injector.close()
+        
+        real_handler.close.assert_called_once()
+        assert "db_name" not in real_handler.close.call_args.kwargs

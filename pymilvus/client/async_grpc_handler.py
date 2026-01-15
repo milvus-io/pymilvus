@@ -594,7 +594,9 @@ class AsyncGrpcHandler:
             request=request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
         check_status(resp.status)
-        ts_utils.update_collection_ts(collection_name, resp.timestamp)
+        ts_utils.update_collection_ts(
+            collection_name, resp.timestamp, self.server_address, kwargs.get("db_name", "")
+        )
         return MutationResult(resp)
 
     async def _prepare_row_insert_request(
@@ -629,6 +631,18 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    async def get_persistent_segment_infos(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> List[milvus_types.PersistentSegmentInfo]:
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        req = Prepare.get_persistent_segment_info_request(collection_name)
+        response = await self._async_stub.GetPersistentSegmentInfo(
+            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+        )
+        check_status(response.status)
+        return response.infos
+
     async def delete(
         self,
         collection_name: str,
@@ -653,7 +667,9 @@ class AsyncGrpcHandler:
             )
 
             m = MutationResult(response)
-            ts_utils.update_collection_ts(collection_name, m.timestamp)
+            ts_utils.update_collection_ts(
+                collection_name, m.timestamp, self.server_address, kwargs.get("db_name", "")
+            )
         except Exception as err:
             raise err from err
         else:
@@ -716,7 +732,9 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
         m = MutationResult(response)
-        ts_utils.update_collection_ts(collection_name, m.timestamp)
+        ts_utils.update_collection_ts(
+            collection_name, m.timestamp, self.server_address, kwargs.get("db_name", "")
+        )
         return m
 
     async def _prepare_row_upsert_request(
@@ -767,7 +785,9 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
         m = MutationResult(response)
-        ts_utils.update_collection_ts(collection_name, m.timestamp)
+        ts_utils.update_collection_ts(
+            collection_name, m.timestamp, self.server_address, kwargs.get("db_name", "")
+        )
         return m
 
     async def _execute_search(
@@ -833,6 +853,10 @@ class AsyncGrpcHandler:
             data = [emb_list.to_flat_array() for emb_list in data]
             kwargs["is_embedding_list"] = True
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, kwargs.get("db_name", "")
+        )
+
         request = Prepare.search_requests_with_expr(
             collection_name=collection_name,
             data=data,
@@ -846,6 +870,7 @@ class AsyncGrpcHandler:
             round_decimal=round_decimal,
             ranker=ranker,
             highlighter=highlighter,
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return await self._execute_search(request, timeout, round_decimal=round_decimal, **kwargs)
@@ -873,6 +898,10 @@ class AsyncGrpcHandler:
             timeout=timeout,
         )
 
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, kwargs.get("db_name", "")
+        )
+
         requests = []
         for req in reqs:
             data = req.data
@@ -892,6 +921,7 @@ class AsyncGrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
             requests.append(search_request)
@@ -904,6 +934,7 @@ class AsyncGrpcHandler:
             partition_names,
             output_fields,
             round_decimal,
+            use_default_consistency=use_default_consistency,
             **kwargs,
         )
         return await self._execute_hybrid_search(
@@ -1177,9 +1208,20 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
-        request = Prepare.query_request(
-            collection_name, expr, output_fields, partition_names, **kwargs
+
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, kwargs, self.server_address, kwargs.get("db_name", "")
         )
+
+        request = Prepare.query_request(
+            collection_name,
+            expr,
+            output_fields,
+            partition_names,
+            use_default_consistency=use_default_consistency,
+            **kwargs,
+        )
+
         response = await self._async_stub.Query(
             request, timeout=timeout, metadata=_api_level_md(**kwargs)
         )
