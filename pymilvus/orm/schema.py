@@ -919,13 +919,45 @@ class Function:
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectOutputFieldType
                 )
 
+    def _check_minhash_function(self, schema: CollectionSchema):
+        """Validate MinHash function input/output field types and dimensions.
+
+        MinHash function requirements:
+        - Exactly 1 input field (VARCHAR type)
+        - Exactly 1 output field (BINARY_VECTOR type)
+        - Output field dim must be a multiple of 32 (dim = num_hashes * 32)
+        """
+        if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
+            raise ParamError(
+                message=ExceptionsMessage.MinHashFunctionIncorrectInputOutputCount
+            )
+
+        for field in schema.fields:
+            if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+                raise ParamError(
+                    message=ExceptionsMessage.MinHashFunctionIncorrectInputFieldType
+                )
+            if field.name == self._output_field_names[0]:
+                if field.dtype != DataType.BINARY_VECTOR:
+                    raise ParamError(
+                        message=ExceptionsMessage.MinHashFunctionIncorrectOutputFieldType
+                    )
+                # Check dim is a multiple of 32
+                dim = field.params.get("dim") if field.params else None
+                if dim is not None and dim % 32 != 0:
+                    raise ParamError(
+                        message=ExceptionsMessage.MinHashFunctionInvalidDim
+                    )
+
     def verify(self, schema: CollectionSchema):
         if self._type == FunctionType.BM25:
             self._check_bm25_function(schema)
         elif self._type == FunctionType.TEXTEMBEDDING:
             self._check_text_embedding_function(schema)
-        elif self._type == FunctionType.RANKER:
-            # We will not check the ranker function here.
+        elif self._type == FunctionType.MINHASH:
+            self._check_minhash_function(schema)
+        elif self._type == FunctionType.RERANK:
+            # We will not check the rerank function here.
             pass
         elif self._type == FunctionType.UNKNOWN:
             raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
