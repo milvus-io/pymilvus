@@ -80,13 +80,18 @@ def create_minhash_collection(client: MilvusClient, collection_name: str):
 
 
 def create_minhash_index(client: MilvusClient, collection_name: str):
-    """Create MinHash LSH index for efficient similarity search."""
+    """Create MinHash LSH index for efficient similarity search.
+
+    IMPORTANT: MinHash Function output fields MUST use:
+    - index_type: MINHASH_LSH
+    - metric_type: MHJACCARD
+    """
     index_params = client.prepare_index_params()
 
     index_params.add_index(
         field_name="minhash_signature",
-        index_type="MINHASH_LSH",
-        metric_type="MHJACCARD",  # MinHash Jaccard distance
+        index_type="MINHASH_LSH",     # Required for MinHash Function output
+        metric_type="MHJACCARD",       # Required for MinHash Function output
         params={
             "mh_lsh_band": 8,           # LSH band count (affects recall/speed tradeoff)
             "with_raw_data": True,       # Keep raw data for exact reranking
