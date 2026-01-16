@@ -1445,3 +1445,56 @@ class SegmentInfo:
 @dataclass
 class LoadedSegmentInfo(SegmentInfo):
     mem_size: int
+
+
+@dataclass
+class SnapshotInfo:
+    """Information about a snapshot.
+
+    Attributes:
+        name: The snapshot name.
+        description: Description of the snapshot.
+        collection_name: The collection that was snapshotted.
+        partition_names: List of partition names included in the snapshot.
+        create_ts: Creation timestamp in milliseconds.
+        s3_location: S3 storage location of the snapshot.
+    """
+
+    name: str
+    description: str
+    collection_name: str
+    partition_names: List[str]
+    create_ts: int
+    s3_location: str
+
+
+@dataclass
+class RestoreSnapshotJobInfo:
+    """Information about a restore snapshot job.
+
+    Attributes:
+        job_id: The restore job ID.
+        snapshot_name: The snapshot name being restored.
+        db_name: The target database name.
+        collection_name: The target collection name.
+        state: Current state of the restore job. Possible values:
+            - 'RestoreSnapshotNone'
+            - 'RestoreSnapshotPending'
+            - 'RestoreSnapshotExecuting'
+            - 'RestoreSnapshotCompleted'
+            - 'RestoreSnapshotFailed'
+        progress: Progress percentage (0-100).
+        reason: Error reason if the job failed.
+        start_time: Start timestamp in milliseconds.
+        time_cost: Time cost in milliseconds.
+    """
+
+    job_id: int
+    snapshot_name: str
+    db_name: str
+    collection_name: str
+    state: str
+    progress: int
+    reason: str
+    start_time: int
+    time_cost: int

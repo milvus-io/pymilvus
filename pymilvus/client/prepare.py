@@ -24,7 +24,7 @@ from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, utils
 from .abstract import BaseRanker
-from .check import check_pass_param, is_legal_collection_properties
+from .check import check_pass_param, is_legal_collection_properties, validate_str
 from .constants import (
     COLLECTION_ID,
     DEFAULT_CONSISTENCY_LEVEL,
@@ -2586,3 +2586,72 @@ class Prepare:
             kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
             function_schema.params.append(kv_pair)
         return function_schema
+
+    @classmethod
+    def create_snapshot_req(
+        cls,
+        snapshot_name: str,
+        collection_name: str = "",
+        description: str = "",
+    ):
+        if not validate_str(snapshot_name):
+            msg = "snapshot_name must be a non-empty string"
+            raise ParamError(message=msg)
+        if not validate_str(collection_name):
+            msg = "collection_name must be a non-empty string"
+            raise ParamError(message=msg)
+        return milvus_types.CreateSnapshotRequest(
+            name=snapshot_name,
+            collection_name=collection_name,
+            description=description,
+        )
+
+    @classmethod
+    def drop_snapshot_req(cls, snapshot_name: str):
+        if not validate_str(snapshot_name):
+            msg = "snapshot_name must be a non-empty string"
+            raise ParamError(message=msg)
+        return milvus_types.DropSnapshotRequest(name=snapshot_name)
+
+    @classmethod
+    def list_snapshots_req(cls, collection_name: str = ""):
+        return milvus_types.ListSnapshotsRequest(
+            collection_name=collection_name,
+        )
+
+    @classmethod
+    def describe_snapshot_req(cls, snapshot_name: str):
+        if not validate_str(snapshot_name):
+            msg = "snapshot_name must be a non-empty string"
+            raise ParamError(message=msg)
+        return milvus_types.DescribeSnapshotRequest(name=snapshot_name)
+
+    @classmethod
+    def restore_snapshot_req(
+        cls,
+        snapshot_name: str,
+        collection_name: str = "",
+        rewrite_data: bool = False,
+    ):
+        if not validate_str(snapshot_name):
+            msg = "snapshot_name must be a non-empty string"
+            raise ParamError(message=msg)
+        if not validate_str(collection_name):
+            msg = "collection_name must be a non-empty string"
+            raise ParamError(message=msg)
+        return milvus_types.RestoreSnapshotRequest(
+            name=snapshot_name,
+            collection_name=collection_name,
+            rewrite_data=rewrite_data,
+        )
+
+    @classmethod
+    def get_restore_snapshot_state_req(cls, job_id: int):
+        if not isinstance(job_id, int) or job_id <= 0:
+            msg = "job_id must be a positive integer"
+            raise ParamError(message=msg)
+        return milvus_types.GetRestoreSnapshotStateRequest(job_id=job_id)
+
+    @classmethod
+    def list_restore_snapshot_jobs_req(cls, collection_name: str = ""):
+        return milvus_types.ListRestoreSnapshotJobsRequest(collection_name=collection_name)
