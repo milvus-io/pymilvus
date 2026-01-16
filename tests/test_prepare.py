@@ -673,3 +673,137 @@ class TestFunctionEditor:
             "test_collection", "test")
         assert req.collection_name == "test_collection"
         assert req.function_name == "test"
+
+
+class TestSnapshotRequests:
+    """Test snapshot-related request builders."""
+
+    def test_create_snapshot_req(self):
+        """Test create snapshot request."""
+        req = Prepare.create_snapshot_req(
+            snapshot_name="test_snapshot",
+            collection_name="test_collection",
+            description="Test description"
+        )
+        assert req.name == "test_snapshot"
+        assert req.collection_name == "test_collection"
+        assert req.description == "Test description"
+
+    def test_create_snapshot_req_defaults(self):
+        """Test create snapshot request with default values."""
+        req = Prepare.create_snapshot_req(
+            snapshot_name="test_snapshot", collection_name="test_collection"
+        )
+        assert req.name == "test_snapshot"
+        assert req.collection_name == "test_collection"
+        assert req.description == ""
+
+    @pytest.mark.parametrize("invalid_name", [None, "", 123, [], {}])
+    def test_create_snapshot_req_invalid_name(self, invalid_name):
+        """Test create snapshot request with invalid snapshot name."""
+        with pytest.raises(MilvusException):
+            Prepare.create_snapshot_req(
+                snapshot_name=invalid_name, collection_name="test_collection"
+            )
+
+    @pytest.mark.parametrize("invalid_collection", [None, "", 123, [], {}])
+    def test_create_snapshot_req_invalid_collection_name(self, invalid_collection):
+        """Test create snapshot request with invalid collection name."""
+        with pytest.raises(MilvusException):
+            Prepare.create_snapshot_req(
+                snapshot_name="test_snapshot", collection_name=invalid_collection
+            )
+
+    def test_drop_snapshot_req(self):
+        """Test drop snapshot request."""
+        req = Prepare.drop_snapshot_req(snapshot_name="test_snapshot")
+        assert req.name == "test_snapshot"
+
+    @pytest.mark.parametrize("invalid_name", [None, "", 123])
+    def test_drop_snapshot_req_invalid_name(self, invalid_name):
+        """Test drop snapshot request with invalid name."""
+        with pytest.raises(MilvusException):
+            Prepare.drop_snapshot_req(snapshot_name=invalid_name)
+
+    def test_list_snapshots_req(self):
+        """Test list snapshots request."""
+        req = Prepare.list_snapshots_req(
+            collection_name="test_collection"
+        )
+        assert req.collection_name == "test_collection"
+
+    def test_list_snapshots_req_defaults(self):
+        """Test list snapshots request with defaults."""
+        req = Prepare.list_snapshots_req()
+        assert req.collection_name == ""
+
+    def test_describe_snapshot_req(self):
+        """Test describe snapshot request."""
+        req = Prepare.describe_snapshot_req(snapshot_name="test_snapshot")
+        assert req.name == "test_snapshot"
+
+    @pytest.mark.parametrize("invalid_name", [None, "", 123])
+    def test_describe_snapshot_req_invalid_name(self, invalid_name):
+        """Test describe snapshot request with invalid name."""
+        with pytest.raises(MilvusException):
+            Prepare.describe_snapshot_req(snapshot_name=invalid_name)
+
+    def test_restore_snapshot_req(self):
+        """Test restore snapshot request."""
+        req = Prepare.restore_snapshot_req(
+            snapshot_name="test_snapshot",
+            collection_name="test_collection",
+            rewrite_data=True
+        )
+        assert req.name == "test_snapshot"
+        assert req.collection_name == "test_collection"
+        assert req.rewrite_data is True
+
+    def test_restore_snapshot_req_defaults(self):
+        """Test restore snapshot request with defaults."""
+        req = Prepare.restore_snapshot_req(
+            snapshot_name="test_snapshot",
+            collection_name="test_collection"
+        )
+        assert req.name == "test_snapshot"
+        assert req.collection_name == "test_collection"
+        assert req.rewrite_data is False
+
+    @pytest.mark.parametrize("invalid_name", [None, "", 123])
+    def test_restore_snapshot_req_invalid_snapshot_name(self, invalid_name):
+        """Test restore snapshot request with invalid snapshot name."""
+        with pytest.raises(MilvusException):
+            Prepare.restore_snapshot_req(
+                snapshot_name=invalid_name,
+                collection_name="test_collection"
+            )
+
+    @pytest.mark.parametrize("invalid_name", [None, "", 123])
+    def test_restore_snapshot_req_invalid_collection_name(self, invalid_name):
+        """Test restore snapshot request with invalid collection name."""
+        with pytest.raises(MilvusException):
+            Prepare.restore_snapshot_req(
+                snapshot_name="test_snapshot",
+                collection_name=invalid_name
+            )
+
+    def test_get_restore_snapshot_state_req(self):
+        """Test get restore snapshot state request."""
+        req = Prepare.get_restore_snapshot_state_req(job_id=12345)
+        assert req.job_id == 12345
+
+    @pytest.mark.parametrize("invalid_job_id", [0, -1, -100, None, "123", [], {}])
+    def test_get_restore_snapshot_state_req_invalid_job_id(self, invalid_job_id):
+        """Test get restore snapshot state request with invalid job_id."""
+        with pytest.raises(ParamError):
+            Prepare.get_restore_snapshot_state_req(job_id=invalid_job_id)
+
+    def test_list_restore_snapshot_jobs_req(self):
+        """Test list restore snapshot jobs request."""
+        req = Prepare.list_restore_snapshot_jobs_req(collection_name="test_collection")
+        assert req.collection_name == "test_collection"
+
+    def test_list_restore_snapshot_jobs_req_default(self):
+        """Test list restore snapshot jobs request with default."""
+        req = Prepare.list_restore_snapshot_jobs_req()
+        assert req.collection_name == ""
