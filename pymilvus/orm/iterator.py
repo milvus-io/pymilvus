@@ -101,15 +101,15 @@ class QueryIterator:
     ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
+        self._kwargs = kwargs
+        self._kwargs[ITERATOR_FIELD] = "True"
         self.__set_up_collection_id()
+        self._kwargs[COLLECTION_ID] = self._collection_id
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
         self._timeout = timeout
         self._session_ts = 0
-        self._kwargs = kwargs
-        self._kwargs[ITERATOR_FIELD] = "True"
-        self._kwargs[COLLECTION_ID] = self._collection_id
         self.__check_set_batch_size(batch_size)
         self._limit = limit
         self.__check_set_reduce_stop_for_best()
@@ -123,7 +123,9 @@ class QueryIterator:
         self.__seek_to_offset()
 
     def __set_up_collection_id(self):
-        res = self._conn.describe_collection(self._collection_name)
+        res = self._conn.describe_collection(
+            self._collection_name, metadata=self._kwargs.get("metadata")
+        )
         self._collection_id = res[COLLECTION_ID]
 
     def __seek_to_offset(self):
@@ -524,7 +526,9 @@ class SearchIterator:
         self.__init_search_iterator()
 
     def __set_up_collection_id(self):
-        res = self._conn.describe_collection(self._collection_name)
+        res = self._conn.describe_collection(
+            self._collection_name, metadata=self._kwargs.get("metadata")
+        )
         self._collection_id = res[COLLECTION_ID]
 
     def __init_search_iterator(self):

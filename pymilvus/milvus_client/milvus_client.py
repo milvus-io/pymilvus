@@ -17,6 +17,7 @@ from pymilvus.client.types import (
     SegmentInfo,
 )
 from pymilvus.client.utils import (
+    construct_grpc_metadata,
     convert_struct_fields_to_user_format,
     get_params,
     is_vector_type,
@@ -79,8 +80,13 @@ class MilvusClient(BaseMilvusClient):
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
     def _get_connection(self):
-        """Get the connection handler wrapped with db_name injection."""
-        return connections._fetch_handler(self._using, self._db_name)
+        """Get the connection handler."""
+        return connections._fetch_handler(self._using)
+
+    def _get_metadata(self, **kwargs):
+        return construct_grpc_metadata(
+            db_name=self._db_name, client_request_id=kwargs.get("client_request_id")
+        )
 
     def create_collection(
         self,
@@ -150,7 +156,13 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
-        conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
+        conn.create_collection(
+            collection_name,
+            schema,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
         index_params = IndexParams()
         index_params.add_index(vector_field_name, index_type="AUTOINDEX", metric_type=metric_type)
@@ -186,6 +198,7 @@ class MilvusClient(BaseMilvusClient):
             index_param.get_index_configs(),
             timeout=timeout,
             index_name=index_param.index_name,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -232,7 +245,12 @@ class MilvusClient(BaseMilvusClient):
         # Insert into the collection.
         try:
             res = conn.insert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
+                collection_name,
+                data,
+                partition_name=partition_name,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
         except Exception as ex:
             raise ex from ex
@@ -291,7 +309,12 @@ class MilvusClient(BaseMilvusClient):
         # Upsert into the collection.
         try:
             res = conn.upsert_rows(
-                collection_name, data, partition_name=partition_name, timeout=timeout, **kwargs
+                collection_name,
+                data,
+                partition_name=partition_name,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
         except Exception as ex:
             raise ex from ex
@@ -364,6 +387,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             output_fields=output_fields,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -428,6 +452,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             ranker=ranker,
             highlighter=highlighter,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -469,7 +494,9 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
 
         if ids:
-            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
+            schema_dict, _ = conn._get_schema(
+                collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+            )
             filter = self._pack_pks_expr(schema_dict, ids)
 
         if not output_fields:
@@ -482,6 +509,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             timeout=timeout,
             expr_params=kwargs.pop("filter_params", {}),
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -501,7 +529,9 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         # set up schema for iterator
-        schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        schema_dict = conn.describe_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
         return QueryIterator(
             connection=conn,
@@ -513,6 +543,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             schema=schema_dict,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -590,6 +621,7 @@ class MilvusClient(BaseMilvusClient):
                 partition_names=partition_names,
                 anns_field=anns_field or "",
                 round_decimal=round_decimal,
+                metadata=self._get_metadata(**kwargs),
                 **kwargs,
             )
         except ServerVersionIncompatibleException:
@@ -601,7 +633,9 @@ class MilvusClient(BaseMilvusClient):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
         # set up schema for iterator
-        schema_dict = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        schema_dict = conn.describe_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
         # if anns_field is not provided
         # if only one vector field, use to search
         # if multiple vector fields, raise exception and abort
@@ -633,7 +667,7 @@ class MilvusClient(BaseMilvusClient):
         if search_params is None:
             search_params = {}
         if METRIC_TYPE not in search_params:
-            indexes = conn.list_indexes(collection_name)
+            indexes = conn.list_indexes(collection_name, metadata=self._get_metadata(**kwargs))
             for index in indexes:
                 if anns_field == index.index_name:
                     params = index.params
@@ -661,6 +695,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             round_decimal=round_decimal,
             schema=schema_dict,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -696,7 +731,9 @@ class MilvusClient(BaseMilvusClient):
             return []
 
         conn = self._get_connection()
-        schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
+        schema_dict, _ = conn._get_schema(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
         if not output_fields:
             output_fields = ["*"]
@@ -708,6 +745,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -772,7 +810,9 @@ class MilvusClient(BaseMilvusClient):
         expr = ""
         conn = self._get_connection()
         if len(pks) > 0:
-            schema_dict, _ = conn._get_schema(collection_name, timeout=timeout, **kwargs)
+            schema_dict, _ = conn._get_schema(
+                collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+            )
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
             if not isinstance(filter, str):
@@ -786,6 +826,7 @@ class MilvusClient(BaseMilvusClient):
             partition_name=partition_name,
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
         if res.primary_keys:
@@ -797,9 +838,13 @@ class MilvusClient(BaseMilvusClient):
 
         return OmitZeroDict({"delete_count": res.delete_count, "cost": res.cost})
 
-    def get_collection_stats(self, collection_name: str, timeout: Optional[float] = None) -> Dict:
+    def get_collection_stats(
+        self, collection_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
         conn = self._get_connection()
-        stats = conn.get_collection_stats(collection_name, timeout=timeout)
+        stats = conn.get_collection_stats(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs)
+        )
         result = {stat.key: stat.value for stat in stats}
         if "row_count" in result:
             result["row_count"] = int(result["row_count"])
@@ -807,7 +852,9 @@ class MilvusClient(BaseMilvusClient):
 
     def describe_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        result = conn.describe_collection(collection_name, timeout=timeout, **kwargs)
+        result = conn.describe_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
         # Convert internal struct_array_fields to user-friendly format
         if isinstance(result, dict) and "struct_array_fields" in result:
             converted_fields = convert_struct_fields_to_user_format(result["struct_array_fields"])
@@ -819,20 +866,26 @@ class MilvusClient(BaseMilvusClient):
 
     def has_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        return conn.has_collection(collection_name, timeout=timeout, **kwargs)
+        return conn.has_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def list_collections(self, **kwargs):
         conn = self._get_connection()
-        return conn.list_collections(**kwargs)
+        return conn.list_collections(metadata=self._get_metadata(**kwargs), **kwargs)
 
     def drop_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Delete the collection stored in this object"""
         conn = self._get_connection()
-        conn.drop_collection(collection_name, timeout=timeout, **kwargs)
+        conn.drop_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        conn.truncate_collection(collection_name, timeout=timeout, **kwargs)
+        conn.truncate_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def rename_collection(
         self,
@@ -843,7 +896,14 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = self._get_connection()
-        conn.rename_collections(old_name, new_name, target_db, timeout=timeout, **kwargs)
+        conn.rename_collections(
+            old_name,
+            new_name,
+            target_db,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def _create_collection_with_schema(
         self,
@@ -858,7 +918,13 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         if "consistency_level" not in kwargs:
             kwargs["consistency_level"] = DEFAULT_CONSISTENCY_LEVEL
-        conn.create_collection(collection_name, schema, timeout=timeout, **kwargs)
+        conn.create_collection(
+            collection_name,
+            schema,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
         if index_params:
             self.create_index(collection_name, index_params, timeout=timeout)
@@ -870,11 +936,15 @@ class MilvusClient(BaseMilvusClient):
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
         conn = self._get_connection()
-        conn.load_collection(collection_name, timeout=timeout, **kwargs)
+        conn.load_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def release_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        conn.release_collection(collection_name, timeout=timeout, **kwargs)
+        conn.release_collection(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def get_load_state(
         self,
@@ -888,13 +958,24 @@ class MilvusClient(BaseMilvusClient):
         if partition_name:
             partition_names = [partition_name]
         try:
-            state = conn.get_load_state(collection_name, partition_names, timeout=timeout, **kwargs)
+            state = conn.get_load_state(
+                collection_name,
+                partition_names,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
+            )
         except Exception as ex:
             raise ex from ex
 
         ret = {"state": state}
         if state == LoadState.Loading:
-            progress = conn.get_loading_progress(collection_name, partition_names, timeout=timeout)
+            progress = conn.get_loading_progress(
+                collection_name,
+                partition_names,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+            )
             ret["progress"] = progress
 
         return ret
@@ -902,7 +983,13 @@ class MilvusClient(BaseMilvusClient):
     def refresh_load(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         kwargs.pop("_refresh", None)
         conn = self._get_connection()
-        conn.load_collection(collection_name, timeout=timeout, _refresh=True, **kwargs)
+        conn.load_collection(
+            collection_name,
+            timeout=timeout,
+            _refresh=True,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         """List all indexes of collection. If `field_name` is not specified,
@@ -919,7 +1006,9 @@ class MilvusClient(BaseMilvusClient):
         :rtype: str list
         """
         conn = self._get_connection()
-        indexes = conn.list_indexes(collection_name, **kwargs)
+        indexes = conn.list_indexes(
+            collection_name, metadata=self._get_metadata(**kwargs), **kwargs
+        )
         index_name_list = []
         for index in indexes:
             if not index:
@@ -932,13 +1021,26 @@ class MilvusClient(BaseMilvusClient):
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.drop_index(collection_name, "", index_name, timeout=timeout, **kwargs)
+        conn.drop_index(
+            collection_name,
+            "",
+            index_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def describe_index(
         self, collection_name: str, index_name: str, timeout: Optional[float] = None, **kwargs
     ) -> Dict:
         conn = self._get_connection()
-        return conn.describe_index(collection_name, index_name, timeout=timeout, **kwargs)
+        return conn.describe_index(
+            collection_name,
+            index_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def alter_index_properties(
         self,
@@ -950,7 +1052,12 @@ class MilvusClient(BaseMilvusClient):
     ):
         conn = self._get_connection()
         conn.alter_index_properties(
-            collection_name, index_name, properties=properties, timeout=timeout, **kwargs
+            collection_name,
+            index_name,
+            properties=properties,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def drop_index_properties(
@@ -963,7 +1070,12 @@ class MilvusClient(BaseMilvusClient):
     ):
         conn = self._get_connection()
         conn.drop_index_properties(
-            collection_name, index_name, property_keys=property_keys, timeout=timeout, **kwargs
+            collection_name,
+            index_name,
+            property_keys=property_keys,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def alter_collection_properties(
@@ -974,6 +1086,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             properties=properties,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -986,7 +1099,11 @@ class MilvusClient(BaseMilvusClient):
     ):
         conn = self._get_connection()
         conn.drop_collection_properties(
-            collection_name, property_keys=property_keys, timeout=timeout, **kwargs
+            collection_name,
+            property_keys=property_keys,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def alter_collection_field(
@@ -1003,6 +1120,7 @@ class MilvusClient(BaseMilvusClient):
             field_name=field_name,
             field_params=field_params,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1042,6 +1160,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             field_schema,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1066,6 +1185,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             function,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1097,6 +1217,7 @@ class MilvusClient(BaseMilvusClient):
             function_name,
             function,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1121,6 +1242,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             function_name,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1128,25 +1250,45 @@ class MilvusClient(BaseMilvusClient):
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.create_partition(collection_name, partition_name, timeout=timeout, **kwargs)
+        conn.create_partition(
+            collection_name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def drop_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.drop_partition(collection_name, partition_name, timeout=timeout, **kwargs)
+        conn.drop_partition(
+            collection_name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def has_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
     ) -> bool:
         conn = self._get_connection()
-        return conn.has_partition(collection_name, partition_name, timeout=timeout, **kwargs)
+        return conn.has_partition(
+            collection_name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def list_partitions(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         conn = self._get_connection()
-        return conn.list_partitions(collection_name, timeout=timeout, **kwargs)
+        return conn.list_partitions(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def load_partitions(
         self,
@@ -1159,7 +1301,13 @@ class MilvusClient(BaseMilvusClient):
             partition_names = [partition_names]
 
         conn = self._get_connection()
-        conn.load_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
+        conn.load_partitions(
+            collection_name,
+            partition_names,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def release_partitions(
         self,
@@ -1171,7 +1319,13 @@ class MilvusClient(BaseMilvusClient):
         if isinstance(partition_names, str):
             partition_names = [partition_names]
         conn = self._get_connection()
-        conn.release_partitions(collection_name, partition_names, timeout=timeout, **kwargs)
+        conn.release_partitions(
+            collection_name,
+            partition_names,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def get_partition_stats(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
@@ -1180,7 +1334,13 @@ class MilvusClient(BaseMilvusClient):
         if not isinstance(partition_name, str):
             msg = f"wrong type of argument 'partition_name', str expected, got '{type(partition_name).__name__}'"
             raise TypeError(msg)
-        ret = conn.get_partition_stats(collection_name, partition_name, timeout=timeout, **kwargs)
+        ret = conn.get_partition_stats(
+            collection_name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
         result = {stat.key: stat.value for stat in ret}
         if "row_count" in result:
             result["row_count"] = int(result["row_count"])
@@ -1188,11 +1348,15 @@ class MilvusClient(BaseMilvusClient):
 
     def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        return conn.create_user(user_name, password, timeout=timeout, **kwargs)
+        return conn.create_user(
+            user_name, password, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def drop_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        return conn.delete_user(user_name, timeout=timeout, **kwargs)
+        return conn.delete_user(
+            user_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def update_password(
         self,
@@ -1204,19 +1368,28 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = self._get_connection()
-        conn.update_password(user_name, old_password, new_password, timeout=timeout, **kwargs)
+        conn.update_password(
+            user_name,
+            old_password,
+            new_password,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
         if reset_connection:
             conn._setup_authorization_interceptor(user_name, new_password, None)
             conn._setup_grpc_channel()
 
     def list_users(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        return conn.list_usernames(timeout=timeout, **kwargs)
+        return conn.list_usernames(timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         try:
-            res = conn.select_one_user(user_name, True, timeout=timeout, **kwargs)
+            res = conn.select_one_user(
+                user_name, True, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+            )
         except Exception as ex:
             raise ex from ex
         if res.groups:
@@ -1226,29 +1399,43 @@ class MilvusClient(BaseMilvusClient):
 
     def grant_role(self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        conn.add_user_to_role(user_name, role_name, timeout=timeout, **kwargs)
+        conn.add_user_to_role(
+            user_name, role_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def revoke_role(
         self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.remove_user_from_role(user_name, role_name, timeout=timeout, **kwargs)
+        conn.remove_user_from_role(
+            user_name, role_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        conn.create_role(role_name, timeout=timeout, **kwargs)
+        conn.create_role(
+            role_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def drop_role(
         self, role_name: str, force_drop: bool = False, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.drop_role(role_name, force_drop=force_drop, timeout=timeout, **kwargs)
+        conn.drop_role(
+            role_name,
+            force_drop=force_drop,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
         try:
-            res = conn.select_grant_for_one_role(role_name, db_name, timeout=timeout, **kwargs)
+            res = conn.select_grant_for_one_role(
+                role_name, db_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+            )
         except Exception as ex:
             raise ex from ex
         ret = {}
@@ -1259,7 +1446,9 @@ class MilvusClient(BaseMilvusClient):
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
         try:
-            res = conn.select_all_role(False, timeout=timeout, **kwargs)
+            res = conn.select_all_role(
+                False, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+            )
         except Exception as ex:
             raise ex from ex
 
@@ -1278,7 +1467,14 @@ class MilvusClient(BaseMilvusClient):
     ):
         conn = self._get_connection()
         conn.grant_privilege(
-            role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
+            role_name,
+            object_type,
+            object_name,
+            privilege,
+            db_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def revoke_privilege(
@@ -1293,7 +1489,14 @@ class MilvusClient(BaseMilvusClient):
     ):
         conn = self._get_connection()
         conn.revoke_privilege(
-            role_name, object_type, object_name, privilege, db_name, timeout=timeout, **kwargs
+            role_name,
+            object_type,
+            object_name,
+            privilege,
+            db_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def grant_privilege_v2(
@@ -1327,6 +1530,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             db_name=db_name,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1361,6 +1565,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name,
             db_name=db_name,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1368,27 +1573,35 @@ class MilvusClient(BaseMilvusClient):
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.create_alias(collection_name, alias, timeout=timeout, **kwargs)
+        conn.create_alias(
+            collection_name, alias, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def drop_alias(self, alias: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        conn.drop_alias(alias, timeout=timeout, **kwargs)
+        conn.drop_alias(alias, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def alter_alias(
         self, collection_name: str, alias: str, timeout: Optional[float] = None, **kwargs
     ):
         conn = self._get_connection()
-        conn.alter_alias(collection_name, alias, timeout=timeout, **kwargs)
+        conn.alter_alias(
+            collection_name, alias, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def describe_alias(self, alias: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
-        return conn.describe_alias(alias, timeout=timeout, **kwargs)
+        return conn.describe_alias(
+            alias, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def list_aliases(
         self, collection_name: str = "", timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         conn = self._get_connection()
-        return conn.list_aliases(collection_name, timeout=timeout, **kwargs)
+        return conn.list_aliases(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     # deprecated same to use_database
     def using_database(self, db_name: str, **kwargs):
@@ -1406,27 +1619,35 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = self._get_connection()
-        conn.create_database(db_name=db_name, properties=properties, timeout=timeout, **kwargs)
+        conn.create_database(
+            db_name=db_name,
+            properties=properties,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def drop_database(self, db_name: str, **kwargs):
         conn = self._get_connection()
-        conn.drop_database(db_name, **kwargs)
+        conn.drop_database(db_name, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def list_databases(self, timeout: Optional[float] = None, **kwargs) -> List[str]:
         conn = self._get_connection()
-        return conn.list_database(timeout=timeout, **kwargs)
+        return conn.list_database(timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def describe_database(self, db_name: str, **kwargs) -> dict:
         conn = self._get_connection()
-        return conn.describe_database(db_name, **kwargs)
+        return conn.describe_database(db_name, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def alter_database_properties(self, db_name: str, properties: dict, **kwargs):
         conn = self._get_connection()
-        conn.alter_database(db_name, properties, **kwargs)
+        conn.alter_database(db_name, properties, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def drop_database_properties(self, db_name: str, property_keys: List[str], **kwargs):
         conn = self._get_connection()
-        conn.drop_database_properties(db_name, property_keys, **kwargs)
+        conn.drop_database_properties(
+            db_name, property_keys, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def flush(
         self,
@@ -1439,7 +1660,7 @@ class MilvusClient(BaseMilvusClient):
 
         Args:
             collection_name(``string``): The name of collection.
-            timeout (float): an optional duration of time in seconds to allow for the RPCs.
+            timeout (float): an optional duration of time in seconds to allow for the RPC.
                 If timeout is not set, the client keeps waiting until the server
                 responds or an error occurs.
 
@@ -1447,7 +1668,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        conn.flush([collection_name], timeout=timeout, **kwargs)
+        conn.flush(
+            [collection_name], timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def compact(
         self,
@@ -1475,7 +1698,12 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.compact(
-            collection_name, is_clustering=is_clustering, is_l0=is_l0, timeout=timeout, **kwargs
+            collection_name,
+            is_clustering=is_clustering,
+            is_l0=is_l0,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
         )
 
     def get_compaction_state(
@@ -1499,7 +1727,9 @@ class MilvusClient(BaseMilvusClient):
             and "Completed".
         """
         conn = self._get_connection()
-        result = conn.get_compaction_state(job_id, timeout=timeout, **kwargs)
+        result = conn.get_compaction_state(
+            job_id, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
         return result.state_name
 
     def get_server_version(
@@ -1521,7 +1751,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong
         """
         conn = self._get_connection()
-        return conn.get_server_version(timeout=timeout, **kwargs)
+        return conn.get_server_version(
+            timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def create_privilege_group(
         self,
@@ -1541,7 +1773,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        conn.create_privilege_group(group_name, timeout=timeout, **kwargs)
+        conn.create_privilege_group(
+            group_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def drop_privilege_group(
         self,
@@ -1561,7 +1795,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        conn.drop_privilege_group(group_name, timeout=timeout, **kwargs)
+        conn.drop_privilege_group(
+            group_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def list_privilege_groups(
         self,
@@ -1582,7 +1818,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        res = conn.list_privilege_groups(timeout=timeout, **kwargs)
+        res = conn.list_privilege_groups(
+            timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
         ret = []
         for g in res.groups:
             ret.append({"privilege_group": g.privilege_group, "privileges": g.privileges})
@@ -1609,7 +1847,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        conn.add_privileges_to_group(group_name, privileges, timeout=timeout, **kwargs)
+        conn.add_privileges_to_group(
+            group_name, privileges, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def remove_privileges_from_group(
         self,
@@ -1631,7 +1871,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        conn.remove_privileges_from_group(group_name, privileges, timeout=timeout, **kwargs)
+        conn.remove_privileges_from_group(
+            group_name, privileges, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def create_resource_group(self, name: str, timeout: Optional[float] = None, **kwargs):
         """Create a resource group
@@ -1643,7 +1885,9 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.create_resource_group(name, timeout, **kwargs)
+        return conn.create_resource_group(
+            name, timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def update_resource_groups(
         self,
@@ -1660,7 +1904,7 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.update_resource_groups(configs, timeout)
+        return conn.update_resource_groups(configs, timeout, metadata=self._get_metadata())
 
     def drop_resource_group(
         self,
@@ -1677,7 +1921,7 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.drop_resource_group(name, timeout)
+        return conn.drop_resource_group(name, timeout, metadata=self._get_metadata())
 
     def describe_resource_group(self, name: str, timeout: Optional[float] = None):
         """Drop a resource group
@@ -1692,7 +1936,7 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.describe_resource_group(name, timeout)
+        return conn.describe_resource_group(name, timeout, metadata=self._get_metadata())
 
     def list_resource_groups(self, timeout: Optional[float] = None):
         """list all resource group names
@@ -1705,7 +1949,7 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()
-        return conn.list_resource_groups(timeout)
+        return conn.list_resource_groups(timeout, metadata=self._get_metadata())
 
     def transfer_replica(
         self,
@@ -1729,7 +1973,12 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.transfer_replica(
-            source_group, target_group, collection_name, num_replicas, timeout
+            source_group,
+            target_group,
+            collection_name,
+            num_replicas,
+            timeout,
+            metadata=self._get_metadata(),
         )
 
     def describe_replica(
@@ -1746,7 +1995,9 @@ class MilvusClient(BaseMilvusClient):
             List[ReplicaInfo]: All the replica information.
         """
         conn = self._get_connection()
-        return conn.describe_replica(collection_name, timeout=timeout, **kwargs)
+        return conn.describe_replica(
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def run_analyzer(
         self,
@@ -1777,6 +2028,7 @@ class MilvusClient(BaseMilvusClient):
             field_name=field_name,
             analyzer_names=analyzer_names,
             timeout=timeout,
+            metadata=self._get_metadata(),
         )
 
     def update_replicate_configuration(
@@ -1849,6 +2101,7 @@ class MilvusClient(BaseMilvusClient):
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1859,7 +2112,9 @@ class MilvusClient(BaseMilvusClient):
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
         """
-        self._get_connection().flush_all(timeout=timeout, **kwargs)
+        self._get_connection().flush_all(
+            timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def get_flush_all_state(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Get the flush all state.
@@ -1871,7 +2126,9 @@ class MilvusClient(BaseMilvusClient):
         Returns:
             bool: True if flush all operation is completed, False otherwise.
         """
-        return self._get_connection().get_flush_all_state(timeout=timeout, **kwargs)
+        return self._get_connection().get_flush_all_state(
+            timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def list_loaded_segments(
         self,
@@ -1890,7 +2147,7 @@ class MilvusClient(BaseMilvusClient):
             List[LoadedSegmentInfo]: A list of loaded segment information.
         """
         infos = self._get_connection().get_query_segment_info(
-            collection_name, timeout=timeout, **kwargs
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
         )
         return [
             LoadedSegmentInfo(
@@ -1924,7 +2181,7 @@ class MilvusClient(BaseMilvusClient):
             List[SegmentInfo]: A list of persistent segment information.
         """
         infos = self._get_connection().get_persistent_segment_infos(
-            collection_name, timeout=timeout, **kwargs
+            collection_name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
         )
         return [
             SegmentInfo(
@@ -1956,7 +2213,9 @@ class MilvusClient(BaseMilvusClient):
         Returns:
             CompactionPlans: The compaction plans for the specified job.
         """
-        return self._get_connection().get_compaction_plans(job_id, timeout=timeout, **kwargs)
+        return self._get_connection().get_compaction_plans(
+            job_id, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:
         state_dict = self.get_load_state(collection_name, timeout=timeout)
@@ -2009,7 +2268,11 @@ class MilvusClient(BaseMilvusClient):
             remaining_timeout = None if timeout is None else timeout - elapsed
             conn = self._get_connection()
             conn.wait_for_creating_index(
-                collection_name, index_name, timeout=remaining_timeout, **kwargs
+                collection_name,
+                index_name,
+                timeout=remaining_timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
 
     def _wait_for_compaction_with_cancel(
@@ -2030,7 +2293,12 @@ class MilvusClient(BaseMilvusClient):
             else:
                 remaining_timeout = None
 
-            state = conn.get_compaction_state(compaction_id, timeout=remaining_timeout, **kwargs)
+            state = conn.get_compaction_state(
+                compaction_id,
+                timeout=remaining_timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
+            )
             if state.state == 2:
                 break
             if state.state == 3:
@@ -2147,6 +2415,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             target_size=size_mb,
             timeout=remaining_timeout(),
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 

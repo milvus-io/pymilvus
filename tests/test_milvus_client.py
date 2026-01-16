@@ -60,12 +60,11 @@ class TestMilvusClient:
     def test_connection_reuse_with_db_name(self):
         """Test that clients with different db_names share the same connection but have isolated db_name contexts."""
         from pymilvus.client.grpc_handler import GrpcHandler
-        from pymilvus.client.utils import DbNameInjector
         
         mock_handler = MagicMock(spec=GrpcHandler)
         mock_handler.get_server_type.return_value = "milvus"
         
-        # Mock list_collections to capture kwargs and return db_name from kwargs
+        # Mock list_collections to capture kwargs
         captured_kwargs = []
         def mock_list_collections(**kwargs):
             captured_kwargs.append(kwargs.copy())
@@ -74,10 +73,8 @@ class TestMilvusClient:
         
         with patch("pymilvus.orm.connections.Connections.connect", return_value=None), \
              patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            # Setup mock to return DbNameInjector wrapper
-            def fetch_handler_side_effect(alias, db_name=""):
-                return DbNameInjector(mock_handler, db_name)
-            mock_fetch.side_effect = fetch_handler_side_effect
+            # Setup mock to return raw handler
+            mock_fetch.return_value = mock_handler
             
             # Create two clients with different db_names
             client1 = MilvusClient(db_name="db1")
@@ -95,12 +92,18 @@ class TestMilvusClient:
             captured_kwargs.clear()
             client1.list_collections()
             assert len(captured_kwargs) == 1
-            assert captured_kwargs[0].get("db_name") == "db1"
+            # Verify metadata contains db_name=db1
+            metadata = captured_kwargs[0].get("metadata")
+            assert metadata is not None
+            assert ("dbname", "db1") in metadata
             
             captured_kwargs.clear()
             client2.list_collections()
             assert len(captured_kwargs) == 1
-            assert captured_kwargs[0].get("db_name") == "db2"
+            # Verify metadata contains db_name=db2
+            metadata = captured_kwargs[0].get("metadata")
+            assert metadata is not None
+            assert ("dbname", "db2") in metadata
             
             # Test use_database() updates only that client's db_name
             client1.use_database("db3")
@@ -109,7 +112,10 @@ class TestMilvusClient:
             
             captured_kwargs.clear()
             client1.list_collections()
-            assert captured_kwargs[0].get("db_name") == "db3"
+            # Verify metadata contains db_name=db3
+            metadata = captured_kwargs[0].get("metadata")
+            assert metadata is not None
+            assert ("dbname", "db3") in metadata
 
     @pytest.mark.parametrize(
         "data_type",

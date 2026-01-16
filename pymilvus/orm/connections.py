@@ -20,7 +20,6 @@ from urllib import parse
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
-from pymilvus.client.utils import AsyncDbNameInjector, DbNameInjector
 from pymilvus.exceptions import (
     ConnectionConfigException,
     ConnectionNotExistException,
@@ -187,7 +186,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             alias_config = {
                 "address": addr,
                 "user": config.get("user", ""),
-                "db_name": config.get("db_name", "default"),
+                "db_name": config.get("db_name", ""),
             }
 
             if parsed_uri is not None and parsed_uri.scheme == "https":
@@ -267,7 +266,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         alias: str = Config.MILVUS_CONN_ALIAS,
         user: str = "",
         password: str = "",
-        db_name: str = "default",
+        db_name: str = "",
         token: str = "",
         _async: bool = False,
         **kwargs,
@@ -411,8 +410,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 # 3. If db_name is empty string and URI has no path -> use "default"
                 if db_name == "":
                     group = [segment for segment in parsed_uri.path.split("/") if segment]
-                    # Use first path segment if group exists and fall back to "default" if empty
-                    db_name = group[0] if group else "default"
+                    # Use first path segment if group exists and fall back to "" if empty
+                    db_name = group[0] if group else ""
                 # If db_name is not empty (including "default", "test_db", etc.), keep it as-is
 
                 # Set secure=True if https scheme
@@ -526,7 +525,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         return alias in self._alias_handlers
 
     def _fetch_handler(
-        self, alias: str = Config.MILVUS_CONN_ALIAS, db_name: str = ""
+        self, alias: str = Config.MILVUS_CONN_ALIAS
     ) -> Union[GrpcHandler, AsyncGrpcHandler]:
         """Retrieves a GrpcHandler by alias."""
         if not isinstance(alias, str):
@@ -535,13 +534,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         conn = self._alias_handlers.get(alias, None)
         if conn is None:
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
-        config = self._alias_config.get(alias, {})
-        if not db_name:
-            db_name = config.get("db_name", "")
-
         if isinstance(conn, AsyncGrpcHandler):
-            return AsyncDbNameInjector(conn, db_name)
-        return DbNameInjector(conn, db_name)
+            return conn
+        return conn
 
 
 # Singleton Mode in Python

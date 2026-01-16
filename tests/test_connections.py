@@ -55,7 +55,7 @@ class TestConnect:
 
     def test_connect_with_default_config(self):
         alias = "default"
-        default_addr = {'address': 'localhost:19530', 'user': '', 'db_name': 'default'}
+        default_addr = {'address': 'localhost:19530', 'user': '', 'db_name': ''}
 
         connections.disconnect(alias)
         assert connections.has_connection(alias) is False
@@ -75,14 +75,14 @@ class TestConnect:
             connections.disconnect(alias)
 
     @pytest.fixture(scope="function", params=[
-        ("", {"address": "localhost:19530", "user": "", "db_name": "default"}),
-        ("localhost", {"address": "localhost:19530", "user": "", "db_name": "default"}),
-        ("localhost:19530", {"address": "localhost:19530", "user": "", "db_name": "default"}),
-        ("abc@localhost", {"address": "localhost:19530", "user": "abc", "db_name": "default"}),
-        ("milvus_host", {"address": "milvus_host:19530", "user": "", "db_name": "default"}),
-        ("milvus_host:12012", {"address": "milvus_host:12012", "user": "", "db_name": "default"}),
-        ("abc@milvus_host:12012", {"address": "milvus_host:12012", "user": "abc", "db_name": "default"}),
-        ("abc@milvus_host", {"address": "milvus_host:19530", "user": "abc", "db_name": "default"}),
+        ("", {"address": "localhost:19530", "user": "", "db_name": ""}),
+        ("localhost", {"address": "localhost:19530", "user": "", "db_name": ""}),
+        ("localhost:19530", {"address": "localhost:19530", "user": "", "db_name": ""}),
+        ("abc@localhost", {"address": "localhost:19530", "user": "abc", "db_name": ""}),
+        ("milvus_host", {"address": "milvus_host:19530", "user": "", "db_name": ""}),
+        ("milvus_host:12012", {"address": "milvus_host:12012", "user": "", "db_name": ""}),
+        ("abc@milvus_host:12012", {"address": "milvus_host:12012", "user": "abc", "db_name": ""}),
+        ("abc@milvus_host", {"address": "milvus_host:19530", "user": "abc", "db_name": ""}),
     ])
     def test_connect_with_default_config_from_environment(self, env_result):
         os.environ[DefaultConfig.MILVUS_URI] = env_result[0]
@@ -100,7 +100,7 @@ class TestConnect:
 
         curr_addr = connections.get_connection_addr(DefaultConfig.MILVUS_CONN_ALIAS)
         assert env_result[1] != curr_addr
-        assert curr_addr == {"address":"test_host:19999", "user": "", "db_name": "default"}
+        assert curr_addr == {"address":"test_host:19999", "user": "", "db_name": ""}
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(DefaultConfig.MILVUS_CONN_ALIAS)
@@ -137,7 +137,7 @@ class TestConnect:
                 connections.connect(alias, **no_host_or_port, keep_alive=False)
 
         assert connections.has_connection(alias) is True
-        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": "", "db_name": "default"}
+        assert connections.get_connection_addr(alias) == {"address": "localhost:19530", "user": "", "db_name": ""}
 
         with mock.patch(f"{mock_prefix}.close", return_value=None):
             connections.remove_connection(alias)
@@ -353,16 +353,16 @@ class TestIssues:
                 config = {"alias": alias, "host": "localhost", "port": "19531", "user": "root", "password": 12345, "secure": True}
                 connections.connect(**config, keep_alive=False)
                 config = connections.get_connection_addr(alias)
-                assert config == {"address": 'localhost:19531', "user": 'root', "secure": True, "db_name": "default"}
+                assert config == {"address": 'localhost:19531', "user": 'root', "secure": True, "db_name": ""}
 
                 connections.add_connection(default={"host": "localhost", "port": 19531})
                 config = connections.get_connection_addr("default")
-                assert config == {"address": 'localhost:19531', "user": "", "db_name": "default"}
+                assert config == {"address": 'localhost:19531', "user": "", "db_name": ""}
 
                 connections.connect("default", user="root", password="12345", secure=True, keep_alive=False)
 
                 config = connections.get_connection_addr("default")
-                assert config == {"address": 'localhost:19531', 'user': 'root', 'secure': True, "db_name": "default"}
+                assert config == {"address": 'localhost:19531', 'user': 'root', 'secure': True, "db_name": ""}
                 connections.remove_connection("default")
 
     @pytest.mark.parametrize("uri, db_name, expected_db_name", [
@@ -379,7 +379,7 @@ class TestIssues:
         # Mixed scenarios: explicit db_name takes precedence over URI path
         ("http://localhost:19530/uri_db", "explicit_db", "explicit_db"),
         ("http://localhost:19530", "test_db", "test_db"),
-        ("http://localhost:19530", "", "default"),
+        ("http://localhost:19530", "", ""),
 
         # Multiple path segments - only first should be used as db_name
         ("http://localhost:19530/db1/collection1", "", "db1"),
@@ -426,7 +426,7 @@ class TestIssues:
             # Verify that GrpcHandler was initialized with the correct db_name
             mock_init.assert_called_once()
             call_args = mock_init.call_args
-            actual_db_name = call_args.kwargs.get("db_name", "default")
+            actual_db_name = call_args.kwargs.get("db_name", "")
 
             assert actual_db_name == expected_db_name, (
                 f"Expected db_name to be '{expected_db_name}', "
