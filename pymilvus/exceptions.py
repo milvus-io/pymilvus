@@ -246,9 +246,7 @@ class ExceptionsMessage:
     )
     MinHashFunctionIncorrectInputFieldType = "MinHash function input field must be VARCHAR."
     MinHashFunctionIncorrectOutputFieldType = "MinHash function output field must be BINARY_VECTOR."
-    MinHashFunctionInvalidDim = (
-        "MinHash function output field dim must be a multiple of 32."
-    )
+    MinHashFunctionInvalidDim = "MinHash function output field dim must be a multiple of 32."
     FunctionMissingInputField = "Function input field not found in collection schema."
     FunctionMissingOutputField = "Function output field not found in collection schema."
     UnknownFunctionType = "Unknown function type."

@@ -928,15 +928,11 @@ class Function:
         - Output field dim must be a multiple of 32 (dim = num_hashes * 32)
         """
         if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
-            raise ParamError(
-                message=ExceptionsMessage.MinHashFunctionIncorrectInputOutputCount
-            )
+            raise ParamError(message=ExceptionsMessage.MinHashFunctionIncorrectInputOutputCount)
 
         for field in schema.fields:
             if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
-                raise ParamError(
-                    message=ExceptionsMessage.MinHashFunctionIncorrectInputFieldType
-                )
+                raise ParamError(message=ExceptionsMessage.MinHashFunctionIncorrectInputFieldType)
             if field.name == self._output_field_names[0]:
                 if field.dtype != DataType.BINARY_VECTOR:
                     raise ParamError(
@@ -945,9 +941,7 @@ class Function:
                 # Check dim is a multiple of 32
                 dim = field.params.get("dim") if field.params else None
                 if dim is not None and dim % 32 != 0:
-                    raise ParamError(
-                        message=ExceptionsMessage.MinHashFunctionInvalidDim
-                    )
+                    raise ParamError(message=ExceptionsMessage.MinHashFunctionInvalidDim)
 
     def verify(self, schema: CollectionSchema):
         if self._type == FunctionType.BM25:
