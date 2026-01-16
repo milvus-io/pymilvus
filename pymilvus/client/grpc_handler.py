@@ -53,7 +53,6 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
-from .interceptor import _api_level_md
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -83,6 +82,7 @@ from .types import (
     get_extra_info,
 )
 from .utils import (
+    _api_level_md,
     check_invalid_binary_vector,
     check_status,
     get_server_type,
@@ -162,7 +162,6 @@ class GrpcHandler:
         self._log_level = None
         self._user = kwargs.get("user")
         self._set_authorization(**kwargs)
-        self._setup_db_interceptor(kwargs.get("db_name"))
         self._setup_grpc_channel()
         self.callbacks = []
         self._reconnect_handler = None
@@ -242,11 +241,11 @@ class GrpcHandler:
             self._channel = None
 
     def reset_db_name(self, db_name: str):
-        self._setup_db_interceptor(db_name)
-        self._setup_grpc_channel()
-        self._setup_identifier_interceptor(self._user)
-        if self._reconnect_handler is not None:
-            self._reconnect_handler.reset_db_name(db_name)
+        """Deprecated: db_name is now passed per-request via kwargs.
+
+        This method is kept for backward compatibility but does nothing.
+        Use MilvusClient.use_database() instead.
+        """
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
@@ -261,15 +260,6 @@ class GrpcHandler:
             values.append(authorization)
         if len(keys) > 0 and len(values) > 0:
             self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
-
-    def _setup_db_interceptor(self, db_name: str):
-        if db_name is None:
-            self._db_interceptor = None
-            self._db_name = ""
-        else:
-            check_pass_param(db_name=db_name)
-            self._db_name = db_name
-            self._db_interceptor = interceptor.header_adder_interceptor(["dbname"], [db_name])
 
     def _setup_grpc_channel(self):
         """Create a ddl grpc channel"""
@@ -322,8 +312,6 @@ class GrpcHandler:
             self._final_channel = grpc.intercept_channel(
                 self._final_channel, self._authorization_interceptor
             )
-        if self._db_interceptor:
-            self._final_channel = grpc.intercept_channel(self._final_channel, self._db_interceptor)
         if self._log_level:
             log_level_interceptor = interceptor.header_adder_interceptor(
                 ["log_level"], [self._log_level]
@@ -399,7 +387,7 @@ class GrpcHandler:
         )
         check_status(status)
         # Invalidate global schema cache
-        self._invalidate_schema(collection_name)
+        self._invalidate_schema(collection_name, db_name=kwargs.get("db_name"))
 
     @retry_on_rpc_failure()
     def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
@@ -661,7 +649,7 @@ class GrpcHandler:
     def _get_info(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         schema = kwargs.get("schema")
         if not schema:
-            schema = self.describe_collection(collection_name, timeout=timeout)
+            schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
 
         fields_info = schema.get("fields")
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -701,7 +689,7 @@ class GrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout)
+        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout, **kwargs)
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -731,20 +719,20 @@ class GrpcHandler:
         """
         cache = GlobalCache.schema
         endpoint = self.server_address
-        db_name = self._get_db_name()
+        db_name = kwargs.get("db_name", "")
 
         cached = cache.get(endpoint, db_name, collection_name)
         if cached is not None:
             return cached, cached.get("update_timestamp", 0)
 
         # Fetch from server and cache
-        schema = self.describe_collection(collection_name, timeout=timeout)
+        schema = self.describe_collection(collection_name, timeout=timeout, **kwargs)
         cache.set(endpoint, db_name, collection_name, schema)
         return schema, schema.get("update_timestamp", 0)
 
-    def _invalidate_schema(self, collection_name: str) -> None:
+    def _invalidate_schema(self, collection_name: str, db_name: str = "") -> None:
         """Invalidate cached schema for a collection."""
-        GlobalCache.schema.invalidate(self.server_address, self._get_db_name(), collection_name)
+        GlobalCache.schema.invalidate(self.server_address, db_name, collection_name)
 
     def _invalidate_db_schemas(self, db_name: str) -> None:
         """Invalidate all cached schemas for a database."""
@@ -953,7 +941,7 @@ class GrpcHandler:
         # Extract partial_update parameter from kwargs
         partial_update = kwargs.get("partial_update", False)
 
-        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout)
+        schema, schema_timestamp = self._get_schema(collection_name, timeout=timeout, **kwargs)
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)

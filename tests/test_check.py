@@ -130,11 +130,22 @@ class TestGenTS:
 
 class TestGetCommit:
     def test_get_commit(self):
-        s = get_commit("2.0.0rc9.dev22")
-        assert s == "290d76f"
+        from unittest.mock import patch
+        
+        with patch("pymilvus.client.subprocess.check_output") as mock_check_output:
+            # Mock success for short hash (target_num=22, so need at least 23 entries)
+            # Create a list where the 22nd element (index 22) is our target
+            mock_output = ["dummy"] * 30
+            mock_output[22] = "290d76f"
+            mock_check_output.return_value = "\n".join(mock_output).encode("ascii")
+            
+            s = get_commit("2.0.0rc9.dev22")
+            assert s == "290d76f"
 
-        s = get_commit("2.0.0rc8", False)
-        assert s == "c9f015a04058638a28e1d2a5b265147cda0b0a23"
+            # Mock success for long hash (target_num=0)
+            mock_check_output.return_value = b"c9f015a04058638a28e1d2a5b265147cda0b0a23\n"
+            s = get_commit("2.0.0rc8", False)
+            assert s == "c9f015a04058638a28e1d2a5b265147cda0b0a23"
 
     def test_version_re(self):
         version_info = r'((\d+)\.(\d+)\.(\d+))((rc)(\d+))?(\.dev(\d+))?'

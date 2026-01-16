@@ -55,7 +55,12 @@ class Partition:
 
         if not self._collection.has_partition(self.name, **kwargs):
             conn = self._get_connection()
-            conn.create_partition(self._collection.name, self.name, **kwargs)
+            conn.create_partition(
+                self._collection.name,
+                self.name,
+                metadata=self._collection._get_metadata(**kwargs),
+                **kwargs,
+            )
 
     def __repr__(self) -> str:
         return orjson.dumps(
@@ -135,7 +140,9 @@ class Partition:
         """
         conn = self._get_connection()
         stats = conn.get_partition_stats(
-            collection_name=self._collection.name, partition_name=self.name
+            collection_name=self._collection.name,
+            partition_name=self.name,
+            metadata=self._collection._get_metadata(),
         )
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
@@ -152,7 +159,12 @@ class Partition:
                 responds or an error occurs.
         """
         conn = self._get_connection()
-        conn.flush([self._collection.name], timeout=timeout, **kwargs)
+        conn.flush(
+            [self._collection.name],
+            timeout=timeout,
+            metadata=self._collection._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
         """Drop the partition, the same as Collection.drop_partition
@@ -173,7 +185,13 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
+        return conn.drop_partition(
+            self._collection.name,
+            self.name,
+            timeout=timeout,
+            metadata=self._collection._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def load(self, replica_number: Optional[int] = None, timeout: Optional[float] = None, **kwargs):
         """Load the partition data into memory.
@@ -205,6 +223,7 @@ class Partition:
             partition_names=[self.name],
             replica_number=replica_number,
             timeout=timeout,
+            metadata=self._collection._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -237,6 +256,7 @@ class Partition:
             collection_name=self._collection.name,
             partition_names=[self.name],
             timeout=timeout,
+            metadata=self._collection._get_metadata(**kwargs),
             **kwargs,
         )
 

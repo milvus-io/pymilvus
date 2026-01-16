@@ -53,7 +53,7 @@ def retry_on_schema_mismatch():
                                 f"[{func.__name__}] Schema mismatch detected, "
                                 f"invalidating cache and retrying: {e}"
                             )
-                            self._invalidate_schema(collection_name)
+                            self._invalidate_schema(collection_name, db_name=kwargs.get("db_name"))
                             continue  # retry once
                         raise e from e
                 return None  # unreachable, for type checker
@@ -71,7 +71,7 @@ def retry_on_schema_mismatch():
                             f"[{func.__name__}] Schema mismatch detected, "
                             f"invalidating cache and retrying: {e}"
                         )
-                        self._invalidate_schema(collection_name)
+                        self._invalidate_schema(collection_name, db_name=kwargs.get("db_name"))
                         continue  # retry once
                     raise e from e
             return None  # unreachable, for type checker

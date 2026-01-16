@@ -13,6 +13,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import List, Mapping, Optional
 
+from pymilvus.client import utils
 from pymilvus.client.types import (
     BulkInsertState,
     ResourceGroupConfig,
@@ -175,6 +176,12 @@ def _get_connection(alias: str):
     return connections._fetch_handler(alias)
 
 
+def _get_metadata(using: str = "default"):
+    info = connections.get_connection_addr(using)
+    db_name = info.get("db_name", "")
+    return utils.construct_grpc_metadata(db_name=db_name)
+
+
 def loading_progress(
     collection_name: str,
     partition_names: Optional[List[str]] = None,
@@ -215,7 +222,7 @@ def loading_progress(
         {'loading_progress': '100%'}
     """
     progress = _get_connection(using).get_loading_progress(
-        collection_name, partition_names, timeout=timeout
+        collection_name, partition_names, timeout=timeout, metadata=_get_metadata(using)
     )
     return {
         "loading_progress": f"{progress:.0f}%",
@@ -262,7 +269,9 @@ def load_state(
         >>> collection.load(_async=True)
         >>> assert utility.load_state("test_load_state") == LoadState.Loaded
     """
-    return _get_connection(using).get_load_state(collection_name, partition_names, timeout=timeout)
+    return _get_connection(using).get_load_state(
+        collection_name, partition_names, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def wait_for_loading_complete(
@@ -301,9 +310,11 @@ def wait_for_loading_complete(
         >>> utility.wait_for_loading_complete("test_collection")
     """
     if not partition_names or len(partition_names) == 0:
-        return _get_connection(using).wait_for_loading_collection(collection_name, timeout=timeout)
+        return _get_connection(using).wait_for_loading_collection(
+            collection_name, timeout=timeout, metadata=_get_metadata(using)
+        )
     return _get_connection(using).wait_for_loading_partitions(
-        collection_name, partition_names, timeout=timeout
+        collection_name, partition_names, timeout=timeout, metadata=_get_metadata(using)
     )
 
 
@@ -356,7 +367,10 @@ def index_building_progress(
         >>> utility.index_building_progress("test_collection", c.name)
     """
     return _get_connection(using).get_index_build_progress(
-        collection_name=collection_name, index_name=index_name, timeout=timeout
+        collection_name=collection_name,
+        index_name=index_name,
+        timeout=timeout,
+        metadata=_get_metadata(using),
     )
 
 
@@ -408,7 +422,7 @@ def wait_for_index_building_complete(
 
     """
     return _get_connection(using).wait_for_creating_index(
-        collection_name, index_name, timeout=timeout
+        collection_name, index_name, timeout=timeout, metadata=_get_metadata(using)
     )[0]
 
 
@@ -431,7 +445,9 @@ def has_collection(collection_name: str, using: str = "default", timeout: Option
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
-    return _get_connection(using).has_collection(collection_name, timeout=timeout)
+    return _get_connection(using).has_collection(
+        collection_name, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def has_partition(
@@ -461,7 +477,9 @@ def has_partition(
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
-    return _get_connection(using).has_partition(collection_name, partition_name, timeout=timeout)
+    return _get_connection(using).has_partition(
+        collection_name, partition_name, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def drop_collection(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
@@ -487,7 +505,9 @@ def drop_collection(collection_name: str, timeout: Optional[float] = None, using
         >>> utility.has_collection("drop_collection_test")
         >>> False
     """
-    return _get_connection(using).drop_collection(collection_name, timeout=timeout)
+    return _get_connection(using).drop_collection(
+        collection_name, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def truncate_collection(
@@ -517,7 +537,9 @@ def truncate_collection(
         >>> collection.num_entities
         0
     """
-    return _get_connection(using).truncate_collection(collection_name, timeout=timeout)
+    return _get_connection(using).truncate_collection(
+        collection_name, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def rename_collection(
@@ -558,6 +580,7 @@ def rename_collection(
         new_name=new_collection_name,
         new_db_name=new_db_name,
         timeout=timeout,
+        metadata=_get_metadata(using),
     )
 
 
@@ -584,7 +607,7 @@ def list_collections(timeout: Optional[float] = None, using: str = "default") ->
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
-    return _get_connection(using).list_collections(timeout=timeout)
+    return _get_connection(using).list_collections(timeout=timeout, metadata=_get_metadata(using))
 
 
 def load_balance(
@@ -630,7 +653,12 @@ def load_balance(
     if sealed_segment_ids is None:
         sealed_segment_ids = []
     return _get_connection(using).load_balance(
-        collection_name, src_node_id, dst_node_ids, sealed_segment_ids, timeout=timeout
+        collection_name,
+        src_node_id,
+        dst_node_ids,
+        sealed_segment_ids,
+        timeout=timeout,
+        metadata=_get_metadata(using),
     )
 
 
@@ -666,7 +694,9 @@ def get_query_segment_info(
         >>> collection.load() # load collection to memory
         >>> res = utility.get_query_segment_info("test_get_segment_info")
     """
-    return _get_connection(using).get_query_segment_info(collection_name, timeout=timeout)
+    return _get_connection(using).get_query_segment_info(
+        collection_name, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def create_alias(
@@ -703,7 +733,9 @@ def create_alias(
         >>> utility.create_alias(collection.name, "alias")
         Status(code=0, message='')
     """
-    return _get_connection(using).create_alias(collection_name, alias, timeout=timeout)
+    return _get_connection(using).create_alias(
+        collection_name, alias, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "default"):
@@ -737,7 +769,7 @@ def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "defaul
         >>> utility.drop_alias("alias")
         Status(code=0, message='')
     """
-    return _get_connection(using).drop_alias(alias, timeout=timeout)
+    return _get_connection(using).drop_alias(alias, timeout=timeout, metadata=_get_metadata(using))
 
 
 def alter_alias(
@@ -781,7 +813,9 @@ def alter_alias(
         if the alias exists, return Status(code=0, message='')
         otherwise return Status(code=1, message='alias does not exist')
     """
-    return _get_connection(using).alter_alias(collection_name, alias, timeout=timeout)
+    return _get_connection(using).alter_alias(
+        collection_name, alias, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def list_aliases(collection_name: str, timeout: Optional[float] = None, using: str = "default"):
@@ -803,7 +837,7 @@ def list_aliases(collection_name: str, timeout: Optional[float] = None, using: s
         ['tom']
     """
     conn = _get_connection(using)
-    resp = conn.list_aliases(collection_name, timeout=timeout)
+    resp = conn.list_aliases(collection_name, timeout=timeout, metadata=_get_metadata(using))
     return resp["aliases"]
 
 
@@ -868,7 +902,12 @@ def do_bulk_insert(
         >>> print(task_id)
     """
     return _get_connection(using).do_bulk_insert(
-        collection_name, partition_name, files, timeout=timeout, **kwargs
+        collection_name,
+        partition_name,
+        files,
+        timeout=timeout,
+        metadata=_get_metadata(using),
+        **kwargs,
     )
 
 
@@ -895,7 +934,9 @@ def get_bulk_insert_state(
         ...     state.state == BulkInsertState.ImportFailedAndCleaned:
         >>>     print("task id:", state.task_id, "failed, reason:", state.failed_reason)
     """
-    return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
+    return _get_connection(using).get_bulk_insert_state(
+        task_id, timeout=timeout, metadata=_get_metadata(using), **kwargs
+    )
 
 
 def list_bulk_insert_tasks(
@@ -924,7 +965,7 @@ def list_bulk_insert_tasks(
         >>> print(tasks)
     """
     return _get_connection(using).list_bulk_insert_tasks(
-        limit, collection_name, timeout=timeout, **kwargs
+        limit, collection_name, timeout=timeout, metadata=_get_metadata(using), **kwargs
     )
 
 
@@ -954,7 +995,9 @@ def reset_password(
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).reset_password(user, old_password, new_password, timeout=timeout)
+    return _get_connection(using).reset_password(
+        user, old_password, new_password, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def create_user(
@@ -977,7 +1020,9 @@ def create_user(
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).create_user(user, password, timeout=timeout)
+    return _get_connection(using).create_user(
+        user, password, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def update_password(
@@ -1008,7 +1053,9 @@ def update_password(
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
+    return _get_connection(using).update_password(
+        user, old_password, new_password, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def delete_user(user: str, using: str = "default", timeout: Optional[float] = None):
@@ -1023,7 +1070,7 @@ def delete_user(user: str, using: str = "default", timeout: Optional[float] = No
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).delete_user(user, timeout=timeout)
+    return _get_connection(using).delete_user(user, timeout=timeout, metadata=_get_metadata(using))
 
 
 def list_usernames(using: str = "default", timeout: Optional[float] = None):
@@ -1037,7 +1084,7 @@ def list_usernames(using: str = "default", timeout: Optional[float] = None):
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).list_usernames(timeout=timeout)
+    return _get_connection(using).list_usernames(timeout=timeout, metadata=_get_metadata(using))
 
 
 def list_roles(include_user_info: bool, using: str = "default", timeout: Optional[float] = None):
@@ -1052,7 +1099,9 @@ def list_roles(include_user_info: bool, using: str = "default", timeout: Optiona
         >>> roles = utility.list_roles()
         >>> print(f"roles in Milvus: {roles}")
     """
-    return _get_connection(using).select_all_role(include_user_info, timeout=timeout)
+    return _get_connection(using).select_all_role(
+        include_user_info, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def list_user(
@@ -1074,7 +1123,9 @@ def list_user(
         >>> user = utility.list_user(username, include_role_info)
         >>> print(f"user info: {user}")
     """
-    return _get_connection(using).select_one_user(username, include_role_info, timeout=timeout)
+    return _get_connection(using).select_one_user(
+        username, include_role_info, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def list_users(include_role_info: bool, using: str = "default", timeout: Optional[float] = None):
@@ -1089,7 +1140,9 @@ def list_users(include_role_info: bool, using: str = "default", timeout: Optiona
         >>> users = utility.list_users(include_role_info)
         >>> print(f"users info: {users}")
     """
-    return _get_connection(using).select_all_user(include_role_info, timeout=timeout)
+    return _get_connection(using).select_all_user(
+        include_role_info, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def get_server_version(using: str = "default", timeout: Optional[float] = None) -> str:
@@ -1104,7 +1157,7 @@ def get_server_version(using: str = "default", timeout: Optional[float] = None) 
         >>> utility.get_server_version()
         >>> "2.2.0"
     """
-    return _get_connection(using).get_server_version(timeout=timeout)
+    return _get_connection(using).get_server_version(timeout=timeout, metadata=_get_metadata(using))
 
 
 def create_resource_group(
@@ -1120,7 +1173,9 @@ def create_resource_group(
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource groups in Milvus: {rgs}")
     """
-    return _get_connection(using).create_resource_group(name, timeout, **kwargs)
+    return _get_connection(using).create_resource_group(
+        name, timeout, metadata=_get_metadata(using), **kwargs
+    )
 
 
 def update_resource_groups(
@@ -1157,7 +1212,9 @@ def update_resource_groups(
         ... }
         >>> utility.update_resource_groups(configs)
     """
-    return _get_connection(using).update_resource_groups(configs, timeout)
+    return _get_connection(using).update_resource_groups(
+        configs, timeout, metadata=_get_metadata(using)
+    )
 
 
 def drop_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
@@ -1171,7 +1228,7 @@ def drop_resource_group(name: str, using: str = "default", timeout: Optional[flo
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource groups in Milvus: {rgs}")
     """
-    return _get_connection(using).drop_resource_group(name, timeout)
+    return _get_connection(using).drop_resource_group(name, timeout, metadata=_get_metadata(using))
 
 
 def describe_resource_group(name: str, using: str = "default", timeout: Optional[float] = None):
@@ -1184,7 +1241,9 @@ def describe_resource_group(name: str, using: str = "default", timeout: Optional
         >>> rgInfo = utility.list_resource_groups(name)
         >>> print(f"resource group info: {rgInfo}")
     """
-    return _get_connection(using).describe_resource_group(name, timeout)
+    return _get_connection(using).describe_resource_group(
+        name, timeout, metadata=_get_metadata(using)
+    )
 
 
 def list_resource_groups(using: str = "default", timeout: Optional[float] = None):
@@ -1198,7 +1257,7 @@ def list_resource_groups(using: str = "default", timeout: Optional[float] = None
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource group names: {rgs}")
     """
-    return _get_connection(using).list_resource_groups(timeout)
+    return _get_connection(using).list_resource_groups(timeout, metadata=_get_metadata(using))
 
 
 def transfer_node(
@@ -1222,7 +1281,9 @@ def transfer_node(
         >>> connections.connect()
         >>> rgs = utility.transfer_node(source_group, target_group, num_nodes)
     """
-    return _get_connection(using).transfer_node(source_group, target_group, num_nodes, timeout)
+    return _get_connection(using).transfer_node(
+        source_group, target_group, num_nodes, timeout, metadata=_get_metadata(using)
+    )
 
 
 def transfer_replica(
@@ -1250,7 +1311,12 @@ def transfer_replica(
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
     return _get_connection(using).transfer_replica(
-        source_group, target_group, collection_name, num_replicas, timeout
+        source_group,
+        target_group,
+        collection_name,
+        num_replicas,
+        timeout,
+        metadata=_get_metadata(using),
     )
 
 
@@ -1282,7 +1348,9 @@ def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs)
         >>> future = utility.flush_all(_async=True)
         >>> future.done() # flush_all finished
     """
-    return _get_connection(using).flush_all(timeout=timeout, **kwargs)
+    return _get_connection(using).flush_all(
+        timeout=timeout, metadata=_get_metadata(using), **kwargs
+    )
 
 
 def get_server_type(using: str = "default"):
@@ -1295,7 +1363,7 @@ def get_server_type(using: str = "default"):
     :return: The server type.
     :rtype: str
     """
-    return _get_connection(using).get_server_type()
+    return _get_connection(using).get_server_type(metadata=_get_metadata(using))
 
 
 def list_indexes(
@@ -1327,7 +1395,9 @@ def list_indexes(
     :return: The name list of all indexes.
     :rtype: str list
     """
-    indexes = _get_connection(using).list_indexes(collection_name, timeout, **kwargs)
+    indexes = _get_connection(using).list_indexes(
+        collection_name, timeout, metadata=_get_metadata(using), **kwargs
+    )
     field_name = kwargs.get("field_name")
     index_name_list = []
     for index in indexes:

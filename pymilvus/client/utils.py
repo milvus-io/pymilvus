@@ -1,6 +1,7 @@
 import datetime
 import importlib.util
 import struct
+import time
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -71,6 +72,56 @@ def check_status(status: common_pb2.Status):
 
 def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
+
+
+def current_time_ms() -> str:
+    """Get current time in milliseconds as string."""
+    return str(time.time_ns() // 1_000_000)
+
+
+def construct_grpc_metadata(
+    db_name: Optional[str] = None, client_request_id: Optional[str] = None
+) -> List[Tuple]:
+    """Construct gRPC metadata headers.
+
+    Args:
+        db_name: The database name to use for the request.
+        client_request_id: Optional client request ID.
+
+    Returns:
+        List of (key, value) tuples for gRPC metadata.
+    """
+    metadata = []
+    metadata.append(("client-request-unixmsec", current_time_ms()))
+
+    if db_name:
+        metadata.append(("dbname", db_name))
+
+    if client_request_id:
+        metadata.append(("client-request-id", client_request_id))
+
+    return metadata
+
+
+def _api_level_md(**kwargs) -> Optional[List[Tuple]]:
+    """Generate API-level gRPC metadata for each request.
+
+    If 'metadata' is already present in kwargs, it is returned directly.
+    Otherwise, it constructs metadata from 'db_name' and 'client_request_id' in kwargs.
+
+    Args:
+        **kwargs: May contain 'metadata', 'db_name', 'client_request_id' or 'client-request-id'.
+
+    Returns:
+        List of (key, value) tuples for gRPC metadata.
+    """
+    if "metadata" in kwargs and kwargs["metadata"] is not None:
+        return kwargs["metadata"]
+
+    db_name = kwargs.get("db_name")
+    client_request_id = kwargs.get("client-request-id", kwargs.get("client_request_id"))
+
+    return construct_grpc_metadata(db_name, client_request_id)
 
 
 def hybridts_to_unixtime(ts: int):

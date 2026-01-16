@@ -119,9 +119,11 @@ class Collection:
         self._num_shards = None
         conn = self._get_connection()
 
-        has = conn.has_collection(self._name, **kwargs)
+        has = conn.has_collection(self._name, metadata=self._get_metadata(**kwargs), **kwargs)
         if has:
-            resp = conn.describe_collection(self._name, **kwargs)
+            resp = conn.describe_collection(
+                self._name, metadata=self._get_metadata(**kwargs), **kwargs
+            )
             s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
@@ -151,7 +153,9 @@ class Collection:
                     kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
                 )
 
-                conn.create_collection(self._name, schema, **kwargs)
+                conn.create_collection(
+                    self._name, schema, metadata=self._get_metadata(**kwargs), **kwargs
+                )
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
@@ -174,6 +178,15 @@ class Collection:
 
     def _get_connection(self):
         return connections._fetch_handler(self._using)
+
+    def _get_metadata(self, **kwargs):
+        db_name = kwargs.get("db_name")
+        if db_name is None:
+            info = connections.get_connection_addr(self._using)
+            db_name = info.get("db_name", "")
+
+        request_id = kwargs.get("client_request_id", kwargs.get("client-request-id"))
+        return utils.construct_grpc_metadata(db_name=db_name, client_request_id=request_id)
 
     # TODO(SPARSE): support pd.SparseDtype
     @classmethod
@@ -200,8 +213,22 @@ class Collection:
 
         using = kwargs.get("using", Config.MILVUS_CONN_ALIAS)
         conn = _get_connection(using)
-        if conn.has_collection(name, **kwargs):
-            resp = conn.describe_collection(name, **kwargs)
+        if conn.has_collection(
+            name,
+            metadata=utils.construct_grpc_metadata(
+                db_name=connections.get_connection_addr(using).get("db_name", ""),
+                client_request_id=kwargs.get("client_request_id"),
+            ),
+            **kwargs,
+        ):
+            resp = conn.describe_collection(
+                name,
+                metadata=utils.construct_grpc_metadata(
+                    db_name=connections.get_connection_addr(using).get("db_name", ""),
+                    client_request_id=kwargs.get("client_request_id"),
+                ),
+                **kwargs,
+            )
             server_schema = CollectionSchema.construct_from_dict(resp)
             schema = server_schema
         else:
@@ -240,7 +267,7 @@ class Collection:
     def aliases(self) -> list:
         """List[str]: all the aliases of the collection."""
         conn = self._get_connection()
-        resp = conn.describe_collection(self._name)
+        resp = conn.describe_collection(self._name, metadata=self._get_metadata())
         return resp["aliases"]
 
     @property
@@ -286,7 +313,7 @@ class Collection:
             2
         """
         conn = self._get_connection()
-        stats = conn.get_collection_stats(collection_name=self._name)
+        stats = conn.get_collection_stats(collection_name=self._name, metadata=self._get_metadata())
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
         return result["row_count"]
@@ -319,7 +346,7 @@ class Collection:
             2
         """
         conn = self._get_connection()
-        conn.flush([self.name], timeout=timeout, **kwargs)
+        conn.flush([self.name], timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs)
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
         """Drops the collection. The same as `utility.drop_collection()`
@@ -343,7 +370,9 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        conn.drop_collection(self._name, timeout=timeout, **kwargs)
+        conn.drop_collection(
+            self._name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def truncate(self, timeout: Optional[float] = None, **kwargs):
         """Truncate the collection. The same as `utility.truncate_collection()`
@@ -369,7 +398,9 @@ class Collection:
             0
         """
         conn = self._get_connection()
-        conn.truncate_collection(self._name, timeout=timeout, **kwargs)
+        conn.truncate_collection(
+            self._name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def set_properties(self, properties: dict, timeout: Optional[float] = None, **kwargs):
         """Set properties for the collection
@@ -396,6 +427,7 @@ class Collection:
             self.name,
             properties=properties,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -451,6 +483,7 @@ class Collection:
                 partition_names=partition_names,
                 replica_number=replica_number,
                 timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
                 **kwargs,
             )
         else:
@@ -458,6 +491,7 @@ class Collection:
                 collection_name=self._name,
                 replica_number=replica_number,
                 timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
                 **kwargs,
             )
 
@@ -483,7 +517,9 @@ class Collection:
             >>> collection.release()
         """
         conn = self._get_connection()
-        conn.release_collection(self._name, timeout=timeout, **kwargs)
+        conn.release_collection(
+            self._name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def insert(
         self,
@@ -538,6 +574,7 @@ class Collection:
                 partition_name=partition_name,
                 timeout=timeout,
                 schema=self._schema_dict,
+                metadata=self._get_metadata(**kwargs),
                 **kwargs,
             )
 
@@ -549,6 +586,7 @@ class Collection:
             partition_name,
             timeout=timeout,
             schema=self._schema_dict,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -607,7 +645,14 @@ class Collection:
         """
 
         conn = self._get_connection()
-        res = conn.delete(self._name, expr, partition_name, timeout=timeout, **kwargs)
+        res = conn.delete(
+            self._name,
+            expr,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
         if kwargs.get("_async", False):
             return MutationFuture(res)
         return MutationResult(res)
@@ -672,6 +717,7 @@ class Collection:
                 partition_name,
                 timeout=timeout,
                 schema=self._schema_dict,
+                metadata=self._get_metadata(**kwargs),
                 **kwargs,
             )
             return MutationResult(res)
@@ -684,6 +730,7 @@ class Collection:
             partition_name,
             timeout=timeout,
             schema=self._schema_dict,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -847,8 +894,7 @@ class Collection:
             round_decimal=round_decimal,
             timeout=timeout,
             schema=self._schema_dict,
-            ranker=ranker,
-            highlighter=highlighter,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -994,6 +1040,7 @@ class Collection:
             timeout=timeout,
             schema=self._schema_dict,
             ranker=ranker,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1123,6 +1170,7 @@ class Collection:
             partition_names,
             timeout=timeout,
             schema=self._schema_dict,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1148,6 +1196,7 @@ class Collection:
             partition_names=partition_names,
             schema=self._schema_dict,
             timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
             **kwargs,
         )
 
@@ -1169,7 +1218,7 @@ class Collection:
             [{"name": "_default", "description": "", "num_entities": 0}]
         """
         conn = self._get_connection()
-        partition_strs = conn.list_partitions(self._name)
+        partition_strs = conn.list_partitions(self._name, metadata=self._get_metadata())
         partitions = []
         for partition in partition_strs:
             partitions.append(Partition(self, partition, construct_only=True))
@@ -1260,7 +1309,13 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        return conn.has_partition(self._name, partition_name, timeout=timeout, **kwargs)
+        return conn.has_partition(
+            self._name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def drop_partition(self, partition_name: str, timeout: Optional[float] = None, **kwargs):
         """Drop the partition in this collection.
@@ -1290,7 +1345,13 @@ class Collection:
             False
         """
         conn = self._get_connection()
-        return conn.drop_partition(self._name, partition_name, timeout=timeout, **kwargs)
+        return conn.drop_partition(
+            self._name,
+            partition_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     @property
     def indexes(self) -> List[Index]:
@@ -1308,7 +1369,7 @@ class Collection:
         """
         conn = self._get_connection()
         indexes = []
-        tmp_index = conn.list_indexes(self._name)
+        tmp_index = conn.list_indexes(self._name, metadata=self._get_metadata())
         for index in tmp_index:
             if index is not None:
                 info_dict = {kv.key: kv.value for kv in index.params}
@@ -1357,7 +1418,9 @@ class Collection:
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name, **copy_kwargs)
+        tmp_index = conn.describe_index(
+            self._name, index_name, metadata=self._get_metadata(**copy_kwargs), **copy_kwargs
+        )
         if tmp_index is not None:
             field_name = tmp_index.pop("field_name", None)
             index_name = tmp_index.pop("index_name", index_name)
@@ -1413,7 +1476,14 @@ class Collection:
             Status(code=0, message='')
         """
         conn = self._get_connection()
-        return conn.create_index(self._name, field_name, index_params, timeout=timeout, **kwargs)
+        return conn.create_index(
+            self._name,
+            field_name,
+            index_params,
+            timeout=timeout,
+            metadata=self._get_metadata(**kwargs),
+            **kwargs,
+        )
 
     def alter_index(
         self,
@@ -1451,7 +1521,9 @@ class Collection:
             >>> collection.alter_index_properties("idx", {"mmap.enabled": True})
         """
         conn = self._get_connection()
-        return conn.alter_index_properties(self._name, index_name, extra_params, timeout=timeout)
+        return conn.alter_index_properties(
+            self._name, index_name, extra_params, timeout=timeout, metadata=self._get_metadata()
+        )
 
     def has_index(self, timeout: Optional[float] = None, **kwargs) -> bool:
         """Check whether a specified index exists.
@@ -1485,7 +1557,14 @@ class Collection:
         index_name = copy_kwargs.pop("index_name", Config.IndexName)
 
         return (
-            conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs) is not None
+            conn.describe_index(
+                self._name,
+                index_name,
+                timeout=timeout,
+                metadata=self._get_metadata(**copy_kwargs),
+                **copy_kwargs,
+            )
+            is not None
         )
 
     def drop_index(self, timeout: Optional[float] = None, **kwargs):
@@ -1520,13 +1599,20 @@ class Collection:
         copy_kwargs = copy.deepcopy(kwargs)
         index_name = copy_kwargs.pop("index_name", Config.IndexName)
         conn = self._get_connection()
-        tmp_index = conn.describe_index(self._name, index_name, timeout=timeout, **copy_kwargs)
+        tmp_index = conn.describe_index(
+            self._name,
+            index_name,
+            timeout=timeout,
+            metadata=self._get_metadata(**copy_kwargs),
+            **copy_kwargs,
+        )
         if tmp_index is not None:
             conn.drop_index(
                 collection_name=self._name,
                 field_name=tmp_index["field_name"],
                 index_name=index_name,
                 timeout=timeout,
+                metadata=self._get_metadata(**copy_kwargs),
                 **copy_kwargs,
             )
 
@@ -1548,11 +1634,19 @@ class Collection:
         conn = self._get_connection()
         if is_clustering:
             self.clustering_compaction_id = conn.compact(
-                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
+                self._name,
+                is_clustering=is_clustering,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
         else:
             self.compaction_id = conn.compact(
-                self._name, is_clustering=is_clustering, timeout=timeout, **kwargs
+                self._name,
+                is_clustering=is_clustering,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
 
     def get_compaction_state(
@@ -1573,9 +1667,14 @@ class Collection:
         conn = self._get_connection()
         if is_clustering:
             return conn.get_compaction_state(
-                self.clustering_compaction_id, timeout=timeout, **kwargs
+                self.clustering_compaction_id,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
-        return conn.get_compaction_state(self.compaction_id, timeout=timeout, **kwargs)
+        return conn.get_compaction_state(
+            self.compaction_id, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def wait_for_compaction_completed(
         self,
@@ -1598,9 +1697,14 @@ class Collection:
         conn = self._get_connection()
         if is_clustering:
             return conn.wait_for_compaction_completed(
-                self.clustering_compaction_id, timeout=timeout, **kwargs
+                self.clustering_compaction_id,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
-        return conn.wait_for_compaction_completed(self.compaction_id, timeout=timeout, **kwargs)
+        return conn.wait_for_compaction_completed(
+            self.compaction_id, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def get_compaction_plans(
         self, timeout: Optional[float] = None, is_clustering: Optional[bool] = False, **kwargs
@@ -1620,9 +1724,14 @@ class Collection:
         conn = self._get_connection()
         if is_clustering:
             return conn.get_compaction_plans(
-                self.clustering_compaction_id, timeout=timeout, **kwargs
+                self.clustering_compaction_id,
+                timeout=timeout,
+                metadata=self._get_metadata(**kwargs),
+                **kwargs,
             )
-        return conn.get_compaction_plans(self.compaction_id, timeout=timeout, **kwargs)
+        return conn.get_compaction_plans(
+            self.compaction_id, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def get_replicas(self, timeout: Optional[float] = None, **kwargs) -> Replica:
         """Get the current loaded replica information
@@ -1635,8 +1744,10 @@ class Collection:
             Replica: All the replica information.
         """
         conn = self._get_connection()
-        return conn.get_replicas(self.name, timeout=timeout, **kwargs)
+        return conn.get_replicas(
+            self.name, timeout=timeout, metadata=self._get_metadata(**kwargs), **kwargs
+        )
 
     def describe(self, timeout: Optional[float] = None):
         conn = self._get_connection()
-        return conn.describe_collection(self.name, timeout=timeout)
+        return conn.describe_collection(self.name, timeout=timeout, metadata=self._get_metadata())

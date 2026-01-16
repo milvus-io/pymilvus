@@ -12,6 +12,8 @@
 
 from typing import Optional
 
+from pymilvus.client import utils
+
 from .connections import connections
 
 INCLUDE_USER_INFO, NOT_INCLUDE_USER_INFO = True, False
@@ -32,6 +34,11 @@ class Role:
     def _get_connection(self):
         return connections._fetch_handler(self._using)
 
+    def _get_metadata(self):
+        info = connections.get_connection_addr(self._using)
+        db_name = info.get("db_name", "")
+        return utils.construct_grpc_metadata(db_name=db_name)
+
     @property
     def name(self):
         return self._name
@@ -49,7 +56,7 @@ class Role:
             >>> roles = utility.list_roles()
             >>> print(f"roles in Milvus: {roles}")
         """
-        return self._get_connection().create_role(self._name)
+        return self._get_connection().create_role(self._name, metadata=self._get_metadata())
 
     def drop(self):
         """Drop a role
@@ -64,7 +71,7 @@ class Role:
             >>> roles = utility.list_roles()
             >>> print(f"roles in Milvus: {roles}")
         """
-        return self._get_connection().drop_role(self._name)
+        return self._get_connection().drop_role(self._name, metadata=self._get_metadata())
 
     def add_user(self, username: str):
         """Add user to role
@@ -81,7 +88,9 @@ class Role:
             >>> users = role.get_users()
             >>> print(f"users added to the role: {users}")
         """
-        return self._get_connection().add_user_to_role(username, self._name)
+        return self._get_connection().add_user_to_role(
+            username, self._name, metadata=self._get_metadata()
+        )
 
     def remove_user(self, username: str):
         """Remove user from role
@@ -98,7 +107,9 @@ class Role:
             >>> users = role.get_users()
             >>> print(f"users added to the role: {users}")
         """
-        return self._get_connection().remove_user_from_role(username, self._name)
+        return self._get_connection().remove_user_from_role(
+            username, self._name, metadata=self._get_metadata()
+        )
 
     def get_users(self):
         """Get all users who are added to the role.
@@ -116,7 +127,9 @@ class Role:
             >>> users = role.get_users()
             >>> print(f"users added to the role: {users}")
         """
-        roles = self._get_connection().select_one_role(self._name, INCLUDE_USER_INFO)
+        roles = self._get_connection().select_one_role(
+            self._name, INCLUDE_USER_INFO, metadata=self._get_metadata()
+        )
         if len(roles.groups) == 0:
             return []
         return roles.groups[0].users
@@ -134,7 +147,9 @@ class Role:
             >>> is_exist = role.is_exist()
             >>> print(f"the role: {is_exist}")
         """
-        roles = self._get_connection().select_one_role(self._name, NOT_INCLUDE_USER_INFO)
+        roles = self._get_connection().select_one_role(
+            self._name, NOT_INCLUDE_USER_INFO, metadata=self._get_metadata()
+        )
         return len(roles.groups) != 0
 
     def grant(self, object: str, object_name: str, privilege: str, db_name: str = ""):
@@ -156,7 +171,7 @@ class Role:
             >>> role.grant("Collection", collection_name, "Insert")
         """
         return self._get_connection().grant_privilege(
-            self._name, object, object_name, privilege, db_name
+            self._name, object, object_name, privilege, db_name, metadata=self._get_metadata()
         )
 
     def revoke(self, object: str, object_name: str, privilege: str, db_name: str = ""):
@@ -175,7 +190,7 @@ class Role:
             >>> role.revoke("Collection", collection_name, "Insert")
         """
         return self._get_connection().revoke_privilege(
-            self._name, object, object_name, privilege, db_name
+            self._name, object, object_name, privilege, db_name, metadata=self._get_metadata()
         )
 
     def grant_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
@@ -199,6 +214,7 @@ class Role:
             privilege,
             collection_name,
             db_name=db_name,
+            metadata=self._get_metadata(),
         )
 
     def revoke_v2(self, privilege: str, collection_name: str, db_name: Optional[str] = None):
@@ -222,6 +238,7 @@ class Role:
             privilege,
             collection_name,
             db_name=db_name,
+            metadata=self._get_metadata(),
         )
 
     def list_grant(self, object: str, object_name: str, db_name: str = ""):
@@ -247,7 +264,7 @@ class Role:
             >>> role.list_grant("Collection", collection_name)
         """
         return self._get_connection().select_grant_for_role_and_object(
-            self._name, object, object_name, db_name
+            self._name, object, object_name, db_name, metadata=self._get_metadata()
         )
 
     def list_grants(self, db_name: str = ""):
@@ -268,7 +285,9 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_grants()
         """
-        return self._get_connection().select_grant_for_one_role(self._name, db_name)
+        return self._get_connection().select_grant_for_one_role(
+            self._name, db_name, metadata=self._get_metadata()
+        )
 
     def create_privilege_group(self, privilege_group: str):
         """Create a privilege group for the role
@@ -282,7 +301,9 @@ class Role:
             >>> role = Role(role_name)
             >>> role.create_privilege_group(privilege_group="privilege_group")
         """
-        return self._get_connection().create_privilege_group(privilege_group)
+        return self._get_connection().create_privilege_group(
+            privilege_group, metadata=self._get_metadata()
+        )
 
     def drop_privilege_group(self, privilege_group: str):
         """Drop a privilege group for the role
@@ -296,7 +317,9 @@ class Role:
             >>> role = Role(role_name)
             >>> role.drop_privilege_group(privilege_group="privilege_group")
         """
-        return self._get_connection().drop_privilege_group(privilege_group)
+        return self._get_connection().drop_privilege_group(
+            privilege_group, metadata=self._get_metadata()
+        )
 
     def list_privilege_groups(self):
         """List all privilege groups for the role
@@ -313,7 +336,7 @@ class Role:
             >>> role = Role(role_name)
             >>> role.list_privilege_groups()
         """
-        return self._get_connection().list_privilege_groups()
+        return self._get_connection().list_privilege_groups(metadata=self._get_metadata())
 
     def add_privileges_to_group(self, privilege_group: str, privileges: list):
         """Add privileges to a privilege group for the role
@@ -330,7 +353,9 @@ class Role:
             >>> role.add_privileges_to_group(privilege_group="privilege_group",
             >>>     privileges=["Insert","Release"])
         """
-        return self._get_connection().add_privileges_to_group(privilege_group, privileges)
+        return self._get_connection().add_privileges_to_group(
+            privilege_group, privileges, metadata=self._get_metadata()
+        )
 
     def remove_privileges_from_group(self, privilege_group: str, privileges: list):
         """Remove privileges from a privilege group for the role
@@ -347,4 +372,6 @@ class Role:
             >>> role.remove_privileges_from_group(privilege_group="privilege_group",
             >>>     privileges=["Insert","Release"])
         """
-        return self._get_connection().remove_privileges_from_group(privilege_group, privileges)
+        return self._get_connection().remove_privileges_from_group(
+            privilege_group, privileges, metadata=self._get_metadata()
+        )

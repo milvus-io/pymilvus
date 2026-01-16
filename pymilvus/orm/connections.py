@@ -186,6 +186,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             alias_config = {
                 "address": addr,
                 "user": config.get("user", ""),
+                "db_name": config.get("db_name", ""),
             }
 
             if parsed_uri is not None and parsed_uri.scheme == "https":
@@ -265,7 +266,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         alias: str = Config.MILVUS_CONN_ALIAS,
         user: str = "",
         password: str = "",
-        db_name: str = "default",
+        db_name: str = "",
         token: str = "",
         _async: bool = False,
         **kwargs,
@@ -355,9 +356,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
             config_to_keep = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["password", "token", "db_name", "keep_alive"]
+                k: v for k, v in kwargs.items() if k not in ["password", "token", "keep_alive"]
             }
             self._alias_handlers[alias] = gh
             self._alias_config[alias] = config_to_keep
@@ -411,14 +410,16 @@ class Connections(metaclass=SingleInstanceMetaClass):
                 # 3. If db_name is empty string and URI has no path -> use "default"
                 if db_name == "":
                     group = [segment for segment in parsed_uri.path.split("/") if segment]
-                    # Use first path segment if group exists and fall back to "default" if empty
-                    db_name = group[0] if group else "default"
+                    # Use first path segment if group exists and fall back to "" if empty
+                    db_name = group[0] if group else ""
                 # If db_name is not empty (including "default", "test_db", etc.), keep it as-is
 
                 # Set secure=True if https scheme
                 if parsed_uri.scheme == "https":
                     kwargs["secure"] = True
 
+            if "db_name" in kwargs:
+                kwargs.pop("db_name")
             connect_milvus(**kwargs, user=user, password=password, token=token, db_name=db_name)
             return
 
@@ -434,6 +435,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
             if parsed_uri.scheme == "https":
                 kwargs["secure"] = True
 
+            if "db_name" in kwargs:
+                kwargs.pop("db_name")
             connect_milvus(**kwargs, user=user, password=password, db_name=db_name)
             return
 
@@ -441,7 +444,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if alias in self._alias_config:
             connect_alias = dict(self._alias_config[alias].items())
             connect_alias["user"] = user
-            connect_milvus(**connect_alias, password=password, db_name=db_name, **kwargs)
+            connect_milvus(**connect_alias, password=password, **kwargs)
             return
 
         # No params, env, and cached configs for the alias
@@ -483,6 +486,24 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         return self._alias_config.get(alias, {})
 
+    def update_db_name(self, alias: str, db_name: str):
+        """Update the db_name for an existing connection alias.
+
+        This allows switching databases for ORM layer without creating a new connection.
+
+        Args:
+            alias: The connection alias to update.
+            db_name: The new database name to use.
+
+        Raises:
+            ConnectionNotExistException: If the connection alias doesn't exist.
+        """
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+        if alias not in self._alias_config:
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+        self._alias_config[alias]["db_name"] = db_name
+
     def has_connection(self, alias: str) -> bool:
         """Check if connection named alias exists.
 
@@ -513,7 +534,8 @@ class Connections(metaclass=SingleInstanceMetaClass):
         conn = self._alias_handlers.get(alias, None)
         if conn is None:
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
-
+        if isinstance(conn, AsyncGrpcHandler):
+            return conn
         return conn
 
 

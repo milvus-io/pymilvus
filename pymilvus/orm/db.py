@@ -1,6 +1,14 @@
 from typing import Optional
 
+from pymilvus.client import utils
+
 from .connections import connections
+
+
+def _get_metadata(using: str = "default"):
+    info = connections.get_connection_addr(using)
+    db_name = info.get("db_name", "")
+    return utils.construct_grpc_metadata(db_name=db_name)
 
 
 def _get_connection(alias: str):
@@ -14,7 +22,7 @@ def using_database(db_name: str, using: str = "default"):
     :type  db_name: str
 
     """
-    _get_connection(using).reset_db_name(db_name)
+    connections.update_db_name(using, db_name)
 
 
 def create_database(
@@ -27,7 +35,9 @@ def create_database(
             support database replica number with key `database.replica.number`
             support database resource groups with key `database.resource_groups`
     """
-    _get_connection(using).create_database(db_name, timeout=timeout, **kwargs)
+    _get_connection(using).create_database(
+        db_name, timeout=timeout, metadata=_get_metadata(using), **kwargs
+    )
 
 
 def drop_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
@@ -37,7 +47,7 @@ def drop_database(db_name: str, using: str = "default", timeout: Optional[float]
     :type  db_name: str
 
     """
-    _get_connection(using).drop_database(db_name, timeout=timeout)
+    _get_connection(using).drop_database(db_name, timeout=timeout, metadata=_get_metadata(using))
 
 
 def list_database(using: str = "default", timeout: Optional[float] = None) -> list:
@@ -46,7 +56,7 @@ def list_database(using: str = "default", timeout: Optional[float] = None) -> li
     :return list[str]:
         List of database names, return when operation is successful
     """
-    return _get_connection(using).list_database(timeout=timeout)
+    return _get_connection(using).list_database(timeout=timeout, metadata=_get_metadata(using))
 
 
 def set_properties(
@@ -62,7 +72,9 @@ def set_properties(
             support database replica number with key `database.replica.number`
             support database resource groups with key `database.resource_groups`
     """
-    _get_connection(using).alter_database(db_name, properties=properties, timeout=timeout)
+    _get_connection(using).alter_database(
+        db_name, properties=properties, timeout=timeout, metadata=_get_metadata(using)
+    )
 
 
 def describe_database(db_name: str, using: str = "default", timeout: Optional[float] = None):
@@ -75,4 +87,6 @@ def describe_database(db_name: str, using: str = "default", timeout: Optional[fl
         Database information, return when operation is successful
 
     """
-    return _get_connection(using).describe_database(db_name, timeout=timeout)
+    return _get_connection(using).describe_database(
+        db_name, timeout=timeout, metadata=_get_metadata(using)
+    )

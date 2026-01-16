@@ -79,8 +79,16 @@ class Index:
             return
 
         conn = self._get_connection()
-        conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
-        indexes = conn.list_indexes(self._collection.name)
+        conn.create_index(
+            self._collection.name,
+            self._field_name,
+            self._index_params,
+            metadata=self._collection._get_metadata(**kwargs),
+            **kwargs,
+        )
+        indexes = conn.list_indexes(
+            self._collection.name, metadata=self._collection._get_metadata(**kwargs)
+        )
         for index in indexes:
             if index.field_name == self._field_name:
                 self._index_name = index.index_name
@@ -136,4 +144,6 @@ class Index:
             field_name=self.field_name,
             index_name=self.index_name,
             timeout=timeout,
+            metadata=self._collection._get_metadata(**kwargs),
+            **kwargs,
         )

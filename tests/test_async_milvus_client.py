@@ -125,9 +125,11 @@ class TestAsyncMilvusClientNewFeatures:
             assert segment_info.storage_version == 1
 
             # Verify call arguments
-            mock_conn.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None
-            )
+            # Verify call arguments
+            call_args = mock_conn.get_persistent_segment_infos.call_args
+            assert call_args[0] == ("test_collection",)
+            assert call_args.kwargs["timeout"] is None
+            assert "metadata" in call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self):
@@ -226,7 +228,10 @@ class TestAsyncMilvusClientNewFeatures:
             client = AsyncMilvusClient()
             await client.flush_all(timeout=10)
             
-            mock_handler.flush_all.assert_called_once_with(timeout=10)
+            # Verify call arguments
+            call_args = mock_handler.flush_all.call_args
+            assert call_args.kwargs["timeout"] == 10
+            assert "metadata" in call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_get_flush_all_state(self):
@@ -241,7 +246,10 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_flush_all_state(timeout=10)
             
             assert result is True
-            mock_handler.get_flush_all_state.assert_called_once_with(timeout=10)
+            # Verify call arguments
+            call_args = mock_handler.get_flush_all_state.call_args
+            assert call_args.kwargs["timeout"] == 10
+            assert "metadata" in call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_get_compaction_plans(self):
@@ -260,7 +268,11 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_compaction_plans(job_id=123, timeout=10)
             
             assert result == mock_plans
-            mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10)
+            # Verify call arguments
+            call_args = mock_handler.get_compaction_plans.call_args
+            assert call_args[0] == (123,)
+            assert call_args.kwargs["timeout"] == 10
+            assert "metadata" in call_args.kwargs
 
     @pytest.mark.asyncio
     async def test_update_replicate_configuration(self):
@@ -290,14 +302,17 @@ class TestAsyncMilvusClientNewFeatures:
             )
             
             assert result == mock_status
-            mock_handler.update_replicate_configuration.assert_called_once_with(
-                clusters=clusters,
-                cross_cluster_topology=cross_cluster_topology,
-                timeout=10
-            )
+            # Verify call arguments
+            call_args = mock_handler.update_replicate_configuration.call_args
+            assert call_args.kwargs["clusters"] == clusters
+            assert call_args.kwargs["cross_cluster_topology"] == cross_cluster_topology
+            assert call_args.kwargs["timeout"] == 10
+            assert "metadata" in call_args.kwargs
 
     def test_create_struct_field_schema(self):
         """Test create_struct_field_schema class method"""
         result = AsyncMilvusClient.create_struct_field_schema()
         assert isinstance(result, StructFieldSchema)
+
+
 
