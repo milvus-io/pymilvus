@@ -14,9 +14,9 @@ Constraints:
 - Output Field: BINARY_VECTOR with dim = num_hashes * 32
 """
 
-from pymilvus import MilvusClient, DataType
-from pymilvus.orm.schema import Function
+from pymilvus import DataType, MilvusClient
 from pymilvus.client.types import FunctionType
+from pymilvus.orm.schema import Function
 
 
 def create_dedup_collection(client: MilvusClient, collection_name: str):
@@ -29,17 +29,19 @@ def create_dedup_collection(client: MilvusClient, collection_name: str):
     schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=65535)
     schema.add_field(field_name="minhash_signature", datatype=DataType.BINARY_VECTOR, dim=512)
 
-    schema.add_function(Function(
-        name="text_to_minhash",
-        function_type=FunctionType.MINHASH,
-        input_field_names=["text"],
-        output_field_names=["minhash_signature"],
-        params={
-            "num_hashes": 16,
-            "shingle_size": 3,
-            "token_level": "word",
-        },
-    ))
+    schema.add_function(
+        Function(
+            name="text_to_minhash",
+            function_type=FunctionType.MINHASH,
+            input_field_names=["text"],
+            output_field_names=["minhash_signature"],
+            params={
+                "num_hashes": 16,
+                "shingle_size": 3,
+                "token_level": "word",
+            },
+        )
+    )
 
     client.create_collection(collection_name=collection_name, schema=schema)
 
@@ -99,12 +101,14 @@ def deduplicate_texts(
             if hit["id"] == doc["id"]:
                 continue
             if hit["distance"] >= similarity_threshold and hit["id"] < doc["id"]:
-                duplicates.append({
-                    "id": doc["id"],
-                    "text": doc["text"],
-                    "duplicate_of": hit["id"],
-                    "similarity": hit["distance"],
-                })
+                duplicates.append(
+                    {
+                        "id": doc["id"],
+                        "text": doc["text"],
+                        "duplicate_of": hit["id"],
+                        "similarity": hit["distance"],
+                    }
+                )
                 is_duplicate = True
                 break
 
