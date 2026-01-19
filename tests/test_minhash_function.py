@@ -13,7 +13,6 @@
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
 from pymilvus.client.types import FunctionType
-from pymilvus.exceptions import ParamError
 from pymilvus.orm.schema import Function
 
 
@@ -53,7 +52,9 @@ class TestMinHashFunction:
             fields=[
                 FieldSchema("id", DataType.INT64, is_primary=True),
                 FieldSchema("text", DataType.VARCHAR, max_length=65535),
-                FieldSchema("minhash_vector", DataType.BINARY_VECTOR, dim=500),  # Not multiple of 32
+                FieldSchema(
+                    "minhash_vector", DataType.BINARY_VECTOR, dim=500
+                ),  # Not multiple of 32
             ],
             check_fields=False,
         )
@@ -135,70 +136,64 @@ class TestMinHashFunction:
         # Should not raise any exception
         func.verify(valid_schema)
 
-    def test_minhash_function_verify_invalid_input_count(self, valid_schema):
-        """Test MinHash function with multiple input fields raises error."""
-        func = Function(
-            name="invalid_func",
+    def test_minhash_function_verify_skips_validation(self, valid_schema):
+        """Test MinHash function verify does not perform client-side validation.
+
+        MinHash validation is now handled by the server (proxy), so the client
+        should not raise errors for invalid configurations.
+        """
+        # Multiple inputs - should not raise (server validates)
+        func1 = Function(
+            name="multi_input_func",
             function_type=FunctionType.MINHASH,
-            input_field_names=["text", "extra_text"],  # Multiple inputs
+            input_field_names=["text", "extra_text"],
             output_field_names=["minhash_vector"],
         )
+        func1.verify(valid_schema)  # Should not raise
 
-        with pytest.raises(ParamError) as exc_info:
-            func.verify(valid_schema)
-        assert "exact 1 input and 1 output" in str(exc_info.value)
-
-    def test_minhash_function_verify_invalid_output_count(self, valid_schema):
-        """Test MinHash function with multiple output fields raises error."""
-        func = Function(
-            name="invalid_func",
+        # Multiple outputs - should not raise (server validates)
+        func2 = Function(
+            name="multi_output_func",
             function_type=FunctionType.MINHASH,
             input_field_names=["text"],
-            output_field_names=["vec1", "vec2"],  # Multiple outputs
+            output_field_names=["vec1", "vec2"],
         )
+        func2.verify(valid_schema)  # Should not raise
 
-        with pytest.raises(ParamError) as exc_info:
-            func.verify(valid_schema)
-        assert "exact 1 input and 1 output" in str(exc_info.value)
+    def test_minhash_function_verify_no_type_validation(
+        self, invalid_input_type_schema, invalid_output_type_schema
+    ):
+        """Test MinHash function verify does not validate field types.
 
-    def test_minhash_function_verify_invalid_input_type(self, invalid_input_type_schema):
-        """Test MinHash function with non-VARCHAR input raises error."""
+        Field type validation is handled by the server.
+        """
         func = Function(
-            name="invalid_func",
-            function_type=FunctionType.MINHASH,
-            input_field_names=["text"],
-            output_field_names=["minhash_vector"],
-        )
-
-        with pytest.raises(ParamError) as exc_info:
-            func.verify(invalid_input_type_schema)
-        assert "VARCHAR" in str(exc_info.value)
-
-    def test_minhash_function_verify_invalid_output_type(self, invalid_output_type_schema):
-        """Test MinHash function with non-BINARY_VECTOR output raises error."""
-        func = Function(
-            name="invalid_func",
+            name="test_func",
             function_type=FunctionType.MINHASH,
             input_field_names=["text"],
             output_field_names=["minhash_vector"],
         )
 
-        with pytest.raises(ParamError) as exc_info:
-            func.verify(invalid_output_type_schema)
-        assert "BINARY_VECTOR" in str(exc_info.value)
+        # Should not raise for invalid input type
+        func.verify(invalid_input_type_schema)
 
-    def test_minhash_function_verify_invalid_dim(self, invalid_dim_schema):
-        """Test MinHash function with invalid dim (not multiple of 32) raises error."""
+        # Should not raise for invalid output type
+        func.verify(invalid_output_type_schema)
+
+    def test_minhash_function_verify_no_dim_validation(self, invalid_dim_schema):
+        """Test MinHash function verify does not validate dimension.
+
+        Dimension validation is handled by the server.
+        """
         func = Function(
-            name="invalid_func",
+            name="test_func",
             function_type=FunctionType.MINHASH,
             input_field_names=["text"],
             output_field_names=["minhash_vector"],
         )
 
-        with pytest.raises(ParamError) as exc_info:
-            func.verify(invalid_dim_schema)
-        assert "multiple of 32" in str(exc_info.value)
+        # Should not raise for invalid dim
+        func.verify(invalid_dim_schema)
 
 
 class TestMinHashSchemaIntegration:
