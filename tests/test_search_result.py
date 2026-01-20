@@ -540,35 +540,6 @@ class TestSearchResultExtended:
          assert hits[0].entity["vec"] == [1.0, 2.0]
          assert hits[1].entity["vec"] == [3.0, 4.0]
 
-    def test_highlight_results(self):
-        # Test highlight results in HybridHits
-        fields_data = [
-            schema_pb2.FieldData(type=DataType.VARCHAR, field_name="text", field_id=101)
-        ]
-        
-        # Construct highlight data
-        # SearchResultData has repeated HighlightResult highlight_results
-        res_data = self._create_base_result(fields_data)
-        
-        # Add highlight info
-        hl = common_pb2.HighlightResult(field_name="text")
-        # 3 hits
-        for _ in range(3):
-            # field_id_to_highlight_result -> HighlightField
-            # We need to look at schema_pb2 definition for structure if unclear
-            # Looking at search_result.py:101: 
-            # result.datas[i + start].fragments
-            # So HighlightResult has repeated keys/datas?
-            pass
-            
-        # It seems HighlightResult proto definition in search_result.py usage:
-        # result.datas is a repeated field of some type that has .fragments and .scores
-        # Let's inspect common_pb2.HighlightResult if possible or infer usage.
-        # Usage: result.datas[i].fragments
-        pass
-
-        # Use mock to avoid complexity of proto construction if it's deep
-        pass
 
 class TestHitsLegacy:
     """Test the Hits and Hit classes (legacy path coverage)"""
@@ -1029,46 +1000,16 @@ class TestCoverageEdgeCases:
         assert info.last_bound == 0.0
 
     def test_hits_legacy_iteration(self):
-        # target 675, 684-690, 698-700
-        
         from pymilvus.client.search_result import Hits
         
-        # 1. JSON field not in output_fields (dynamic field scenario)
         json_fd = schema_pb2.FieldData(type=DataType.JSON, field_name="meta", is_dynamic=True)
-        # 2. Vector field (Float)
         vec_fd = schema_pb2.FieldData(type=DataType.FLOAT_VECTOR, field_name="emb")
-        # Must set dim and data for slicing to work in Hits.__init__ logic
         vec_fd.vectors.dim = 2
-        vec_fd.vectors.float_vector.data.extend([0.1, 0.2]) # Data for slicing
-        
-        # Verify types
-        assert json_fd.type == DataType.JSON
-        assert vec_fd.type == DataType.FLOAT_VECTOR
-        
-        # Data passed to Hits is a tuple: (list_of_values, field_meta)
-        # For Float Vector, `data` is the raw float list?
-        # Hits.__init__ says:
-        # for fname, (data, field_meta) in fields.items():
-        #     ...
-        #     if field_meta.type == FLOAT_VECTOR:
-        #         entity[fname] = data[i * dim : (i + 1) * dim]
-        
-        # This means `data` argument passed in `fields` MUST be the FLAT list of floats!
-        # In my test, I passed `[[0.1, 0.2]]` (list of lists).
-        # Slicing `[[0.1, 0.2]][0:2]` gives `[[0.1, 0.2]]` (list of list).
-        # But for iteration i=0: `data[0:2]` -> `[[0.1, 0.2]]` if `data` is `[[0.1, 0.2]]`.
-        # This explains why it returned `[]`. 
-        # Wait: `i=0`, `dim=2`. `data[0:2]`.
-        # If `data` is `[[0.1, 0.2]]` (len 1).
-        # `data[0:2]` is `[[0.1, 0.2]]`.
-        # BUT if `data` IS `[0.1, 0.2]` (flat list).
-        # `data[0:2]` is `[0.1, 0.2]`.
-        
-        # So I need to pass FLAT list as data for vector field in Hits.
+        vec_fd.vectors.float_vector.data.extend([0.1, 0.2])
         
         fields = {
             "meta": ([{"a": 1}], json_fd),
-            "emb": ([0.1, 0.2], vec_fd) # Flat list!
+            "emb": ([0.1, 0.2], vec_fd)
         }
         
         # Initialize Hits

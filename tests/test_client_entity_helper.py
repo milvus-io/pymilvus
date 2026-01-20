@@ -7,28 +7,39 @@ import numpy as np
 import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import (
-    convert_to_str_array, entity_to_array_arr,
+    convert_to_array,
+    convert_to_array_of_vector,
+    convert_to_json,
+    convert_to_str_array,
+    entity_to_array_arr,
     entity_to_field_data,
+    entity_to_json_arr,
     entity_to_str_arr,
     entity_type_to_dtype,
     extract_array_row_data,
+    extract_array_row_data_no_validity,
+    extract_array_row_data_with_validity,
     extract_dynamic_field_from_result,
+    extract_row_data_from_fields_data,
+    extract_row_data_from_fields_data_v2,
+    extract_struct_array_from_column_data,
+    extract_vector_array_row_data,
     flush_vector_bytes,
+    get_array_length,
+    get_array_value_at_index,
     get_max_len_of_var_char,
     pack_field_value_to_field_data,
     sparse_proto_to_rows,
     sparse_rows_to_proto,
 )
-from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2 as convert_to_entity
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
-from pymilvus.grpc_gen import schema_pb2
-
-# Import additional functions for testing
-from pymilvus.grpc_gen import schema_pb2 as schema_types
+from pymilvus.exceptions import DataNotMatchException, ParamError
+from pymilvus.grpc_gen import schema_pb2, schema_pb2 as schema_types
 from pymilvus.settings import Config
 from scipy.sparse import csr_matrix
-from pymilvus.exceptions import DataNotMatchException
+
+# Alias for backward compatibility
+convert_to_entity = extract_row_data_from_fields_data_v2
 
 
 class TestEntityHelperSparse:
@@ -950,7 +961,6 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_nullable_float_vector(self):
         """Test extracting nullable float vector from field data"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
         field_data = schema_types.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
@@ -970,7 +980,6 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_nullable_sparse_vector(self):
         """Test extracting nullable sparse vector from field data"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
         field_data = schema_types.FieldData()
         field_data.type = DataType.SPARSE_FLOAT_VECTOR
@@ -991,7 +1000,6 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_non_nullable_vector_uses_logical_index(self):
         """Test that non-nullable vectors still use logical index directly"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
         field_data = schema_types.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
@@ -1399,35 +1407,30 @@ class TestConvertToArrayExtended:
     
     def test_convert_to_array_int8(self):
         """Test converting INT8 array"""
-        from pymilvus.client.entity_helper import convert_to_array
         field_info = {"name": "arr_field", "element_type": DataType.INT8}
         result = convert_to_array([1, 2, 3], field_info)
         assert list(result.int_data.data) == [1, 2, 3]
 
     def test_convert_to_array_int16(self):
         """Test converting INT16 array"""
-        from pymilvus.client.entity_helper import convert_to_array
         field_info = {"name": "arr_field", "element_type": DataType.INT16}
         result = convert_to_array([100, 200, 300], field_info)
         assert list(result.int_data.data) == [100, 200, 300]
 
     def test_convert_to_array_int32(self):
         """Test converting INT32 array"""
-        from pymilvus.client.entity_helper import convert_to_array
         field_info = {"name": "arr_field", "element_type": DataType.INT32}
         result = convert_to_array([1000, 2000], field_info)
         assert list(result.int_data.data) == [1000, 2000]
 
     def test_convert_to_array_string_type(self):
         """Test converting STRING (alias) array"""
-        from pymilvus.client.entity_helper import convert_to_array
         field_info = {"name": "arr_field", "element_type": DataType.STRING}
         result = convert_to_array(["a", "b"], field_info)
         assert list(result.string_data.data) == ["a", "b"]
 
     def test_convert_to_array_numpy_input(self):
         """Test converting numpy array"""
-        from pymilvus.client.entity_helper import convert_to_array
         field_info = {"name": "arr_field", "element_type": DataType.INT64}
         arr = np.array([1, 2, 3], dtype=np.int64)
         result = convert_to_array(arr, field_info)
@@ -1439,7 +1442,6 @@ class TestConvertToArrayOfVector:
     
     def test_convert_empty_array_of_vector(self):
         """Test converting empty array of vectors"""
-        from pymilvus.client.entity_helper import convert_to_array_of_vector
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.FLOAT_VECTOR,
@@ -1451,7 +1453,6 @@ class TestConvertToArrayOfVector:
 
     def test_convert_array_of_float_vectors(self):
         """Test converting array of float vectors"""
-        from pymilvus.client.entity_helper import convert_to_array_of_vector
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.FLOAT_VECTOR,
@@ -1464,7 +1465,6 @@ class TestConvertToArrayOfVector:
 
     def test_convert_array_of_float_vectors_numpy(self):
         """Test converting numpy array of vectors"""
-        from pymilvus.client.entity_helper import convert_to_array_of_vector
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.FLOAT_VECTOR,
@@ -1476,7 +1476,6 @@ class TestConvertToArrayOfVector:
 
     def test_convert_array_of_vector_unsupported_type(self):
         """Test unsupported element type raises error"""
-        from pymilvus.client.entity_helper import convert_to_array_of_vector
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.BINARY_VECTOR,
@@ -1487,7 +1486,6 @@ class TestConvertToArrayOfVector:
 
     def test_convert_array_of_float_vectors_invalid_dtype(self):
         """Test numpy array with invalid dtype raises error"""  
-        from pymilvus.client.entity_helper import convert_to_array_of_vector
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.FLOAT_VECTOR,
@@ -1504,7 +1502,6 @@ class TestExtractRowDataV2:
     
     def test_extract_bool_with_validity(self):
         """Test extracting bool data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.BOOL
@@ -1521,7 +1518,6 @@ class TestExtractRowDataV2:
 
     def test_extract_int_types_with_validity(self):
         """Test extracting INT8/16/32 data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         for dtype in [DataType.INT8, DataType.INT16, DataType.INT32]:
             field_data = schema_types.FieldData()
@@ -1539,7 +1535,6 @@ class TestExtractRowDataV2:
 
     def test_extract_int64_with_validity(self):
         """Test extracting INT64 data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.INT64
@@ -1555,7 +1550,6 @@ class TestExtractRowDataV2:
 
     def test_extract_float_with_validity(self):
         """Test extracting FLOAT data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.FLOAT
@@ -1571,7 +1565,6 @@ class TestExtractRowDataV2:
 
     def test_extract_double_with_validity(self):
         """Test extracting DOUBLE data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.DOUBLE
@@ -1587,7 +1580,6 @@ class TestExtractRowDataV2:
 
     def test_extract_timestamptz_with_validity(self):
         """Test extracting TIMESTAMPTZ data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.TIMESTAMPTZ
@@ -1603,7 +1595,6 @@ class TestExtractRowDataV2:
 
     def test_extract_varchar_with_validity(self):
         """Test extracting VARCHAR data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.VARCHAR
@@ -1618,7 +1609,6 @@ class TestExtractRowDataV2:
 
     def test_extract_geometry_with_validity(self):
         """Test extracting GEOMETRY data with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.GEOMETRY
@@ -1634,7 +1624,6 @@ class TestExtractRowDataV2:
 
     def test_extract_json_returns_true(self):
         """Test extracting JSON data returns True for lazy processing"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.JSON
@@ -1646,7 +1635,6 @@ class TestExtractRowDataV2:
 
     def test_extract_vector_types_return_true(self):
         """Test vector data types return True for lazy processing"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         vector_types = [
             DataType.FLOAT_VECTOR,
@@ -1668,7 +1656,6 @@ class TestExtractRowDataV2:
 
     def test_extract_array_of_struct_returns_true(self):
         """Test _ARRAY_OF_STRUCT returns True for lazy processing"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_STRUCT
@@ -1680,7 +1667,6 @@ class TestExtractRowDataV2:
 
     def test_extract_array_of_vector_returns_true(self):
         """Test _ARRAY_OF_VECTOR returns True for lazy processing"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -1696,7 +1682,6 @@ class TestExtractRowDataFromFieldsData:
     
     def test_empty_fields_data(self):
         """Test with empty fields data returns empty dict"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         result = extract_row_data_from_fields_data(None, 0)
         assert result == {}
@@ -1706,7 +1691,6 @@ class TestExtractRowDataFromFieldsData:
 
     def test_extract_bool_field(self):
         """Test extracting bool field"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.BOOL
@@ -1718,7 +1702,6 @@ class TestExtractRowDataFromFieldsData:
 
     def test_extract_int_field(self):
         """Test extracting int field"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.INT32
@@ -1730,7 +1713,6 @@ class TestExtractRowDataFromFieldsData:
 
     def test_extract_with_validity(self):
         """Test extracting with validity mask"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.INT64
@@ -1743,7 +1725,6 @@ class TestExtractRowDataFromFieldsData:
 
     def test_extract_geometry_field(self):
         """Test extracting geometry field"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.GEOMETRY
@@ -1759,7 +1740,6 @@ class TestGetArrayHelpers:
     
     def test_get_array_length_int64(self):
         """Test get_array_length for INT64 array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.long_data.data.extend([1, 2, 3, 4, 5])
@@ -1769,7 +1749,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_length_int_types(self):
         """Test get_array_length for INT8/16/32 array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.int_data.data.extend([10, 20, 30])
@@ -1779,7 +1758,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_length_float(self):
         """Test get_array_length for FLOAT array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.float_data.data.extend([1.0, 2.0])
@@ -1789,7 +1767,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_length_double(self):
         """Test get_array_length for DOUBLE array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.double_data.data.extend([1.1, 2.2, 3.3])
@@ -1799,7 +1776,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_length_string(self):
         """Test get_array_length for string array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.string_data.data.extend(["a", "b", "c", "d"])
@@ -1809,7 +1785,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_length_bool(self):
         """Test get_array_length for bool array"""
-        from pymilvus.client.entity_helper import get_array_length
         
         array_item = schema_types.ScalarField()
         array_item.bool_data.data.extend([True, False])
@@ -1819,7 +1794,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_value_at_index_int64(self):
         """Test get_array_value_at_index for INT64 array"""
-        from pymilvus.client.entity_helper import get_array_value_at_index
         
         array_item = schema_types.ScalarField()
         array_item.long_data.data.extend([100, 200, 300])
@@ -1830,7 +1804,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_value_at_index_float(self):
         """Test get_array_value_at_index for FLOAT array"""
-        from pymilvus.client.entity_helper import get_array_value_at_index
         
         array_item = schema_types.ScalarField()
         array_item.float_data.data.extend([1.5, 2.5])
@@ -1840,7 +1813,6 @@ class TestGetArrayHelpers:
 
     def test_get_array_value_at_index_string(self):
         """Test get_array_value_at_index for string array"""
-        from pymilvus.client.entity_helper import get_array_value_at_index
         
         array_item = schema_types.ScalarField()
         array_item.string_data.data.extend(["hello", "world"])
@@ -1889,7 +1861,6 @@ class TestExtractArrayRowDataFunctions:
     
     def test_extract_array_row_data_int8_no_validity(self):
         """Test extracting INT8 array data without validity"""
-        from pymilvus.client.entity_helper import extract_array_row_data_no_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "arr_field"
@@ -1912,7 +1883,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_int16_no_validity(self):
         """Test extracting INT16 array data without validity"""
-        from pymilvus.client.entity_helper import extract_array_row_data_no_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "arr_field"
@@ -1929,7 +1899,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_int32_no_validity(self):
         """Test extracting INT32 array data without validity"""
-        from pymilvus.client.entity_helper import extract_array_row_data_no_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "arr_field"
@@ -1946,7 +1915,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_with_validity_int64(self):
         """Test extracting INT64 array data with validity mask"""
-        from pymilvus.client.entity_helper import extract_array_row_data_with_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "arr_field"
@@ -1973,7 +1941,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_with_validity_bool(self):
         """Test extracting BOOL array data with validity mask"""
-        from pymilvus.client.entity_helper import extract_array_row_data_with_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "bool_arr"
@@ -1996,7 +1963,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_with_validity_varchar(self):
         """Test extracting VARCHAR array data with validity mask"""
-        from pymilvus.client.entity_helper import extract_array_row_data_with_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "str_arr"
@@ -2018,7 +1984,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_with_validity_float(self):
         """Test extracting FLOAT array data with validity mask"""
-        from pymilvus.client.entity_helper import extract_array_row_data_with_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "float_arr"
@@ -2036,7 +2001,6 @@ class TestExtractArrayRowDataFunctions:
 
     def test_extract_array_row_data_with_validity_double(self):
         """Test extracting DOUBLE array data with validity mask"""
-        from pymilvus.client.entity_helper import extract_array_row_data_with_validity
         
         field_data = schema_types.FieldData()
         field_data.field_name = "double_arr"
@@ -2058,7 +2022,6 @@ class TestExtractVectorArrayRowData:
     
     def test_extract_float_vector_array(self):
         """Test extracting FLOAT_VECTOR array"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2074,7 +2037,6 @@ class TestExtractVectorArrayRowData:
 
     def test_extract_binary_vector_array(self):
         """Test extracting BINARY_VECTOR array"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2116,7 +2078,6 @@ class TestExtractStructArray:
 
     def test_extract_basic_struct_array(self):
         """Test extracting struct array with scalar fields"""
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         
         # Create struct array field structure
         struct_field = schema_types.FieldData()
@@ -2158,7 +2119,6 @@ class TestExtractStructArray:
 
     def test_extract_struct_array_invalid_input(self):
         """Test extracting with invalid input"""
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         
         assert extract_struct_array_from_column_data(None, 0) == []
         
@@ -2167,7 +2127,6 @@ class TestExtractStructArray:
 
     def test_extract_struct_array_with_vectors(self):
         """Test extracting struct array containing vectors"""
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         
         struct_field = schema_types.FieldData()
         struct_field.type = DataType._ARRAY_OF_STRUCT
@@ -2195,7 +2154,6 @@ class TestExtractStructArray:
 
     def test_extract_struct_array_all_vector_types(self):
         """Test extracting struct array with all vector types"""
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         
         # FLOAT16
         struct_field = schema_types.FieldData()
@@ -2254,7 +2212,6 @@ class TestExtractStructArray:
 
     def test_extract_struct_array_unexpected_field_type(self):
         """Test error when struct contains unexpected field type"""
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         
         struct_field = schema_types.FieldData()
         
@@ -2372,7 +2329,6 @@ class TestExtractVectorArrayRowDataExtended:
     
     def test_extract_float16_vector_array(self):
         """Test extracting FLOAT16_VECTOR array"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2388,7 +2344,6 @@ class TestExtractVectorArrayRowDataExtended:
 
     def test_extract_bfloat16_vector_array(self):
         """Test extracting BFLOAT16_VECTOR array"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2405,7 +2360,6 @@ class TestExtractVectorArrayRowDataExtended:
 
     def test_extract_int8_vector_array(self):
         """Test extracting INT8_VECTOR array"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2420,7 +2374,6 @@ class TestExtractVectorArrayRowDataExtended:
 
     def test_extract_vector_array_unimplemented(self):
         """Test extracting unsupported vector type"""
-        from pymilvus.client.entity_helper import extract_vector_array_row_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType._ARRAY_OF_VECTOR
@@ -2606,7 +2559,6 @@ class TestExtractRowDataV1Extended:
     
     def test_extract_v1_vectors(self):
         """Test extracting vectors via V1 API"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         # Float Vector
         field_data = schema_types.FieldData()
@@ -2624,7 +2576,6 @@ class TestExtractRowDataV1Extended:
 
     def test_extract_v1_binary_vector(self):
         """Test binary vector V1 extraction"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         field_data = schema_types.FieldData()
         field_data.type = DataType.BINARY_VECTOR
@@ -2640,7 +2591,6 @@ class TestExtractRowDataV1Extended:
         assert row1["bv"] == [b"\x02"]
 
     def test_extract_v1_float16(self):
-         from pymilvus.client.entity_helper import extract_row_data_from_fields_data
          
          field_data = schema_types.FieldData()
          field_data.type = DataType.FLOAT16_VECTOR
@@ -2661,7 +2611,6 @@ class TestJsonEdgeCases:
     """Test JSON conversion edge cases"""
     
     def test_json_dict_with_int_keys(self):
-        from pymilvus.client.entity_helper import convert_to_json
         from pymilvus.exceptions import DataNotMatchException
         
 
@@ -2670,7 +2619,6 @@ class TestJsonEdgeCases:
             convert_to_json(data)
 
     def test_json_arr_with_none(self):
-        from pymilvus.client.entity_helper import entity_to_json_arr
         from pymilvus.exceptions import ParamError
         
         with pytest.raises(ParamError):
@@ -2680,19 +2628,16 @@ class TestArrayConversion:
     """Test convert_to_array for scalar types"""
     
     def test_convert_bool_array(self):
-        from pymilvus.client.entity_helper import convert_to_array
         
         result = convert_to_array([True, False], {"element_type": DataType.BOOL})
         assert list(result.bool_data.data) == [True, False]
 
     def test_convert_float_array(self):
-        from pymilvus.client.entity_helper import convert_to_array
         
         result = convert_to_array([1.5, 2.5], {"element_type": DataType.FLOAT})
         assert list(result.float_data.data) == pytest.approx([1.5, 2.5])
 
     def test_convert_double_array(self):
-        from pymilvus.client.entity_helper import convert_to_array
         
         result = convert_to_array([1.11, 2.22], {"element_type": DataType.DOUBLE})
         assert list(result.double_data.data) == pytest.approx([1.11, 2.22])
@@ -2716,7 +2661,6 @@ class TestExtractRowDataV1Scalar:
     """Test V1 extraction for scalars to cover lines 1047-1093 etc."""
     
     def test_extract_v1_scalars(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         # Create field data for various scalar types
         types = [
@@ -2748,7 +2692,6 @@ class TestExtractRowDataV1Scalar:
         assert row0["json_f"] == {"x": 1}
 
     def test_extract_v1_json_dynamic(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         fd = schema_types.FieldData()
         fd.type = DataType.JSON
@@ -2855,7 +2798,6 @@ class TestExtractRowDataV1Validity:
     """Test extract_row_data_from_fields_data (V1) validity and error handling"""
     
     def test_json_validity_v1(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         fd = schema_types.FieldData()
         fd.type = DataType.JSON
@@ -2867,7 +2809,6 @@ class TestExtractRowDataV1Validity:
         assert row0["j"] is None
         
     def test_json_invalid_bytes_v1(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         import orjson
         
         fd = schema_types.FieldData()
@@ -2879,7 +2820,6 @@ class TestExtractRowDataV1Validity:
              extract_row_data_from_fields_data([fd], 0)
 
     def test_array_validity_v1(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         fd = schema_types.FieldData()
         fd.type = DataType.ARRAY
@@ -2892,7 +2832,6 @@ class TestExtractRowDataV1Validity:
         assert row0["arr"] is None
 
     def test_vector_validity_v1(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         # Test Float Vector validity
         fd = schema_types.FieldData()
@@ -2923,7 +2862,6 @@ class TestStructArrayTruncated:
     """Test extract_struct_array_from_column_data with truncated/invalid vector data"""
 
     def test_struct_array_truncated_vectors_all_types(self):
-        from pymilvus.client.entity_helper import extract_struct_array_from_column_data
         import numpy as np
         
         # Types to test: FLOAT, FLOAT16, BFLOAT16, INT8, BINARY
@@ -2990,7 +2928,6 @@ class TestExtractRowDataV1Int8:
     """Test extraction of INT8 vectors in V1"""
     
     def test_extract_v1_int8(self):
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
         
         fd = schema_types.FieldData()
         fd.type = DataType.INT8_VECTOR
@@ -3057,7 +2994,6 @@ class TestJsonStrInput:
     """Test string input for convert_to_json to cover line 240+"""
     
     def test_json_str_valid(self):
-        from pymilvus.client.entity_helper import convert_to_json
         
         # Line 240 check isinstance(obj, str)
         # Line 243 orjson.loads
