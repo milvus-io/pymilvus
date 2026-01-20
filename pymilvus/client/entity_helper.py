@@ -130,8 +130,10 @@ def sparse_proto_to_rows(
 ) -> Iterable[SparseRowOutputType]:
     if not isinstance(sfv, schema_types.SparseFloatArray):
         raise ParamError(message="Vector must be a sparse float vector")
-    start = start or 0
-    end = end or len(sfv.contents)
+    if start is None:
+        start = 0
+    if end is None:
+        end = len(sfv.contents)
     return [sparse_parse_single_row(row_bytes) for row_bytes in sfv.contents[start:end]]
 
 
