@@ -1680,13 +1680,10 @@ class TestExtractRowDataV2:
 class TestExtractRowDataFromFieldsData:
     """Test extract_row_data_from_fields_data function"""
     
-    def test_empty_fields_data(self):
+    @pytest.mark.parametrize("empty_data", [None, []])
+    def test_empty_fields_data(self, empty_data):
         """Test with empty fields data returns empty dict"""
-        
-        result = extract_row_data_from_fields_data(None, 0)
-        assert result == {}
-        
-        result = extract_row_data_from_fields_data([], 0)
+        result = extract_row_data_from_fields_data(empty_data, 0)
         assert result == {}
 
     def test_extract_bool_field(self):
@@ -2519,10 +2516,6 @@ class TestPackFieldValueNone:
             pack_field_value_to_field_data(None, field_data, field_info, {})
             
             field_container = getattr(field_data.scalars, field_attr)
-            # For scalars, None might be handled by extend([]) which basically skips it?
-            # Or append? 
-            # Logic: if field_value is None: ... extend([])
-            # So data length remains 0?
             assert len(field_container.data) == 0
 
     def test_pack_none_vectors(self):
@@ -2991,16 +2984,10 @@ class TestExtractRowDataV1Int8:
         assert row0["i8"] == [b"\x01\x02"]
 
 class TestJsonStrInput:
-    """Test string input for convert_to_json to cover line 240+"""
+    """Test string input for convert_to_json"""
     
     def test_json_str_valid(self):
-        
-        # Line 240 check isinstance(obj, str)
-        # Line 243 orjson.loads
-        # Line 245 check parsed_obj dict
-        
         res = convert_to_json('{"key": 1}')
-        # returns encoded bytes of original string (since it's valid)
         assert res == b'{"key": 1}'
 
 class TestEntityHelperCoverage:

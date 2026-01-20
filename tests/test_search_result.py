@@ -237,8 +237,7 @@ class TestSearchResultExtended:
             output_fields=["*"]
         )
 
-    def test_sparse_float_vector(self):
-        # Construct a sparse vector field
+    def test_sparse_float_vector(self, monkeypatch):
         fields_data = [
             schema_pb2.FieldData(
                 type=DataType.SPARSE_FLOAT_VECTOR,
@@ -251,44 +250,31 @@ class TestSearchResultExtended:
             )
         ]
         
-        # When creating SearchResultData, the fields_data list is copied into the repeated field.
-        # So we must modify res_data.fields_data later for the second part of the test.
         res_data = self._create_base_result(fields_data)
-        
-        # We expect search_result to call sparse_proto_to_rows
         expected_rows = [{0: 1.0}, {1: 0.5}, {2: 0.2}]
         
-        # We can monkeypatch entity_helper.sparse_proto_to_rows
-        original_func = entity_helper.sparse_proto_to_rows
-        try:
-            entity_helper.sparse_proto_to_rows = lambda x, start, end: expected_rows[start:end]
-            
-            sr = SearchResult(res_data)
-            assert len(sr) == 1
-            hits = sr[0]
-            assert len(hits) == 3
-            assert hits[0].entity["sparse_vec"] == {0: 1.0}
-            assert hits[1].entity["sparse_vec"] == {1: 0.5}
-            assert hits[2].entity["sparse_vec"] == {2: 0.2}
-            
-            # Test lazy materialization logic via _get_physical_index
-            # Modify the ACTUAL proto object in res_data
-            res_data.fields_data[0].valid_data.extend([True, False, True])
-            
-            valid_rows = [{0: 1.0}, {2: 0.2}] # physical rows corresponding to logical 0 and 2
-            entity_helper.sparse_proto_to_rows = lambda x, start, end: valid_rows[start:end]
-            
-            sr = SearchResult(res_data)
-            hits = sr[0]
-            assert hits[0].entity["sparse_vec"] == {0: 1.0}
-            assert hits[1].entity["sparse_vec"] is None # invalid
-            assert hits[2].entity["sparse_vec"] == {2: 0.2}
+        monkeypatch.setattr(entity_helper, "sparse_proto_to_rows", lambda x, start, end: expected_rows[start:end])
+        
+        sr = SearchResult(res_data)
+        assert len(sr) == 1
+        hits = sr[0]
+        assert len(hits) == 3
+        assert hits[0].entity["sparse_vec"] == {0: 1.0}
+        assert hits[1].entity["sparse_vec"] == {1: 0.5}
+        assert hits[2].entity["sparse_vec"] == {2: 0.2}
+        
+        # Test with validity mask
+        res_data.fields_data[0].valid_data.extend([True, False, True])
+        valid_rows = [{0: 1.0}, {2: 0.2}]
+        monkeypatch.setattr(entity_helper, "sparse_proto_to_rows", lambda x, start, end: valid_rows[start:end])
+        
+        sr = SearchResult(res_data)
+        hits = sr[0]
+        assert hits[0].entity["sparse_vec"] == {0: 1.0}
+        assert hits[1].entity["sparse_vec"] is None
+        assert hits[2].entity["sparse_vec"] == {2: 0.2}
 
-        finally:
-            entity_helper.sparse_proto_to_rows = original_func
-
-    def test_array_of_struct(self):
-        # StructArrayField expected
+    def test_array_of_struct(self, monkeypatch):
         fields_data = [
             schema_pb2.FieldData(
                 type=DataType._ARRAY_OF_STRUCT,
@@ -299,26 +285,19 @@ class TestSearchResultExtended:
         ]
         
         res_data = self._create_base_result(fields_data)
-        
         expected_data = [
             [{"name": "a", "age": 10}],
             [{"name": "b", "age": 20}],
             [{"name": "c", "age": 30}]
         ]
         
-        original_func = entity_helper.extract_struct_array_from_column_data
-        try:
-            # search_result calls extract_struct_array_from_column_data(struct_arrays, idx)
-            entity_helper.extract_struct_array_from_column_data = lambda x, idx: expected_data[idx]
-            
-            sr = SearchResult(res_data)
-            hits = sr[0]
-            assert hits[0].entity["struct_arr"] == [{"name": "a", "age": 10}]
-            assert hits[1].entity["struct_arr"] == [{"name": "b", "age": 20}]
-            assert hits[2].entity["struct_arr"] == [{"name": "c", "age": 30}]
-            
-        finally:
-            entity_helper.extract_struct_array_from_column_data = original_func
+        monkeypatch.setattr(entity_helper, "extract_struct_array_from_column_data", lambda x, idx: expected_data[idx])
+        
+        sr = SearchResult(res_data)
+        hits = sr[0]
+        assert hits[0].entity["struct_arr"] == [{"name": "a", "age": 10}]
+        assert hits[1].entity["struct_arr"] == [{"name": "b", "age": 20}]
+        assert hits[2].entity["struct_arr"] == [{"name": "c", "age": 30}]
 
     def test_array_of_vector(self):
         # We need to construct a robust VectorArray manually
