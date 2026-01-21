@@ -445,7 +445,7 @@ class Collection:
             >>> collection.load()
         """
         conn = self._get_connection()
-        if partition_names is not None:
+        if not partition_names:
             conn.load_partitions(
                 collection_name=self._name,
                 partition_names=partition_names,
