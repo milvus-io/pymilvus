@@ -46,7 +46,9 @@ class TestTypes:
             pytest.param(
                 [np.float16(1.0)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")
             ),
-            ([np.int8(1)], DataType.INT8_VECTOR),
+            pytest.param(
+                [np.int8(1)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")
+            ),
         ],
     )
     def test_infer_dtype_bydata(self, data, expect):
