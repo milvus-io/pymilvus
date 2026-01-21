@@ -9,8 +9,10 @@ from pymilvus.client.types import (
     LoadState,
     OmitZeroDict,
     ResourceGroupConfig,
+    RestoreSnapshotJobInfo,
     RoleInfo,
     SegmentInfo,
+    SnapshotInfo,
     UserInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, is_vector_type
@@ -1529,4 +1531,160 @@ class AsyncMilvusClient(BaseMilvusClient):
             compaction_id=compaction_id,
             target_size=task._target_size,
             progress=task.progress_history(),
+        )
+
+    async def create_snapshot(
+        self,
+        collection_name: str,
+        snapshot_name: str,
+        description: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        """Create a snapshot for a collection (async).
+
+        Args:
+            collection_name (str): The name of the collection to snapshot.
+            snapshot_name (str): The name of the snapshot. Must be unique.
+            description (str): Optional description for the snapshot.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Example:
+            >>> client = AsyncMilvusClient(uri="http://localhost:19530")
+            >>> await client.flush(collection_name="my_collection")
+            >>> await client.create_snapshot(
+            ...     collection_name="my_collection",
+            ...     snapshot_name="backup_20240101",
+            ...     description="Daily backup"
+            ... )
+        """
+        conn = self._get_connection()
+        await conn.create_snapshot(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            description=description,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def drop_snapshot(
+        self,
+        snapshot_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        """Delete a snapshot permanently (async).
+
+        Args:
+            snapshot_name (str): The name of the snapshot to drop.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+        """
+        conn = self._get_connection()
+        await conn.drop_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+
+    async def list_snapshots(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[str]:
+        """List existing snapshots (async).
+
+        Args:
+            collection_name (str): Optional collection name to filter snapshots.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[str]: A list of snapshot names.
+        """
+        conn = self._get_connection()
+        return await conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
+
+    async def describe_snapshot(
+        self,
+        snapshot_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> SnapshotInfo:
+        """Get detailed information about a snapshot (async).
+
+        Args:
+            snapshot_name (str): The name of the snapshot to describe.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            SnapshotInfo: Snapshot information dataclass.
+        """
+        conn = self._get_connection()
+        return await conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+
+    async def restore_snapshot(
+        self,
+        snapshot_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        """Restore a snapshot to a new collection (async).
+
+        Args:
+            snapshot_name (str): The name of the snapshot to restore.
+            collection_name (str): The name of the target collection to create.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            int: The restore job ID for tracking progress.
+        """
+        conn = self._get_connection()
+        return await conn.restore_snapshot(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            rewrite_data=False,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    async def get_restore_snapshot_state(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> RestoreSnapshotJobInfo:
+        """Query the status of a restore snapshot job (async).
+
+        Args:
+            job_id (int): The restore job ID.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            RestoreSnapshotJobInfo: Restore job information dataclass.
+        """
+        conn = self._get_connection()
+        return await conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
+
+    async def list_restore_snapshot_jobs(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[RestoreSnapshotJobInfo]:
+        """List all restore snapshot jobs (async).
+
+        Args:
+            collection_name (str): Optional collection name to filter jobs.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[RestoreSnapshotJobInfo]: A list of RestoreSnapshotJobInfo dataclasses.
+        """
+        conn = self._get_connection()
+        return await conn.list_restore_snapshot_jobs(
+            collection_name=collection_name, timeout=timeout, **kwargs
         )

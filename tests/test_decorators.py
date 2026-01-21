@@ -196,6 +196,7 @@ class MockRateLimitError(MilvusException):
     def compatible_code(self):
         return self._compatible_code
 
+
 class MockUnRetriableError(grpc.RpcError):
     def __init__(self, code: grpc.StatusCode, message="unretriable error"):
         self._code = code
@@ -240,7 +241,7 @@ class TestErrorHandlerTraceback:
         @error_handler(func_name="test_grpc_func")
         def func_that_raises_grpc_error():
             def inner_func():
-                raise MockUnavailableError()
+                raise MockUnavailableError
 
             inner_func()
 

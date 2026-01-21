@@ -151,9 +151,7 @@ class TestVolumeRestful:
         mock_post.assert_called_once()
 
     @patch("pymilvus.bulk_writer.volume_restful.requests.get")
-    def test_http_error_handling(
-        self, mock_get: Mock, api_params: Dict[str, str]
-    ) -> None:
+    def test_http_error_handling(self, mock_get: Mock, api_params: Dict[str, str]) -> None:
         """Test HTTP error handling."""
         mock_get.return_value.status_code = 404
 
@@ -161,9 +159,7 @@ class TestVolumeRestful:
             list_volumes(**api_params, project_id="test_project")
 
     @patch("pymilvus.bulk_writer.volume_restful.requests.get")
-    def test_network_error_handling(
-        self, mock_get: Mock, api_params: Dict[str, str]
-    ) -> None:
+    def test_network_error_handling(self, mock_get: Mock, api_params: Dict[str, str]) -> None:
         """Test network error handling."""
         mock_get.side_effect = requests.exceptions.ConnectionError("Network error")
 
@@ -217,7 +213,9 @@ class TestVolumeManager:
         mock_response.json.return_value = {"data": {"volumes": ["volume1", "volume2"]}}
         mock_list.return_value = mock_response
 
-        result = volume_manager.list_volumes(project_id="test_project", current_page=1, page_size=10)
+        result = volume_manager.list_volumes(
+            project_id="test_project", current_page=1, page_size=10
+        )
 
         assert result.json()["data"]["volumes"] == ["volume1", "volume2"]
         mock_list.assert_called_once_with(
@@ -359,7 +357,10 @@ class TestVolumeFileManager:
 
     @patch("pymilvus.bulk_writer.volume_file_manager.Minio")
     def test_upload_with_retry_success(
-        self, mock_minio: Mock, volume_file_manager: VolumeFileManager, mock_volume_info: Dict[str, Any]
+        self,
+        mock_minio: Mock,
+        volume_file_manager: VolumeFileManager,
+        mock_volume_info: Dict[str, Any],
     ) -> None:
         """Test successful upload with retry."""
         volume_file_manager.volume_info = mock_volume_info
@@ -389,7 +390,9 @@ class TestVolumeFileManager:
         volume_file_manager._client = mock_client
 
         with pytest.raises(RuntimeError, match="Upload failed after 2 attempts"):
-            volume_file_manager._upload_with_retry("test.txt", "remote/test.txt", "data/", max_retries=2)
+            volume_file_manager._upload_with_retry(
+                "test.txt", "remote/test.txt", "data/", max_retries=2
+            )
 
         assert mock_client.fput_object.call_count == 2
         assert mock_refresh.call_count == 2  # Refreshed on each retry
@@ -443,11 +446,13 @@ class TestVolumeBulkWriter:
         """Test committing data."""
         # Add some data
         for i in range(10):
-            volume_bulk_writer.append_row({
-                "id": i,
-                "vector": [float(i)] * 128,
-                "text": f"text_{i}",
-            })
+            volume_bulk_writer.append_row(
+                {
+                    "id": i,
+                    "vector": [float(i)] * 128,
+                    "text": f"text_{i}",
+                }
+            )
 
         # Mock the upload to return file paths
         mock_upload.return_value = ["file1.parquet", "file2.parquet"]
@@ -490,7 +495,11 @@ class TestVolumeBulkWriter:
     @patch.object(VolumeBulkWriter, "_local_rm")
     @patch("pymilvus.bulk_writer.volume_bulk_writer.Path")
     def test_upload(
-        self, mock_path_class: Mock, mock_rm: Mock, mock_upload_object: Mock, volume_bulk_writer: VolumeBulkWriter
+        self,
+        mock_path_class: Mock,
+        mock_rm: Mock,
+        mock_upload_object: Mock,
+        volume_bulk_writer: VolumeBulkWriter,
     ) -> None:
         """Test uploading files."""
         # Mock Path behavior
@@ -520,18 +529,20 @@ class TestVolumeBulkWriter:
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:
         """Test VolumeBulkWriter as context manager."""
         with patch("pymilvus.bulk_writer.volume_bulk_writer.VolumeFileManager"), VolumeBulkWriter(
-                schema=simple_schema,
-                remote_path="test/data",
-                cloud_endpoint="https://api.cloud.zilliz.com",
-                api_key="test_api_key",
-                volume_name="test_volume",
-            ) as writer:
-                assert writer is not None
-                writer.append_row({
+            schema=simple_schema,
+            remote_path="test/data",
+            cloud_endpoint="https://api.cloud.zilliz.com",
+            api_key="test_api_key",
+            volume_name="test_volume",
+        ) as writer:
+            assert writer is not None
+            writer.append_row(
+                {
                     "id": 1,
                     "vector": [1.0] * 128,
                     "text": "test",
-                })
+                }
+            )
 
     @patch.object(VolumeBulkWriter, "_upload_object")
     @patch("pymilvus.bulk_writer.volume_bulk_writer.Path")

@@ -14,7 +14,9 @@ from pymilvus.client.types import (
     OmitZeroDict,
     ReplicaInfo,
     ResourceGroupConfig,
+    RestoreSnapshotJobInfo,
     SegmentInfo,
+    SnapshotInfo,
 )
 from pymilvus.client.utils import convert_struct_fields_to_user_format, get_params, is_vector_type
 from pymilvus.exceptions import (
@@ -2164,4 +2166,255 @@ class MilvusClient(BaseMilvusClient):
             compaction_id=compaction_id,
             target_size=task._target_size,
             progress=task.progress_history(),
+        )
+
+    def create_snapshot(
+        self,
+        collection_name: str,
+        snapshot_name: str,
+        description: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        """Create a snapshot for a collection.
+
+        Args:
+            collection_name (str): The name of the collection to snapshot.
+            snapshot_name (str): The name of the snapshot. Must be unique.
+            description (str): Optional description for the snapshot.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Raises:
+            MilvusException: If the operation fails.
+
+        Example:
+            >>> from pymilvus import MilvusClient
+            >>> client = MilvusClient(uri="http://localhost:19530")
+            >>> # Recommended: flush before creating snapshot
+            >>> client.flush(collection_name="my_collection")
+            >>> client.create_snapshot(
+            ...     collection_name="my_collection",
+            ...     snapshot_name="backup_20240101",
+            ...     description="Daily backup"
+            ... )
+        """
+        conn = self._get_connection()
+        conn.create_snapshot(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            description=description,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def drop_snapshot(
+        self,
+        snapshot_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> None:
+        """Delete a snapshot permanently.
+
+        Args:
+            snapshot_name (str): The name of the snapshot to drop.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Raises:
+            MilvusException: If the operation fails.
+
+        Example:
+            >>> client.drop_snapshot(snapshot_name="backup_20240101")
+        """
+        conn = self._get_connection()
+        conn.drop_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+
+    def list_snapshots(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[str]:
+        """List existing snapshots.
+
+        Args:
+            collection_name (str): Optional collection name to filter snapshots.
+                If empty, lists all snapshots.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[str]: A list of snapshot names.
+
+        Raises:
+            MilvusException: If the operation fails.
+
+        Example:
+            >>> # List all snapshots for a collection
+            >>> snapshots = client.list_snapshots(collection_name="my_collection")
+            >>> print(snapshots)
+            ['backup_20240101', 'backup_20240102']
+        """
+        conn = self._get_connection()
+        return conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
+
+    def describe_snapshot(
+        self,
+        snapshot_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> SnapshotInfo:
+        """Get detailed information about a specific snapshot.
+
+        Args:
+            snapshot_name (str): The name of the snapshot to describe.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            SnapshotInfo: A dataclass containing snapshot information with the following fields:
+                - name (str): The snapshot name
+                - description (str): The snapshot description
+                - collection_name (str): The collection name
+                - partition_names (List[str]): List of partition names
+                - create_ts (int): Creation timestamp
+                - s3_location (str): S3 storage location
+
+        Raises:
+            MilvusException: If the operation fails.
+
+        Example:
+            >>> info = client.describe_snapshot(snapshot_name="backup_20240101")
+            >>> print(f"Snapshot: {info.name}")
+            >>> print(f"Collection: {info.collection_name}")
+            >>> print(f"Created: {info.create_ts}")
+        """
+        conn = self._get_connection()
+        return conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+
+    def restore_snapshot(
+        self,
+        snapshot_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        """Restore a snapshot to a new collection.
+
+        This operation is asynchronous and returns a job ID for tracking progress.
+        Use get_restore_snapshot_state() to monitor the restore progress.
+
+        Args:
+            snapshot_name (str): The name of the snapshot to restore.
+            collection_name (str): The name of the target collection to create.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            int: The restore job ID for tracking progress.
+
+        Raises:
+            MilvusException: If the operation fails.
+
+        Example:
+            >>> job_id = client.restore_snapshot(
+            ...     snapshot_name="backup_20240101",
+            ...     collection_name="restored_collection"
+            ... )
+            >>> print(f"Restore job ID: {job_id}")
+            >>> # Monitor progress
+            >>> import time
+            >>> while True:
+            ...     state = client.get_restore_snapshot_state(job_id=job_id)
+            ...     if state.state == "RestoreSnapshotCompleted":
+            ...         print("Restore completed!")
+            ...         break
+            ...     elif state.state == "RestoreSnapshotFailed":
+            ...         print(f"Restore failed: {state.reason}")
+            ...         break
+            ...     print(f"Progress: {state.progress}%")
+            ...     time.sleep(1)
+        """
+        conn = self._get_connection()
+        return conn.restore_snapshot(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            rewrite_data=False,
+            timeout=timeout,
+            **kwargs,
+        )
+
+    def get_restore_snapshot_state(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> RestoreSnapshotJobInfo:
+        """Query the status and progress of a restore snapshot job.
+
+        Args:
+            job_id (int): The restore job ID returned from restore_snapshot().
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            RestoreSnapshotJobInfo: A dataclass containing restore job information
+                with the following fields:
+                - job_id (int): The restore job ID
+                - snapshot_name (str): The snapshot name being restored
+                - db_name (str): The target database name
+                - collection_name (str): The target collection name
+                - state (str): Current state. Possible values:
+                    - 'RestoreSnapshotNone'
+                    - 'RestoreSnapshotPending'
+                    - 'RestoreSnapshotExecuting'
+                    - 'RestoreSnapshotCompleted'
+                    - 'RestoreSnapshotFailed'
+                - progress (int): Progress percentage (0-100)
+                - reason (str): Error reason if failed
+                - start_time (int): Start timestamp in milliseconds
+                - time_cost (int): Time cost in milliseconds
+
+        Example:
+            >>> state = client.get_restore_snapshot_state(job_id=12345)
+            >>> print(f"Job ID: {state.job_id}")
+            >>> print(f"State: {state.state}")
+            >>> print(f"Progress: {state.progress}%")
+            >>> if state.state == 'RestoreSnapshotFailed':
+            ...     print(f"Failure Reason: {state.reason}")
+        """
+        conn = self._get_connection()
+        return conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
+
+    def list_restore_snapshot_jobs(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[RestoreSnapshotJobInfo]:
+        """List all restore snapshot jobs.
+
+        Args:
+            collection_name (str): Optional collection name to filter jobs.
+                If empty, lists all restore jobs.
+            timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
+            **kwargs: Additional arguments.
+
+        Returns:
+            List[RestoreSnapshotJobInfo]: A list of RestoreSnapshotJobInfo dataclasses.
+                Each contains the same fields as get_restore_snapshot_state().
+
+        Example:
+            >>> # List all restore jobs
+            >>> jobs = client.list_restore_snapshot_jobs()
+            >>> for job in jobs:
+            ...     print(f"Job {job.job_id}: {job.snapshot_name} - {job.progress}%")
+            >>>
+            >>> # List restore jobs for a specific collection
+            >>> jobs = client.list_restore_snapshot_jobs(collection_name="my_collection")
+        """
+        conn = self._get_connection()
+        return conn.list_restore_snapshot_jobs(
+            collection_name=collection_name, timeout=timeout, **kwargs
         )

@@ -19,8 +19,8 @@ from pymilvus.orm.iterator import (
 
 
 class TestIteratorHelpers:
-    @patch('pymilvus.orm.iterator.datetime')
-    @patch('pymilvus.orm.iterator.mkts_from_datetime')
+    @patch("pymilvus.orm.iterator.datetime")
+    @patch("pymilvus.orm.iterator.mkts_from_datetime")
     def test_fall_back_to_latest_session_ts(self, mock_mkts, mock_datetime):
         mock_now = Mock()
         mock_datetime.datetime.now.return_value = mock_now
@@ -90,11 +90,7 @@ class TestIteratorHelpers:
 
     def test_check_set_flag(self):
         obj = Mock()
-        kwargs = {
-            "test_key": True,
-            "another_key": "value",
-            "false_key": False
-        }
+        kwargs = {"test_key": True, "another_key": "value", "false_key": False}
 
         check_set_flag(obj, "flag_name", kwargs, "test_key")
         assert obj.flag_name is True
@@ -115,7 +111,7 @@ class TestQueryIteratorInit:
         conn.describe_collection.return_value = {
             "collection_id": 123,
             "schema": {"fields": []},
-            "consistency_level": 1
+            "consistency_level": 1,
         }
         return conn
 
@@ -125,7 +121,7 @@ class TestQueryIteratorInit:
         schema.fields = []
         return schema
 
-    @patch('pymilvus.orm.iterator.Connections')
+    @patch("pymilvus.orm.iterator.Connections")
     def test_query_iterator_basic_init(self, mock_connections, mock_connection, mock_schema):
         mock_connections.get_connection.return_value = mock_connection
 
@@ -152,7 +148,7 @@ class TestSearchIteratorHelpers:
         expected = min(200, batch_size * DEFAULT_SEARCH_EXTENSION_RATE)
         assert result == expected
 
-    @patch('pymilvus.orm.iterator.Path')
+    @patch("pymilvus.orm.iterator.Path")
     def test_iterator_checkpoint_operations(self, mock_path):
         """Test checkpoint file operations that iterators might use"""
         mock_file = Mock()
@@ -161,14 +157,14 @@ class TestSearchIteratorHelpers:
 
         # Test checkpoint save operation
         def save_checkpoint():
-            with mock_path.return_value.open('w') as f:
-                f.write('checkpoint_data')
+            with mock_path.return_value.open("w") as f:
+                f.write("checkpoint_data")
 
         io_operation(save_checkpoint, "Failed to save checkpoint")
 
         # Test checkpoint load operation
         def load_checkpoint():
-            with mock_path.return_value.open('r') as f:
+            with mock_path.return_value.open("r") as f:
                 return f.read()
 
         io_operation(load_checkpoint, "Failed to load checkpoint")
@@ -231,15 +227,21 @@ class TestIteratorErrorHandling:
 
         # Test with OSError
         with pytest.raises(MilvusException, match="Custom IO error"):
-            io_operation(lambda: (_ for _ in ()).throw(OSError("OS level error")), "Custom IO error")
+            io_operation(
+                lambda: (_ for _ in ()).throw(OSError("OS level error")), "Custom IO error"
+            )
 
         # Test with PermissionError (subclass of OSError)
         with pytest.raises(MilvusException, match="Permission denied"):
-            io_operation(lambda: (_ for _ in ()).throw(PermissionError("No access")), "Permission denied")
+            io_operation(
+                lambda: (_ for _ in ()).throw(PermissionError("No access")), "Permission denied"
+            )
 
         # Test with FileNotFoundError (subclass of OSError)
         with pytest.raises(MilvusException, match="File not found"):
-            io_operation(lambda: (_ for _ in ()).throw(FileNotFoundError("Missing file")), "File not found")
+            io_operation(
+                lambda: (_ for _ in ()).throw(FileNotFoundError("Missing file")), "File not found"
+            )
 
     def test_assert_info_with_different_messages(self):
         """Test assert_info with various error messages"""
@@ -249,7 +251,7 @@ class TestIteratorErrorHandling:
             "Error with special characters: @#$%",
             "Error with numbers 12345",
             "Very long error message " * 100,
-            ""  # Empty message
+            "",  # Empty message
         ]
 
         for message in test_cases:

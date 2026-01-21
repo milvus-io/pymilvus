@@ -1,9 +1,6 @@
-import threading
-
 from pymilvus.client import ts_utils
-
-
 from pymilvus.client.cache import GlobalCache
+
 
 class TestTsUtils:
     def setup_method(self):
@@ -33,7 +30,6 @@ class TestTsUtils:
         # Test with empty endpoint/db (default behavior)
         ts_utils.update_collection_ts(collection_name, 300)
         assert ts_utils.get_collection_ts(collection_name) == 300
-
 
     def test_get_current_bounded_ts(self):
         ts = ts_utils.get_bounded_ts()

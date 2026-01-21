@@ -32,19 +32,19 @@ class TestCollectionSchema:
                     "description": "ID",
                     "type": DataType.INT64,
                     "is_primary": True,
-                    "auto_id": False
+                    "auto_id": False,
                 },
-            ]
+            ],
         }
 
     def test_constructor_from_dict(self, raw_dict):
         schema = CollectionSchema.construct_from_dict(raw_dict)
         assert schema.enable_dynamic_field == raw_dict.get("enable_dynamic_field", False)
-        assert schema.description, raw_dict['description']
-        assert len(schema.fields) == len(raw_dict['fields'])
+        assert schema.description, raw_dict["description"]
+        assert len(schema.fields) == len(raw_dict["fields"])
         f = schema.primary_field
         assert isinstance(f, FieldSchema)
-        assert f.name == raw_dict['fields'][2]['name']
+        assert f.name == raw_dict["fields"][2]["name"]
 
     def test_to_dict(self, raw_dict):
         schema = CollectionSchema.construct_from_dict(raw_dict)
@@ -54,9 +54,7 @@ class TestCollectionSchema:
         assert target is not raw_dict
 
     def test_init_with_functions(self, raw_dict):
-        functions = [
-            Function("func1", FunctionType.BM25, ["field1"], ["field2"])
-        ]
+        functions = [Function("func1", FunctionType.BM25, ["field1"], ["field2"])]
         schema = CollectionSchema.construct_from_dict(raw_dict)
         schema_with_func = CollectionSchema(schema.fields, schema.description, functions=functions)
         assert schema_with_func.functions == functions
@@ -65,7 +63,7 @@ class TestCollectionSchema:
 class TestFieldSchema:
     @pytest.fixture(scope="function")
     def raw_dict_float_vector(self):
-        return  {
+        return {
             "name": "TestFieldSchema_name_floatvector",
             "description": "TestFieldSchema_description_floatvector",
             "type": DataType.FLOAT_VECTOR,
@@ -118,59 +116,55 @@ class TestFieldSchema:
 
     @pytest.fixture(scope="function")
     def dataframe1(self):
-        data = {
-            'float': [1.0],
-            'int32': [2],
-            'float_vec': [np.array([3, 4.0], np.float32)]
-        }
+        data = {"float": [1.0], "int32": [2], "float_vec": [np.array([3, 4.0], np.float32)]}
         return pd.DataFrame(data)
 
     def test_constructor_from_float_dict(self, raw_dict_float_vector):
         field = FieldSchema.construct_from_dict(raw_dict_float_vector)
         assert field.dtype == DataType.FLOAT_VECTOR
-        assert field.description == raw_dict_float_vector['description']
+        assert field.description == raw_dict_float_vector["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_float_vector['name']
-        assert field.dim == raw_dict_float_vector['params']['dim']
+        assert field.name == raw_dict_float_vector["name"]
+        assert field.dim == raw_dict_float_vector["params"]["dim"]
 
     def test_constructor_from_binary_dict(self, raw_dict_binary_vector):
         field = FieldSchema.construct_from_dict(raw_dict_binary_vector)
         assert field.dtype == DataType.BINARY_VECTOR
-        assert field.description == raw_dict_binary_vector['description']
+        assert field.description == raw_dict_binary_vector["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_binary_vector['name']
-        assert field.dim == raw_dict_binary_vector['params']['dim']
+        assert field.name == raw_dict_binary_vector["name"]
+        assert field.dim == raw_dict_binary_vector["params"]["dim"]
 
     def test_constructor_from_float16_dict(self, raw_dict_float16_vector):
         field = FieldSchema.construct_from_dict(raw_dict_float16_vector)
         assert field.dtype == DataType.FLOAT16_VECTOR
-        assert field.description == raw_dict_float16_vector['description']
+        assert field.description == raw_dict_float16_vector["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_float16_vector['name']
-        assert field.dim == raw_dict_float16_vector['params']['dim']
+        assert field.name == raw_dict_float16_vector["name"]
+        assert field.dim == raw_dict_float16_vector["params"]["dim"]
 
     def test_constructor_from_bfloat16_dict(self, raw_dict_bfloat16_vector):
         field = FieldSchema.construct_from_dict(raw_dict_bfloat16_vector)
         assert field.dtype == DataType.BFLOAT16_VECTOR
-        assert field.description == raw_dict_bfloat16_vector['description']
+        assert field.description == raw_dict_bfloat16_vector["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_bfloat16_vector['name']
-        assert field.dim == raw_dict_bfloat16_vector['params']['dim']
+        assert field.name == raw_dict_bfloat16_vector["name"]
+        assert field.dim == raw_dict_bfloat16_vector["params"]["dim"]
 
     def test_constructor_from_int8_dict(self, raw_dict_int8_vector):
         field = FieldSchema.construct_from_dict(raw_dict_int8_vector)
         assert field.dtype == DataType.INT8_VECTOR
-        assert field.description == raw_dict_int8_vector['description']
+        assert field.description == raw_dict_int8_vector["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_int8_vector['name']
-        assert field.dim == raw_dict_int8_vector['params']['dim']
+        assert field.name == raw_dict_int8_vector["name"]
+        assert field.dim == raw_dict_int8_vector["params"]["dim"]
 
     def test_constructor_from_norm_dict(self, raw_dict_norm):
         field = FieldSchema.construct_from_dict(raw_dict_norm)
         assert field.dtype == DataType.INT64
-        assert field.description == raw_dict_norm['description']
+        assert field.description == raw_dict_norm["description"]
         assert field.is_primary is False
-        assert field.name == raw_dict_norm['name']
+        assert field.name == raw_dict_norm["name"]
         assert field.dim is None
         assert field.dummy is None
 
