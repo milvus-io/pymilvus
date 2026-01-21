@@ -47,8 +47,8 @@ def _fill_field_data(field: FieldSchema, dest, total_results: int) -> None:
     name = field.name
     dtype = field.dtype
     params = field.params or {}
-    dim = params.get('dim', 128)
-    max_length = params.get('max_length', 100)
+    dim = params.get("dim", 128)
+    max_length = params.get("max_length", 100)
 
     # Scalars
     if dtype == DataType.INT8:
@@ -77,20 +77,22 @@ def _fill_field_data(field: FieldSchema, dest, total_results: int) -> None:
         data = []
         for i in range(total_results):
             base = f"{name}_{i}_"
-            padding = 'x' * max(0, max_length - len(base))
+            padding = "x" * max(0, max_length - len(base))
             s = (base + padding)[:max_length]
             data.append(s)
         dest.scalars.string_data.data.extend(data)
     elif dtype == DataType.TIMESTAMPTZ:
         dest.type = schema_pb2.DataType.Timestamptz
-        dest.scalars.string_data.data.extend([f"2024-01-01T00:00:{i:02d}Z" for i in range(total_results)])
+        dest.scalars.string_data.data.extend(
+            [f"2024-01-01T00:00:{i:02d}Z" for i in range(total_results)]
+        )
     elif dtype == DataType.JSON:
         dest.type = schema_pb2.DataType.JSON
         data = []
         for i in range(total_results):
             base = b'{"i":%d,"d":"' % i
             remaining = max(0, max_length - len(base) - 2)  # -2 for closing "}
-            padding = b'x' * remaining
+            padding = b"x" * remaining
             json_bytes = (base + padding + b'"}')[:max_length]
             data.append(json_bytes)
         dest.scalars.json_data.data.extend(data)
@@ -128,6 +130,6 @@ def _fill_field_data(field: FieldSchema, dest, total_results: int) -> None:
     elif dtype == DataType.SPARSE_FLOAT_VECTOR:
         dest.type = schema_pb2.DataType.SparseFloatVector
         for _ in range(total_results):
-            sparse_bytes = struct.pack('<I', 10) + struct.pack('<f', 0.5)
+            sparse_bytes = struct.pack("<I", 10) + struct.pack("<f", 0.5)
             dest.vectors.sparse_float_vector.contents.append(sparse_bytes)
         dest.vectors.sparse_float_vector.dim = 1000

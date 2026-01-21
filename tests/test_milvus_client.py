@@ -2,6 +2,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pymilvus import DataType
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient
@@ -14,19 +15,22 @@ class TestMilvusClient:
     def test_create_index_invalid_params(self, index_params):
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
-        
-        with patch('pymilvus.milvus_client.milvus_client.create_connection', return_value="test"), \
-             patch('pymilvus.orm.connections.Connections._fetch_handler', return_value=mock_handler):
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
             client = MilvusClient()
 
             if isinstance(index_params, IndexParams):
-                with pytest.raises(ParamError, match="IndexParams is empty, no index can be created"):
+                with pytest.raises(
+                    ParamError, match="IndexParams is empty, no index can be created"
+                ):
                     client.create_index("test_collection", index_params)
             elif index_params is None:
-                with pytest.raises(ParamError, match="missing required argument:.*"):
+                with pytest.raises(ParamError, match=r"missing required argument:.*"):
                     client.create_index("test_collection", index_params)
             else:
-                with pytest.raises(ParamError, match="wrong type of argument .*"):
+                with pytest.raises(ParamError, match=r"wrong type of argument .*"):
                     client.create_index("test_collection", index_params)
 
     def test_index_params(self):
@@ -47,9 +51,10 @@ class TestMilvusClient:
     def test_connection_reuse(self):
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
-        
-        with patch("pymilvus.orm.connections.Connections.connect", return_value=None), \
-             patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+
+        with patch("pymilvus.orm.connections.Connections.connect", return_value=None), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ):
             client = MilvusClient()
             assert client._using == "http://localhost:19530"
             client = MilvusClient(user="test", password="foobar")
@@ -70,22 +75,20 @@ class TestMilvusClient:
     )
     def test_add_collection_field_vector_requires_nullable(self, data_type):
         """Test that adding vector field to collection requires nullable=True"""
-        from pymilvus.orm.types import DataType
 
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
 
         with patch(
             "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
-        ):
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
             client = MilvusClient()
             dtype = getattr(DataType, data_type)
 
             # Should raise ParamError when nullable is not set or False
             with pytest.raises(
-                ParamError, match="Adding vector field to existing collection requires nullable=True"
+                ParamError,
+                match="Adding vector field to existing collection requires nullable=True",
             ):
                 client.add_collection_field(
                     collection_name="test_collection",
@@ -96,7 +99,8 @@ class TestMilvusClient:
 
             # Should raise ParamError when nullable is explicitly False
             with pytest.raises(
-                ParamError, match="Adding vector field to existing collection requires nullable=True"
+                ParamError,
+                match="Adding vector field to existing collection requires nullable=True",
             ):
                 client.add_collection_field(
                     collection_name="test_collection",
@@ -108,8 +112,6 @@ class TestMilvusClient:
 
     def test_add_collection_field_vector_with_nullable_true(self):
         """Test that adding vector field with nullable=True passes validation"""
-        from pymilvus.orm.types import DataType
-
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
         mock_conn = MagicMock()
@@ -135,8 +137,6 @@ class TestMilvusClient:
 
     def test_add_collection_field_non_vector_no_nullable_required(self):
         """Test that non-vector fields don't require nullable=True"""
-        from pymilvus.orm.types import DataType
-
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
         mock_conn = MagicMock()
