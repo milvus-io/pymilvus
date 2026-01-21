@@ -1,7 +1,5 @@
 import threading
 
-import pytest
-
 from pymilvus.client.cache import CacheRegion, GlobalCache, SchemaCache
 
 
@@ -47,7 +45,6 @@ class TestSchemaCache:
 
     def test_lru_eviction(self):
         """Verify LRU eviction when capacity is exceeded."""
-        from cachetools import LRUCache
 
         # Create a small capacity cache for testing
         small_cache = SchemaCache(capacity=3)

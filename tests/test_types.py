@@ -28,7 +28,8 @@ from pymilvus.orm.types import (
 
 class TestTypes:
     @pytest.mark.parametrize(
-        "data,expect",[
+        "data,expect",
+        [
             ([1], DataType.FLOAT_VECTOR),
             ([True], DataType.UNKNOWN),
             ([1.0, 2.0], DataType.FLOAT_VECTOR),
@@ -39,9 +40,13 @@ class TestTypes:
             ("abc", DataType.VARCHAR),
             (np.int8(1), DataType.INT8),
             (np.int16(1), DataType.INT16),
-            pytest.param([np.float16(1.0)], DataType.FLOAT16_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
-            pytest.param([np.float16(1.0)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")),
-            #  ([np.int8(1)], DataType.INT8_VECTOR),
+            pytest.param(
+                [np.float16(1.0)], DataType.FLOAT16_VECTOR, marks=pytest.mark.xfail(reason="fix me")
+            ),
+            pytest.param(
+                [np.float16(1.0)], DataType.INT8_VECTOR, marks=pytest.mark.xfail(reason="fix me")
+            ),
+            ([np.int8(1)], DataType.INT8_VECTOR),
         ],
     )
     def test_infer_dtype_bydata(self, data, expect):
