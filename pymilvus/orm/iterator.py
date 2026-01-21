@@ -101,7 +101,7 @@ class QueryIterator:
     ) -> QueryIterator:
         self._conn = connection
         self._collection_name = collection_name
-        self.__set_up_collection_id()
+        self.__set_up_collection_id(**kwargs)
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
@@ -122,8 +122,8 @@ class QueryIterator:
         self.__set_up_ts_cp()
         self.__seek_to_offset()
 
-    def __set_up_collection_id(self):
-        res = self._conn.describe_collection(self._collection_name)
+    def __set_up_collection_id(self, **kwargs):
+        res = self._conn.describe_collection(self._collection_name, **kwargs)
         self._collection_id = res[COLLECTION_ID]
 
     def __seek_to_offset(self):
@@ -524,7 +524,7 @@ class SearchIterator:
         self.__init_search_iterator()
 
     def __set_up_collection_id(self):
-        res = self._conn.describe_collection(self._collection_name)
+        res = self._conn.describe_collection(self._collection_name, **self._kwargs)
         self._collection_id = res[COLLECTION_ID]
 
     def __init_search_iterator(self):

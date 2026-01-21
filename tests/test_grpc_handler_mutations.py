@@ -53,7 +53,7 @@ class TestGrpcHandlerHelperMethods:
             "update_timestamp": 100,
         }
         GlobalCache.schema.set(
-            handler.server_address, handler._get_db_name(), "test_collection", cached_schema
+            handler.server_address, "", "test_collection", cached_schema
         )
 
         schema, timestamp = handler._get_schema("test_collection")
@@ -84,7 +84,7 @@ class TestGrpcHandlerHelperMethods:
 
             # Check it was cached in global cache
             cached = GlobalCache.schema.get(
-                handler.server_address, handler._get_db_name(), "test_collection"
+                handler.server_address, "", "test_collection"
             )
             assert cached == remote_schema
 

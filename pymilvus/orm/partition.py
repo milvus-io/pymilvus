@@ -55,7 +55,11 @@ class Partition:
 
         if not self._collection.has_partition(self.name, **kwargs):
             conn = self._get_connection()
-            conn.create_partition(self._collection.name, self.name, **kwargs)
+            # Need to import connections here or better rely on Collection methods
+            from .connections import connections
+
+            context = connections.create_call_context(self._collection._using, **kwargs)
+            conn.create_partition(self._collection.name, self.name, context=context, **kwargs)
 
     def __repr__(self) -> str:
         return orjson.dumps(
@@ -134,8 +138,12 @@ class Partition:
             10
         """
         conn = self._get_connection()
+        from .connections import connections
+
+        # num_entities property cannot accept kwargs, so we use default context
+        context = connections.create_call_context(self._collection._using)
         stats = conn.get_partition_stats(
-            collection_name=self._collection.name, partition_name=self.name
+            collection_name=self._collection.name, partition_name=self.name, context=context
         )
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
@@ -152,7 +160,10 @@ class Partition:
                 responds or an error occurs.
         """
         conn = self._get_connection()
-        conn.flush([self._collection.name], timeout=timeout, **kwargs)
+        from .connections import connections
+
+        context = connections.create_call_context(self._collection._using, **kwargs)
+        conn.flush([self._collection.name], timeout=timeout, context=context, **kwargs)
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
         """Drop the partition, the same as Collection.drop_partition
@@ -173,7 +184,12 @@ class Partition:
             >>> partition.drop()
         """
         conn = self._get_connection()
-        return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
+        from .connections import connections
+
+        context = connections.create_call_context(self._collection._using, **kwargs)
+        return conn.drop_partition(
+            self._collection.name, self.name, timeout=timeout, context=context, **kwargs
+        )
 
     def load(self, replica_number: Optional[int] = None, timeout: Optional[float] = None, **kwargs):
         """Load the partition data into memory.
@@ -200,11 +216,15 @@ class Partition:
             >>> partition.load()
         """
         conn = self._get_connection()
+        from .connections import connections
+
+        context = connections.create_call_context(self._collection._using, **kwargs)
         return conn.load_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
             replica_number=replica_number,
             timeout=timeout,
+            context=context,
             **kwargs,
         )
 
@@ -233,10 +253,14 @@ class Partition:
             >>> partition.release()
         """
         conn = self._get_connection()
+        from .connections import connections
+
+        context = connections.create_call_context(self._collection._using, **kwargs)
         return conn.release_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
             timeout=timeout,
+            context=context,
             **kwargs,
         )
 

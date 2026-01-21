@@ -18,6 +18,7 @@ from typing import Callable, Tuple, Union
 from urllib import parse
 
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.exceptions import (
@@ -503,6 +504,26 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._alias_handlers
 
+    def _update_db_name(self, alias: str, db_name: str) -> None:
+        """Update the database name for a specific connection alias."""
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+        if not isinstance(db_name, str):
+            raise ConnectionConfigException(
+                message=f"db_name must be a string, got {type(db_name)}"
+            )
+
+        if alias not in self._alias_handlers:
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+
+        # Update global config
+        if alias in self._alias_config:
+            self._alias_config[alias]["db_name"] = db_name
+
+        # Update handler internal state (for legacy consistency)
+        handler = self._alias_handlers[alias]
+        handler.reset_db_name(db_name)
+
     def _fetch_handler(
         self, alias: str = Config.MILVUS_CONN_ALIAS
     ) -> Union[GrpcHandler, AsyncGrpcHandler]:
@@ -515,6 +536,22 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
 
         return conn
+
+    def create_call_context(self, alias: str, **kwargs) -> CallContext:
+        """Create a CallContext from the connection alias configuration.
+
+        Args:
+            alias (str): The name of milvus connection
+            **kwargs:
+                * *client_request_id* (``str``) -- Optional. The client request id.
+
+        Returns:
+            CallContext: The call context with db_name from the connection config.
+        """
+        config = self.get_connection_addr(alias)
+        db_name = config.get("db_name", "")
+        req_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(db_name=db_name, client_request_id=req_id)
 
 
 # Singleton Mode in Python
