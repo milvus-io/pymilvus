@@ -25,56 +25,62 @@ log = logging.getLogger(__name__)
 
 
 class TestChecks:
-    @pytest.mark.parametrize("valid_address", [
-        "localhost:19530",
-        "example.com:19530"
-    ])
+    @pytest.mark.parametrize("valid_address", ["localhost:19530", "example.com:19530"])
     def test_check_is_legal_address_true(self, valid_address):
         valid = is_legal_address(valid_address)
         assert valid is True
 
-    @pytest.mark.parametrize("invalid_address", [
-        "-1",
-        "localhost",
-        ":19530",
-        "localhost:localhost",
-    ])
+    @pytest.mark.parametrize(
+        "invalid_address",
+        [
+            "-1",
+            "localhost",
+            ":19530",
+            "localhost:localhost",
+        ],
+    )
     def test_check_is_legal_address_false(self, invalid_address):
         valid = is_legal_address(invalid_address)
         assert valid is False
 
-    @pytest.mark.parametrize("valid_host", [
-        "localhost",
-        "example.com"
-    ])
+    @pytest.mark.parametrize("valid_host", ["localhost", "example.com"])
     def test_check_is_legal_host_true(self, valid_host):
         valid = is_legal_host(valid_host)
         assert valid is True
 
-    @pytest.mark.parametrize("invalid_host", [
-        -1,
-        1.0,
-        "",
-        is_legal_address,
-    ])
+    @pytest.mark.parametrize(
+        "invalid_host",
+        [
+            -1,
+            1.0,
+            "",
+            is_legal_address,
+        ],
+    )
     def test_check_is_legal_host_false(self, invalid_host):
         valid = is_legal_host(invalid_host)
         assert valid is False
 
-    @pytest.mark.parametrize("valid_port", [
-        "19530",
-        "222",
-        123,
-    ])
+    @pytest.mark.parametrize(
+        "valid_port",
+        [
+            "19530",
+            "222",
+            123,
+        ],
+    )
     def test_check_is_legal_port_true(self, valid_port):
         valid = is_legal_port(valid_port)
         assert valid is True
 
-    @pytest.mark.parametrize("invalid_port", [
-        is_legal_address,
-        "abc",
-        0.3,
-    ])
+    @pytest.mark.parametrize(
+        "invalid_port",
+        [
+            is_legal_address,
+            "abc",
+            0.3,
+        ],
+    )
     def test_check_is_legal_port_false(self, invalid_port):
         valid = is_legal_port(invalid_port)
         assert valid is False
@@ -137,16 +143,10 @@ class TestGetCommit:
         assert s == "c9f015a04058638a28e1d2a5b265147cda0b0a23"
 
     def test_version_re(self):
-        version_info = r'((\d+)\.(\d+)\.(\d+))((rc)(\d+))?(\.dev(\d+))?'
+        version_info = r"((\d+)\.(\d+)\.(\d+))((rc)(\d+))?(\.dev(\d+))?"
         p = re.compile(version_info)
 
-        versions = [
-            '2.0.0',
-            '2.0.0rc3',
-            '2.0.0rc4.dev8',
-            '2.0.0rc4.dev22',
-            '2.0.'
-        ]
+        versions = ["2.0.0", "2.0.0rc3", "2.0.0rc4.dev8", "2.0.0rc4.dev22", "2.0."]
 
         for v in versions:
             rv = p.match(v)

@@ -33,7 +33,12 @@ class TestBuffer:
             FieldSchema(name="float_field", dtype=DataType.FLOAT),
             FieldSchema(name="double_field", dtype=DataType.DOUBLE),
             FieldSchema(name="json_field", dtype=DataType.JSON),
-            FieldSchema(name="array_field", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.INT64),
+            FieldSchema(
+                name="array_field",
+                dtype=DataType.ARRAY,
+                max_capacity=100,
+                element_type=DataType.INT64,
+            ),
             FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=128),
             FieldSchema(name="binary_vector", dtype=DataType.BINARY_VECTOR, dim=128),
             FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
@@ -130,11 +135,7 @@ class TestBuffer:
 
     def test_append_row_simple(self, simple_schema: CollectionSchema):
         buffer = Buffer(simple_schema, BulkFileType.JSON)
-        row = {
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test text"
-        }
+        row = {"id": 1, "vector": [1.0] * 128, "text": "test text"}
         buffer.append_row(row)
         assert buffer.row_count == 1
         assert buffer._buffer["id"][0] == 1
@@ -146,7 +147,7 @@ class TestBuffer:
         row = {
             "id": np.int64(1),
             "vector": np.array([1.0] * 128, dtype=np.float32),
-            "text": "test text"
+            "text": "test text",
         }
         buffer.append_row(row)
         assert buffer.row_count == 1
@@ -155,12 +156,7 @@ class TestBuffer:
 
     def test_append_row_dynamic_field(self, dynamic_schema: CollectionSchema):
         buffer = Buffer(dynamic_schema, BulkFileType.JSON)
-        row = {
-            "id": 1,
-            "vector": [1.0] * 128,
-            "extra_field": "extra_value",
-            "another_field": 123
-        }
+        row = {"id": 1, "vector": [1.0] * 128, "extra_field": "extra_value", "another_field": 123}
         buffer.append_row(row)
         assert buffer.row_count == 1
         assert buffer._buffer[DYNAMIC_FIELD_NAME][0]["extra_field"] == "extra_value"
@@ -171,7 +167,7 @@ class TestBuffer:
         row = {
             "id": 1,
             "vector": [1.0] * 128,
-            DYNAMIC_FIELD_NAME: {"field1": "value1", "field2": 2}
+            DYNAMIC_FIELD_NAME: {"field1": "value1", "field2": 2},
         }
         buffer.append_row(row)
         assert buffer.row_count == 1
@@ -180,22 +176,14 @@ class TestBuffer:
 
     def test_append_row_invalid_dynamic_field(self, dynamic_schema: CollectionSchema):
         buffer = Buffer(dynamic_schema, BulkFileType.JSON)
-        row = {
-            "id": 1,
-            "vector": [1.0] * 128,
-            DYNAMIC_FIELD_NAME: "not_a_dict"
-        }
+        row = {"id": 1, "vector": [1.0] * 128, DYNAMIC_FIELD_NAME: "not_a_dict"}
         with pytest.raises(MilvusException):
             buffer.append_row(row)
 
     def test_persist_npy(self, simple_schema):
         with tempfile.TemporaryDirectory() as temp_dir:
             buffer = Buffer(simple_schema, BulkFileType.NUMPY)
-            buffer.append_row({
-                "id": 1,
-                "vector": [1.0] * 128,
-                "text": "test"
-            })
+            buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
             files = buffer.persist(temp_dir)
             assert len(files) == 3
@@ -203,16 +191,12 @@ class TestBuffer:
             for f in files:
                 pf = Path(f)
                 assert pf.exists()
-                assert pf.suffix == '.npy'
+                assert pf.suffix == ".npy"
 
     def test_persist_json_rows(self, simple_schema):
         with tempfile.TemporaryDirectory() as temp_dir:
             buffer = Buffer(simple_schema, BulkFileType.JSON)
-            buffer.append_row({
-                "id": 1,
-                "vector": [1.0] * 128,
-                "text": "test"
-            })
+            buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
             files = buffer.persist(temp_dir)
             assert len(files) == 1
@@ -220,36 +204,28 @@ class TestBuffer:
             # Verify file was created and contains correct data
             file = Path(files[0])
             assert file.exists()
-            with file.open('r') as f:
+            with file.open("r") as f:
                 data = json.load(f)
-                assert 'rows' in data
-                assert len(data['rows']) == 1
-                assert data['rows'][0]['id'] == 1
+                assert "rows" in data
+                assert len(data["rows"]) == 1
+                assert data["rows"][0]["id"] == 1
 
-    @patch('pandas.DataFrame.to_parquet')
+    @patch("pandas.DataFrame.to_parquet")
     def test_persist_parquet(self, mock_to_parquet, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
-        buffer.append_row({
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test"
-        })
+        buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
         files = buffer.persist("/tmp/test")
         assert len(files) == 1
         assert files[0].endswith(".parquet")
         assert mock_to_parquet.called
 
-    @patch('pandas.DataFrame.to_csv')
+    @patch("pandas.DataFrame.to_csv")
     def test_persist_csv(self, mock_to_csv, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.CSV)
-        buffer.append_row({
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test"
-        })
+        buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
-        with patch.object(buffer, '_persist_csv', return_value=["/tmp/test.csv"]):
+        with patch.object(buffer, "_persist_csv", return_value=["/tmp/test.csv"]):
             files = buffer.persist("/tmp/test")
             assert len(files) == 1
             assert files[0].endswith(".csv")
@@ -278,11 +254,7 @@ class TestBuffer:
     def test_row_count_multiple(self, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.JSON)
         for i in range(5):
-            buffer.append_row({
-                "id": i,
-                "vector": [1.0] * 128,
-                "text": f"test {i}"
-            })
+            buffer.append_row({"id": i, "vector": [1.0] * 128, "text": f"test {i}"})
         assert buffer.row_count == 5
 
     def test_complex_data_types(self, complex_schema):
@@ -336,18 +308,11 @@ class TestBuffer:
 
     def test_persist_with_kwargs(self, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
-        buffer.append_row({
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test"
-        })
+        buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
-        with patch('pandas.DataFrame.to_parquet') as mock_to_parquet:
+        with patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
             files = buffer.persist(
-                "/tmp/test",
-                buffer_size=1024,
-                buffer_row_count=1,
-                row_group_bytes=32 * 1024 * 1024
+                "/tmp/test", buffer_size=1024, buffer_row_count=1, row_group_bytes=32 * 1024 * 1024
             )
             assert len(files) == 1
             mock_to_parquet.assert_called_once()
@@ -379,7 +344,12 @@ class TestBufferExtended:
         """Schema with array field for testing array error handling"""
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(name="array_field", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.INT64),
+            FieldSchema(
+                name="array_field",
+                dtype=DataType.ARRAY,
+                max_capacity=100,
+                element_type=DataType.INT64,
+            ),
         ]
         return CollectionSchema(fields=fields)
 
@@ -395,23 +365,21 @@ class TestBufferExtended:
     def test_persist_npy_with_array_field_error(self, schema_with_array):
         """Test that array field raises error in numpy format"""
         buffer = Buffer(schema_with_array, BulkFileType.NUMPY)
-        buffer.append_row({
-            "id": 1,
-            "array_field": [1, 2, 3, 4, 5]
-        })
+        buffer.append_row({"id": 1, "array_field": [1, 2, 3, 4, 5]})
 
-        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(MilvusException, match="doesn't support parsing array type"):
+        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(
+            MilvusException, match="doesn't support parsing array type"
+        ):
             buffer.persist(temp_dir)
 
     def test_persist_npy_with_sparse_vector_error(self, schema_with_sparse):
         """Test that sparse vector field raises error in numpy format"""
         buffer = Buffer(schema_with_sparse, BulkFileType.NUMPY)
-        buffer.append_row({
-            "id": 1,
-            "sparse_vector": {1: 0.5, 10: 0.3}
-        })
+        buffer.append_row({"id": 1, "sparse_vector": {1: 0.5, 10: 0.3}})
 
-        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(MilvusException, match="Failed to persist file"):
+        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(
+            MilvusException, match="Failed to persist file"
+        ):
             # The error happens because SPARSE_FLOAT_VECTOR is not in NUMPY_TYPE_CREATOR
             # This causes a KeyError which is caught and re-raised as MilvusException
             buffer.persist(temp_dir)
@@ -424,10 +392,7 @@ class TestBufferExtended:
         ]
         schema = CollectionSchema(fields=fields)
         buffer = Buffer(schema, BulkFileType.NUMPY)
-        buffer.append_row({
-            "id": 1,
-            "json_field": {"key": "value", "nested": {"data": 123}}
-        })
+        buffer.append_row({"id": 1, "json_field": {"key": "value", "nested": {"data": 123}}})
 
         with tempfile.TemporaryDirectory() as temp_dir:
             files = buffer.persist(temp_dir)
@@ -450,11 +415,13 @@ class TestBufferExtended:
         float16_data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes()
         bfloat16_data = bytes([1, 2, 3, 4, 5, 6, 7, 8])  # 4 bfloat16 values = 8 bytes
 
-        buffer.append_row({
-            "id": 1,
-            "float16_vector": float16_data,
-            "bfloat16_vector": bfloat16_data,
-        })
+        buffer.append_row(
+            {
+                "id": 1,
+                "float16_vector": float16_data,
+                "bfloat16_vector": bfloat16_data,
+            }
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             files = buffer.persist(temp_dir)
@@ -477,7 +444,7 @@ class TestBufferExtended:
             files = buffer.persist(temp_dir)
             assert len(files) == 2
 
-    @patch('numpy.save')
+    @patch("numpy.save")
     def test_persist_npy_exception_handling(self, mock_save):
         """Test exception handling in numpy persist"""
         mock_save.side_effect = Exception("Save failed")
@@ -489,7 +456,9 @@ class TestBufferExtended:
         buffer = Buffer(schema, BulkFileType.NUMPY)
         buffer.append_row({"id": 1})
 
-        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(MilvusException, match="Failed to persist file"):
+        with tempfile.TemporaryDirectory() as temp_dir, pytest.raises(
+            MilvusException, match="Failed to persist file"
+        ):
             buffer.persist(temp_dir)
 
     def test_persist_npy_cleanup_on_partial_failure(self):
@@ -502,7 +471,7 @@ class TestBufferExtended:
         buffer = Buffer(schema, BulkFileType.NUMPY)
         buffer.append_row({"id": 1, "vector": [1.0, 2.0]})
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('numpy.save') as mock_save:
+        with tempfile.TemporaryDirectory() as temp_dir, patch("numpy.save") as mock_save:
             # Make the second save fail
             mock_save.side_effect = [None, Exception("Second save failed")]
 
@@ -521,23 +490,25 @@ class TestBufferExtended:
 
         float16_data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes()
 
-        buffer.append_row({
-            "id": 1,
-            "float16_vector": float16_data,
-        })
+        buffer.append_row(
+            {
+                "id": 1,
+                "float16_vector": float16_data,
+            }
+        )
 
         with tempfile.TemporaryDirectory() as temp_dir:
             files = buffer.persist(temp_dir)
             assert len(files) == 1
 
             # Verify the JSON content
-            with Path(files[0]).open('r') as f:
+            with Path(files[0]).open("r") as f:
                 data = json.load(f)
-                assert 'rows' in data
-                assert len(data['rows']) == 1
-                assert isinstance(data['rows'][0]['float16_vector'], list)
+                assert "rows" in data
+                assert len(data["rows"]) == 1
+                assert isinstance(data["rows"][0]["float16_vector"], list)
 
-    @patch('pathlib.Path.open')
+    @patch("pathlib.Path.open")
     def test_persist_json_exception_handling(self, mock_open):
         """Test exception handling in JSON persist"""
         mock_open.side_effect = Exception("Failed to open file")
@@ -562,13 +533,13 @@ class TestBufferExtended:
         schema = CollectionSchema(fields=fields)
         buffer = Buffer(schema, BulkFileType.PARQUET)
 
-        buffer.append_row({
-            "id": 1,
-            "json_field": {"key": "value"},
-            "sparse_vector": {1: 0.5, 10: 0.3}
-        })
+        buffer.append_row(
+            {"id": 1, "json_field": {"key": "value"}, "sparse_vector": {1: 0.5, 10: 0.3}}
+        )
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_parquet') as mock_to_parquet:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_parquet"
+        ) as mock_to_parquet:
             # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
             files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
             assert len(files) == 1
@@ -586,12 +557,16 @@ class TestBufferExtended:
 
         float16_data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes()
 
-        buffer.append_row({
-            "id": 1,
-            "float16_vector": float16_data,
-        })
+        buffer.append_row(
+            {
+                "id": 1,
+                "float16_vector": float16_data,
+            }
+        )
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_parquet') as mock_to_parquet:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_parquet"
+        ) as mock_to_parquet:
             # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
             files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
             assert len(files) == 1
@@ -601,21 +576,22 @@ class TestBufferExtended:
         """Test Parquet persist with array field"""
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(name="array_field", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.INT64),
+            FieldSchema(
+                name="array_field",
+                dtype=DataType.ARRAY,
+                max_capacity=100,
+                element_type=DataType.INT64,
+            ),
         ]
         schema = CollectionSchema(fields=fields)
         buffer = Buffer(schema, BulkFileType.PARQUET)
 
-        buffer.append_row({
-            "id": 1,
-            "array_field": [1, 2, 3, 4, 5]
-        })
-        buffer.append_row({
-            "id": 2,
-            "array_field": None  # Test None value
-        })
+        buffer.append_row({"id": 1, "array_field": [1, 2, 3, 4, 5]})
+        buffer.append_row({"id": 2, "array_field": None})  # Test None value
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_parquet') as mock_to_parquet:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_parquet"
+        ) as mock_to_parquet:
             # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
             files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=2)
             assert len(files) == 1
@@ -632,13 +608,11 @@ class TestBufferExtended:
         schema = CollectionSchema(fields=fields)
         buffer = Buffer(schema, BulkFileType.PARQUET)
 
-        buffer.append_row({
-            "id": 1,
-            "field1": "test_value",
-            "field2": {"key": "value"}
-        })
+        buffer.append_row({"id": 1, "field1": "test_value", "field2": {"key": "value"}})
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_parquet') as mock_to_parquet:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_parquet"
+        ) as mock_to_parquet:
             # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
             files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
             assert len(files) == 1
@@ -657,7 +631,12 @@ class TestBufferExtended:
             FieldSchema(name="double_field", dtype=DataType.DOUBLE),
             FieldSchema(name="varchar_field", dtype=DataType.VARCHAR, max_length=512),
             FieldSchema(name="json_field", dtype=DataType.JSON),
-            FieldSchema(name="array_field", dtype=DataType.ARRAY, max_capacity=100, element_type=DataType.INT64),
+            FieldSchema(
+                name="array_field",
+                dtype=DataType.ARRAY,
+                max_capacity=100,
+                element_type=DataType.INT64,
+            ),
             FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, dim=128),
             FieldSchema(name="binary_vector", dtype=DataType.BINARY_VECTOR, dim=128),
             FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
@@ -691,12 +670,14 @@ class TestBufferExtended:
         row_with_none["array_field"] = None
         buffer.append_row(row_with_none)
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_csv') as mock_to_csv:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_csv"
+        ) as mock_to_csv:
             files = buffer.persist(temp_dir)
             assert len(files) == 1
             mock_to_csv.assert_called_once()
 
-    @patch('pandas.DataFrame.to_csv')
+    @patch("pandas.DataFrame.to_csv")
     def test_persist_csv_exception_handling(self, mock_to_csv):
         """Test exception handling in CSV persist"""
         mock_to_csv.side_effect = Exception("CSV write failed")
@@ -726,14 +707,16 @@ class TestBufferExtended:
         buffer.append_row({"id": 1, "nullable_field": None})
         buffer.append_row({"id": 2, "nullable_field": 100})
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch('pandas.DataFrame.to_csv') as mock_to_csv:
+        with tempfile.TemporaryDirectory() as temp_dir, patch(
+            "pandas.DataFrame.to_csv"
+        ) as mock_to_csv:
             files = buffer.persist(temp_dir)
             assert len(files) == 1
 
             # Verify custom config was used
             call_kwargs = mock_to_csv.call_args[1]
-            assert call_kwargs.get('sep') == '|'
-            assert call_kwargs.get('na_rep') == 'NULL'
+            assert call_kwargs.get("sep") == "|"
+            assert call_kwargs.get("na_rep") == "NULL"
 
     def test_get_field_schema(self):
         """Test accessing fields from buffer"""

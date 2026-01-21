@@ -17,7 +17,7 @@ from pymilvus.grpc_gen import milvus_pb2
 sys.path.append(Path(__file__).absolute().parent.parent)
 
 
-descriptor = milvus_pb2.DESCRIPTOR.services_by_name['MilvusService']
+descriptor = milvus_pb2.DESCRIPTOR.services_by_name["MilvusService"]
 
 
 @pytest.fixture(scope="function")

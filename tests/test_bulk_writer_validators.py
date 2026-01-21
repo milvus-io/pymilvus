@@ -18,7 +18,9 @@ class TestFloatVectorValidator:
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
-        with pytest.raises(MilvusException, match="array's length must be equal to vector dimension"):
+        with pytest.raises(
+            MilvusException, match="array's length must be equal to vector dimension"
+        ):
             float_vector_validator([1.0, 2.0], 3)
 
     def test_invalid_list_type(self):
@@ -58,7 +60,7 @@ class TestFloatVectorValidator:
 
     def test_invalid_type(self):
         """Test with invalid input type"""
-        with pytest.raises(MilvusException, match="only accept numpy.ndarray or list"):
+        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
             float_vector_validator("invalid", 3)
 
 
@@ -71,19 +73,23 @@ class TestBinaryVectorValidator:
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
-        with pytest.raises(MilvusException, match="length of the list must be equal to vector dimension"):
+        with pytest.raises(
+            MilvusException, match="length of the list must be equal to vector dimension"
+        ):
             binary_vector_validator([1, 0, 1], 8)
 
     def test_valid_bytes(self):
         """Test valid bytes input"""
-        data = b'\x00\x01'
+        data = b"\x00\x01"
         result = binary_vector_validator(data, 16)
         assert result == [0, 1]
 
     def test_invalid_bytes_length(self):
         """Test bytes with wrong length"""
-        data = b'\x00'
-        with pytest.raises(MilvusException, match="length of the bytes must be equal to 8x of vector dimension"):
+        data = b"\x00"
+        with pytest.raises(
+            MilvusException, match="length of the bytes must be equal to 8x of vector dimension"
+        ):
             binary_vector_validator(data, 16)
 
     def test_valid_numpy_uint8(self):
@@ -112,7 +118,7 @@ class TestBinaryVectorValidator:
 
     def test_invalid_type(self):
         """Test with invalid input type"""
-        with pytest.raises(MilvusException, match="only accept numpy.ndarray, list, bytes"):
+        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray, list, bytes"):
             binary_vector_validator("invalid", 8)
 
 
@@ -125,7 +131,7 @@ class TestFloat16VectorValidator:
         arr = np.frombuffer(result, dtype=np.float16)
         np.testing.assert_array_almost_equal(arr, [1.0, 2.0, 3.0])
 
-    @pytest.mark.skipif(not hasattr(np, 'bfloat16'), reason="bfloat16 not available")
+    @pytest.mark.skipif(not hasattr(np, "bfloat16"), reason="bfloat16 not available")
     def test_valid_list_bfloat16(self):
         """Test valid list of floats for bfloat16"""
         result = float16_vector_validator([1.0, 2.0, 3.0], 3, is_bfloat=True)
@@ -133,7 +139,9 @@ class TestFloat16VectorValidator:
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
-        with pytest.raises(MilvusException, match="array's length must be equal to vector dimension"):
+        with pytest.raises(
+            MilvusException, match="array's length must be equal to vector dimension"
+        ):
             float16_vector_validator([1.0, 2.0], 3, is_bfloat=False)
 
     def test_invalid_list_type(self):
@@ -148,10 +156,10 @@ class TestFloat16VectorValidator:
         assert isinstance(result, bytes)
         assert result == arr.tobytes()
 
-    @pytest.mark.skipif(not hasattr(np, 'bfloat16'), reason="bfloat16 not available")
+    @pytest.mark.skipif(not hasattr(np, "bfloat16"), reason="bfloat16 not available")
     def test_valid_numpy_bfloat16(self):
         """Test valid numpy array with bfloat16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype='bfloat16')
+        arr = np.array([1.0, 2.0, 3.0], dtype="bfloat16")
         result = float16_vector_validator(arr, 3, is_bfloat=True)
         assert isinstance(result, bytes)
         assert result == arr.tobytes()
@@ -182,7 +190,7 @@ class TestFloat16VectorValidator:
 
     def test_invalid_type(self):
         """Test with invalid input type"""
-        with pytest.raises(MilvusException, match="only accept numpy.ndarray or list"):
+        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
             float16_vector_validator("invalid", 3, is_bfloat=False)
 
 
@@ -194,7 +202,9 @@ class TestInt8VectorValidator:
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
-        with pytest.raises(MilvusException, match="array's length must be equal to vector dimension"):
+        with pytest.raises(
+            MilvusException, match="array's length must be equal to vector dimension"
+        ):
             int8_vector_validator([1, 2], 3)
 
     def test_invalid_list_type(self):
@@ -228,7 +238,7 @@ class TestInt8VectorValidator:
 
     def test_invalid_type(self):
         """Test with invalid input type"""
-        with pytest.raises(MilvusException, match="only accept numpy.ndarray or list"):
+        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
             int8_vector_validator("invalid", 3)
 
 
