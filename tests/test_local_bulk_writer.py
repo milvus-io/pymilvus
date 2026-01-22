@@ -30,7 +30,7 @@ class TestLocalBulkWriter:
         if Path(temp_path).exists():
             shutil.rmtree(temp_path)
 
-    @patch('uuid.uuid4')
+    @patch("uuid.uuid4")
     def test_init(self, mock_uuid, simple_schema, temp_dir):
         mock_uuid.return_value = "test-uuid"
 
@@ -38,7 +38,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Check the UUID directory was created
@@ -57,7 +57,7 @@ class TestLocalBulkWriter:
             local_path=temp_dir,
             chunk_size=64 * MB,
             segment_size=256 * MB,  # Should override chunk_size
-            file_type=BulkFileType.PARQUET
+            file_type=BulkFileType.PARQUET,
         )
 
         assert writer._chunk_size == 256 * MB
@@ -68,7 +68,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         ) as writer:
             assert writer is not None
             uuid_dir = writer._local_path
@@ -82,7 +82,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
         uuid_dir = writer._local_path
         assert uuid_dir.exists()
@@ -91,7 +91,7 @@ class TestLocalBulkWriter:
         # Empty UUID directory should be removed through __del__
         assert not uuid_dir.exists()
 
-    @patch('pymilvus.bulk_writer.local_bulk_writer.Thread')
+    @patch("pymilvus.bulk_writer.local_bulk_writer.Thread")
     def test_append_row_triggers_flush(self, mock_thread, simple_schema, temp_dir):
         mock_thread_instance = MagicMock()
         mock_thread.return_value = mock_thread_instance
@@ -100,23 +100,21 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=1,  # Very small size to trigger flush
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Use PropertyMock to mock the buffer_size property
-        with patch.object(type(writer), 'buffer_size', new_callable=PropertyMock) as mock_buffer_size:
+        with patch.object(
+            type(writer), "buffer_size", new_callable=PropertyMock
+        ) as mock_buffer_size:
             mock_buffer_size.return_value = 2  # Larger than chunk_size
-            writer.append_row({
-                "id": 1,
-                "vector": [1.0] * 128,
-                "text": "test"
-            })
+            writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
         # Verify flush thread was started
         mock_thread.assert_called()
         mock_thread_instance.start.assert_called()
 
-    @patch('pymilvus.bulk_writer.local_bulk_writer.Thread')
+    @patch("pymilvus.bulk_writer.local_bulk_writer.Thread")
     def test_commit_sync(self, mock_thread, simple_schema, temp_dir):
         mock_thread_instance = MagicMock()
         mock_thread.return_value = mock_thread_instance
@@ -125,14 +123,10 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
-        writer.append_row({
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test"
-        })
+        writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
         # Commit synchronously
         writer.commit(_async=False)
@@ -142,8 +136,8 @@ class TestLocalBulkWriter:
         mock_thread_instance.start.assert_called()
         mock_thread_instance.join.assert_called()
 
-    @patch('time.sleep')
-    @patch('pymilvus.bulk_writer.local_bulk_writer.Thread')
+    @patch("time.sleep")
+    @patch("pymilvus.bulk_writer.local_bulk_writer.Thread")
     def test_commit_async(self, mock_thread, mock_sleep, simple_schema, temp_dir):
         mock_thread_instance = MagicMock()
         mock_thread.return_value = mock_thread_instance
@@ -152,14 +146,10 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
-        writer.append_row({
-            "id": 1,
-            "vector": [1.0] * 128,
-            "text": "test"
-        })
+        writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
         # Commit asynchronously
         writer.commit(_async=True)
@@ -174,15 +164,17 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         callback_mock = Mock()
 
         # Mock the buffer to have data using PropertyMock
-        with patch.object(type(writer._buffer), 'row_count', new_callable=PropertyMock) as mock_row_count:
+        with patch.object(
+            type(writer._buffer), "row_count", new_callable=PropertyMock
+        ) as mock_row_count:
             mock_row_count.return_value = 1
-            with patch.object(writer._buffer, 'persist') as mock_persist:
+            with patch.object(writer._buffer, "persist") as mock_persist:
                 test_file = str(writer._local_path / "1" / "test.json")
                 mock_persist.return_value = [test_file]
                 # Add current thread to _working_thread to avoid KeyError
@@ -197,11 +189,13 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Mock empty buffer using PropertyMock
-        with patch.object(type(writer._buffer), 'row_count', new_callable=PropertyMock) as mock_row_count:
+        with patch.object(
+            type(writer._buffer), "row_count", new_callable=PropertyMock
+        ) as mock_row_count:
             mock_row_count.return_value = 0
             # Add current thread to _working_thread to avoid KeyError
             writer._working_thread[threading.current_thread().name] = threading.current_thread()
@@ -215,13 +209,15 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Mock buffer to raise exception using PropertyMock
-        with patch.object(type(writer._buffer), 'row_count', new_callable=PropertyMock) as mock_row_count:
+        with patch.object(
+            type(writer._buffer), "row_count", new_callable=PropertyMock
+        ) as mock_row_count:
             mock_row_count.return_value = 1
-            with patch.object(writer._buffer, 'persist', side_effect=Exception("Test error")):
+            with patch.object(writer._buffer, "persist", side_effect=Exception("Test error")):
                 # Add current thread to _working_thread to avoid KeyError
                 writer._working_thread[threading.current_thread().name] = threading.current_thread()
                 with pytest.raises(Exception, match="Test error"):
@@ -232,7 +228,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         assert writer.uuid == writer._uuid
@@ -248,17 +244,19 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Simulate multiple flushes using PropertyMock
-        with patch.object(type(writer._buffer), 'row_count', new_callable=PropertyMock) as mock_row_count:
+        with patch.object(
+            type(writer._buffer), "row_count", new_callable=PropertyMock
+        ) as mock_row_count:
             mock_row_count.return_value = 1
-            with patch.object(writer._buffer, 'persist') as mock_persist:
+            with patch.object(writer._buffer, "persist") as mock_persist:
                 mock_persist.side_effect = [
                     [str(writer._local_path / "1" / "1.json")],
                     [str(writer._local_path / "2" / "2.json")],
-                    [str(writer._local_path / "3" / "3.json")]
+                    [str(writer._local_path / "3" / "3.json")],
                 ]
 
                 # Add current thread to _working_thread before each flush
@@ -278,13 +276,13 @@ class TestLocalBulkWriter:
 
                 assert len(writer._local_files) == 3
 
-    @patch('time.sleep')
+    @patch("time.sleep")
     def test_wait_for_previous_flush(self, mock_sleep, simple_schema, temp_dir):
         writer = LocalBulkWriter(
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Simulate a working thread
@@ -308,7 +306,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         uuid_dir = writer._local_path
@@ -325,7 +323,7 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         uuid_dir = writer._local_path
@@ -349,16 +347,13 @@ class TestLocalBulkWriter:
             schema=simple_schema,
             local_path=temp_dir,
             chunk_size=128 * MB,
-            file_type=BulkFileType.JSON
+            file_type=BulkFileType.JSON,
         )
 
         # Add mock working threads
         mock_thread1 = MagicMock()
         mock_thread2 = MagicMock()
-        writer._working_thread = {
-            "thread1": mock_thread1,
-            "thread2": mock_thread2
-        }
+        writer._working_thread = {"thread1": mock_thread1, "thread2": mock_thread2}
 
         writer._exit()
 

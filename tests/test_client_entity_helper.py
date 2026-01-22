@@ -1,18 +1,21 @@
 import json
 import struct
-from typing import Dict, List
+import time
+from typing import ClassVar, Dict, List
 from unittest.mock import patch
 
 import numpy as np
 import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import (
-    convert_to_str_array, entity_to_array_arr,
+    convert_to_str_array,
+    entity_to_array_arr,
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
     extract_array_row_data,
     extract_dynamic_field_from_result,
+    extract_row_data_from_fields_data,
     flush_vector_bytes,
     get_max_len_of_var_char,
     pack_field_value_to_field_data,
@@ -21,44 +24,46 @@ from pymilvus.client.entity_helper import (
 )
 from pymilvus.client.entity_helper import extract_row_data_from_fields_data_v2 as convert_to_entity
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import DataNotMatchException, ParamError
 from pymilvus.grpc_gen import schema_pb2
-
-# Import additional functions for testing
-from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 from scipy.sparse import csr_matrix
-from pymilvus.exceptions import DataNotMatchException
 
 
 class TestEntityHelperSparse:
     """Test entity_helper module functions"""
 
-    @pytest.mark.parametrize("valid_sparse_matrix", [
-        [{0: 1.0, 5: 2.5, 10: 3.0}], # list of one dict
-        [{0: 1.0, 5: 2.5}, {10: 3.0, 15: 4.0}], # list of dicts
-        [{}, {10: 3.0, 15: 4.0}], # list of dicts partial empty is allowed
-        [[(1, 0.5), (10, 0.3)], [(2, 0.7), (20, 0.1)]], # list of list
-        [[("1", "0.5"), (10, 0.3)]], # str representation of int
-        csr_matrix(([1, 2, 3], [0, 2, 3], [0, 2, 3, 3]), shape=(3, 4)), # scipy sparse matrix
-        [csr_matrix([[1, 0, 2]]), csr_matrix([[0, 0, 3]])], # list of scipy sparse matrices
-    ])
+    @pytest.mark.parametrize(
+        "valid_sparse_matrix",
+        [
+            [{0: 1.0, 5: 2.5, 10: 3.0}],  # list of one dict
+            [{0: 1.0, 5: 2.5}, {10: 3.0, 15: 4.0}],  # list of dicts
+            [{}, {10: 3.0, 15: 4.0}],  # list of dicts partial empty is allowed
+            [[(1, 0.5), (10, 0.3)], [(2, 0.7), (20, 0.1)]],  # list of list
+            [[("1", "0.5"), (10, 0.3)]],  # str representation of int
+            csr_matrix(([1, 2, 3], [0, 2, 3], [0, 2, 3, 3]), shape=(3, 4)),  # scipy sparse matrix
+            [csr_matrix([[1, 0, 2]]), csr_matrix([[0, 0, 3]])],  # list of scipy sparse matrices
+        ],
+    )
     def test_entity_is_sparse_matrix(self, valid_sparse_matrix: list):
         assert entity_helper.entity_is_sparse_matrix(valid_sparse_matrix) is True
 
-    @pytest.mark.parametrize("not_sparse_matrix", [
-        [{"a": 1.0, "b": 2.0}], # invalid dict for non-numeric keys
-        [], # empty
-        [{0: 1.0}, "not a dict", {5: 2.0}], # mixed lists
-        None,
-        123,
-        "string",
-        [1, 2, 3],
-        [[1, 2, 3]],
-        [[(1, 0.5, 0.2)]],
-        [[(1, "invalid")]],
-        [csr_matrix([[1, 0], [0, 1]])], # list of multi-row is not sparse
-    ])
+    @pytest.mark.parametrize(
+        "not_sparse_matrix",
+        [
+            [{"a": 1.0, "b": 2.0}],  # invalid dict for non-numeric keys
+            [],  # empty
+            [{0: 1.0}, "not a dict", {5: 2.0}],  # mixed lists
+            None,
+            123,
+            "string",
+            [1, 2, 3],
+            [[1, 2, 3]],
+            [[(1, 0.5, 0.2)]],
+            [[(1, "invalid")]],
+            [csr_matrix([[1, 0], [0, 1]])],  # list of multi-row is not sparse
+        ],
+    )
     def test_entity_isnot_sparse_matrix(self, not_sparse_matrix: any):
         assert entity_helper.entity_is_sparse_matrix(not_sparse_matrix) is False
 
@@ -79,20 +84,15 @@ class TestEntityHelperSparse:
         matrix = csr_matrix([[1, 0], [0, 1], [1, 1]])
         assert entity_helper.get_input_num_rows(matrix) == 3
 
-        sparse_list = [
-            {0: 1.0},
-            {5: 2.5},
-            {10: 3.0}
-        ]
+        sparse_list = [{0: 1.0}, {5: 2.5}, {10: 3.0}]
         assert entity_helper.get_input_num_rows(sparse_list) == 3
 
         data = np.array([[1, 2, 3], [4, 5, 6]])
         assert entity_helper.get_input_num_rows(data) == 2
 
-    @pytest.mark.parametrize("sparse_list", [
-        [{0: 1.0, 2: 2.0}, {2: 3.0}],
-        csr_matrix([[1, 0, 2], [0, 0, 3]])
-    ])
+    @pytest.mark.parametrize(
+        "sparse_list", [[{0: 1.0, 2: 2.0}, {2: 3.0}], csr_matrix([[1, 0, 2], [0, 0, 3]])]
+    )
     def test_sparse_rows_to_proto_dict(self, sparse_list: any):
         """Test converting sparse rows to protobuf format"""
         proto = entity_helper.sparse_rows_to_proto(sparse_list)
@@ -107,14 +107,14 @@ class TestEntityHelperSparse:
 
         # Add some sparse vectors in binary format
         # Format: pairs of (uint32 index, float32 value)
-        vec1_data = b''
+        vec1_data = b""
         for idx, val in [(0, 1.0), (5, 2.5), (10, 3.0)]:
-            vec1_data += struct.pack('I', idx) + struct.pack('f', val)
+            vec1_data += struct.pack("I", idx) + struct.pack("f", val)
         proto.contents.append(vec1_data)
 
-        vec2_data = b''
+        vec2_data = b""
         for idx, val in [(15, 4.0), (20, 5.0)]:
-            vec2_data += struct.pack('I', idx) + struct.pack('f', val)
+            vec2_data += struct.pack("I", idx) + struct.pack("f", val)
         proto.contents.append(vec2_data)
 
         # Convert back to rows
@@ -129,7 +129,7 @@ class TestEntityHelperSparse:
 
         # Add multiple sparse vectors in binary format
         for i in range(5):
-            vec_data = struct.pack('I', i) + struct.pack('f', float(i))
+            vec_data = struct.pack("I", i) + struct.pack("f", float(i))
             proto.contents.append(vec_data)
 
         # Get middle range
@@ -145,7 +145,7 @@ class TestEntityHelperSparse:
             "level1": {
                 "level2": {
                     "array": np.array([[1, 2], [3, 4]]),
-                    "list": [np.int32(1), np.float64(2.5)]
+                    "list": [np.int32(1), np.float64(2.5)],
                 }
             }
         }
@@ -153,33 +153,39 @@ class TestEntityHelperSparse:
         parsed = json.loads(result)
         assert parsed["level1"]["level2"]["array"] == [[1, 2], [3, 4]]
 
-    @pytest.mark.parametrize("data", [
-        {"key": "value", "number": 42}, # dict
-        {"outer": {"inner": "value"}}, # nested dict
-        [1, 2, 3, "four"], # list
-        [{"a": 1}, {"b": 2}], # list of dict
-        None,
-        pytest.param({"array": np.array([1, 2, 3])}, marks=pytest.mark.xfail(reason="fix me")),
-        { "int": np.int64(42), "float": np.float32(3.14), "bool": np.bool_(True) },
-        [{"val": np.int64(10)}, {"val": np.float32(3.14)}],
-    ])
+    @pytest.mark.parametrize(
+        "data",
+        [
+            {"key": "value", "number": 42},  # dict
+            {"outer": {"inner": "value"}},  # nested dict
+            [1, 2, 3, "four"],  # list
+            [{"a": 1}, {"b": 2}],  # list of dict
+            None,
+            pytest.param({"array": np.array([1, 2, 3])}, marks=pytest.mark.xfail(reason="fix me")),
+            {"int": np.int64(42), "float": np.float32(3.14), "bool": np.bool_(True)},
+            [{"val": np.int64(10)}, {"val": np.float32(3.14)}],
+        ],
+    )
     def test_convert_to_json_dict(self, data: dict):
         """Test JSON conversion for dict input"""
         result = entity_helper.convert_to_json(data)
         assert isinstance(result, bytes)
         assert json.loads(result.decode()) == data
 
-    @pytest.mark.parametrize("json_string,expected", [
-        ('{"key": "value", "number": 42}', {"key": "value", "number": 42}),
-        ('{"nested": {"inner": "value"}}', {"nested": {"inner": "value"}}),
-        ('[1, 2, 3, "four"]', [1, 2, 3, "four"]),
-        ('{"name": "Alice", "age": 30}', {"name": "Alice", "age": 30}),
-        ('null', None),
-        ('true', True),
-        ('false', False),
-        ('123', 123),
-        ('"simple string"', "simple string"),
-    ])
+    @pytest.mark.parametrize(
+        "json_string,expected",
+        [
+            ('{"key": "value", "number": 42}', {"key": "value", "number": 42}),
+            ('{"nested": {"inner": "value"}}', {"nested": {"inner": "value"}}),
+            ('[1, 2, 3, "four"]', [1, 2, 3, "four"]),
+            ('{"name": "Alice", "age": 30}', {"name": "Alice", "age": 30}),
+            ("null", None),
+            ("true", True),
+            ("false", False),
+            ("123", 123),
+            ('"simple string"', "simple string"),
+        ],
+    )
     def test_convert_to_json_string_valid(self, json_string: str, expected):
         """Test JSON conversion for valid JSON string input"""
         result = entity_helper.convert_to_json(json_string)
@@ -192,27 +198,30 @@ class TestEntityHelperSparse:
         """Test JSON conversion from json.dumps() output"""
         original_dict = {"key": "value", "count": 100, "nested": {"inner": "data"}}
         json_string = json.dumps(original_dict)
-        
+
         result = entity_helper.convert_to_json(json_string)
         assert isinstance(result, bytes)
         parsed = json.loads(result.decode())
         assert parsed == original_dict
 
-    @pytest.mark.parametrize("invalid_json_string", [
-        "not a json string",
-        '{"invalid": }',
-        '{"key": "value"',  # missing closing brace
-        "{'key': 'value'}",  # single quotes not valid in JSON
-        "{key: value}",  # unquoted keys
-        "undefined",
-        "{,}",
-    ])
+    @pytest.mark.parametrize(
+        "invalid_json_string",
+        [
+            "not a json string",
+            '{"invalid": }',
+            '{"key": "value"',  # missing closing brace
+            "{'key': 'value'}",  # single quotes not valid in JSON
+            "{key: value}",  # unquoted keys
+            "undefined",
+            "{,}",
+        ],
+    )
     def test_convert_to_json_string_invalid(self, invalid_json_string: str):
         """Test JSON conversion rejects invalid JSON strings"""
-        
+
         with pytest.raises(DataNotMatchException) as exc_info:
             entity_helper.convert_to_json(invalid_json_string)
-        
+
         # Verify error message contains the invalid JSON string
         error_message = str(exc_info.value)
         assert "Invalid JSON string" in error_message
@@ -221,26 +230,26 @@ class TestEntityHelperSparse:
 
     def test_convert_to_json_string_with_non_string_keys(self):
         """Test JSON conversion rejects JSON strings with non-string keys in dict"""
-        
+
         # This is actually not possible in standard JSON, as JSON object keys are always strings
         # But we can test that dict validation still works
         invalid_dict = {1: "value", 2: "another"}
-        
+
         with pytest.raises(DataNotMatchException) as exc_info:
             entity_helper.convert_to_json(invalid_dict)
-        
+
         error_message = str(exc_info.value)
         assert "JSON" in error_message
 
     def test_convert_to_json_long_invalid_string_truncated(self):
         """Test that long invalid JSON strings are truncated in error messages"""
-        
+
         # Create a long invalid JSON string
         long_invalid_json = "invalid json " * 50  # > 200 characters
-        
+
         with pytest.raises(DataNotMatchException) as exc_info:
             entity_helper.convert_to_json(long_invalid_json)
-        
+
         error_message = str(exc_info.value)
         assert "Invalid JSON string" in error_message
         # Should contain truncated version with "..."
@@ -248,29 +257,29 @@ class TestEntityHelperSparse:
 
     def test_convert_to_json_deeply_nested_dict(self):
         """Test JSON conversion with deeply nested dictionary to avoid recursion limit"""
-        
+
         def create_deep_dict(depth):
             """Create a deeply nested dictionary with specified depth"""
-            result = {'id_0': '-501'}
+            result = {"id_0": "-501"}
             for i in range(1, depth + 1):
-                result = {'id_' + str(i): result}
+                result = {"id_" + str(i): result}
             return result
-        
+
         # Test with 512 levels (tests fallback from orjson to standard json library)
         # orjson fails at ~500 levels, so 512 will trigger fallback to json.dumps
         deep_dict = create_deep_dict(512)
-        
+
         # Should not raise RecursionError
         result = entity_helper.convert_to_json(deep_dict)
         assert isinstance(result, bytes)
-        
+
         # Verify the structure is preserved
         parsed = json.loads(result.decode())
         current = parsed
         for i in range(512, 0, -1):
-            assert f'id_{i}' in current, f"Missing key id_{i} at depth {512 - i + 1}"
-            current = current[f'id_{i}']
-        assert current == {'id_0': '-501'}, "Final nested value mismatch"
+            assert f"id_{i}" in current, f"Missing key id_{i} at depth {512 - i + 1}"
+            current = current[f"id_{i}"]
+        assert current == {"id_0": "-501"}, "Final nested value mismatch"
 
     def test_pack_field_value_to_field_data(self):
         """Test packing field values into field data protobuf"""
@@ -281,7 +290,9 @@ class TestEntityHelperSparse:
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         value = 42
-        entity_helper.pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
+        entity_helper.pack_field_value_to_field_data(
+            value, field_data, field_info, vector_bytes_cache
+        )
 
         assert len(field_data.scalars.long_data.data) == 1
         assert field_data.scalars.long_data.data[0] == value
@@ -295,7 +306,9 @@ class TestEntityHelperSparse:
 
         value = [1.0, 2.0, 3.0, 4.0]
 
-        entity_helper.pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
+        entity_helper.pack_field_value_to_field_data(
+            value, field_data, field_info, vector_bytes_cache
+        )
 
         assert field_data.vectors.dim == 4
         assert list(field_data.vectors.float_vector.data) == value
@@ -398,7 +411,7 @@ class TestEntityHelperExtended:
     def test_sparse_rows_to_proto_nan_value(self):
         """Test error handling for NaN values"""
         with pytest.raises(ParamError, match="sparse vector value must not be NaN"):
-            sparse_rows_to_proto([{1: float('nan')}])
+            sparse_rows_to_proto([{1: float("nan")}])
 
     def test_sparse_rows_to_proto_invalid_input(self):
         """Test error handling for invalid input"""
@@ -455,7 +468,7 @@ class TestEntityHelperExtended:
         result = convert_to_str_array([123, "test"], field_info, check=False)
         assert len(result) == 2
 
-    @patch('pymilvus.client.entity_helper.Config')
+    @patch("pymilvus.client.entity_helper.Config")
     def test_convert_to_str_array_with_encoding(self, mock_config):
         """Test string array conversion with different encoding"""
         mock_config.EncodeProtocol = "latin-1"
@@ -476,17 +489,17 @@ class TestEntityHelperExtended:
     def test_extract_array_row_data(self):
         """Test extracting array row data"""
         # INT64 array
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
 
         # Add INT64 data
-        int_array = schema_types.LongArray()
+        int_array = schema_pb2.LongArray()
         int_array.data.extend([1, 2, 3])
-        array_data.data.append(schema_types.ScalarField(long_data=int_array))
-        int_array2 = schema_types.LongArray()
+        array_data.data.append(schema_pb2.ScalarField(long_data=int_array))
+        int_array2 = schema_pb2.LongArray()
         int_array2.data.extend([4, 5])
-        array_data.data.append(schema_types.ScalarField(long_data=int_array2))
+        array_data.data.append(schema_pb2.ScalarField(long_data=int_array2))
 
         array_data.element_type = DataType.INT64
         field_data.scalars.array_data.CopyFrom(array_data)
@@ -498,14 +511,14 @@ class TestEntityHelperExtended:
 
     def test_extract_array_row_data_string(self):
         """Test extracting string array data"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
 
         # Add string data
-        str_array = schema_types.StringArray()
+        str_array = schema_pb2.StringArray()
         str_array.data.extend(["hello", "world"])
-        array_data.data.append(schema_types.ScalarField(string_data=str_array))
+        array_data.data.append(schema_pb2.ScalarField(string_data=str_array))
 
         array_data.element_type = DataType.VARCHAR
         field_data.scalars.array_data.CopyFrom(array_data)
@@ -515,14 +528,14 @@ class TestEntityHelperExtended:
 
     def test_extract_array_row_data_bool(self):
         """Test extracting boolean array data"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
 
         # Add bool data
-        bool_array = schema_types.BoolArray()
+        bool_array = schema_pb2.BoolArray()
         bool_array.data.extend([True, False, True])
-        array_data.data.append(schema_types.ScalarField(bool_data=bool_array))
+        array_data.data.append(schema_pb2.ScalarField(bool_data=bool_array))
 
         array_data.element_type = DataType.BOOL
         field_data.scalars.array_data.CopyFrom(array_data)
@@ -532,14 +545,14 @@ class TestEntityHelperExtended:
 
     def test_extract_array_row_data_float(self):
         """Test extracting float array data"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
 
         # Add float data
-        float_array = schema_types.FloatArray()
+        float_array = schema_pb2.FloatArray()
         float_array.data.extend([1.1, 2.2, 3.3])
-        array_data.data.append(schema_types.ScalarField(float_data=float_array))
+        array_data.data.append(schema_pb2.ScalarField(float_data=float_array))
 
         array_data.element_type = DataType.FLOAT
         field_data.scalars.array_data.CopyFrom(array_data)
@@ -550,14 +563,14 @@ class TestEntityHelperExtended:
 
     def test_extract_array_row_data_double(self):
         """Test extracting double array data"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
 
         # Add double data
-        double_array = schema_types.DoubleArray()
+        double_array = schema_pb2.DoubleArray()
         double_array.data.extend([1.11111, 2.22222])
-        array_data.data.append(schema_types.ScalarField(double_data=double_array))
+        array_data.data.append(schema_pb2.ScalarField(double_data=double_array))
 
         array_data.element_type = DataType.DOUBLE
         field_data.scalars.array_data.CopyFrom(array_data)
@@ -567,22 +580,19 @@ class TestEntityHelperExtended:
 
     def test_extract_array_row_data_invalid_type(self):
         """Test error handling for invalid array element type"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.ARRAY
-        array_data = schema_types.ArrayArray()
+        array_data = schema_pb2.ArrayArray()
         array_data.element_type = 999  # Invalid type
         # Add at least one empty element to avoid index error
-        array_data.data.append(schema_types.ScalarField())
+        array_data.data.append(schema_pb2.ScalarField())
         field_data.scalars.array_data.CopyFrom(array_data)
 
         assert extract_array_row_data(field_data, 0) is None
 
     def test_entity_to_array_arr(self):
         """Test converting entity to array array"""
-        field_info = {
-            "name": "array_field",
-            "element_type": DataType.INT64
-        }
+        field_info = {"name": "array_field", "element_type": DataType.INT64}
 
         # List of lists
         data = [[1, 2, 3], [4, 5], [6]]
@@ -593,10 +603,7 @@ class TestEntityHelperExtended:
 
     def test_entity_to_array_arr_string(self):
         """Test converting string arrays"""
-        field_info = {
-            "name": "array_field",
-            "element_type": DataType.VARCHAR
-        }
+        field_info = {"name": "array_field", "element_type": DataType.VARCHAR}
 
         data = [["hello", "world"], ["foo"]]
         result = entity_to_array_arr(data, field_info)
@@ -605,10 +612,7 @@ class TestEntityHelperExtended:
 
     def test_entity_to_array_arr_invalid_type(self):
         """Test error handling for invalid element type"""
-        field_info = {
-            "name": "array_field",
-            "element_type": 999
-        }
+        field_info = {"name": "array_field", "element_type": 999}
 
         with pytest.raises(ParamError, match="Unsupported element type"):
             entity_to_array_arr([[1, 2]], field_info)
@@ -616,7 +620,7 @@ class TestEntityHelperExtended:
     def test_pack_field_value_to_field_data(self):
         """Test packing field values to field data"""
         # pack_field_value_to_field_data takes different parameters
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
         field_data.field_name = "vector_field"
         field_info = {"name": "vector_field"}
@@ -624,10 +628,7 @@ class TestEntityHelperExtended:
 
         # Pack a single vector
         pack_field_value_to_field_data(
-            np.array([1.0, 2.0]),
-            field_data,
-            field_info,
-            vector_bytes_cache
+            np.array([1.0, 2.0]), field_data, field_info, vector_bytes_cache
         )
 
         # Check the result
@@ -636,7 +637,7 @@ class TestEntityHelperExtended:
 
     def test_pack_field_value_to_field_data_sparse(self):
         """Test packing sparse vectors"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.SPARSE_FLOAT_VECTOR
         field_data.field_name = "sparse_field"
         field_info = {"name": "sparse_field"}
@@ -644,12 +645,7 @@ class TestEntityHelperExtended:
 
         # Pack a single sparse vector
         sparse_data = {1: 0.5, 10: 0.3}
-        pack_field_value_to_field_data(
-            sparse_data,
-            field_data,
-            field_info,
-            vector_bytes_cache
-        )
+        pack_field_value_to_field_data(sparse_data, field_data, field_info, vector_bytes_cache)
 
         # Check the result
         assert field_data.type == DataType.SPARSE_FLOAT_VECTOR
@@ -658,18 +654,13 @@ class TestEntityHelperExtended:
     def test_pack_field_value_to_field_data_scalars(self):
         """Test packing scalar field values"""
         # Test INT64
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT64
         field_data.field_name = "int_field"
         field_info = {"name": "int_field"}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
-        pack_field_value_to_field_data(
-            42,
-            field_data,
-            field_info,
-            vector_bytes_cache
-        )
+        pack_field_value_to_field_data(42, field_data, field_info, vector_bytes_cache)
 
         assert field_data.type == DataType.INT64
         assert field_data.scalars.long_data.data[0] == 42
@@ -677,10 +668,7 @@ class TestEntityHelperExtended:
     def test_extract_field_info(self):
         """Test extracting primary field from schema"""
         # Create schema with primary field
-        fields_info = [
-            {"name": "id", "is_primary": True},
-            {"name": "vector", "is_primary": False}
-        ]
+        fields_info = [{"name": "id", "is_primary": True}, {"name": "vector", "is_primary": False}]
 
         # Test field extraction logic
         # This tests the field extraction patterns used in entity_helper
@@ -690,6 +678,7 @@ class TestEntityHelperExtended:
 
     def test_extract_dynamic_field_from_result(self):
         """Test extracting dynamic field from result"""
+
         # Create actual result object with fields_data and output_fields attributes
         class ActualResult:
             def __init__(self, fields_data: List, output_fields: List):
@@ -697,18 +686,18 @@ class TestEntityHelperExtended:
                 self.output_fields = output_fields
 
         # Test with dynamic field
-        dynamic_field_data = schema_types.FieldData()
+        dynamic_field_data = schema_pb2.FieldData()
         dynamic_field_data.is_dynamic = True
         dynamic_field_data.field_name = "$meta"
 
-        regular_field_data = schema_types.FieldData()
+        regular_field_data = schema_pb2.FieldData()
         regular_field_data.is_dynamic = False
         regular_field_data.field_name = "id"
 
         # Create result with dynamic field - extra_field comes before $meta
         result = ActualResult(
             fields_data=[regular_field_data, dynamic_field_data],
-            output_fields=["id", "extra_field", "another_extra", "$meta"]
+            output_fields=["id", "extra_field", "another_extra", "$meta"],
         )
 
         dynamic_field_name, dynamic_fields = extract_dynamic_field_from_result(result)
@@ -718,8 +707,7 @@ class TestEntityHelperExtended:
 
         # Test with no dynamic field
         result_no_dynamic = ActualResult(
-            fields_data=[regular_field_data],
-            output_fields=["id", "extra_field"]
+            fields_data=[regular_field_data], output_fields=["id", "extra_field"]
         )
 
         dynamic_field_name, dynamic_fields = extract_dynamic_field_from_result(result_no_dynamic)
@@ -730,10 +718,12 @@ class TestEntityHelperExtended:
         # Test with dynamic field NOT in output_fields (dynamic_fields preserved)
         result_meta_not_in_output = ActualResult(
             fields_data=[regular_field_data, dynamic_field_data],
-            output_fields=["id", "extra_field", "another_extra"]
+            output_fields=["id", "extra_field", "another_extra"],
         )
 
-        dynamic_field_name, dynamic_fields = extract_dynamic_field_from_result(result_meta_not_in_output)
+        dynamic_field_name, dynamic_fields = extract_dynamic_field_from_result(
+            result_meta_not_in_output
+        )
         assert dynamic_field_name == "$meta"
         assert "extra_field" in dynamic_fields
         assert "another_extra" in dynamic_fields
@@ -756,7 +746,7 @@ class TestEntityHelperExtended:
         """Test schema validation patterns"""
         fields_info = [
             {"name": "id", "is_primary": True, "auto_id": False},
-            {"name": "vector", "is_primary": False}
+            {"name": "vector", "is_primary": False},
         ]
 
         # Valid data matches schema
@@ -769,25 +759,20 @@ class TestEntityHelperExtended:
         fields_info[0]["auto_id"] = True
         # When auto_id is True, id field should not be required in data
 
-
-
-
-
-
     def test_convert_to_entity(self):
         """Test converting field data to entities"""
         # Create field data
-        field1 = schema_types.FieldData()
+        field1 = schema_pb2.FieldData()
         field1.field_name = "id"
         field1.type = DataType.INT64
-        long_array = schema_types.LongArray()
+        long_array = schema_pb2.LongArray()
         long_array.data.extend([1, 2, 3])
         field1.scalars.long_data.CopyFrom(long_array)
 
-        field2 = schema_types.FieldData()
+        field2 = schema_pb2.FieldData()
         field2.field_name = "name"
         field2.type = DataType.VARCHAR
-        str_array = schema_types.StringArray()
+        str_array = schema_pb2.StringArray()
         str_array.data.extend(["a", "b", "c"])
         field2.scalars.string_data.CopyFrom(str_array)
 
@@ -807,11 +792,7 @@ class TestEntityHelperExtended:
     def test_entity_to_field_data(self):
         """Test converting entity to field data"""
         # entity_to_field_data expects a dict with specific structure
-        entity = {
-            "name": "test_field",
-            "type": DataType.INT64,
-            "values": [1, 2, 3, 4, 5]
-        }
+        entity = {"name": "test_field", "type": DataType.INT64, "values": [1, 2, 3, 4, 5]}
         field_info = {"name": "test_field"}
 
         result = entity_to_field_data(entity, field_info, 5)
@@ -825,7 +806,7 @@ class TestNullableVectorSupport:
     """Test nullable vector support in entity_helper module for all 6 vector types"""
 
     # Vector type configurations for parametrized tests
-    VECTOR_TYPE_CONFIGS = [
+    VECTOR_TYPE_CONFIGS: ClassVar = [
         {
             "dtype": DataType.FLOAT_VECTOR,
             "name": "float_vector",
@@ -837,7 +818,7 @@ class TestNullableVectorSupport:
         {
             "dtype": DataType.BINARY_VECTOR,
             "name": "binary_vector",
-            "values": [b'\x01\x02\x03\x04', None, b'\x05\x06\x07\x08'],
+            "values": [b"\x01\x02\x03\x04", None, b"\x05\x06\x07\x08"],
             "dim": 32,  # 4 bytes * 8 bits
             "get_data_len": lambda fd: len(fd.vectors.binary_vector),
             "expected_data_len": 8,  # 2 valid vectors * 4 bytes
@@ -845,8 +826,11 @@ class TestNullableVectorSupport:
         {
             "dtype": DataType.FLOAT16_VECTOR,
             "name": "float16_vector",
-            "values": [np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes(), None,
-                       np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float16).tobytes()],
+            "values": [
+                np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes(),
+                None,
+                np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float16).tobytes(),
+            ],
             "dim": 4,
             "get_data_len": lambda fd: len(fd.vectors.float16_vector),
             "expected_data_len": 16,  # 2 valid vectors * 4 dim * 2 bytes
@@ -854,7 +838,11 @@ class TestNullableVectorSupport:
         {
             "dtype": DataType.BFLOAT16_VECTOR,
             "name": "bfloat16_vector",
-            "values": [b'\x00\x3f\x00\x40\x00\x40\x00\x40', None, b'\x00\x40\x00\x40\x00\x40\x00\x40'],
+            "values": [
+                b"\x00\x3f\x00\x40\x00\x40\x00\x40",
+                None,
+                b"\x00\x40\x00\x40\x00\x40\x00\x40",
+            ],
             "dim": 4,
             "get_data_len": lambda fd: len(fd.vectors.bfloat16_vector),
             "expected_data_len": 16,  # 2 valid vectors * 4 dim * 2 bytes
@@ -870,22 +858,26 @@ class TestNullableVectorSupport:
         {
             "dtype": DataType.INT8_VECTOR,
             "name": "int8_vector",
-            "values": [np.array([1, 2, 3, 4], dtype=np.int8).tobytes(), None,
-                       np.array([5, 6, 7, 8], dtype=np.int8).tobytes()],
+            "values": [
+                np.array([1, 2, 3, 4], dtype=np.int8).tobytes(),
+                None,
+                np.array([5, 6, 7, 8], dtype=np.int8).tobytes(),
+            ],
             "dim": 4,
             "get_data_len": lambda fd: len(fd.vectors.int8_vector),
             "expected_data_len": 8,  # 2 valid vectors * 4 dim * 1 byte
         },
     ]
 
-    @pytest.mark.parametrize("config", VECTOR_TYPE_CONFIGS,
-                             ids=[c["name"] for c in VECTOR_TYPE_CONFIGS])
+    @pytest.mark.parametrize(
+        "config", VECTOR_TYPE_CONFIGS, ids=[c["name"] for c in VECTOR_TYPE_CONFIGS]
+    )
     def test_entity_to_field_data_nullable_vector(self, config):
         """Test entity_to_field_data with nullable vector containing None values"""
         entity = {
             "name": f"nullable_{config['name']}",
             "type": config["dtype"],
-            "values": config["values"]
+            "values": config["values"],
         }
         field_info = {"name": f"nullable_{config['name']}", "nullable": True}
         if config["dim"]:
@@ -898,14 +890,15 @@ class TestNullableVectorSupport:
         assert list(result.valid_data) == [True, False, True]
         assert config["get_data_len"](result) == config["expected_data_len"]
 
-    @pytest.mark.parametrize("config", VECTOR_TYPE_CONFIGS,
-                             ids=[c["name"] for c in VECTOR_TYPE_CONFIGS])
+    @pytest.mark.parametrize(
+        "config", VECTOR_TYPE_CONFIGS, ids=[c["name"] for c in VECTOR_TYPE_CONFIGS]
+    )
     def test_entity_to_field_data_nullable_vector_all_none(self, config):
         """Test entity_to_field_data with nullable vector where all values are None"""
         entity = {
             "name": f"nullable_{config['name']}",
             "type": config["dtype"],
-            "values": [None, None, None]
+            "values": [None, None, None],
         }
         field_info = {"name": f"nullable_{config['name']}", "nullable": True}
         if config["dim"]:
@@ -916,17 +909,20 @@ class TestNullableVectorSupport:
         assert list(result.valid_data) == [False, False, False]
         assert config["get_data_len"](result) == 0
 
-    @pytest.mark.parametrize("dtype,name", [
-        (DataType.FLOAT_VECTOR, "float_vector"),
-        (DataType.BINARY_VECTOR, "binary_vector"),
-        (DataType.FLOAT16_VECTOR, "float16_vector"),
-        (DataType.BFLOAT16_VECTOR, "bfloat16_vector"),
-        (DataType.SPARSE_FLOAT_VECTOR, "sparse_float_vector"),
-        (DataType.INT8_VECTOR, "int8_vector"),
-    ])
+    @pytest.mark.parametrize(
+        "dtype,name",
+        [
+            (DataType.FLOAT_VECTOR, "float_vector"),
+            (DataType.BINARY_VECTOR, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, "bfloat16_vector"),
+            (DataType.SPARSE_FLOAT_VECTOR, "sparse_float_vector"),
+            (DataType.INT8_VECTOR, "int8_vector"),
+        ],
+    )
     def test_pack_field_value_nullable_vector_none(self, dtype, name):
         """Test pack_field_value_to_field_data with None value for nullable vector"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = dtype
         field_data.field_name = f"nullable_{name}"
         field_info = {"name": f"nullable_{name}", "nullable": True}
@@ -950,9 +946,8 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_nullable_float_vector(self):
         """Test extracting nullable float vector from field data"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
         field_data.field_name = "nullable_vector"
         field_data.vectors.dim = 4
@@ -970,13 +965,12 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_nullable_sparse_vector(self):
         """Test extracting nullable sparse vector from field data"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.SPARSE_FLOAT_VECTOR
         field_data.field_name = "nullable_sparse"
-        vec1_data = struct.pack('I', 1) + struct.pack('f', 0.5)
-        vec2_data = struct.pack('I', 5) + struct.pack('f', 0.8)
+        vec1_data = struct.pack("I", 1) + struct.pack("f", 0.5)
+        vec2_data = struct.pack("I", 5) + struct.pack("f", 0.8)
         field_data.vectors.sparse_float_vector.contents.extend([vec1_data, vec2_data])
         field_data.valid_data.extend([True, False, True])
 
@@ -991,17 +985,14 @@ class TestNullableVectorSupport:
 
     def test_extract_row_data_non_nullable_vector_uses_logical_index(self):
         """Test that non-nullable vectors still use logical index directly"""
-        from pymilvus.client.entity_helper import extract_row_data_from_fields_data
 
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.FLOAT_VECTOR
         field_data.field_name = "regular_vector"
         field_data.vectors.dim = 4
-        field_data.vectors.float_vector.data.extend([
-            1.0, 2.0, 3.0, 4.0,
-            5.0, 6.0, 7.0, 8.0,
-            9.0, 10.0, 11.0, 12.0
-        ])
+        field_data.vectors.float_vector.data.extend(
+            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
+        )
 
         result0 = extract_row_data_from_fields_data([field_data], 0)
         assert result0["regular_vector"] == [1.0, 2.0, 3.0, 4.0]
@@ -1014,13 +1005,10 @@ class TestNullableVectorSupport:
 
     def test_pack_field_value_to_field_data_int8_vector(self):
         """Test packing int8 vector field values"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 768}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a single int8 vector
@@ -1041,13 +1029,10 @@ class TestNullableVectorSupport:
 
     def test_pack_field_value_to_field_data_int8_vector_multiple(self):
         """Test packing multiple int8 vectors to verify memory optimization"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 768}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors (simulating batch insert)
@@ -1069,18 +1054,15 @@ class TestNullableVectorSupport:
         # Verify data correctness for sample vectors
         for idx in [0, 100, 500, 999]:
             expected_bytes = vectors[idx].tobytes()
-            actual_bytes = field_data.vectors.int8_vector[idx * 768:(idx + 1) * 768]
+            actual_bytes = field_data.vectors.int8_vector[idx * 768 : (idx + 1) * 768]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_flush_int8_vector_bytes(self):
         """Test flush_vector_bytes function for int8 vectors"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 128}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 128}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack some vectors
@@ -1101,20 +1083,16 @@ class TestNullableVectorSupport:
         # Verify data correctness
         for idx in range(10):
             expected_bytes = vectors[idx].tobytes()
-            actual_bytes = field_data.vectors.int8_vector[idx * 128:(idx + 1) * 128]
+            actual_bytes = field_data.vectors.int8_vector[idx * 128 : (idx + 1) * 128]
             assert expected_bytes == actual_bytes
 
     def test_pack_field_value_to_field_data_int8_vector_large_batch(self):
         """Test packing large batch of int8 vectors to verify O(n) performance"""
-        import time
 
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 768}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack a large number of vectors (similar to the bug scenario)
@@ -1132,7 +1110,9 @@ class TestNullableVectorSupport:
         elapsed_time = time.time() - start_time
 
         # Verify performance: should complete in reasonable time (< 10 seconds)
-        assert elapsed_time < 10.0, f"Operation took {elapsed_time:.2f} seconds, expected < 10 seconds"
+        assert (
+            elapsed_time < 10.0
+        ), f"Operation took {elapsed_time:.2f} seconds, expected < 10 seconds"
 
         # Verify data correctness
         expected_total_size = num_vectors * 768
@@ -1142,18 +1122,15 @@ class TestNullableVectorSupport:
         sample_indices = [0, 1000, 5000, 9999]
         for idx in sample_indices:
             expected_bytes = vectors[idx].tobytes()
-            actual_bytes = field_data.vectors.int8_vector[idx * 768:(idx + 1) * 768]
+            actual_bytes = field_data.vectors.int8_vector[idx * 768 : (idx + 1) * 768]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_pack_field_value_to_field_data_int8_vector_invalid_dtype(self):
         """Test error handling for invalid int8 vector dtype"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 768}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Try to pack with wrong dtype
@@ -1163,13 +1140,10 @@ class TestNullableVectorSupport:
 
     def test_pack_field_value_to_field_data_int8_vector_none(self):
         """Test handling None value for int8 vector"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.INT8_VECTOR
         field_data.field_name = "int8_vector_field"
-        field_info = {
-            "name": "int8_vector_field",
-            "params": {"dim": 768}
-        }
+        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack None value
@@ -1180,13 +1154,10 @@ class TestNullableVectorSupport:
 
     def test_pack_field_value_to_field_data_binary_vector_multiple(self):
         """Test packing multiple binary vectors to verify memory optimization"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.BINARY_VECTOR
         field_data.field_name = "binary_vector_field"
-        field_info = {
-            "name": "binary_vector_field",
-            "params": {"dim": 128}
-        }
+        field_info = {"name": "binary_vector_field", "params": {"dim": 128}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors
@@ -1208,18 +1179,15 @@ class TestNullableVectorSupport:
         # Verify data correctness for sample vectors
         for idx in [0, 100, 500, 999]:
             expected_bytes = vectors[idx]
-            actual_bytes = field_data.vectors.binary_vector[idx * 16:(idx + 1) * 16]
+            actual_bytes = field_data.vectors.binary_vector[idx * 16 : (idx + 1) * 16]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_pack_field_value_to_field_data_float16_vector_multiple(self):
         """Test packing multiple float16 vectors to verify memory optimization"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.FLOAT16_VECTOR
         field_data.field_name = "float16_vector_field"
-        field_info = {
-            "name": "float16_vector_field",
-            "params": {"dim": 128}
-        }
+        field_info = {"name": "float16_vector_field", "params": {"dim": 128}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors
@@ -1241,18 +1209,15 @@ class TestNullableVectorSupport:
         # Verify data correctness for sample vectors
         for idx in [0, 100, 500, 999]:
             expected_bytes = vectors[idx].view(np.uint8).tobytes()
-            actual_bytes = field_data.vectors.float16_vector[idx * 128 * 2:(idx + 1) * 128 * 2]
+            actual_bytes = field_data.vectors.float16_vector[idx * 128 * 2 : (idx + 1) * 128 * 2]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_pack_field_value_to_field_data_bfloat16_vector_multiple(self):
         """Test packing multiple bfloat16 vectors to verify memory optimization"""
-        field_data = schema_types.FieldData()
+        field_data = schema_pb2.FieldData()
         field_data.type = DataType.BFLOAT16_VECTOR
         field_data.field_name = "bfloat16_vector_field"
-        field_info = {
-            "name": "bfloat16_vector_field",
-            "params": {"dim": 128}
-        }
+        field_info = {"name": "bfloat16_vector_field", "params": {"dim": 128}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
         # Pack multiple vectors using bytes format (since bfloat16 dtype may not be available)
@@ -1275,7 +1240,7 @@ class TestNullableVectorSupport:
         # Verify data correctness for sample vectors
         for idx in [0, 100, 500, 999]:
             expected_bytes = vectors[idx]
-            actual_bytes = field_data.vectors.bfloat16_vector[idx * 128 * 2:(idx + 1) * 128 * 2]
+            actual_bytes = field_data.vectors.bfloat16_vector[idx * 128 * 2 : (idx + 1) * 128 * 2]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_flush_vector_bytes_all_types(self):
@@ -1288,13 +1253,10 @@ class TestNullableVectorSupport:
         ]
 
         for vector_type, vector_attr, dim in vector_types:
-            field_data = schema_types.FieldData()
+            field_data = schema_pb2.FieldData()
             field_data.type = vector_type
             field_data.field_name = f"{vector_attr}_field"
-            field_info = {
-                "name": f"{vector_attr}_field",
-                "params": {"dim": dim}
-            }
+            field_info = {"name": f"{vector_attr}_field", "params": {"dim": dim}}
             vector_bytes_cache: Dict[int, List[bytes]] = {}
 
             # Pack some vectors
@@ -1309,7 +1271,7 @@ class TestNullableVectorSupport:
                 else:  # BFLOAT16_VECTOR
                     # Use bytes format for bfloat16 since dtype may not be available
                     vector = bytes([i % 256 for _ in range(dim * 2)])
-                
+
                 pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
             # Flush to merge all bytes
@@ -1323,5 +1285,5 @@ class TestNullableVectorSupport:
                 expected_size = num_vectors * (dim // 8)
             else:  # FLOAT16_VECTOR or BFLOAT16_VECTOR
                 expected_size = num_vectors * dim * 2
-            
+
             assert len(vector_data) == expected_size, f"{vector_attr} size mismatch"
