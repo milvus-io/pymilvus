@@ -739,7 +739,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
             field_data.vectors.int8_vector = b"".join(entity_values)
 
-        elif entity_type == DataType.VARCHAR:
+        elif entity_type in (DataType.VARCHAR, DataType.TIMESTAMPTZ):
             field_data.scalars.string_data.data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
