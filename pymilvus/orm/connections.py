@@ -521,57 +521,20 @@ class Connections(metaclass=SingleInstanceMetaClass):
     def _update_db_name(self, alias: str, db_name: str) -> None:
         """Update the database name for a specific connection alias.
 
-        This method defines the behavior of alias configuration with respect to database binding:
-
-        Alias Types:
-        ------------
-        1. **alias_for_db** (bound with database):
-           - Created by ORM APIs via `connections.connect()` with
-             `_unbind_with_db=False` (default)
-           - Config contains `db_name` key (can be empty string "" or actual
-             database name like "db")
-           - Compatible with ORM APIs like `using_database()`
-           - Can be updated via this method
-
-        2. **universal_alias** (not bound with database):
-           - Created by MilvusClient/AsyncMilvusClient via `connections.connect()`
-             with `_unbind_with_db=True`
-           - Config does NOT contain `db_name` key
-           - Database switching should use `client.use_database()` instead
-           - Cannot be updated via this method (will raise exception)
-
-        Behavior:
-        ---------
-        - When calling from MilvusClient/AsyncMilvusClient:
-          * Alias config does NOT contain "db_name" key
-          * Database is managed by client instance (`self._db_name`)
-          * This method will fail if called (raises ConnectionConfigException)
-
-        - When calling from ORM (`connections.connect`):
-          * Alias config contains "db_name" key (either "" or actual database name)
-          * This method can update the db_name in the config
-          * Used by `using_database()` function
+        This method updates the database name for aliases created
+         via ORM APIs (bound with database).
+        It cannot be used for aliases created by
+         MilvusClient/AsyncMilvusClient (unbound), which
+        should use `client.use_database()` instead.
 
         Args:
             alias (str): The connection alias to update.
             db_name (str): The new database name to set.
 
         Raises:
-            ConnectionConfigException: If alias is not bound with a database
-                (created with `_unbind_with_db=True`). For MilvusClient/
-                AsyncMilvusClient connections, use `client.use_database()` instead.
-            ConnectionNotExistException: If the alias does not exist or connection
-                is not established.
-
-        Example:
-            >>> # ORM usage - alias bound with database
-            >>> connections.connect("orm_alias", uri="http://localhost:19530", db_name="db1")
-            >>> connections._update_db_name("orm_alias", "db2")  # OK
-
-            >>> # MilvusClient usage - alias NOT bound with database
-            >>> client = MilvusClient(uri="http://localhost:19530", db_name="db1")
-            >>> connections._update_db_name(client._using, "db2")  # Raises exception
-            >>> client.use_database("db2")  # Correct way to switch database
+            ConnectionConfigException: If alias is not bound with
+            a database or types are invalid.
+            ConnectionNotExistException: If the alias does not exist.
         """
         if not isinstance(alias, str):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))

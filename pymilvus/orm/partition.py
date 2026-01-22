@@ -54,11 +54,7 @@ class Partition:
             return
 
         if not self._collection.has_partition(self.name, **kwargs):
-            conn = self._get_connection()
-            # Need to import connections here or better rely on Collection methods
-            from .connections import connections
-
-            context = connections._generate_call_context(self._collection._using, **kwargs)
+            conn, context = self._get_connection(**kwargs)
             conn.create_partition(self._collection.name, self.name, context=context, **kwargs)
 
     def __repr__(self) -> str:
@@ -70,8 +66,8 @@ class Partition:
             }
         ).decode(Config.EncodeProtocol)
 
-    def _get_connection(self):
-        return self._collection._get_connection()
+    def _get_connection(self, **kwargs):
+        return self._collection._get_connection(**kwargs)
 
     @property
     def description(self) -> str:
@@ -137,11 +133,7 @@ class Partition:
             >>> partition.num_entities
             10
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        # num_entities property cannot accept kwargs, so we use default context
-        context = connections._generate_call_context(self._collection._using)
+        conn, context = self._get_connection()
         stats = conn.get_partition_stats(
             collection_name=self._collection.name, partition_name=self.name, context=context
         )
@@ -159,10 +151,7 @@ class Partition:
                 for the RPCs.  If timeout is not set, the client keeps waiting until the server
                 responds or an error occurs.
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         conn.flush([self._collection.name], timeout=timeout, context=context, **kwargs)
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
@@ -183,10 +172,7 @@ class Partition:
             >>> partition = Partition(collection, "comedy", "comedy films")
             >>> partition.drop()
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         return conn.drop_partition(
             self._collection.name, self.name, timeout=timeout, context=context, **kwargs
         )
@@ -215,10 +201,7 @@ class Partition:
             >>> partition = Partition(collection, "comedy", "comedy films")
             >>> partition.load()
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         return conn.load_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
@@ -252,10 +235,7 @@ class Partition:
             >>> partition.load()
             >>> partition.release()
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         return conn.release_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
