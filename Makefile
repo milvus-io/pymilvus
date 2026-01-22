@@ -11,7 +11,7 @@ format:
 	PYTHONPATH=`pwd` python3 -m ruff check pymilvus tests --fix
 
 coverage:
-	PYTHONPATH=`pwd` pytest --cov=pymilvus --ignore=tests/benchmark --cov-report=xml tests -x -v -rxXs
+	PYTHONPATH=`pwd` pytest --cov=pymilvus --ignore=tests/benchmark --cov-report=html tests -x -v -rxXs
 
 example:
 	PYTHONPATH=`pwd` python examples/example.py
