@@ -356,9 +356,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
             config_to_keep = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["password", "token", "db_name", "keep_alive"]
+                k: v for k, v in kwargs.items() if k not in ["password", "token", "keep_alive"]
             }
             self._alias_handlers[alias] = gh
             self._alias_config[alias] = config_to_keep
