@@ -15,13 +15,9 @@ from .index import IndexParams
 class BaseMilvusClient:
     """Base class for Milvus clients (synchronous and asynchronous)."""
 
-    def _generate_call_context(self, **kwargs):
-        db_name = kwargs.get("db_name")
-        if db_name is None:
-            db_name = getattr(self, "_db_name", "")
-
+    def _generate_call_context(self, **kwargs) -> CallContext:
         client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
-        return CallContext(db_name=db_name, client_request_id=client_request_id)
+        return CallContext(db_name=self._db_name, client_request_id=client_request_id)
 
     @classmethod
     def create_schema(cls, **kwargs):

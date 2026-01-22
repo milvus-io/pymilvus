@@ -27,7 +27,7 @@ def create_database(
             support database replica number with key `database.replica.number`
             support database resource groups with key `database.resource_groups`
     """
-    context = connections.create_call_context(using, **kwargs)
+    context = connections._generate_call_context(using, **kwargs)
     _get_connection(using).create_database(db_name, timeout=timeout, context=context, **kwargs)
 
 
@@ -38,7 +38,7 @@ def drop_database(db_name: str, using: str = "default", timeout: Optional[float]
     :type  db_name: str
 
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     _get_connection(using).drop_database(db_name, timeout=timeout, context=context)
 
 
@@ -48,7 +48,7 @@ def list_database(using: str = "default", timeout: Optional[float] = None) -> li
     :return list[str]:
         List of database names, return when operation is successful
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).list_database(timeout=timeout, context=context)
 
 
@@ -65,7 +65,7 @@ def set_properties(
             support database replica number with key `database.replica.number`
             support database resource groups with key `database.resource_groups`
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     _get_connection(using).alter_database(
         db_name, properties=properties, timeout=timeout, context=context
     )
@@ -81,5 +81,5 @@ def describe_database(db_name: str, using: str = "default", timeout: Optional[fl
         Database information, return when operation is successful
 
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).describe_database(db_name, timeout=timeout, context=context)

@@ -63,11 +63,18 @@ def shared_connections():
         c_shared.append(tmp)
         LOGGER.info(f"  {i}th MilvusClient, alias to the server connection: {tmp._using}, results of list_collections: {tmp.list_collections()}")
 
-    # MilvusClient to differen database or with different user and token
-    # will create a new connection to Milvus server.
+    # MilvusClient with different database but same uri and authentication
+    # will share the same connection, but each client maintains its own database context
     LOGGER.info("=============================")
     c_testdb = MilvusClient(uri=URI, db_name=TEST_DB)
-    LOGGER.info(f"MilvusClient to test_db, alias to the server connection: {c_testdb._using}, results of list_collections: {c_testdb.list_collections()}")
+    LOGGER.info(
+        f"MilvusClient to test_db, alias to the server connection: {c_testdb._using}, "
+        f"results of list_collections: {c_testdb.list_collections()}"
+    )
+    LOGGER.info(
+        f"Note: c and c_testdb share the same connection (alias: {c._using} == {c_testdb._using}), "
+        f"but use different databases (default vs {TEST_DB})"
+    )
 
     # MilvusClient object is safe to copy across threads
     LOGGER.info("=============================")

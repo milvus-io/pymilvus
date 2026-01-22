@@ -1,4 +1,12 @@
+from typing import Optional
+
 from pymilvus.client.utils import current_time_ms
+
+
+def _api_level_md(context: Optional["CallContext"]) -> Optional[list]:
+    if context is None:
+        return None
+    return context.to_grpc_metadata()
 
 
 class CallContext:

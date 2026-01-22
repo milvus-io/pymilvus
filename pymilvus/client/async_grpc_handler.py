@@ -10,7 +10,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.client.call_context import CallContext
+from pymilvus.client.call_context import CallContext, _api_level_md
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import (
     ignore_unimplemented,
@@ -249,7 +249,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
         response = await self._async_stub.CreateCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -265,7 +265,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
         response = await self._async_stub.DropCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
         # Invalidate global schema cache
@@ -286,7 +286,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.truncate_collection_request(collection_name)
         response = await self._async_stub.TruncateCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -304,7 +304,7 @@ class AsyncGrpcHandler:
         check_pass_param(timeout=timeout)
         request = Prepare.load_collection(collection_name, replica_number, **kwargs)
         response = await self._async_stub.LoadCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -357,7 +357,7 @@ class AsyncGrpcHandler:
     ):
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = await self._async_stub.GetLoadingProgress(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         if is_refresh:
@@ -376,7 +376,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         response = await self._async_stub.DescribeCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
 
@@ -397,7 +397,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         reply = await self._async_stub.DescribeCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
 
         if (
@@ -424,7 +424,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.show_collections_request()
         response = await self._async_stub.ShowCollections(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -442,7 +442,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         index_param = Prepare.get_collection_stats_request(collection_name)
         response = await self._async_stub.GetCollectionStatistics(
-            index_param, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            index_param, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -461,7 +461,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         response = await self._async_stub.GetPartitionStatistics(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -479,7 +479,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.get_load_state(collection_name, partition_names)
         response = await self._async_stub.GetLoadState(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return LoadState(response.state)
@@ -496,7 +496,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = await self._async_stub.GetLoadingProgress(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.refresh_progress
@@ -508,7 +508,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.get_server_version()
         resp = await self._async_stub.GetVersion(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.version
@@ -526,7 +526,7 @@ class AsyncGrpcHandler:
 
         req = Prepare.get_replicas(collection_id)
         response = await self._async_stub.GetReplicas(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -564,7 +564,7 @@ class AsyncGrpcHandler:
             check_pass_param(db_name=new_db_name)
         request = Prepare.rename_collections_request(old_name, new_name, new_db_name)
         status = await self._async_stub.RenameCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -633,7 +633,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
         response = await self._async_stub.ReleaseCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -656,7 +656,7 @@ class AsyncGrpcHandler:
         resp = await self._async_stub.Insert(
             request=request,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         ts_utils.update_collection_ts(
@@ -711,7 +711,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = await self._async_stub.GetPersistentSegmentInfo(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.infos
@@ -737,7 +737,7 @@ class AsyncGrpcHandler:
             )
 
             response = await self._async_stub.Delete(
-                req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+                req, timeout=timeout, metadata=_api_level_md(context)
             )
 
             m = MutationResult(response)
@@ -807,7 +807,7 @@ class AsyncGrpcHandler:
             collection_name, entities, partition_name, timeout, context=context, **kwargs
         )
         response = await self._async_stub.Upsert(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         m = MutationResult(response)
@@ -865,7 +865,7 @@ class AsyncGrpcHandler:
             collection_name, entities, partition_name, timeout, context=context, **kwargs
         )
         response = await self._async_stub.Upsert(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         m = MutationResult(response)
@@ -885,7 +885,7 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         response = await self._async_stub.Search(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         round_decimal = kwargs.get("round_decimal", -1)
@@ -904,7 +904,7 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         response = await self._async_stub.HybridSearch(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         round_decimal = kwargs.get("round_decimal", -1)
@@ -1062,7 +1062,7 @@ class AsyncGrpcHandler:
         )
 
         status = await self._async_stub.CreateIndex(
-            index_param, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            index_param, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1125,7 +1125,7 @@ class AsyncGrpcHandler:
     ):
         request = Prepare.describe_index_request(collection_name, index_name, timestamp)
         response = await self._async_stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -1155,7 +1155,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
         response = await self._async_stub.DropIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1174,7 +1174,7 @@ class AsyncGrpcHandler:
         )
         request = Prepare.create_partition_request(collection_name, partition_name)
         response = await self._async_stub.CreatePartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1194,7 +1194,7 @@ class AsyncGrpcHandler:
         request = Prepare.drop_partition_request(collection_name, partition_name)
 
         response = await self._async_stub.DropPartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1218,7 +1218,7 @@ class AsyncGrpcHandler:
             **kwargs,
         )
         response = await self._async_stub.LoadPartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1277,7 +1277,7 @@ class AsyncGrpcHandler:
         )
         request = Prepare.release_partitions("", collection_name, partition_names)
         response = await self._async_stub.ReleasePartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1296,7 +1296,7 @@ class AsyncGrpcHandler:
         )
         request = Prepare.has_partition_request(collection_name, partition_name)
         response = await self._async_stub.HasPartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.value
@@ -1313,7 +1313,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.show_partitions_request(collection_name)
         response = await self._async_stub.ShowPartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return list(response.partition_names)
@@ -1333,7 +1333,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
         return await self._async_stub.Retrieve.get(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
 
     @retry_on_rpc_failure()
@@ -1366,7 +1366,7 @@ class AsyncGrpcHandler:
         )
 
         response = await self._async_stub.Query(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -1409,7 +1409,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = milvus_types.AllocTimestampRequest()
         response = await self._async_stub.AllocTimestamp(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.timestamp
@@ -1427,7 +1427,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties=properties)
         status = await self._async_stub.AlterCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1444,7 +1444,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
         status = await self._async_stub.AlterCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1464,7 +1464,7 @@ class AsyncGrpcHandler:
             collection_name=collection_name, field_name=field_name, field_param=field_params
         )
         status = await self._async_stub.AlterCollectionField(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1481,7 +1481,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.add_collection_field_request(collection_name, field_schema)
         status = await self._async_stub.AddCollectionField(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1499,7 +1499,7 @@ class AsyncGrpcHandler:
         request = Prepare.drop_collection_function_request(collection_name, function_name)
 
         status = await self._async_stub.DropCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1517,7 +1517,7 @@ class AsyncGrpcHandler:
         request = Prepare.add_collection_function_request(collection_name, function)
 
         status = await self._async_stub.AddCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1538,7 +1538,7 @@ class AsyncGrpcHandler:
         )
 
         status = await self._async_stub.AlterCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1555,7 +1555,7 @@ class AsyncGrpcHandler:
         request = Prepare.describe_index_request(collection_name, "")
 
         response = await self._async_stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         if is_successful(status):
@@ -1579,7 +1579,7 @@ class AsyncGrpcHandler:
         request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
 
         response = await self._async_stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         if status.code == ErrorCode.INDEX_NOT_FOUND or status.error_code == Status.INDEX_NOT_EXIST:
@@ -1616,7 +1616,7 @@ class AsyncGrpcHandler:
 
         request = Prepare.alter_index_properties_request(collection_name, index_name, properties)
         response = await self._async_stub.AlterIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1636,7 +1636,7 @@ class AsyncGrpcHandler:
             collection_name, index_name, delete_keys=property_keys
         )
         response = await self._async_stub.AlterIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1653,7 +1653,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_alias_request(collection_name, alias)
         response = await self._async_stub.CreateAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1668,7 +1668,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.drop_alias_request(alias)
         response = await self._async_stub.DropAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1685,7 +1685,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_alias_request(collection_name, alias)
         response = await self._async_stub.AlterAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1701,7 +1701,7 @@ class AsyncGrpcHandler:
         check_pass_param(alias=alias, timeout=timeout)
         request = Prepare.describe_alias_request(alias)
         response = await self._async_stub.DescribeAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         ret = {
@@ -1725,7 +1725,7 @@ class AsyncGrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.list_aliases_request(collection_name)
         response = await self._async_stub.ListAliases(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.aliases
@@ -1750,7 +1750,7 @@ class AsyncGrpcHandler:
         check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.create_database_req(db_name, properties=properties)
         status = await self._async_stub.CreateDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1765,7 +1765,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.drop_database_req(db_name)
         status = await self._async_stub.DropDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1780,7 +1780,7 @@ class AsyncGrpcHandler:
         check_pass_param(timeout=timeout)
         request = Prepare.list_database_req()
         response = await self._async_stub.ListDatabases(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return list(response.db_names)
@@ -1797,7 +1797,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.alter_database_properties_req(db_name, properties)
         status = await self._async_stub.AlterDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1813,7 +1813,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = await self._async_stub.AlterDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1828,7 +1828,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         request = Prepare.describe_database_req(db_name=db_name)
         resp = await self._async_stub.DescribeDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return DatabaseInfo(resp).to_dict()
@@ -1844,7 +1844,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.create_privilege_group_req(privilege_group)
         resp = await self._async_stub.CreatePrivilegeGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1859,7 +1859,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.drop_privilege_group_req(privilege_group)
         resp = await self._async_stub.DropPrivilegeGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1873,7 +1873,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.list_privilege_groups_req()
         resp = await self._async_stub.ListPrivilegeGroups(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.privilege_groups
@@ -1892,7 +1892,7 @@ class AsyncGrpcHandler:
             privilege_group, privileges, milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup
         )
         resp = await self._async_stub.OperatePrivilegeGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1912,7 +1912,7 @@ class AsyncGrpcHandler:
             milvus_types.OperatePrivilegeGroupType.RemovePrivilegesFromGroup,
         )
         resp = await self._async_stub.OperatePrivilegeGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1928,7 +1928,7 @@ class AsyncGrpcHandler:
         check_pass_param(user=user, password=password, timeout=timeout)
         req = Prepare.create_user_request(user, password)
         resp = await self._async_stub.CreateCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1942,7 +1942,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.delete_user_request(user)
         resp = await self._async_stub.DeleteCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1958,7 +1958,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.update_password_request(user, old_password, new_password)
         resp = await self._async_stub.UpdateCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -1971,7 +1971,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.list_usernames_request()
         resp = await self._async_stub.ListCredUsers(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.usernames
@@ -1987,7 +1987,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.select_user_request(username, include_role_info)
         resp = await self._async_stub.SelectUser(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp
@@ -2003,7 +2003,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.create_role_request(role_name)
         resp = await self._async_stub.CreateRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2019,7 +2019,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.drop_role_request(role_name, force_drop=force_drop)
         resp = await self._async_stub.DropRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2037,7 +2037,7 @@ class AsyncGrpcHandler:
             username, role_name, milvus_types.OperateUserRoleType.AddUserToRole
         )
         resp = await self._async_stub.OperateUserRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2055,7 +2055,7 @@ class AsyncGrpcHandler:
             username, role_name, milvus_types.OperateUserRoleType.RemoveUserFromRole
         )
         resp = await self._async_stub.OperateUserRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2071,7 +2071,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.select_role_request(role_name, include_user_info)
         resp = await self._async_stub.SelectRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.results
@@ -2087,7 +2087,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.select_role_request(None, include_user_info)
         resp = await self._async_stub.SelectRole(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.results
@@ -2104,7 +2104,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.select_grant_request(role_name, None, None, db_name)
         resp = await self._async_stub.SelectGrant(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
 
@@ -2132,7 +2132,7 @@ class AsyncGrpcHandler:
             milvus_types.OperatePrivilegeType.Grant,
         )
         resp = await self._async_stub.OperatePrivilege(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2158,7 +2158,7 @@ class AsyncGrpcHandler:
             milvus_types.OperatePrivilegeType.Revoke,
         )
         resp = await self._async_stub.OperatePrivilege(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2182,7 +2182,7 @@ class AsyncGrpcHandler:
             collection_name,
         )
         resp = await self._async_stub.OperatePrivilegeV2(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2206,7 +2206,7 @@ class AsyncGrpcHandler:
             collection_name,
         )
         resp = await self._async_stub.OperatePrivilegeV2(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2220,7 +2220,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.create_resource_group(name, **kwargs)
         resp = await self._async_stub.CreateResourceGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2234,7 +2234,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.drop_resource_group(name)
         resp = await self._async_stub.DropResourceGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2248,7 +2248,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.update_resource_groups(configs)
         resp = await self._async_stub.UpdateResourceGroups(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2262,7 +2262,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.describe_resource_group(name)
         resp = await self._async_stub.DescribeResourceGroup(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return resp.resource_group
@@ -2276,7 +2276,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.list_resource_groups()
         resp = await self._async_stub.ListResourceGroups(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return list(resp.resource_groups)
@@ -2294,7 +2294,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.transfer_replica(source, target, collection_name, num_replica)
         resp = await self._async_stub.TransferReplica(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
 
@@ -2312,7 +2312,7 @@ class AsyncGrpcHandler:
         await self.ensure_channel_ready()
         req = Prepare.get_flush_state_request(segment_ids, collection_name, flush_ts)
         response = await self._async_stub.GetFlushState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.flushed
@@ -2359,7 +2359,7 @@ class AsyncGrpcHandler:
 
         req = Prepare.flush_param(collection_names)
         response = await self._async_stub.Flush(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2394,7 +2394,7 @@ class AsyncGrpcHandler:
 
         request = Prepare.describe_collection_request(collection_name)
         response = await self._async_stub.DescribeCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2402,7 +2402,7 @@ class AsyncGrpcHandler:
             collection_name, is_clustering, is_l0, response.collectionID, target_size
         )
         response = await self._async_stub.ManualCompaction(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2418,7 +2418,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.get_compaction_state(compaction_id)
         response = await self._async_stub.GetCompactionState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2454,7 +2454,7 @@ class AsyncGrpcHandler:
             analyzer_names=analyzer_names,
         )
         resp = await self._async_stub.RunAnalyzer(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
 
@@ -2478,7 +2478,7 @@ class AsyncGrpcHandler:
             description=description,
         )
         status = await self._async_stub.CreateSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -2492,7 +2492,7 @@ class AsyncGrpcHandler:
     ) -> None:
         request = Prepare.drop_snapshot_req(snapshot_name)
         status = await self._async_stub.DropSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -2506,7 +2506,7 @@ class AsyncGrpcHandler:
     ) -> List[str]:
         request = Prepare.list_snapshots_req(collection_name=collection_name)
         response = await self._async_stub.ListSnapshots(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2523,7 +2523,7 @@ class AsyncGrpcHandler:
     ) -> SnapshotInfo:
         request = Prepare.describe_snapshot_req(snapshot_name)
         response = await self._async_stub.DescribeSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2552,7 +2552,7 @@ class AsyncGrpcHandler:
             rewrite_data=rewrite_data,
         )
         response = await self._async_stub.RestoreSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.job_id
@@ -2567,7 +2567,7 @@ class AsyncGrpcHandler:
     ) -> RestoreSnapshotJobInfo:
         request = Prepare.get_restore_snapshot_state_req(job_id)
         response = await self._async_stub.GetRestoreSnapshotState(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2594,7 +2594,7 @@ class AsyncGrpcHandler:
     ) -> List[RestoreSnapshotJobInfo]:
         request = Prepare.list_restore_snapshot_jobs_req(collection_name=collection_name)
         response = await self._async_stub.ListRestoreSnapshotJobs(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 

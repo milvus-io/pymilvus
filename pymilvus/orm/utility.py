@@ -214,7 +214,7 @@ def loading_progress(
         >>> utility.loading_progress("test_loading_progress")
         {'loading_progress': '100%'}
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     progress = _get_connection(using).get_loading_progress(
         collection_name, partition_names, timeout=timeout, context=context
     )
@@ -263,7 +263,7 @@ def load_state(
         >>> collection.load(_async=True)
         >>> assert utility.load_state("test_load_state") == LoadState.Loaded
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).get_load_state(
         collection_name, partition_names, timeout=timeout, context=context
     )
@@ -304,7 +304,7 @@ def wait_for_loading_complete(
         >>> collection.load() # load collection to memory
         >>> utility.wait_for_loading_complete("test_collection")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     if not partition_names or len(partition_names) == 0:
         return _get_connection(using).wait_for_loading_collection(
             collection_name, timeout=timeout, context=context
@@ -362,7 +362,7 @@ def index_building_progress(
         ...     index_name="ivf_flat")
         >>> utility.index_building_progress("test_collection", c.name)
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).get_index_build_progress(
         collection_name=collection_name,
         index_name=index_name,
@@ -418,7 +418,7 @@ def wait_for_index_building_complete(
         >>> utility.loading_progress("test_collection")
 
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).wait_for_creating_index(
         collection_name, index_name, timeout=timeout, context=context
     )[0]
@@ -443,7 +443,7 @@ def has_collection(collection_name: str, using: str = "default", timeout: Option
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_collection("test_collection")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).has_collection(collection_name, timeout=timeout, context=context)
 
 
@@ -474,7 +474,7 @@ def has_partition(
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.has_partition("_default")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).has_partition(
         collection_name, partition_name, timeout=timeout, context=context
     )
@@ -503,7 +503,7 @@ def drop_collection(collection_name: str, timeout: Optional[float] = None, using
         >>> utility.has_collection("drop_collection_test")
         >>> False
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).drop_collection(collection_name, timeout=timeout, context=context)
 
 
@@ -534,7 +534,7 @@ def truncate_collection(
         >>> collection.num_entities
         0
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).truncate_collection(
         collection_name, timeout=timeout, context=context
     )
@@ -573,7 +573,7 @@ def rename_collection(
         >>> utility.has_collection("new_collection")
         >>> False
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).rename_collections(
         old_name=old_collection_name,
         new_name=new_collection_name,
@@ -606,7 +606,7 @@ def list_collections(timeout: Optional[float] = None, using: str = "default", **
         >>> collection = Collection(name="test_collection", schema=schema)
         >>> utility.list_collections()
     """
-    context = connections.create_call_context(using, **kwargs)
+    context = connections._generate_call_context(using, **kwargs)
     return _get_connection(using).list_collections(timeout=timeout, context=context, **kwargs)
 
 
@@ -652,7 +652,7 @@ def load_balance(
         dst_node_ids = []
     if sealed_segment_ids is None:
         sealed_segment_ids = []
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).load_balance(
         collection_name,
         src_node_id,
@@ -695,7 +695,7 @@ def get_query_segment_info(
         >>> collection.load() # load collection to memory
         >>> res = utility.get_query_segment_info("test_get_segment_info")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).get_query_segment_info(
         collection_name, timeout=timeout, context=context
     )
@@ -735,7 +735,7 @@ def create_alias(
         >>> utility.create_alias(collection.name, "alias")
         Status(code=0, message='')
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).create_alias(
         collection_name, alias, timeout=timeout, context=context
     )
@@ -772,7 +772,7 @@ def drop_alias(alias: str, timeout: Optional[float] = None, using: str = "defaul
         >>> utility.drop_alias("alias")
         Status(code=0, message='')
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).drop_alias(alias, timeout=timeout, context=context)
 
 
@@ -817,7 +817,7 @@ def alter_alias(
         if the alias exists, return Status(code=0, message='')
         otherwise return Status(code=1, message='alias does not exist')
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).alter_alias(
         collection_name, alias, timeout=timeout, context=context
     )
@@ -1210,7 +1210,7 @@ def drop_resource_group(name: str, using: str = "default", timeout: Optional[flo
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource groups in Milvus: {rgs}")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).drop_resource_group(name, timeout, context=context)
 
 
@@ -1224,7 +1224,7 @@ def describe_resource_group(name: str, using: str = "default", timeout: Optional
         >>> rgInfo = utility.list_resource_groups(name)
         >>> print(f"resource group info: {rgInfo}")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).describe_resource_group(name, timeout, context=context)
 
 
@@ -1239,7 +1239,7 @@ def list_resource_groups(using: str = "default", timeout: Optional[float] = None
         >>> rgs = utility.list_resource_groups()
         >>> print(f"resource group names: {rgs}")
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).list_resource_groups(timeout=timeout, context=context)
 
 
@@ -1264,7 +1264,7 @@ def transfer_node(
         >>> connections.connect()
         >>> rgs = utility.transfer_node(source_group, target_group, num_nodes)
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).transfer_node(
         source_group, target_group, num_nodes, timeout, context=context
     )
@@ -1294,7 +1294,7 @@ def transfer_replica(
         >>> connections.connect()
         >>> rgs = utility.transfer_replica(source, target, collection_name, num_replica)
     """
-    context = connections.create_call_context(using)
+    context = connections._generate_call_context(using)
     return _get_connection(using).transfer_replica(
         source_group, target_group, collection_name, num_replicas, timeout, context=context
     )
@@ -1328,7 +1328,7 @@ def flush_all(using: str = "default", timeout: Optional[float] = None, **kwargs)
         >>> future = utility.flush_all(_async=True)
         >>> future.done() # flush_all finished
     """
-    context = connections.create_call_context(using, **kwargs)
+    context = connections._generate_call_context(using, **kwargs)
     return _get_connection(using).flush_all(timeout=timeout, context=context, **kwargs)
 
 
@@ -1374,7 +1374,7 @@ def list_indexes(
     :return: The name list of all indexes.
     :rtype: str list
     """
-    context = connections.create_call_context(using, **kwargs)
+    context = connections._generate_call_context(using, **kwargs)
     indexes = _get_connection(using).list_indexes(
         collection_name, timeout, context=context, **kwargs
     )

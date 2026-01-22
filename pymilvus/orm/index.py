@@ -81,7 +81,7 @@ class Index:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         conn.create_index(
             self._collection.name, self._field_name, self._index_params, context=context, **kwargs
         )
@@ -138,7 +138,7 @@ class Index:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         conn.drop_index(
             collection_name=self._collection.name,
             field_name=self.field_name,

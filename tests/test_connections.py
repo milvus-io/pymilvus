@@ -5,7 +5,10 @@ from unittest import mock
 import pytest
 from pymilvus import *
 from pymilvus import DefaultConfig, MilvusException, connections
-from pymilvus.exceptions import ErrorCode
+from pymilvus.exceptions import ConnectionConfigException, ErrorCode
+from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClient
+from pymilvus.milvus_client.milvus_client import MilvusClient
+from pymilvus.orm.db import using_database
 
 LOGGER = logging.getLogger(__name__)
 
@@ -528,3 +531,157 @@ class TestIssues:
             # Clean up - mock the close method to avoid AttributeError
             with mock.patch(f"{mock_prefix}.close", return_value=None):
                 connections.remove_connection(alias)
+
+
+class TestUnbindWithDb:
+    def test_connect_with_unbind_with_db_false(self):
+        alias = "test_orm_alias"
+        connections.remove_connection(alias)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(
+                alias,
+                uri="http://localhost:19530",
+                db_name="test_db",
+                _unbind_with_db=False,
+                keep_alive=False,
+            )
+
+        config = connections.get_connection_addr(alias)
+        assert "db_name" in config
+        assert config["db_name"] == "test_db"
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_connect_with_unbind_with_db_true(self):
+        alias = "test_mc_alias"
+        connections.remove_connection(alias)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(
+                alias,
+                uri="http://localhost:19530",
+                db_name="test_db",
+                _unbind_with_db=True,
+                keep_alive=False,
+            )
+
+        config = connections.get_connection_addr(alias)
+        assert "db_name" not in config
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_update_db_name_with_bound_alias(self):
+        alias = "test_bound_alias"
+        connections.remove_connection(alias)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ), mock.patch(f"{mock_prefix}.reset_db_name", return_value=None):
+            connections.connect(
+                alias,
+                uri="http://localhost:19530",
+                db_name="db1",
+                _unbind_with_db=False,
+                keep_alive=False,
+            )
+
+        config = connections.get_connection_addr(alias)
+        assert config["db_name"] == "db1"
+
+        connections._update_db_name(alias, "db2")
+        config = connections.get_connection_addr(alias)
+        assert config["db_name"] == "db2"
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_update_db_name_with_unbound_alias_raises_exception(self):
+        alias = "test_unbound_alias"
+        connections.remove_connection(alias)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(
+                alias,
+                uri="http://localhost:19530",
+                db_name="test_db",
+                _unbind_with_db=True,
+                keep_alive=False,
+            )
+
+        config = connections.get_connection_addr(alias)
+        assert "db_name" not in config
+
+        with pytest.raises(ConnectionConfigException) as exc_info:
+            connections._update_db_name(alias, "new_db")
+        assert "not bound with a database" in str(exc_info.value)
+        assert "_unbind_with_db=True" in str(exc_info.value)
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_using_database_with_unbound_alias_raises_exception(self):
+        alias = "test_unbound_alias_orm"
+        connections.remove_connection(alias)
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None), mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(
+                alias,
+                uri="http://localhost:19530",
+                db_name="test_db",
+                _unbind_with_db=True,
+                keep_alive=False,
+            )
+
+        with pytest.raises(ConnectionConfigException):
+            using_database("new_db", using=alias)
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_milvus_client_creates_unbound_alias(self):
+        alias = "test_mc_connection"
+        connections.remove_connection(alias)
+
+        mock_handler = mock.MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with mock.patch(
+            "pymilvus.milvus_client._utils.connections.connect"
+        ) as mock_connect, mock.patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ):
+            _ = MilvusClient(uri="http://localhost:19530", db_name="test_db")
+            mock_connect.assert_called_once()
+            call_kwargs = mock_connect.call_args[1]
+            assert call_kwargs.get("_unbind_with_db") is True
+
+    def test_async_milvus_client_creates_unbound_alias(self):
+        alias = "test_amc_connection"
+        connections.remove_connection(alias)
+
+        mock_handler = mock.MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with mock.patch(
+            "pymilvus.milvus_client._utils.connections.connect"
+        ) as mock_connect, mock.patch(
+            "pymilvus.milvus_client._utils.asyncio.get_running_loop"
+        ) as mock_get_loop, mock.patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ):
+            mock_get_loop.return_value = mock.MagicMock()
+            _ = AsyncMilvusClient(uri="http://localhost:19530", db_name="test_db")
+            mock_connect.assert_called_once()
+            call_kwargs = mock_connect.call_args[1]
+            assert call_kwargs.get("_unbind_with_db") is True

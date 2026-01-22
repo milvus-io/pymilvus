@@ -53,6 +53,16 @@ def create_connection(
     if connections.has_connection(using):
         return using
 
-    connections.connect(using, user, password, db_name, token, uri=uri, _async=use_async, **kwargs)
+    connections.connect(
+        using,
+        user,
+        password,
+        db_name,
+        token,
+        uri=uri,
+        _async=use_async,
+        _unbind_with_db=True,
+        **kwargs,
+    )
     logger.debug("Created new connection using: %s", using)
     return using

@@ -11,7 +11,7 @@ from urllib import parse
 import grpc
 from grpc._cython import cygrpc
 
-from pymilvus.client.call_context import CallContext
+from pymilvus.client.call_context import CallContext, _api_level_md
 from pymilvus.decorators import (
     ignore_unimplemented,
     retry_on_rpc_failure,
@@ -370,7 +370,7 @@ class GrpcHandler:
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
 
         rf = self._stub.CreateCollection.future(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         if kwargs.get("_async", False):
             return rf
@@ -390,7 +390,7 @@ class GrpcHandler:
         request = Prepare.drop_collection_request(collection_name)
 
         status = self._stub.DropCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
         # Invalidate global schema cache
@@ -408,7 +408,7 @@ class GrpcHandler:
         request = Prepare.truncate_collection_request(collection_name)
 
         response = self._stub.TruncateCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -424,7 +424,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.add_collection_field_request(collection_name, field_schema)
         status = self._stub.AddCollectionField(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -441,7 +441,7 @@ class GrpcHandler:
         request = Prepare.drop_collection_function_request(collection_name, function_name)
 
         status = self._stub.DropCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -458,7 +458,7 @@ class GrpcHandler:
         request = Prepare.add_collection_function_request(collection_name, function)
 
         status = self._stub.AddCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -478,7 +478,7 @@ class GrpcHandler:
         )
 
         status = self._stub.AlterCollectionFunction(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -494,7 +494,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties=properties)
         status = self._stub.AlterCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -513,7 +513,7 @@ class GrpcHandler:
             collection_name=collection_name, field_name=field_name, field_param=field_params
         )
         status = self._stub.AlterCollectionField(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -529,7 +529,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
         status = self._stub.AlterCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -544,7 +544,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         reply = self._stub.DescribeCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
 
         # For compatibility with Milvus less than 2.3.2, which does not support status.code.
@@ -576,7 +576,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         response = self._stub.DescribeCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
 
@@ -594,7 +594,7 @@ class GrpcHandler:
     ):
         request = Prepare.show_collections_request()
         response = self._stub.ShowCollections(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -616,7 +616,7 @@ class GrpcHandler:
             check_pass_param(db_name=new_db_name)
         request = Prepare.rename_collections_request(old_name, new_name, new_db_name)
         status = self._stub.RenameCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -634,7 +634,7 @@ class GrpcHandler:
         )
         request = Prepare.create_partition_request(collection_name, partition_name)
         response = self._stub.CreatePartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -653,7 +653,7 @@ class GrpcHandler:
         request = Prepare.drop_partition_request(collection_name, partition_name)
 
         response = self._stub.DropPartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -671,7 +671,7 @@ class GrpcHandler:
         )
         request = Prepare.has_partition_request(collection_name, partition_name)
         response = self._stub.HasPartition(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -689,7 +689,7 @@ class GrpcHandler:
         request = Prepare.show_partitions_request(collection_name)
 
         response = self._stub.ShowPartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -707,7 +707,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         response = self._stub.GetPartitionStatistics(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -750,7 +750,7 @@ class GrpcHandler:
         resp = self._stub.Insert(
             request=request,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         ts_utils.update_collection_ts(
@@ -875,9 +875,7 @@ class GrpcHandler:
             request = self._prepare_batch_insert_request(
                 collection_name, entities, partition_name, timeout, context=context, **kwargs
             )
-            rf = self._stub.Insert.future(
-                request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-            )
+            rf = self._stub.Insert.future(request, timeout=timeout, metadata=_api_level_md(context))
             if kwargs.get("_async", False):
                 cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
@@ -925,9 +923,7 @@ class GrpcHandler:
                 consistency_level=kwargs.pop("consistency_level", 0),
                 **kwargs,
             )
-            future = self._stub.Delete.future(
-                req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-            )
+            future = self._stub.Delete.future(req, timeout=timeout, metadata=_api_level_md(context))
             if kwargs.get("_async", False):
                 cb = kwargs.pop("_callback", None)
                 f = MutationFuture(future, cb, timeout=timeout, **kwargs)
@@ -1011,9 +1007,7 @@ class GrpcHandler:
             request = self._prepare_batch_upsert_request(
                 collection_name, entities, partition_name, timeout, context=context, **kwargs
             )
-            rf = self._stub.Upsert.future(
-                request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-            )
+            rf = self._stub.Upsert.future(request, timeout=timeout, metadata=_api_level_md(context))
             if kwargs.get("_async", False) is True:
                 cb = kwargs.get("_callback")
                 f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
@@ -1091,9 +1085,7 @@ class GrpcHandler:
         request = self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, context=context, **kwargs
         )
-        response = self._stub.Upsert(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(
@@ -1116,14 +1108,12 @@ class GrpcHandler:
                 future = self._stub.Search.future(
                     request,
                     timeout=timeout,
-                    metadata=(context.to_grpc_metadata() if context else None),
+                    metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
                 return SearchFuture(future, func)
 
-            response = self._stub.Search(
-                request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-            )
+            response = self._stub.Search(request, timeout=timeout, metadata=_api_level_md(context))
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(
@@ -1149,13 +1139,13 @@ class GrpcHandler:
                 future = self._stub.HybridSearch.future(
                     request,
                     timeout=timeout,
-                    metadata=(context.to_grpc_metadata() if context else None),
+                    metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
                 return SearchFuture(future, func)
 
             response = self._stub.HybridSearch(
-                request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+                request, timeout=timeout, metadata=_api_level_md(context)
             )
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
@@ -1300,7 +1290,7 @@ class GrpcHandler:
     ) -> List[milvus_types.QuerySegmentInfo]:
         req = Prepare.get_query_segment_info_request(collection_name)
         response = self._stub.GetQuerySegmentInfo(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.infos
@@ -1316,9 +1306,7 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_alias_request(collection_name, alias)
-        response = self._stub.CreateAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.CreateAlias(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -1330,9 +1318,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = Prepare.drop_alias_request(alias)
-        response = self._stub.DropAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.DropAlias(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -1346,9 +1332,7 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_alias_request(collection_name, alias)
-        response = self._stub.AlterAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.AlterAlias(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -1362,7 +1346,7 @@ class GrpcHandler:
         check_pass_param(alias=alias, timeout=timeout)
         request = Prepare.describe_alias_request(alias)
         response = self._stub.DescribeAlias(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         ret = {
@@ -1386,9 +1370,7 @@ class GrpcHandler:
         if collection_name:
             check_pass_param(collection_name=collection_name)
         request = Prepare.list_aliases_request(collection_name, kwargs.get("db_name", ""))
-        response = self._stub.ListAliases(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.ListAliases(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response.status)
         ret = {
             "aliases": [],
@@ -1420,7 +1402,7 @@ class GrpcHandler:
             collection_name, field_name, params, index_name=index_name
         )
         future = self._stub.CreateIndex.future(
-            index_param, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            index_param, timeout=timeout, metadata=_api_level_md(context)
         )
 
         if _async:
@@ -1477,9 +1459,7 @@ class GrpcHandler:
             raise ParamError(message="properties should not be None")
 
         request = Prepare.alter_index_properties_request(collection_name, index_name, properties)
-        response = self._stub.AlterIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.AlterIndex(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -1496,9 +1476,7 @@ class GrpcHandler:
         request = Prepare.drop_index_properties_request(
             collection_name, index_name, delete_keys=property_keys
         )
-        response = self._stub.AlterIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.AlterIndex(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -1513,7 +1491,7 @@ class GrpcHandler:
         request = Prepare.describe_index_request(collection_name, "")
 
         response = self._stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         if is_successful(status):
@@ -1536,7 +1514,7 @@ class GrpcHandler:
         request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
 
         response = self._stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         if status.code == ErrorCode.INDEX_NOT_FOUND or status.error_code == Status.INDEX_NOT_EXIST:
@@ -1567,7 +1545,7 @@ class GrpcHandler:
     ):
         request = Prepare.describe_index_request(collection_name, index_name)
         response = self._stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -1593,7 +1571,7 @@ class GrpcHandler:
     ):
         request = Prepare.describe_index_request(collection_name, index_name, timestamp)
         response = self._stub.DescribeIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -1657,7 +1635,7 @@ class GrpcHandler:
         response = self._stub.LoadCollection(
             request,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(response)
 
@@ -1726,7 +1704,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
         response = self._stub.ReleaseCollection(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1749,7 +1727,7 @@ class GrpcHandler:
             **kwargs,
         )
         response = self._stub.LoadPartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1806,7 +1784,7 @@ class GrpcHandler:
     ):
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = self._stub.GetLoadingProgress(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         if is_refresh:
@@ -1825,7 +1803,7 @@ class GrpcHandler:
         check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.create_database_req(db_name, properties=properties)
         status = self._stub.CreateDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -1838,9 +1816,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = Prepare.drop_database_req(db_name)
-        status = self._stub.DropDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        status = self._stub.DropDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
     @retry_on_rpc_failure()
@@ -1850,7 +1826,7 @@ class GrpcHandler:
         check_pass_param(timeout=timeout)
         request = Prepare.list_database_req()
         response = self._stub.ListDatabases(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return list(response.db_names)
@@ -1865,9 +1841,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = Prepare.alter_database_properties_req(db_name, properties)
-        status = self._stub.AlterDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        status = self._stub.AlterDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
     @retry_on_rpc_failure()
@@ -1880,9 +1854,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = Prepare.drop_database_properties_req(db_name, property_keys)
-        status = self._stub.AlterDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        status = self._stub.AlterDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
     @retry_on_rpc_failure()
@@ -1895,7 +1867,7 @@ class GrpcHandler:
     ):
         request = Prepare.describe_database_req(db_name=db_name)
         resp = self._stub.DescribeDatabase(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
         return DatabaseInfo(resp).to_dict()
@@ -1911,7 +1883,7 @@ class GrpcHandler:
     ):
         request = Prepare.get_load_state(collection_name, partition_names)
         response = self._stub.GetLoadState(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return LoadState(response.state)
@@ -1947,7 +1919,7 @@ class GrpcHandler:
         )
         request = Prepare.release_partitions("", collection_name, partition_names)
         response = self._stub.ReleasePartitions(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response)
 
@@ -1962,7 +1934,7 @@ class GrpcHandler:
         check_pass_param(collection_name=collection_name, timeout=timeout)
         index_param = Prepare.get_collection_stats_request(collection_name)
         response = self._stub.GetCollectionStatistics(
-            index_param, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            index_param, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -1979,9 +1951,7 @@ class GrpcHandler:
         **kwargs,
     ):
         req = Prepare.get_flush_state_request(segment_ids, collection_name, flush_ts)
-        response = self._stub.GetFlushState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.GetFlushState(req, timeout=timeout, metadata=_api_level_md(context))
         status = response.status
         check_status(status)
         return response.flushed
@@ -1996,7 +1966,7 @@ class GrpcHandler:
     ) -> List[milvus_types.PersistentSegmentInfo]:
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = self._stub.GetPersistentSegmentInfo(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.infos
@@ -2041,9 +2011,7 @@ class GrpcHandler:
             check_pass_param(collection_name=name)
 
         request = Prepare.flush_param(collection_names)
-        future = self._stub.Flush.future(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        future = self._stub.Flush.future(request, timeout=timeout, metadata=_api_level_md(context))
         response = future.result()
         check_status(response.status)
 
@@ -2080,9 +2048,7 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
-        response = self._stub.DropIndex(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.DropIndex(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(response)
 
     @retry_on_rpc_failure()
@@ -2094,9 +2060,7 @@ class GrpcHandler:
         **kwargs,
     ):
         request = Prepare.dummy_request(request_type)
-        return self._stub.Dummy(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        return self._stub.Dummy(request, timeout=timeout, metadata=_api_level_md(context))
 
     # TODO seems not in use
     @retry_on_rpc_failure()
@@ -2105,7 +2069,7 @@ class GrpcHandler:
     ):
         request = Prepare.register_link_request()
         response = self._stub.RegisterLink(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         return response.status
 
@@ -2122,9 +2086,7 @@ class GrpcHandler:
     ):
         # TODO: some check
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
-        return self._stub.Retrieve(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        return self._stub.Retrieve(request, timeout=timeout, metadata=_api_level_md(context))
 
     @retry_on_rpc_failure()
     def query(
@@ -2154,9 +2116,7 @@ class GrpcHandler:
             **kwargs,
         )
 
-        response = self._stub.Query(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.Query(request, timeout=timeout, metadata=_api_level_md(context))
         if Status.EMPTY_COLLECTION in {response.status.code, response.status.error_code}:
             return []
         check_status(response.status)
@@ -2207,9 +2167,7 @@ class GrpcHandler:
         req = Prepare.load_balance_request(
             collection_name, src_node_id, dst_node_ids, sealed_segment_ids
         )
-        status = self._stub.LoadBalance(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        status = self._stub.LoadBalance(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
     @retry_on_rpc_failure()
@@ -2231,13 +2189,13 @@ class GrpcHandler:
             target_size=target_size,
         )
         response = self._stub.ManualCompaction(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         if response.status.error_code == common_pb2.CollectionNameNotFound:
             # should be removed, but to be compatible with old milvus server, keep it for now.
             request = Prepare.describe_collection_request(collection_name)
             response = self._stub.DescribeCollection(
-                request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+                request, timeout=timeout, metadata=_api_level_md(context)
             )
             check_status(response.status)
 
@@ -2245,7 +2203,7 @@ class GrpcHandler:
                 collection_name, is_clustering, response.collectionID, target_size
             )
             response = self._stub.ManualCompaction(
-                req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+                req, timeout=timeout, metadata=_api_level_md(context)
             )
         check_status(response.status)
         return response.compactionID
@@ -2260,7 +2218,7 @@ class GrpcHandler:
     ) -> CompactionState:
         req = Prepare.get_compaction_state(compaction_id)
         response = self._stub.GetCompactionState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2307,7 +2265,7 @@ class GrpcHandler:
         req = Prepare.get_compaction_state_with_plans(compaction_id)
 
         response = self._stub.GetCompactionStateWithPlans(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -2330,9 +2288,7 @@ class GrpcHandler:
         )["collection_id"]
 
         req = Prepare.get_replicas(collection_id)
-        response = self._stub.GetReplicas(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.GetReplicas(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(response.status)
 
         groups = []
@@ -2365,9 +2321,7 @@ class GrpcHandler:
         )["collection_id"]
 
         req = Prepare.get_replicas(collection_id)
-        response = self._stub.GetReplicas(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.GetReplicas(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(response.status)
 
         groups = []
@@ -2398,9 +2352,7 @@ class GrpcHandler:
         **kwargs,
     ) -> int:
         req = Prepare.do_bulk_insert(collection_name, partition_name, files, **kwargs)
-        response = self._stub.Import(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        response = self._stub.Import(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(response.status)
         if len(response.tasks) == 0:
             raise MilvusException(
@@ -2419,9 +2371,7 @@ class GrpcHandler:
         **kwargs,
     ) -> BulkInsertState:
         req = Prepare.get_bulk_insert_state(task_id)
-        resp = self._stub.GetImportState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.GetImportState(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
         return BulkInsertState(
             task_id, resp.state, resp.row_count, resp.id_list, resp.infos, resp.create_ts
@@ -2437,9 +2387,7 @@ class GrpcHandler:
         **kwargs,
     ) -> list:
         req = Prepare.list_bulk_insert_tasks(limit, collection_name)
-        resp = self._stub.ListImportTasks(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.ListImportTasks(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
 
         return [
@@ -2458,9 +2406,7 @@ class GrpcHandler:
     ):
         check_pass_param(user=user, password=password, timeout=timeout)
         req = Prepare.create_user_request(user, password)
-        resp = self._stub.CreateCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.CreateCredential(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp)
 
     @retry_on_rpc_failure()
@@ -2474,9 +2420,7 @@ class GrpcHandler:
         **kwargs,
     ):
         req = Prepare.update_password_request(user, old_password, new_password)
-        resp = self._stub.UpdateCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.UpdateCredential(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp)
 
     @retry_on_rpc_failure()
@@ -2488,9 +2432,7 @@ class GrpcHandler:
         **kwargs,
     ):
         req = Prepare.delete_user_request(user)
-        resp = self._stub.DeleteCredential(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.DeleteCredential(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp)
 
     @retry_on_rpc_failure()
@@ -2498,9 +2440,7 @@ class GrpcHandler:
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ):
         req = Prepare.list_usernames_request()
-        resp = self._stub.ListCredUsers(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.ListCredUsers(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
         return resp.usernames
 
@@ -2517,7 +2457,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2535,7 +2475,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2555,7 +2495,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2575,7 +2515,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2593,7 +2533,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return RoleInfo(resp.results)
@@ -2611,7 +2551,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return RoleInfo(resp.results)
@@ -2630,7 +2570,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return UserInfo(resp.results)
@@ -2648,7 +2588,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return UserInfo(resp.results)
@@ -2677,7 +2617,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2705,7 +2645,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2731,7 +2671,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2757,7 +2697,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2775,7 +2715,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return GrantInfo(resp.entities)
@@ -2796,7 +2736,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return GrantInfo(resp.entities)
@@ -2809,9 +2749,7 @@ class GrpcHandler:
         **kwargs,
     ) -> str:
         req = Prepare.get_server_version()
-        resp = self._stub.GetVersion(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.GetVersion(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
         return resp.version
 
@@ -2828,7 +2766,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2845,7 +2783,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2862,7 +2800,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2875,7 +2813,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return list(resp.resource_groups)
@@ -2893,7 +2831,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return ResourceGroupInfo(resp.resource_group)
@@ -2913,7 +2851,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2933,7 +2871,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -2947,7 +2885,7 @@ class GrpcHandler:
     ):
         req = Prepare.get_flush_all_state_request(flush_all_ts, kwargs.get("db", ""))
         response = self._stub.GetFlushAllState(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            req, timeout=timeout, metadata=_api_level_md(context)
         )
         status = response.status
         check_status(status)
@@ -2982,7 +2920,7 @@ class GrpcHandler:
     ):
         request = Prepare.flush_all_request(kwargs.get("db", ""))
         future = self._stub.FlushAll.future(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         response = future.result()
         check_status(response.status)
@@ -3021,7 +2959,7 @@ class GrpcHandler:
     ) -> int:
         request = milvus_types.AllocTimestampRequest()
         response = self._stub.AllocTimestamp(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.timestamp
@@ -3039,7 +2977,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -3056,7 +2994,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -3069,7 +3007,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp.status)
         return PrivilegeGroupInfo(resp.privilege_groups)
@@ -3090,7 +3028,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -3112,7 +3050,7 @@ class GrpcHandler:
             req,
             wait_for_ready=True,
             timeout=timeout,
-            metadata=(context.to_grpc_metadata() if context else None),
+            metadata=_api_level_md(context),
         )
         check_status(resp)
 
@@ -3140,9 +3078,7 @@ class GrpcHandler:
             field_name=field_name,
             analyzer_names=analyzer_names,
         )
-        resp = self._stub.RunAnalyzer(
-            req, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        resp = self._stub.RunAnalyzer(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
 
         if isinstance(texts, str):
@@ -3176,7 +3112,7 @@ class GrpcHandler:
         )
 
         status = self._stub.UpdateReplicateConfiguration(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
         return status
@@ -3197,7 +3133,7 @@ class GrpcHandler:
             description=description,
         )
         status = self._stub.CreateSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
 
@@ -3210,9 +3146,7 @@ class GrpcHandler:
         **kwargs,
     ) -> None:
         request = Prepare.drop_snapshot_req(snapshot_name)
-        status = self._stub.DropSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
-        )
+        status = self._stub.DropSnapshot(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
     @retry_on_rpc_failure()
@@ -3225,7 +3159,7 @@ class GrpcHandler:
     ) -> List[str]:
         request = Prepare.list_snapshots_req(collection_name=collection_name)
         response = self._stub.ListSnapshots(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -3242,7 +3176,7 @@ class GrpcHandler:
     ) -> SnapshotInfo:
         request = Prepare.describe_snapshot_req(snapshot_name)
         response = self._stub.DescribeSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -3271,7 +3205,7 @@ class GrpcHandler:
             rewrite_data=rewrite_data,
         )
         response = self._stub.RestoreSnapshot(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         return response.job_id
@@ -3286,7 +3220,7 @@ class GrpcHandler:
     ) -> RestoreSnapshotJobInfo:
         request = Prepare.get_restore_snapshot_state_req(job_id)
         response = self._stub.GetRestoreSnapshotState(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 
@@ -3315,7 +3249,7 @@ class GrpcHandler:
     ) -> List[RestoreSnapshotJobInfo]:
         request = Prepare.list_restore_snapshot_jobs_req(collection_name=collection_name)
         response = self._stub.ListRestoreSnapshotJobs(
-            request, timeout=timeout, metadata=(context.to_grpc_metadata() if context else None)
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
 

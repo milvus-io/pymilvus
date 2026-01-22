@@ -58,7 +58,7 @@ class Partition:
             # Need to import connections here or better rely on Collection methods
             from .connections import connections
 
-            context = connections.create_call_context(self._collection._using, **kwargs)
+            context = connections._generate_call_context(self._collection._using, **kwargs)
             conn.create_partition(self._collection.name, self.name, context=context, **kwargs)
 
     def __repr__(self) -> str:
@@ -141,7 +141,7 @@ class Partition:
         from .connections import connections
 
         # num_entities property cannot accept kwargs, so we use default context
-        context = connections.create_call_context(self._collection._using)
+        context = connections._generate_call_context(self._collection._using)
         stats = conn.get_partition_stats(
             collection_name=self._collection.name, partition_name=self.name, context=context
         )
@@ -162,7 +162,7 @@ class Partition:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         conn.flush([self._collection.name], timeout=timeout, context=context, **kwargs)
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
@@ -186,7 +186,7 @@ class Partition:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         return conn.drop_partition(
             self._collection.name, self.name, timeout=timeout, context=context, **kwargs
         )
@@ -218,7 +218,7 @@ class Partition:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         return conn.load_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
@@ -255,7 +255,7 @@ class Partition:
         conn = self._get_connection()
         from .connections import connections
 
-        context = connections.create_call_context(self._collection._using, **kwargs)
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         return conn.release_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
