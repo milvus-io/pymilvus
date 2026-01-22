@@ -1,4 +1,4 @@
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
@@ -56,12 +56,13 @@ class TestAsyncFlush:
             call_count += 1
             # Return False first time (not flushed), True second time (flushed)
             return call_count > 1
+
         handler.get_flush_state = AsyncMock(side_effect=mock_get_flush_state)
 
         # Mock Prepare.flush_param
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.flush_param.return_value = MagicMock()
 
             # Call flush
@@ -120,15 +121,17 @@ class TestAsyncFlush:
         # Track which collections were checked
         checked_collections = []
 
-        async def mock_get_flush_state(segment_ids, collection_name, flush_ts, timeout=None, context=None, **kwargs):
+        async def mock_get_flush_state(
+            segment_ids, collection_name, flush_ts, timeout=None, context=None, **kwargs
+        ):
             checked_collections.append(collection_name)
             return True  # Always return True (already flushed)
 
         handler.get_flush_state = AsyncMock(side_effect=mock_get_flush_state)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.flush_param.return_value = MagicMock()
 
             await handler.flush(["collection1", "collection2"], timeout=10)
@@ -188,11 +191,12 @@ class TestAsyncFlush:
             # Increment time by 0.6 seconds each call to exceed timeout
             current_time += 0.6
             return current_time
-        
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'), \
-             patch('pymilvus.client.async_grpc_handler.time.time', side_effect=mock_time):
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"), patch(
+            "pymilvus.client.async_grpc_handler.time.time", side_effect=mock_time
+        ):
             mock_prepare.flush_param.return_value = MagicMock()
 
             # Call flush with short timeout
@@ -258,8 +262,9 @@ class TestAsyncFlush:
 
         mock_stub.GetFlushState = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_prepare.get_flush_state_request.return_value = MagicMock()
 
             # Call get_flush_state

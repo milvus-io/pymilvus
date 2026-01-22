@@ -52,9 +52,7 @@ class TestGrpcHandlerHelperMethods:
             "fields": [{"name": "id", "type": DataType.INT64}],
             "update_timestamp": 100,
         }
-        GlobalCache.schema.set(
-            handler.server_address, "", "test_collection", cached_schema
-        )
+        GlobalCache.schema.set(handler.server_address, "", "test_collection", cached_schema)
 
         schema, timestamp = handler._get_schema("test_collection")
 
@@ -83,9 +81,7 @@ class TestGrpcHandlerHelperMethods:
             assert timestamp == 200
 
             # Check it was cached in global cache
-            cached = GlobalCache.schema.get(
-                handler.server_address, "", "test_collection"
-            )
+            cached = GlobalCache.schema.get(handler.server_address, "", "test_collection")
             assert cached == remote_schema
 
         # Cleanup

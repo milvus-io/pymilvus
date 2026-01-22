@@ -45,9 +45,9 @@ class TestAsyncGrpcHandler:
         handler.wait_for_loading_partitions = AsyncMock()
 
         # Mock Prepare.load_partitions to return a request with refresh attribute
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Create mock request with refresh attribute (not is_refresh)
             mock_request = MagicMock()
             mock_request.refresh = True  # This is the correct attribute name
@@ -78,7 +78,7 @@ class TestAsyncGrpcHandler:
                 is_refresh=True,  # Should be the value from request.refresh
                 timeout=30,
                 refresh=True,
-                context=ANY
+                context=ANY,
             )
 
     @pytest.mark.asyncio
@@ -111,9 +111,9 @@ class TestAsyncGrpcHandler:
         handler.wait_for_loading_partitions = AsyncMock()
 
         # Mock Prepare.load_partitions
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Create mock request with default refresh value
             mock_request = MagicMock()
             mock_request.refresh = False  # Default value when not specified
@@ -130,7 +130,7 @@ class TestAsyncGrpcHandler:
                 partition_names=["partition1"],
                 is_refresh=False,  # Should be False when not specified
                 timeout=30,
-                context=ANY
+                context=ANY,
             )
 
     @pytest.mark.asyncio
@@ -161,7 +161,7 @@ class TestAsyncGrpcHandler:
             ["partition1", "partition2"],
             timeout=30,
             is_refresh=True,
-            context=ANY
+            context=ANY,
         )
 
     @pytest.mark.asyncio
@@ -220,9 +220,9 @@ class TestAsyncGrpcHandler:
         handler.wait_for_loading_partitions = AsyncMock()
 
         # Mock Prepare.load_partitions
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Create mock request
             mock_request = MagicMock()
             mock_request.refresh = False
@@ -275,9 +275,9 @@ class TestAsyncGrpcHandler:
         mock_create_response.status = mock_status
         mock_stub.CreateIndex = AsyncMock(return_value=mock_create_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Create mock index request
             mock_index_request = MagicMock()
             mock_prepare.create_index_request.return_value = mock_index_request
@@ -352,9 +352,9 @@ class TestAsyncGrpcHandler:
         emb_list2.add([0.5, 0.4, 0.3, 0.2, 0.1])
         data = [emb_list1, emb_list2]
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Mock search_requests_with_expr to return a request
             mock_request = MagicMock()
             mock_prepare.search_requests_with_expr.return_value = mock_request
@@ -423,9 +423,9 @@ class TestAsyncGrpcHandler:
             data=[emb_list], anns_field="vector", param={"metric_type": "COSINE"}, limit=10
         )
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_pass_param'), \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
             # Mock search_requests_with_expr and hybrid_search_request_with_ranker
             mock_search_request = MagicMock()
             mock_hybrid_request = MagicMock()
@@ -476,8 +476,9 @@ class TestAsyncGrpcHandler:
         mock_response.status = mock_status
         mock_stub.CreateSnapshot = AsyncMock(return_value=mock_status)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_request = MagicMock()
             mock_prepare.create_snapshot_req.return_value = mock_request
 
@@ -514,8 +515,9 @@ class TestAsyncGrpcHandler:
         mock_status.reason = ""
         mock_stub.DropSnapshot = AsyncMock(return_value=mock_status)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_request = MagicMock()
             mock_prepare.drop_snapshot_req.return_value = mock_request
 
@@ -549,8 +551,9 @@ class TestAsyncGrpcHandler:
         ]
         mock_stub.ListSnapshots = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_request = MagicMock()
             mock_prepare.list_snapshots_req.return_value = mock_request
 
@@ -589,8 +592,9 @@ class TestAsyncGrpcHandler:
         mock_response.s3_location = "s3://bucket/path"
         mock_stub.DescribeSnapshot = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_request = MagicMock()
             mock_prepare.describe_snapshot_req.return_value = mock_request
 
@@ -624,8 +628,9 @@ class TestAsyncGrpcHandler:
         mock_response.job_id = 12345
         mock_stub.RestoreSnapshot = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
             mock_request = MagicMock()
             mock_prepare.restore_snapshot_req.return_value = mock_request
 
@@ -677,9 +682,12 @@ class TestAsyncGrpcHandler:
 
         mock_stub.GetRestoreSnapshotState = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'), \
-             patch('pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name', return_value="RestoreSnapshotExecuting"):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ), patch(
+            "pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name",
+            return_value="RestoreSnapshotExecuting",
+        ):
             mock_request = MagicMock()
             mock_prepare.get_restore_snapshot_state_req.return_value = mock_request
 
@@ -735,9 +743,12 @@ class TestAsyncGrpcHandler:
         mock_response.jobs = [mock_job1, mock_job2]
         mock_stub.ListRestoreSnapshotJobs = AsyncMock(return_value=mock_response)
 
-        with patch('pymilvus.client.async_grpc_handler.Prepare') as mock_prepare, \
-             patch('pymilvus.client.async_grpc_handler.check_status'), \
-             patch('pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name', side_effect=lambda x: f"State{x}"):
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ), patch(
+            "pymilvus.client.async_grpc_handler.milvus_types.RestoreSnapshotState.Name",
+            side_effect=lambda x: f"State{x}",
+        ):
             mock_request = MagicMock()
             mock_prepare.list_restore_snapshot_jobs_req.return_value = mock_request
 

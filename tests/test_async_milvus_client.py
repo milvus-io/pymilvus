@@ -132,7 +132,7 @@ class TestAsyncMilvusClientNewFeatures:
 
             # Verify call arguments
             mock_conn.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None, context=ANY, **{}
+                "test_collection", timeout=None, context=ANY
             )
 
     @pytest.mark.asyncio
@@ -295,7 +295,7 @@ class TestAsyncMilvusClientNewFeatures:
                 clusters=clusters,
                 cross_cluster_topology=cross_cluster_topology,
                 timeout=10,
-                context=ANY
+                context=ANY,
             )
 
     def test_create_struct_field_schema(self):
