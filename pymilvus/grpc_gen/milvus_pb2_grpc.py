@@ -40,567 +40,567 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/CreateCollection',
                 request_serializer=milvus__pb2.CreateCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropCollection',
                 request_serializer=milvus__pb2.DropCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.HasCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/HasCollection',
                 request_serializer=milvus__pb2.HasCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.BoolResponse.FromString,
-                )
+                _registered_method=True)
         self.LoadCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/LoadCollection',
                 request_serializer=milvus__pb2.LoadCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ReleaseCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ReleaseCollection',
                 request_serializer=milvus__pb2.ReleaseCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DescribeCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeCollection',
                 request_serializer=milvus__pb2.DescribeCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeCollectionResponse.FromString,
-                )
+                _registered_method=True)
         self.BatchDescribeCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/BatchDescribeCollection',
                 request_serializer=milvus__pb2.BatchDescribeCollectionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.BatchDescribeCollectionResponse.FromString,
-                )
+                _registered_method=True)
         self.GetCollectionStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCollectionStatistics',
                 request_serializer=milvus__pb2.GetCollectionStatisticsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetCollectionStatisticsResponse.FromString,
-                )
+                _registered_method=True)
         self.ShowCollections = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ShowCollections',
                 request_serializer=milvus__pb2.ShowCollectionsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ShowCollectionsResponse.FromString,
-                )
+                _registered_method=True)
         self.AlterCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterCollection',
                 request_serializer=milvus__pb2.AlterCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.AlterCollectionField = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterCollectionField',
                 request_serializer=milvus__pb2.AlterCollectionFieldRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.AddCollectionFunction = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AddCollectionFunction',
                 request_serializer=milvus__pb2.AddCollectionFunctionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.AlterCollectionFunction = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterCollectionFunction',
                 request_serializer=milvus__pb2.AlterCollectionFunctionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropCollectionFunction = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropCollectionFunction',
                 request_serializer=milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropPartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropPartition',
                 request_serializer=milvus__pb2.DropPartitionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.HasPartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/HasPartition',
                 request_serializer=milvus__pb2.HasPartitionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.BoolResponse.FromString,
-                )
+                _registered_method=True)
         self.LoadPartitions = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/LoadPartitions',
                 request_serializer=milvus__pb2.LoadPartitionsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ReleasePartitions = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ReleasePartitions',
                 request_serializer=milvus__pb2.ReleasePartitionsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.GetPartitionStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetPartitionStatistics',
                 request_serializer=milvus__pb2.GetPartitionStatisticsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetPartitionStatisticsResponse.FromString,
-                )
+                _registered_method=True)
         self.ShowPartitions = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ShowPartitions',
                 request_serializer=milvus__pb2.ShowPartitionsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ShowPartitionsResponse.FromString,
-                )
+                _registered_method=True)
         self.GetLoadingProgress = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetLoadingProgress',
                 request_serializer=milvus__pb2.GetLoadingProgressRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetLoadingProgressResponse.FromString,
-                )
+                _registered_method=True)
         self.GetLoadState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetLoadState',
                 request_serializer=milvus__pb2.GetLoadStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetLoadStateResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateAlias = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateAlias',
                 request_serializer=milvus__pb2.CreateAliasRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropAlias = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropAlias',
                 request_serializer=milvus__pb2.DropAliasRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.AlterAlias = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterAlias',
                 request_serializer=milvus__pb2.AlterAliasRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DescribeAlias = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeAlias',
                 request_serializer=milvus__pb2.DescribeAliasRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeAliasResponse.FromString,
-                )
+                _registered_method=True)
         self.ListAliases = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListAliases',
                 request_serializer=milvus__pb2.ListAliasesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListAliasesResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateIndex',
                 request_serializer=milvus__pb2.CreateIndexRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.AlterIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterIndex',
                 request_serializer=milvus__pb2.AlterIndexRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DescribeIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeIndex',
                 request_serializer=milvus__pb2.DescribeIndexRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeIndexResponse.FromString,
-                )
+                _registered_method=True)
         self.GetIndexStatistics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetIndexStatistics',
                 request_serializer=milvus__pb2.GetIndexStatisticsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetIndexStatisticsResponse.FromString,
-                )
+                _registered_method=True)
         self.GetIndexState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetIndexState',
                 request_serializer=milvus__pb2.GetIndexStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetIndexStateResponse.FromString,
-                )
+                _registered_method=True)
         self.GetIndexBuildProgress = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetIndexBuildProgress',
                 request_serializer=milvus__pb2.GetIndexBuildProgressRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetIndexBuildProgressResponse.FromString,
-                )
+                _registered_method=True)
         self.DropIndex = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropIndex',
                 request_serializer=milvus__pb2.DropIndexRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.Insert = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Insert',
                 request_serializer=milvus__pb2.InsertRequest.SerializeToString,
                 response_deserializer=milvus__pb2.MutationResult.FromString,
-                )
+                _registered_method=True)
         self.Delete = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Delete',
                 request_serializer=milvus__pb2.DeleteRequest.SerializeToString,
                 response_deserializer=milvus__pb2.MutationResult.FromString,
-                )
+                _registered_method=True)
         self.Upsert = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Upsert',
                 request_serializer=milvus__pb2.UpsertRequest.SerializeToString,
                 response_deserializer=milvus__pb2.MutationResult.FromString,
-                )
+                _registered_method=True)
         self.Search = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Search',
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
-                )
+                _registered_method=True)
         self.HybridSearch = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/HybridSearch',
                 request_serializer=milvus__pb2.HybridSearchRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SearchResults.FromString,
-                )
+                _registered_method=True)
         self.Flush = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Flush',
                 request_serializer=milvus__pb2.FlushRequest.SerializeToString,
                 response_deserializer=milvus__pb2.FlushResponse.FromString,
-                )
+                _registered_method=True)
         self.Query = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Query',
                 request_serializer=milvus__pb2.QueryRequest.SerializeToString,
                 response_deserializer=milvus__pb2.QueryResults.FromString,
-                )
+                _registered_method=True)
         self.CalcDistance = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CalcDistance',
                 request_serializer=milvus__pb2.CalcDistanceRequest.SerializeToString,
                 response_deserializer=milvus__pb2.CalcDistanceResults.FromString,
-                )
+                _registered_method=True)
         self.FlushAll = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/FlushAll',
                 request_serializer=milvus__pb2.FlushAllRequest.SerializeToString,
                 response_deserializer=milvus__pb2.FlushAllResponse.FromString,
-                )
+                _registered_method=True)
         self.AddCollectionField = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AddCollectionField',
                 request_serializer=milvus__pb2.AddCollectionFieldRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.GetFlushState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetFlushState',
                 request_serializer=milvus__pb2.GetFlushStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetFlushStateResponse.FromString,
-                )
+                _registered_method=True)
         self.GetFlushAllState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetFlushAllState',
                 request_serializer=milvus__pb2.GetFlushAllStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetFlushAllStateResponse.FromString,
-                )
+                _registered_method=True)
         self.GetPersistentSegmentInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetPersistentSegmentInfo',
                 request_serializer=milvus__pb2.GetPersistentSegmentInfoRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetPersistentSegmentInfoResponse.FromString,
-                )
+                _registered_method=True)
         self.GetQuerySegmentInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetQuerySegmentInfo',
                 request_serializer=milvus__pb2.GetQuerySegmentInfoRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetQuerySegmentInfoResponse.FromString,
-                )
+                _registered_method=True)
         self.GetReplicas = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetReplicas',
                 request_serializer=milvus__pb2.GetReplicasRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetReplicasResponse.FromString,
-                )
+                _registered_method=True)
         self.Dummy = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Dummy',
                 request_serializer=milvus__pb2.DummyRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DummyResponse.FromString,
-                )
+                _registered_method=True)
         self.RegisterLink = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RegisterLink',
                 request_serializer=milvus__pb2.RegisterLinkRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RegisterLinkResponse.FromString,
-                )
+                _registered_method=True)
         self.GetMetrics = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetMetrics',
                 request_serializer=milvus__pb2.GetMetricsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetMetricsResponse.FromString,
-                )
+                _registered_method=True)
         self.GetComponentStates = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetComponentStates',
                 request_serializer=milvus__pb2.GetComponentStatesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ComponentStates.FromString,
-                )
+                _registered_method=True)
         self.LoadBalance = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/LoadBalance',
                 request_serializer=milvus__pb2.LoadBalanceRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.GetCompactionState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCompactionState',
                 request_serializer=milvus__pb2.GetCompactionStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetCompactionStateResponse.FromString,
-                )
+                _registered_method=True)
         self.ManualCompaction = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ManualCompaction',
                 request_serializer=milvus__pb2.ManualCompactionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ManualCompactionResponse.FromString,
-                )
+                _registered_method=True)
         self.GetCompactionStateWithPlans = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans',
                 request_serializer=milvus__pb2.GetCompactionPlansRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetCompactionPlansResponse.FromString,
-                )
+                _registered_method=True)
         self.Import = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Import',
                 request_serializer=milvus__pb2.ImportRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ImportResponse.FromString,
-                )
+                _registered_method=True)
         self.GetImportState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetImportState',
                 request_serializer=milvus__pb2.GetImportStateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetImportStateResponse.FromString,
-                )
+                _registered_method=True)
         self.ListImportTasks = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListImportTasks',
                 request_serializer=milvus__pb2.ListImportTasksRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListImportTasksResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateCredential = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateCredential',
                 request_serializer=milvus__pb2.CreateCredentialRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.UpdateCredential = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/UpdateCredential',
                 request_serializer=milvus__pb2.UpdateCredentialRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DeleteCredential = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DeleteCredential',
                 request_serializer=milvus__pb2.DeleteCredentialRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListCredUsers = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListCredUsers',
                 request_serializer=milvus__pb2.ListCredUsersRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListCredUsersResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateRole = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateRole',
                 request_serializer=milvus__pb2.CreateRoleRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropRole = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropRole',
                 request_serializer=milvus__pb2.DropRoleRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.OperateUserRole = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/OperateUserRole',
                 request_serializer=milvus__pb2.OperateUserRoleRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.SelectRole = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/SelectRole',
                 request_serializer=milvus__pb2.SelectRoleRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SelectRoleResponse.FromString,
-                )
+                _registered_method=True)
         self.SelectUser = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/SelectUser',
                 request_serializer=milvus__pb2.SelectUserRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SelectUserResponse.FromString,
-                )
+                _registered_method=True)
         self.OperatePrivilege = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/OperatePrivilege',
                 request_serializer=milvus__pb2.OperatePrivilegeRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.OperatePrivilegeV2 = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/OperatePrivilegeV2',
                 request_serializer=milvus__pb2.OperatePrivilegeV2Request.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.SelectGrant = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/SelectGrant',
                 request_serializer=milvus__pb2.SelectGrantRequest.SerializeToString,
                 response_deserializer=milvus__pb2.SelectGrantResponse.FromString,
-                )
+                _registered_method=True)
         self.GetVersion = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetVersion',
                 request_serializer=milvus__pb2.GetVersionRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetVersionResponse.FromString,
-                )
+                _registered_method=True)
         self.CheckHealth = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CheckHealth',
                 request_serializer=milvus__pb2.CheckHealthRequest.SerializeToString,
                 response_deserializer=milvus__pb2.CheckHealthResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateResourceGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateResourceGroup',
                 request_serializer=milvus__pb2.CreateResourceGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropResourceGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropResourceGroup',
                 request_serializer=milvus__pb2.DropResourceGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.UpdateResourceGroups = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/UpdateResourceGroups',
                 request_serializer=milvus__pb2.UpdateResourceGroupsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.TransferNode = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/TransferNode',
                 request_serializer=milvus__pb2.TransferNodeRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.TransferReplica = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/TransferReplica',
                 request_serializer=milvus__pb2.TransferReplicaRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListResourceGroups = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListResourceGroups',
                 request_serializer=milvus__pb2.ListResourceGroupsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListResourceGroupsResponse.FromString,
-                )
+                _registered_method=True)
         self.DescribeResourceGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeResourceGroup',
                 request_serializer=milvus__pb2.DescribeResourceGroupRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeResourceGroupResponse.FromString,
-                )
+                _registered_method=True)
         self.RenameCollection = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RenameCollection',
                 request_serializer=milvus__pb2.RenameCollectionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListIndexedSegment = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListIndexedSegment',
                 request_serializer=feder__pb2.ListIndexedSegmentRequest.SerializeToString,
                 response_deserializer=feder__pb2.ListIndexedSegmentResponse.FromString,
-                )
+                _registered_method=True)
         self.DescribeSegmentIndexData = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeSegmentIndexData',
                 request_serializer=feder__pb2.DescribeSegmentIndexDataRequest.SerializeToString,
                 response_deserializer=feder__pb2.DescribeSegmentIndexDataResponse.FromString,
-                )
+                _registered_method=True)
         self.Connect = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Connect',
                 request_serializer=milvus__pb2.ConnectRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ConnectResponse.FromString,
-                )
+                _registered_method=True)
         self.AllocTimestamp = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AllocTimestamp',
                 request_serializer=milvus__pb2.AllocTimestampRequest.SerializeToString,
                 response_deserializer=milvus__pb2.AllocTimestampResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateDatabase = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateDatabase',
                 request_serializer=milvus__pb2.CreateDatabaseRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropDatabase = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropDatabase',
                 request_serializer=milvus__pb2.DropDatabaseRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListDatabases = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListDatabases',
                 request_serializer=milvus__pb2.ListDatabasesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListDatabasesResponse.FromString,
-                )
+                _registered_method=True)
         self.AlterDatabase = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterDatabase',
                 request_serializer=milvus__pb2.AlterDatabaseRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DescribeDatabase = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DescribeDatabase',
                 request_serializer=milvus__pb2.DescribeDatabaseRequest.SerializeToString,
                 response_deserializer=milvus__pb2.DescribeDatabaseResponse.FromString,
-                )
+                _registered_method=True)
         self.ReplicateMessage = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ReplicateMessage',
                 request_serializer=milvus__pb2.ReplicateMessageRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ReplicateMessageResponse.FromString,
-                )
+                _registered_method=True)
         self.BackupRBAC = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/BackupRBAC',
                 request_serializer=milvus__pb2.BackupRBACMetaRequest.SerializeToString,
                 response_deserializer=milvus__pb2.BackupRBACMetaResponse.FromString,
-                )
+                _registered_method=True)
         self.RestoreRBAC = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RestoreRBAC',
                 request_serializer=milvus__pb2.RestoreRBACMetaRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.CreatePrivilegeGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePrivilegeGroup',
                 request_serializer=milvus__pb2.CreatePrivilegeGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropPrivilegeGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropPrivilegeGroup',
                 request_serializer=milvus__pb2.DropPrivilegeGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListPrivilegeGroups = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListPrivilegeGroups',
                 request_serializer=milvus__pb2.ListPrivilegeGroupsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListPrivilegeGroupsResponse.FromString,
-                )
+                _registered_method=True)
         self.OperatePrivilegeGroup = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/OperatePrivilegeGroup',
                 request_serializer=milvus__pb2.OperatePrivilegeGroupRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.RunAnalyzer = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RunAnalyzer',
                 request_serializer=milvus__pb2.RunAnalyzerRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RunAnalyzerResponse.FromString,
-                )
+                _registered_method=True)
         self.AddFileResource = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AddFileResource',
                 request_serializer=milvus__pb2.AddFileResourceRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.RemoveFileResource = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/RemoveFileResource',
                 request_serializer=milvus__pb2.RemoveFileResourceRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListFileResources = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListFileResources',
                 request_serializer=milvus__pb2.ListFileResourcesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListFileResourcesResponse.FromString,
-                )
+                _registered_method=True)
         self.AddUserTags = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AddUserTags',
                 request_serializer=milvus__pb2.AddUserTagsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DeleteUserTags = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DeleteUserTags',
                 request_serializer=milvus__pb2.DeleteUserTagsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.GetUserTags = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetUserTags',
                 request_serializer=milvus__pb2.GetUserTagsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetUserTagsResponse.FromString,
-                )
+                _registered_method=True)
         self.ListUsersWithTag = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListUsersWithTag',
                 request_serializer=milvus__pb2.ListUsersWithTagRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListUsersWithTagResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateRowPolicy = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreateRowPolicy',
                 request_serializer=milvus__pb2.CreateRowPolicyRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.DropRowPolicy = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropRowPolicy',
                 request_serializer=milvus__pb2.DropRowPolicyRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.ListRowPolicies = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ListRowPolicies',
                 request_serializer=milvus__pb2.ListRowPoliciesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListRowPoliciesResponse.FromString,
-                )
+                _registered_method=True)
         self.UpdateReplicateConfiguration = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/UpdateReplicateConfiguration',
                 request_serializer=milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
-                )
+                _registered_method=True)
         self.GetReplicateInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetReplicateInfo',
                 request_serializer=milvus__pb2.GetReplicateInfoRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetReplicateInfoResponse.FromString,
-                )
+                _registered_method=True)
         self.CreateReplicateStream = channel.stream_stream(
                 '/milvus.proto.milvus.MilvusService/CreateReplicateStream',
                 request_serializer=milvus__pb2.ReplicateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ReplicateResponse.FromString,
-                )
+                _registered_method=True)
 
 
 class MilvusServiceServicer(object):
@@ -1918,7 +1918,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropCollection(request,
@@ -1945,7 +1945,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def HasCollection(request,
@@ -1972,7 +1972,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def LoadCollection(request,
@@ -1999,7 +1999,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ReleaseCollection(request,
@@ -2026,7 +2026,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeCollection(request,
@@ -2053,7 +2053,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def BatchDescribeCollection(request,
@@ -2080,7 +2080,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetCollectionStatistics(request,
@@ -2107,7 +2107,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ShowCollections(request,
@@ -2134,7 +2134,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterCollection(request,
@@ -2161,7 +2161,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterCollectionField(request,
@@ -2188,7 +2188,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AddCollectionFunction(request,
@@ -2215,7 +2215,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterCollectionFunction(request,
@@ -2242,7 +2242,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropCollectionFunction(request,
@@ -2269,7 +2269,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreatePartition(request,
@@ -2296,7 +2296,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropPartition(request,
@@ -2323,7 +2323,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def HasPartition(request,
@@ -2350,7 +2350,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def LoadPartitions(request,
@@ -2377,7 +2377,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ReleasePartitions(request,
@@ -2404,7 +2404,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetPartitionStatistics(request,
@@ -2431,7 +2431,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ShowPartitions(request,
@@ -2458,7 +2458,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetLoadingProgress(request,
@@ -2485,7 +2485,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetLoadState(request,
@@ -2512,7 +2512,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateAlias(request,
@@ -2539,7 +2539,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropAlias(request,
@@ -2566,7 +2566,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterAlias(request,
@@ -2593,7 +2593,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeAlias(request,
@@ -2620,7 +2620,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListAliases(request,
@@ -2647,7 +2647,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateIndex(request,
@@ -2674,7 +2674,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterIndex(request,
@@ -2701,7 +2701,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeIndex(request,
@@ -2728,7 +2728,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetIndexStatistics(request,
@@ -2755,7 +2755,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetIndexState(request,
@@ -2782,7 +2782,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetIndexBuildProgress(request,
@@ -2809,7 +2809,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropIndex(request,
@@ -2836,7 +2836,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Insert(request,
@@ -2863,7 +2863,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Delete(request,
@@ -2890,7 +2890,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Upsert(request,
@@ -2917,7 +2917,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Search(request,
@@ -2944,7 +2944,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def HybridSearch(request,
@@ -2971,7 +2971,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Flush(request,
@@ -2998,7 +2998,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Query(request,
@@ -3025,7 +3025,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CalcDistance(request,
@@ -3052,7 +3052,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def FlushAll(request,
@@ -3079,7 +3079,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AddCollectionField(request,
@@ -3106,7 +3106,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetFlushState(request,
@@ -3133,7 +3133,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetFlushAllState(request,
@@ -3160,7 +3160,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetPersistentSegmentInfo(request,
@@ -3187,7 +3187,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetQuerySegmentInfo(request,
@@ -3214,7 +3214,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetReplicas(request,
@@ -3241,7 +3241,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Dummy(request,
@@ -3268,7 +3268,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def RegisterLink(request,
@@ -3295,7 +3295,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetMetrics(request,
@@ -3322,7 +3322,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetComponentStates(request,
@@ -3349,7 +3349,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def LoadBalance(request,
@@ -3376,7 +3376,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetCompactionState(request,
@@ -3403,7 +3403,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ManualCompaction(request,
@@ -3430,7 +3430,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetCompactionStateWithPlans(request,
@@ -3457,7 +3457,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Import(request,
@@ -3484,7 +3484,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetImportState(request,
@@ -3511,7 +3511,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListImportTasks(request,
@@ -3538,7 +3538,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateCredential(request,
@@ -3565,7 +3565,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def UpdateCredential(request,
@@ -3592,7 +3592,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DeleteCredential(request,
@@ -3619,7 +3619,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListCredUsers(request,
@@ -3646,7 +3646,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateRole(request,
@@ -3673,7 +3673,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropRole(request,
@@ -3700,7 +3700,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def OperateUserRole(request,
@@ -3727,7 +3727,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def SelectRole(request,
@@ -3754,7 +3754,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def SelectUser(request,
@@ -3781,7 +3781,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def OperatePrivilege(request,
@@ -3808,7 +3808,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def OperatePrivilegeV2(request,
@@ -3835,7 +3835,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def SelectGrant(request,
@@ -3862,7 +3862,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetVersion(request,
@@ -3889,7 +3889,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CheckHealth(request,
@@ -3916,7 +3916,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateResourceGroup(request,
@@ -3943,7 +3943,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropResourceGroup(request,
@@ -3970,7 +3970,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def UpdateResourceGroups(request,
@@ -3997,7 +3997,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def TransferNode(request,
@@ -4024,7 +4024,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def TransferReplica(request,
@@ -4051,7 +4051,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListResourceGroups(request,
@@ -4078,7 +4078,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeResourceGroup(request,
@@ -4105,7 +4105,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def RenameCollection(request,
@@ -4132,7 +4132,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListIndexedSegment(request,
@@ -4159,7 +4159,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeSegmentIndexData(request,
@@ -4186,7 +4186,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def Connect(request,
@@ -4213,7 +4213,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AllocTimestamp(request,
@@ -4240,7 +4240,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateDatabase(request,
@@ -4267,7 +4267,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropDatabase(request,
@@ -4294,7 +4294,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListDatabases(request,
@@ -4321,7 +4321,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AlterDatabase(request,
@@ -4348,7 +4348,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DescribeDatabase(request,
@@ -4375,7 +4375,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ReplicateMessage(request,
@@ -4402,7 +4402,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def BackupRBAC(request,
@@ -4429,7 +4429,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def RestoreRBAC(request,
@@ -4456,7 +4456,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreatePrivilegeGroup(request,
@@ -4483,7 +4483,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropPrivilegeGroup(request,
@@ -4510,7 +4510,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListPrivilegeGroups(request,
@@ -4537,7 +4537,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def OperatePrivilegeGroup(request,
@@ -4564,7 +4564,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def RunAnalyzer(request,
@@ -4591,7 +4591,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AddFileResource(request,
@@ -4618,7 +4618,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def RemoveFileResource(request,
@@ -4645,7 +4645,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListFileResources(request,
@@ -4672,7 +4672,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def AddUserTags(request,
@@ -4699,7 +4699,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DeleteUserTags(request,
@@ -4726,7 +4726,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetUserTags(request,
@@ -4753,7 +4753,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListUsersWithTag(request,
@@ -4780,7 +4780,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateRowPolicy(request,
@@ -4807,7 +4807,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def DropRowPolicy(request,
@@ -4834,7 +4834,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def ListRowPolicies(request,
@@ -4861,7 +4861,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def UpdateReplicateConfiguration(request,
@@ -4888,7 +4888,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def GetReplicateInfo(request,
@@ -4915,7 +4915,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
     @staticmethod
     def CreateReplicateStream(request_iterator,
@@ -4942,7 +4942,7 @@ class MilvusService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
 
 
 class ProxyServiceStub(object):
@@ -4958,7 +4958,7 @@ class ProxyServiceStub(object):
                 '/milvus.proto.milvus.ProxyService/RegisterLink',
                 request_serializer=milvus__pb2.RegisterLinkRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RegisterLinkResponse.FromString,
-                )
+                _registered_method=True)
 
 
 class ProxyServiceServicer(object):
@@ -5014,4 +5014,4 @@ class ProxyService(object):
             wait_for_ready,
             timeout,
             metadata,
-            )
+            _registered_method=True)
