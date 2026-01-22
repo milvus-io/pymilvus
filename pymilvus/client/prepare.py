@@ -2093,18 +2093,21 @@ class Prepare:
         is_clustering: bool,
         is_l0: bool,
         collection_id: Optional[int] = None,
+        target_size: Optional[int] = None,
     ):
         if is_clustering is None or not isinstance(is_clustering, bool):
             raise ParamError(message=f"is_clustering value {is_clustering} is illegal")
         if is_l0 is None or not isinstance(is_l0, bool):
             raise ParamError(message=f"is_l0 value {is_l0} is illegal")
 
-        request = milvus_types.ManualCompactionRequest()
+        request = milvus_types.ManualCompactionRequest(
+            collection_name=collection_name,
+            majorCompaction=is_clustering,
+            l0Compaction=is_l0,
+            target_size=target_size,
+        )
         if collection_id is not None:
             request.collectionID = collection_id
-        request.collection_name = collection_name
-        request.majorCompaction = is_clustering
-        request.l0Compaction = is_l0
         return request
 
     @classmethod

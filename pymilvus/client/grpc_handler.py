@@ -1914,12 +1914,18 @@ class GrpcHandler:
         collection_name: str,
         is_clustering: Optional[bool] = False,
         is_l0: Optional[bool] = False,
+        target_size: Optional[int] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
         meta = _api_level_md(**kwargs)
         # try with only collection_name
-        req = Prepare.manual_compaction(collection_name, is_clustering, is_l0)
+        req = Prepare.manual_compaction(
+            collection_name=collection_name,
+            is_clustering=is_clustering,
+            is_l0=is_l0,
+            target_size=target_size,
+        )
         response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         if response.status.error_code == common_pb2.CollectionNameNotFound:
             # should be removed, but to be compatible with old milvus server, keep it for now.
@@ -1927,7 +1933,13 @@ class GrpcHandler:
             response = self._stub.DescribeCollection(request, timeout=timeout, metadata=meta)
             check_status(response.status)
 
-            req = Prepare.manual_compaction(collection_name, is_clustering, response.collectionID)
+            req = Prepare.manual_compaction(
+                collection_name=collection_name,
+                is_clustering=is_clustering,
+                is_l0=is_l0,
+                collection_id=response.collectionID,
+                target_size=target_size,
+            )
             response = self._stub.ManualCompaction(req, timeout=timeout, metadata=meta)
         check_status(response.status)
         return response.compactionID
