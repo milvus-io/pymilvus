@@ -130,8 +130,10 @@ def sparse_proto_to_rows(
 ) -> Iterable[SparseRowOutputType]:
     if not isinstance(sfv, schema_types.SparseFloatArray):
         raise ParamError(message="Vector must be a sparse float vector")
-    start = start or 0
-    end = end or len(sfv.contents)
+    if start is None:
+        start = 0
+    if end is None:
+        end = len(sfv.contents)
     return [sparse_parse_single_row(row_bytes) for row_bytes in sfv.contents[start:end]]
 
 
@@ -737,7 +739,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
             field_data.vectors.int8_vector = b"".join(entity_values)
 
-        elif entity_type == DataType.VARCHAR:
+        elif entity_type in (DataType.VARCHAR, DataType.TIMESTAMPTZ):
             field_data.scalars.string_data.data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
