@@ -924,8 +924,11 @@ class Function:
             self._check_bm25_function(schema)
         elif self._type == FunctionType.TEXTEMBEDDING:
             self._check_text_embedding_function(schema)
-        elif self._type == FunctionType.RANKER:
-            # We will not check the ranker function here.
+        elif self._type == FunctionType.MINHASH:
+            # MinHash validation is handled by the proxy
+            pass
+        elif self._type == FunctionType.RERANK:
+            # We will not check the rerank function here.
             pass
         elif self._type == FunctionType.UNKNOWN:
             raise ParamError(message=ExceptionsMessage.UnknownFunctionType)
