@@ -155,7 +155,7 @@ class Collection:
                     kwargs.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
                 )
 
-                conn.create_collection(self._name, schema, **kwargs)
+                conn.create_collection(self._name, schema, context=context, **kwargs)
                 self._schema = schema
                 self._consistency_level = consistency_level
             else:
