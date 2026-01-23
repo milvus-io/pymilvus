@@ -19,8 +19,9 @@ async def test_optimize_wait_true_completes_successfully() -> None:
         progress=[ProgressStage.INITIALIZING],
     )
 
-    with patch("pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"), \
-            patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+    with patch(
+        "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+    ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
         handler = MagicMock()
         handler.get_server_type.return_value = "milvus"
         mock_fetch.return_value = handler
@@ -46,8 +47,9 @@ async def test_optimize_wait_false_returns_task() -> None:
         progress=[ProgressStage.INITIALIZING],
     )
 
-    with patch("pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"), \
-            patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+    with patch(
+        "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+    ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
         handler = MagicMock()
         handler.get_server_type.return_value = "milvus"
         mock_fetch.return_value = handler

@@ -2,6 +2,7 @@
 
 from typing import Dict, List
 
+from pymilvus.client.call_context import CallContext
 from pymilvus.orm.collection import CollectionSchema, FieldSchema
 from pymilvus.orm.connections import connections
 from pymilvus.orm.schema import StructFieldSchema
@@ -13,6 +14,10 @@ from .index import IndexParams
 
 class BaseMilvusClient:
     """Base class for Milvus clients (synchronous and asynchronous)."""
+
+    def _generate_call_context(self, **kwargs) -> CallContext:
+        client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(db_name=self._db_name, client_request_id=client_request_id)
 
     @classmethod
     def create_schema(cls, **kwargs):
