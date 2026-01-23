@@ -78,10 +78,7 @@ class Index:
         if kwargs.get("construct_only", False):
             return
 
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         conn.create_index(
             self._collection.name, self._field_name, self._index_params, context=context, **kwargs
         )
@@ -91,8 +88,8 @@ class Index:
                 self._index_name = index.index_name
                 break
 
-    def _get_connection(self):
-        return self._collection._get_connection()
+    def _get_connection(self, **kwargs):
+        return self._collection._get_connection(**kwargs)
 
     @property
     def params(self) -> dict:
@@ -135,10 +132,7 @@ class Index:
                 for the RPC. When timeout is set to None, client waits until server response
                 or error occur
         """
-        conn = self._get_connection()
-        from .connections import connections
-
-        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn, context = self._get_connection(**kwargs)
         conn.drop_index(
             collection_name=self._collection.name,
             field_name=self.field_name,
