@@ -54,8 +54,8 @@ class Partition:
             return
 
         if not self._collection.has_partition(self.name, **kwargs):
-            conn = self._get_connection()
-            conn.create_partition(self._collection.name, self.name, **kwargs)
+            conn, context = self._get_connection(**kwargs)
+            conn.create_partition(self._collection.name, self.name, context=context, **kwargs)
 
     def __repr__(self) -> str:
         return orjson.dumps(
@@ -66,8 +66,8 @@ class Partition:
             }
         ).decode(Config.EncodeProtocol)
 
-    def _get_connection(self):
-        return self._collection._get_connection()
+    def _get_connection(self, **kwargs):
+        return self._collection._get_connection(**kwargs)
 
     @property
     def description(self) -> str:
@@ -133,9 +133,9 @@ class Partition:
             >>> partition.num_entities
             10
         """
-        conn = self._get_connection()
+        conn, context = self._get_connection()
         stats = conn.get_partition_stats(
-            collection_name=self._collection.name, partition_name=self.name
+            collection_name=self._collection.name, partition_name=self.name, context=context
         )
         result = {stat.key: stat.value for stat in stats}
         result["row_count"] = int(result["row_count"])
@@ -151,8 +151,8 @@ class Partition:
                 for the RPCs.  If timeout is not set, the client keeps waiting until the server
                 responds or an error occurs.
         """
-        conn = self._get_connection()
-        conn.flush([self._collection.name], timeout=timeout, **kwargs)
+        conn, context = self._get_connection(**kwargs)
+        conn.flush([self._collection.name], timeout=timeout, context=context, **kwargs)
 
     def drop(self, timeout: Optional[float] = None, **kwargs):
         """Drop the partition, the same as Collection.drop_partition
@@ -172,8 +172,10 @@ class Partition:
             >>> partition = Partition(collection, "comedy", "comedy films")
             >>> partition.drop()
         """
-        conn = self._get_connection()
-        return conn.drop_partition(self._collection.name, self.name, timeout=timeout, **kwargs)
+        conn, context = self._get_connection(**kwargs)
+        return conn.drop_partition(
+            self._collection.name, self.name, timeout=timeout, context=context, **kwargs
+        )
 
     def load(self, replica_number: Optional[int] = None, timeout: Optional[float] = None, **kwargs):
         """Load the partition data into memory.
@@ -199,12 +201,13 @@ class Partition:
             >>> partition = Partition(collection, "comedy", "comedy films")
             >>> partition.load()
         """
-        conn = self._get_connection()
+        conn, context = self._get_connection(**kwargs)
         return conn.load_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
             replica_number=replica_number,
             timeout=timeout,
+            context=context,
             **kwargs,
         )
 
@@ -232,11 +235,12 @@ class Partition:
             >>> partition.load()
             >>> partition.release()
         """
-        conn = self._get_connection()
+        conn, context = self._get_connection(**kwargs)
         return conn.release_partitions(
             collection_name=self._collection.name,
             partition_names=[self.name],
             timeout=timeout,
+            context=context,
             **kwargs,
         )
 

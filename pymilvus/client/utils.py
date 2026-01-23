@@ -1,6 +1,7 @@
 import datetime
 import importlib.util
 import struct
+import time
 from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
@@ -70,6 +71,11 @@ def check_status(status: common_pb2.Status):
 
 def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
+
+
+def current_time_ms() -> str:
+    """Get current time in milliseconds as string."""
+    return str(time.time_ns() // 1_000_000)
 
 
 def hybridts_to_unixtime(ts: int):

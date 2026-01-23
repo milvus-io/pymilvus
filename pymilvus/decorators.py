@@ -12,6 +12,7 @@ from .exceptions import (
     DataNotMatchException,
     ErrorCode,
     MilvusException,
+    ParamError,
     SchemaMismatchRetryableException,
 )
 from .grpc_gen import common_pb2
@@ -53,7 +54,13 @@ def retry_on_schema_mismatch():
                                 f"[{func.__name__}] Schema mismatch detected, "
                                 f"invalidating cache and retrying: {e}"
                             )
-                            self._invalidate_schema(collection_name)
+                            context = kwargs.get("context")
+                            if not context:
+                                raise ParamError(
+                                    message="context is required but not provided"
+                                ) from None
+                            db_name = context.get_db_name()
+                            self._invalidate_schema(collection_name, db_name=db_name)
                             continue  # retry once
                         raise e from e
                 return None  # unreachable, for type checker
@@ -71,7 +78,13 @@ def retry_on_schema_mismatch():
                             f"[{func.__name__}] Schema mismatch detected, "
                             f"invalidating cache and retrying: {e}"
                         )
-                        self._invalidate_schema(collection_name)
+                        context = kwargs.get("context")
+                        if not context:
+                            raise ParamError(
+                                message="context is required but not provided"
+                            ) from None
+                        db_name = context.get_db_name()
+                        self._invalidate_schema(collection_name, db_name=db_name)
                         continue  # retry once
                     raise e from e
             return None  # unreachable, for type checker

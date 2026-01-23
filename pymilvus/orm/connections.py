@@ -18,6 +18,7 @@ from typing import Callable, Tuple, Union
 from urllib import parse
 
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.exceptions import (
@@ -268,6 +269,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         db_name: str = "default",
         token: str = "",
         _async: bool = False,
+        _unbind_with_db: bool = False,
         **kwargs,
     ) -> None:
         """Constructs a milvus connection and register it under given alias.
@@ -279,6 +281,20 @@ class Connections(metaclass=SingleInstanceMetaClass):
             password (str, Optional): The password of milvus server.
             token (str, Optional): Serving as the key for authentication.
             db_name (str): The database name of milvus server.
+            _async (bool, Optional): Whether to create an async connection. Default is False.
+            _unbind_with_db (bool, Optional): Whether the alias should be bound with a database.
+                Default is False.
+
+                - If False (default, for ORM usage):
+                  * The alias config will contain "db_name" key (alias_for_db)
+                  * Compatible with ORM APIs like `using_database()`
+                  * Can be updated via `_update_db_name()`
+
+                - If True (for MilvusClient/AsyncMilvusClient):
+                  * The alias config will NOT contain "db_name" key (universal_alias)
+                  * Database is managed by client instance, not in connection config
+                  * Cannot be updated via `_update_db_name()` (use `client.use_database()` instead)
+
             timeout (float, Optional) The timeout for the connection. Default is 10 seconds.
                 Unit: second
 
@@ -354,11 +370,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
-            config_to_keep = {
-                k: v
-                for k, v in kwargs.items()
-                if k not in ["password", "token", "db_name", "keep_alive"]
-            }
+            exclude_keys = ["password", "token", "keep_alive"]
+            if _unbind_with_db:
+                exclude_keys.append("db_name")
+            config_to_keep = {k: v for k, v in kwargs.items() if k not in exclude_keys}
             self._alias_handlers[alias] = gh
             self._alias_config[alias] = config_to_keep
 
@@ -503,6 +518,47 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
         return alias in self._alias_handlers
 
+    def _update_db_name(self, alias: str, db_name: str) -> None:
+        """Update the database name for a specific connection alias.
+
+        This method updates the database name for aliases created
+         via ORM APIs (bound with database).
+        It cannot be used for aliases created by
+         MilvusClient/AsyncMilvusClient (unbound), which
+        should use `client.use_database()` instead.
+
+        Args:
+            alias (str): The connection alias to update.
+            db_name (str): The new database name to set.
+
+        Raises:
+            ConnectionConfigException: If alias is not bound with
+            a database or types are invalid.
+            ConnectionNotExistException: If the alias does not exist.
+        """
+        if not isinstance(alias, str):
+            raise ConnectionConfigException(message=ExceptionsMessage.AliasType % type(alias))
+        if not isinstance(db_name, str):
+            raise ConnectionConfigException(
+                message=f"db_name must be a string, got {type(db_name)}"
+            )
+
+        if alias not in self._alias_handlers:
+            raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
+
+        if alias not in self._alias_config:
+            raise ConnectionConfigException(
+                message=f"Alias {alias} is not bound with a database and cannot update db_name."
+            )
+
+        if "db_name" not in self._alias_config[alias]:
+            raise ConnectionConfigException(
+                message=f"Alias {alias} is not bound with a database (created with _unbind_with_db=True). "
+                f"Cannot update db_name. Use client.use_database() instead."
+            )
+
+        self._alias_config[alias]["db_name"] = db_name
+
     def _fetch_handler(
         self, alias: str = Config.MILVUS_CONN_ALIAS
     ) -> Union[GrpcHandler, AsyncGrpcHandler]:
@@ -515,6 +571,22 @@ class Connections(metaclass=SingleInstanceMetaClass):
             raise ConnectionNotExistException(message=ExceptionsMessage.ConnectFirst)
 
         return conn
+
+    def _generate_call_context(self, alias: str, **kwargs) -> CallContext:
+        """Generate a CallContext from the connection alias configuration.
+
+        Args:
+            alias (str): The name of milvus connection
+            **kwargs:
+                * *client_request_id* (``str``) -- Optional. The client request id.
+
+        Returns:
+            CallContext: The call context with db_name from the connection config.
+        """
+        config = self.get_connection_addr(alias)
+        db_name = config.get("db_name", "")
+        req_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(db_name=db_name, client_request_id=req_id)
 
 
 # Singleton Mode in Python

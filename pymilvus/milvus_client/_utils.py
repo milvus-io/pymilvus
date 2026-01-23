@@ -46,13 +46,23 @@ def create_connection(
                 error_msg = "Cannot create async connection: no running event loop. Please ensure you are running in an async context."
                 raise ConnectionConfigException(message=error_msg) from e
 
-        # different uri, auth, db_name, and event loop (for async) cannot share the same connection
-        not_empty = [v for v in [use_async_fmt, uri, db_name, auth_fmt, loop_id_fmt] if v]
+        # different uri, auth, and event loop (for async) cannot share the same connection
+        not_empty = [v for v in [use_async_fmt, uri, auth_fmt, loop_id_fmt] if v]
         using = "-".join(not_empty)
 
     if connections.has_connection(using):
         return using
 
-    connections.connect(using, user, password, db_name, token, uri=uri, _async=use_async, **kwargs)
+    connections.connect(
+        using,
+        user,
+        password,
+        db_name,
+        token,
+        uri=uri,
+        _async=use_async,
+        _unbind_with_db=True,
+        **kwargs,
+    )
     logger.debug("Created new connection using: %s", using)
     return using
