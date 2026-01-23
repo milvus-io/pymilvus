@@ -762,3 +762,117 @@ class TestAsyncGrpcHandler:
             assert len(result) == 2
             assert result[0].job_id == 1
             assert result[1].job_id == 2
+
+    @pytest.mark.asyncio
+    async def test_get_server_version_without_detail(self) -> None:
+        """Test get_server_version returns version string when detail=False (default)"""
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel.close = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+        mock_response.version = "2.6.6"
+        mock_stub.GetVersion = AsyncMock(return_value=mock_response)
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            result = await handler.get_server_version()
+
+        assert result == "2.6.6"
+        mock_stub.GetVersion.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_server_version_with_detail(self) -> None:
+        """Test get_server_version returns server info dict when detail=True"""
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel.close = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+
+        mock_server_info = MagicMock()
+        mock_server_info.build_tags = "2.6.6"
+        mock_server_info.build_time = "Fri Jan 23 03:05:45 UTC 2026"
+        mock_server_info.git_commit = "cebbe1e4da"
+        mock_server_info.go_version = "go version go1.24.11 linux/amd64"
+        mock_server_info.deploy_mode = "STANDALONE"
+        mock_response.server_info = mock_server_info
+
+        mock_stub.Connect = AsyncMock(return_value=mock_response)
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            result = await handler.get_server_version(detail=True)
+
+        expected = {
+            "version": "2.6.6",
+            "build_time": "Fri Jan 23 03:05:45 UTC 2026",
+            "git_commit": "cebbe1e4da",
+            "go_version": "go version go1.24.11 linux/amd64",
+            "deploy_mode": "STANDALONE",
+        }
+        assert result == expected
+        mock_stub.Connect.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_server_version_with_detail_uses_cache(self) -> None:
+        """Test get_server_version caches server info and returns cached value"""
+        mock_channel = AsyncMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel.close = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+
+        mock_server_info = MagicMock()
+        mock_server_info.build_tags = "2.6.6"
+        mock_server_info.build_time = "Fri Jan 23 03:05:45 UTC 2026"
+        mock_server_info.git_commit = "cebbe1e4da"
+        mock_server_info.go_version = "go version go1.24.11 linux/amd64"
+        mock_server_info.deploy_mode = "STANDALONE"
+        mock_response.server_info = mock_server_info
+
+        mock_stub.Connect = AsyncMock(return_value=mock_response)
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            # First call should fetch from server
+            result1 = await handler.get_server_version(detail=True)
+            # Second call should use cache
+            result2 = await handler.get_server_version(detail=True)
+
+        assert result1 == result2
+        # Connect should only be called once due to caching
+        assert mock_stub.Connect.call_count == 1

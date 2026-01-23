@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.grpc_handler import GrpcHandler
@@ -86,3 +86,98 @@ class TestGrpcHandlerHelperMethods:
 
         # Cleanup
         GlobalCache._reset_for_testing()
+
+
+class TestGrpcHandlerGetServerVersion:
+    def test_get_server_version_without_detail(self) -> None:
+        """Test get_server_version returns version string when detail=False (default)"""
+        handler = GrpcHandler(channel=None)
+
+        mock_stub = MagicMock()
+        handler._stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+        mock_response.version = "2.6.6"
+        mock_stub.GetVersion = MagicMock(return_value=mock_response)
+
+        with patch("pymilvus.client.grpc_handler.check_status"):
+            result = handler.get_server_version()
+
+        assert result == "2.6.6"
+        mock_stub.GetVersion.assert_called_once()
+
+    def test_get_server_version_with_detail(self) -> None:
+        """Test get_server_version returns server info dict when detail=True"""
+        handler = GrpcHandler(channel=None)
+
+        mock_stub = MagicMock()
+        handler._stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+
+        mock_server_info = MagicMock()
+        mock_server_info.build_tags = "2.6.6"
+        mock_server_info.build_time = "Fri Jan 23 03:05:45 UTC 2026"
+        mock_server_info.git_commit = "cebbe1e4da"
+        mock_server_info.go_version = "go version go1.24.11 linux/amd64"
+        mock_server_info.deploy_mode = "STANDALONE"
+        mock_response.server_info = mock_server_info
+
+        mock_stub.Connect = MagicMock(return_value=mock_response)
+
+        with patch("pymilvus.client.grpc_handler.check_status"):
+            result = handler.get_server_version(detail=True)
+
+        expected = {
+            "version": "2.6.6",
+            "build_time": "Fri Jan 23 03:05:45 UTC 2026",
+            "git_commit": "cebbe1e4da",
+            "go_version": "go version go1.24.11 linux/amd64",
+            "deploy_mode": "STANDALONE",
+        }
+        assert result == expected
+        mock_stub.Connect.assert_called_once()
+
+    def test_get_server_version_with_detail_uses_cache(self) -> None:
+        """Test get_server_version caches server info and returns cached value"""
+        handler = GrpcHandler(channel=None)
+
+        mock_stub = MagicMock()
+        handler._stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+
+        mock_server_info = MagicMock()
+        mock_server_info.build_tags = "2.6.6"
+        mock_server_info.build_time = "Fri Jan 23 03:05:45 UTC 2026"
+        mock_server_info.git_commit = "cebbe1e4da"
+        mock_server_info.go_version = "go version go1.24.11 linux/amd64"
+        mock_server_info.deploy_mode = "STANDALONE"
+        mock_response.server_info = mock_server_info
+
+        mock_stub.Connect = MagicMock(return_value=mock_response)
+
+        with patch("pymilvus.client.grpc_handler.check_status"):
+            # First call should fetch from server
+            result1 = handler.get_server_version(detail=True)
+            # Second call should use cache
+            result2 = handler.get_server_version(detail=True)
+
+        assert result1 == result2
+        # Connect should only be called once due to caching
+        assert mock_stub.Connect.call_count == 1
