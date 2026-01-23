@@ -8,7 +8,7 @@ A `MilvusClient` holds an alias to a Milvus server connection. This alias repres
 
 ### MilvusClient Shares Connections
 
-Multiple `MilvusClient` objects with the same Milvus **uri**, **authentication**, and **database** reuse the same connection to the Milvus server.
+Multiple `MilvusClient` objects with the same Milvus **uri** and **authentication** reuse the same connection to the Milvus server. Each client instance maintains its own database context, so they can operate on different databases while sharing the underlying connection.
 
 The following code snippet demonstrate the reusing of connections in a single thread:
 ```python
@@ -74,27 +74,33 @@ Whether copy or not, they all share the same connection to Milvus server underne
 
 ### MilvusClient Doesn't Share Connections
 
-**`MilvusClient` objects with different uri, authentication, and database don't share connections to the Milvus server by default.**
+**`MilvusClient` objects with different uri or authentication don't share connections to the Milvus server by default.**
 
-The following code snippet demonstrate the *c_testdb* and *c* don't share the same connection to Milvus server:
+Note: `MilvusClient` objects with the same uri and authentication but different `db_name` **will share the same connection**. Each client instance maintains its own database context (`self._db_name`), so they can operate on different databases while sharing the underlying connection.
+
+The following code snippet demonstrate the *c_testdb* and *c* share the same connection but use different databases:
 ```python
 c = MilvusClient(uri=URI)
 c.create_database(TEST_DB)
 
 c_testdb = MilvusClient(uri=URI, db_name=TEST_DB)
 
-# c and c_testdb don't share the same connection, the same as different authentications.
+# c and c_testdb share the same connection (same alias), but use different databases
 print(f"alias for c:        {c._using}, results of c.list_collections: {c.list_collections()}")
 print(f"alias for c_testdb: {c_testdb._using}, results of c_testdb.list_collections: {c_testdb.list_collections()}")
 
+# Both clients share the same connection, so closing one affects the other
 c_testdb.close()
 try:
     c_testdb.list_collections()
 except Exception as ex:
     print(f"c_testdb has been closed, exception: {ex}")
 
-# close of c_testdb won't affect c
-print(f"results of c.list_collections: {c.list_collections()}")
+# close of c_testdb affects c because they share the same connection
+try:
+    print(f"results of c.list_collections: {c.list_collections()}")
+except Exception as ex:
+    print(f"c is also affected because they share the same connection, exception: {ex}")
 ```
 
 ## Advanced usage: customized aliases

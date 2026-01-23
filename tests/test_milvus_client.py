@@ -410,3 +410,38 @@ class TestMilvusClientSnapshot:
             mock_handler.list_restore_snapshot_jobs.assert_called_once()
             call_kwargs = mock_handler.list_restore_snapshot_jobs.call_args[1]
             assert call_kwargs["collection_name"] == ""
+
+    def test_client_db_isolation(self):
+        """
+        Test that two clients sharing the same connection but using different databases
+        remain isolated when one switches database.
+        """
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client._utils.create_connection", return_value="shared_alias"
+        ), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ), patch(
+            "pymilvus.orm.connections.Connections.has_connection", return_value=True
+        ):
+            client_a = MilvusClient(uri="http://localhost:19530", db_name="default")
+            client_b = MilvusClient(uri="http://localhost:19530", db_name="testdb")
+
+            assert client_a._db_name == "default"
+            assert client_b._db_name == "testdb"
+
+            client_a.use_database("db1")
+
+            assert client_a._db_name == "db1"
+            assert client_b._db_name == "testdb"
+
+            client_b.list_collections()
+
+            assert mock_handler.list_collections.called
+            _, kwargs = mock_handler.list_collections.call_args
+            context = kwargs.get("context")
+
+            assert context is not None
+            assert context.get_db_name() == "testdb"

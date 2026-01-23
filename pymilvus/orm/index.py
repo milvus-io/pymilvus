@@ -79,8 +79,13 @@ class Index:
             return
 
         conn = self._get_connection()
-        conn.create_index(self._collection.name, self._field_name, self._index_params, **kwargs)
-        indexes = conn.list_indexes(self._collection.name)
+        from .connections import connections
+
+        context = connections._generate_call_context(self._collection._using, **kwargs)
+        conn.create_index(
+            self._collection.name, self._field_name, self._index_params, context=context, **kwargs
+        )
+        indexes = conn.list_indexes(self._collection.name, context=context)
         for index in indexes:
             if index.field_name == self._field_name:
                 self._index_name = index.index_name
@@ -131,9 +136,13 @@ class Index:
                 or error occur
         """
         conn = self._get_connection()
+        from .connections import connections
+
+        context = connections._generate_call_context(self._collection._using, **kwargs)
         conn.drop_index(
             collection_name=self._collection.name,
             field_name=self.field_name,
             index_name=self.index_name,
             timeout=timeout,
+            context=context,
         )

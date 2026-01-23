@@ -1,6 +1,6 @@
 """Test cases for AsyncMilvusClient new features"""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus import AsyncMilvusClient
@@ -132,7 +132,7 @@ class TestAsyncMilvusClientNewFeatures:
 
             # Verify call arguments
             mock_conn.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None
+                "test_collection", timeout=None, context=ANY
             )
 
     @pytest.mark.asyncio
@@ -227,8 +227,7 @@ class TestAsyncMilvusClientNewFeatures:
 
             client = AsyncMilvusClient()
             await client.flush_all(timeout=10)
-
-            mock_handler.flush_all.assert_called_once_with(timeout=10)
+            mock_handler.flush_all.assert_called_once_with(timeout=10, context=ANY)
 
     @pytest.mark.asyncio
     async def test_get_flush_all_state(self):
@@ -244,7 +243,7 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_flush_all_state(timeout=10)
 
             assert result is True
-            mock_handler.get_flush_all_state.assert_called_once_with(timeout=10)
+            mock_handler.get_flush_all_state.assert_called_once_with(timeout=10, context=ANY)
 
     @pytest.mark.asyncio
     async def test_get_compaction_plans(self):
@@ -263,7 +262,7 @@ class TestAsyncMilvusClientNewFeatures:
             result = await client.get_compaction_plans(job_id=123, timeout=10)
 
             assert result == mock_plans
-            mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10)
+            mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10, context=ANY)
 
     @pytest.mark.asyncio
     async def test_update_replicate_configuration(self):
@@ -293,7 +292,10 @@ class TestAsyncMilvusClientNewFeatures:
 
             assert result == mock_status
             mock_handler.update_replicate_configuration.assert_called_once_with(
-                clusters=clusters, cross_cluster_topology=cross_cluster_topology, timeout=10
+                clusters=clusters,
+                cross_cluster_topology=cross_cluster_topology,
+                timeout=10,
+                context=ANY,
             )
 
     def test_create_struct_field_schema(self):
