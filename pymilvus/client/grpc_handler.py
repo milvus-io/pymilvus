@@ -808,7 +808,7 @@ class GrpcHandler:
         """
         cache = GlobalCache.schema
         endpoint = self.server_address
-        db_name = context.get_db_name() if context else kwargs.get("db_name", "")
+        db_name = context.get_db_name() if context else ""
 
         cached = cache.get(endpoint, db_name, collection_name)
         if cached is not None:
