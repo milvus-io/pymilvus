@@ -520,7 +520,10 @@ class AsyncGrpcHandler:
         **kwargs,
     ) -> List[ReplicaInfo]:
         await self.ensure_channel_ready()
-        collection_id = (await self._get_schema)["collection_id"]
+        schema, _ = await self._get_schema(
+            collection_name, timeout=timeout, context=context, **kwargs
+        )
+        collection_id = schema["collection_id"]
 
         req = Prepare.get_replicas(collection_id)
         response = await self._async_stub.GetReplicas(
