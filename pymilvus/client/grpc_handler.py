@@ -161,6 +161,7 @@ class GrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._user = kwargs.get("user")
+        self._server_info_cache = None
         self._set_authorization(**kwargs)
         self._setup_grpc_channel()
         self.callbacks = []
@@ -2745,9 +2746,24 @@ class GrpcHandler:
     def get_server_version(
         self,
         timeout: Optional[float] = None,
+        detail: bool = False,
         context: Optional[CallContext] = None,
         **kwargs,
-    ) -> str:
+    ) -> Union[str, dict]:
+        if detail:
+            if self._server_info_cache is None:
+                req = Prepare.register_request("", "")
+                resp = self._stub.Connect(request=req, timeout=timeout)
+                check_status(resp.status)
+                info = resp.server_info
+                self._server_info_cache = {
+                    "version": info.build_tags,
+                    "build_time": info.build_time,
+                    "git_commit": info.git_commit,
+                    "go_version": info.go_version,
+                    "deploy_mode": info.deploy_mode,
+                }
+            return self._server_info_cache
         req = Prepare.get_server_version()
         resp = self._stub.GetVersion(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)

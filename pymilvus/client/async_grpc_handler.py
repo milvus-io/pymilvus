@@ -88,6 +88,7 @@ class AsyncGrpcHandler:
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
         self.callbacks = []  # Do nothing
+        self._server_info_cache = None
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
@@ -503,9 +504,27 @@ class AsyncGrpcHandler:
 
     @retry_on_rpc_failure()
     async def get_server_version(
-        self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
-    ) -> str:
+        self,
+        timeout: Optional[float] = None,
+        detail: bool = False,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> Union[str, dict]:
         await self.ensure_channel_ready()
+        if detail:
+            if self._server_info_cache is None:
+                req = Prepare.register_request("", "")
+                resp = await self._async_stub.Connect(request=req, timeout=timeout)
+                check_status(resp.status)
+                info = resp.server_info
+                self._server_info_cache = {
+                    "version": info.build_tags,
+                    "build_time": info.build_time,
+                    "git_commit": info.git_commit,
+                    "go_version": info.go_version,
+                    "deploy_mode": info.deploy_mode,
+                }
+            return self._server_info_cache
         req = Prepare.get_server_version()
         resp = await self._async_stub.GetVersion(
             req, timeout=timeout, metadata=_api_level_md(context)

@@ -795,10 +795,22 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    async def get_server_version(self, timeout: Optional[float] = None, **kwargs) -> str:
+    async def get_server_version(
+        self, timeout: Optional[float] = None, detail: bool = False, **kwargs
+    ) -> Union[str, Dict]:
+        """Get the running server's version
+
+        Args:
+            timeout: A duration of time in seconds to allow for the RPC.
+            detail: If True, return detailed server info. Defaults to False.
+
+        Returns:
+            str: Server version when detail=False.
+            dict: Detailed server info when detail=True.
+        """
         conn = self._get_connection()
         return await conn.get_server_version(
-            timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+            timeout=timeout, detail=detail, context=self._generate_call_context(**kwargs), **kwargs
         )
 
     async def describe_replica(
