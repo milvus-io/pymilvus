@@ -166,8 +166,8 @@ async def test_functionality(client):
     print(f"list_databases: {await client.list_databases()}")
     print(f"describe_database: {await client.describe_database(test_db)}")
 
-    client.use_database(test_db)
-    client.using_database("default")
+    await client.use_database(test_db)
+    await client.using_database("default")
     print("Database switch test completed")
 
     await client.alter_database_properties(test_db, {"database.replica.num": 1})
