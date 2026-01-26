@@ -1673,7 +1673,17 @@ class MilvusClient(BaseMilvusClient):
         self.use_database(db_name, **kwargs)
 
     def use_database(self, db_name: str, **kwargs):
-        """Switch to a different database. Future operations will use this database."""
+        """Switch to a different database. Future operations will use this database.
+
+        Args:
+            db_name (str): The name of the database to switch to.
+            **kwargs: Additional keyword arguments (e.g., timeout).
+
+        Raises:
+            MilvusException: If the database does not exist (error code 800).
+        """
+
+        self.describe_database(db_name, **kwargs)
         self._db_name = db_name
 
     def create_database(

@@ -1074,12 +1074,21 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    def using_database(self, db_name: str, **kwargs):
+    async def using_database(self, db_name: str, **kwargs):
         """Deprecated: Use use_database instead."""
-        self.use_database(db_name, **kwargs)
+        await self.use_database(db_name, **kwargs)
 
-    def use_database(self, db_name: str, **kwargs):
-        """Switch to a different database. Future operations will use this database."""
+    async def use_database(self, db_name: str, **kwargs):
+        """Switch to a different database. Future operations will use this database.
+
+        Args:
+            db_name (str): The name of the database to switch to.
+            **kwargs: Additional keyword arguments (e.g., timeout).
+
+        Raises:
+            MilvusException: If the database does not exist (error code 800).
+        """
+        await self.describe_database(db_name, **kwargs)
         self._db_name = db_name
 
     async def create_database(
