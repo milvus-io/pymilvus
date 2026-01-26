@@ -432,7 +432,10 @@ class TestMilvusClientSnapshot:
             assert client_a._db_name == "default"
             assert client_b._db_name == "testdb"
 
-            client_a.use_database("db1")
+            # Mock describe_database to simulate that 'db1' exists
+            # use_database now validates database existence by calling describe_database
+            with patch.object(client_a, "describe_database", return_value={}):
+                client_a.use_database("db1")
 
             assert client_a._db_name == "db1"
             assert client_b._db_name == "testdb"
