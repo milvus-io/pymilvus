@@ -302,3 +302,43 @@ class TestAsyncMilvusClientNewFeatures:
         """Test create_struct_field_schema class method"""
         result = AsyncMilvusClient.create_struct_field_schema()
         assert isinstance(result, StructFieldSchema)
+
+    @pytest.mark.asyncio
+    async def test_async_milvus_client_extract_db_name_from_uri(self):
+        """
+        Test that AsyncMilvusClient extracts db_name from URI path when db_name is not explicitly provided.
+        This fixes issue #3236: v2.6.7 db name do not work
+        """
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client._utils.create_connection", return_value="test_alias"
+        ), patch(
+            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        ), patch(
+            "pymilvus.orm.connections.Connections.has_connection", return_value=False
+        ), patch(
+            "pymilvus.orm.connections.Connections.connect"
+        ), patch.object(
+            AsyncMilvusClient, "get_server_type", return_value="milvus"
+        ):
+            # Test: URI with db_name in path, no explicit db_name parameter
+            client = AsyncMilvusClient(uri="http://localhost:19530/mydb")
+            assert client._db_name == "mydb"
+
+            # Test: URI with db_name in path, explicit empty db_name parameter
+            client2 = AsyncMilvusClient(uri="http://localhost:19530/testdb", db_name="")
+            assert client2._db_name == "testdb"
+
+            # Test: URI with db_name in path, explicit db_name parameter (explicit takes precedence)
+            client3 = AsyncMilvusClient(uri="http://localhost:19530/uridb", db_name="explicitdb")
+            assert client3._db_name == "explicitdb"
+
+            # Test: URI without path, no explicit db_name (should remain empty)
+            client4 = AsyncMilvusClient(uri="http://localhost:19530")
+            assert client4._db_name == ""
+
+            # Test: URI with multiple path segments, only first should be used
+            client5 = AsyncMilvusClient(uri="http://localhost:19530/db1/collection1")
+            assert client5._db_name == "db1"
