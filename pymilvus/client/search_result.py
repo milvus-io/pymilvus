@@ -1,5 +1,4 @@
 import logging
-from collections import UserDict
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -42,13 +41,13 @@ class HybridHits(list):
         self.lazy_field_data = []
         self.has_materialized = False
         self.start = start
-        top_k_res = [
-            Hit({pk_name: all_pks[i], "distance": all_scores[i], "entity": {}}, pk_name=pk_name)
-            for i in range(start, end)
-        ]
+
+        col_results = {}
+
         for field_data in fields_data:
-            data = get_field_data(field_data)
             has_valid = len(field_data.valid_data) > 0
+            field_name = field_data.field_name
+
             if field_data.type in [
                 DataType.BOOL,
                 DataType.INT8,
@@ -61,25 +60,21 @@ class HybridHits(list):
                 DataType.GEOMETRY,
                 DataType.TIMESTAMPTZ,
             ]:
-                if has_valid:
-                    [
-                        hit["entity"].__setitem__(
-                            field_data.field_name,
-                            data[i + start] if field_data.valid_data[i + start] else None,
-                        )
-                        for i, hit in enumerate(top_k_res)
-                    ]
-                else:
-                    [
-                        hit["entity"].__setitem__(field_data.field_name, data[i + start])
-                        for i, hit in enumerate(top_k_res)
-                    ]
+                data = get_field_data(field_data)
+                col_results[field_name] = apply_valid_data(
+                    data[start:end], field_data.valid_data if has_valid else None, start, end
+                )
+
             elif field_data.type == DataType.ARRAY:
                 element_type = field_data.scalars.array_data.element_type
-                for i, hit in enumerate(top_k_res):
-                    array_data = field_data.scalars.array_data.data[i + start]
-                    extracted_array_row_data = extract_array_row_data([array_data], element_type)
-                    hit["entity"].__setitem__(field_data.field_name, extracted_array_row_data[0])
+                data = field_data.scalars.array_data.data[start:end]
+                col_results[field_name] = apply_valid_data(
+                    extract_array_row_data(data, element_type),
+                    field_data.valid_data if has_valid else None,
+                    start,
+                    end,
+                )
+
             elif field_data.type in {
                 DataType.FLOAT_VECTOR,
                 DataType.BINARY_VECTOR,
@@ -95,6 +90,21 @@ class HybridHits(list):
             else:
                 msg = f"Unsupported field type: {field_data.type}"
                 raise MilvusException(msg)
+
+        count = end - start
+        entities = [{} for _ in range(count)]
+
+        for field_name, values in col_results.items():
+            for i, value in enumerate(values):
+                entities[i][field_name] = value
+
+        top_k_res = [
+            Hit(
+                {pk_name: self.ids[i], "distance": self.distances[i], "entity": entities[i]},
+                pk_name=pk_name,
+            )
+            for i in range(count)
+        ]
 
         if len(highlight_results) > 0:
             for i, hit in enumerate(top_k_res):
@@ -715,7 +725,7 @@ class Hits(list):
     __repr__ = __str__
 
 
-class Hit(UserDict):
+class Hit(dict):
     """Enhanced result in dict that can get data in dict[dict]
 
     Examples:
@@ -766,12 +776,12 @@ class Hit(UserDict):
     @property
     def id(self) -> Union[str, int]:
         """Patch for orm, will be deprecated soon"""
-        return self.data.get(self._pk_name)
+        return self.get(self._pk_name)
 
     @property
     def distance(self) -> float:
         """Patch for orm, will be deprecated soon"""
-        return self.data.get("distance")
+        return self.get("distance")
 
     @property
     def pk(self) -> Union[str, int]:
@@ -785,7 +795,7 @@ class Hit(UserDict):
 
     @property
     def highlight(self) -> Dict[str, Any]:
-        return self.data.get("highlight")
+        return self.get("highlight")
 
     @property
     def fields(self) -> Dict[str, Any]:
@@ -794,10 +804,9 @@ class Hit(UserDict):
 
     def __getitem__(self, key: str):
         try:
-            return self.data[key]
+            return super().__getitem__(key)
         except KeyError:
-            pass
-        return self.data["entity"][key]
+            return super().__getitem__("entity")[key]
 
     def get(self, key: Any, default: Any = None):
         try:
@@ -846,9 +855,7 @@ def apply_valid_data(
     data: List[Any], valid_data: Union[None, List[bool]], start: int, end: int
 ) -> List[Any]:
     if valid_data:
-        for i, valid in enumerate(valid_data[start:end]):
-            if not valid:
-                data[i] = None
+        return [d if valid else None for d, valid in zip(data, valid_data[start:end])]
     return data
 
 
