@@ -446,7 +446,34 @@ class TestMilvusClientSnapshot:
             assert context is not None
             assert context.get_db_name() == "testdb"
 
-    def test_milvus_client_extract_db_name_from_uri(self):
+    @pytest.mark.parametrize(
+        "uri, db_name, expected_db_name",
+        [
+            # Issue #3236: db_name passed in URI path should be used when no explicit db_name
+            ("http://localhost:19530/test_db", "", "test_db"),
+            ("http://localhost:19530/production_db", "", "production_db"),
+            ("https://localhost:19530/test_db", "", "test_db"),
+            ("http://localhost:19530/mydb", "", "mydb"),
+            # URI ending with slash should still extract db_name correctly
+            ("http://localhost:19530/mydb/", "", "mydb"),
+            ("https://localhost:19530/test_db/", "", "test_db"),
+            # Mixed scenarios: explicit db_name takes precedence over URI path
+            ("http://localhost:19530/uri_db", "explicit_db", "explicit_db"),
+            ("http://localhost:19530/uri_db/", "explicit_db", "explicit_db"),
+            # URI without path, no explicit db_name (should remain empty)
+            ("http://localhost:19530", "", ""),
+            ("https://localhost:19530", "", ""),
+            # Multiple path segments - only first should be used as db_name
+            ("http://localhost:19530/db1/collection1", "", "db1"),
+            ("http://localhost:19530/db1/collection1/", "", "db1"),
+            # Empty path segments should be handled correctly
+            ("http://localhost:19530//", "", ""),
+            ("http://localhost:19530///", "", ""),
+        ],
+    )
+    def test_milvus_client_extract_db_name_from_uri(
+        self, uri: str, db_name: str, expected_db_name: str
+    ):
         """
         Test that MilvusClient extracts db_name from URI path when db_name is not explicitly provided.
         This fixes issue #3236: v2.6.7 db name do not work
@@ -465,30 +492,17 @@ class TestMilvusClientSnapshot:
         ), patch.object(
             MilvusClient, "get_server_type", return_value="milvus"
         ):
-            # Test: URI with db_name in path, no explicit db_name parameter
-            client = MilvusClient(uri="http://localhost:19530/mydb")
-            assert client._db_name == "mydb"
+            client = MilvusClient(uri=uri, db_name=db_name)
+            assert client._db_name == expected_db_name, (
+                f"Expected db_name to be '{expected_db_name}', "
+                f"but got '{client._db_name}' for uri='{uri}' and db_name='{db_name}'"
+            )
 
-            # Test: URI with db_name in path, explicit empty db_name parameter
-            client2 = MilvusClient(uri="http://localhost:19530/testdb", db_name="")
-            assert client2._db_name == "testdb"
-
-            # Test: URI with db_name in path, explicit db_name parameter (explicit takes precedence)
-            client3 = MilvusClient(uri="http://localhost:19530/uridb", db_name="explicitdb")
-            assert client3._db_name == "explicitdb"
-
-            # Test: URI without path, no explicit db_name (should remain empty)
-            client4 = MilvusClient(uri="http://localhost:19530")
-            assert client4._db_name == ""
-
-            # Test: URI with multiple path segments, only first should be used
-            client5 = MilvusClient(uri="http://localhost:19530/db1/collection1")
-            assert client5._db_name == "db1"
-
-            # Verify that the extracted db_name is used in requests
-            client.list_collections()
-            assert mock_handler.list_collections.called
-            _, kwargs = mock_handler.list_collections.call_args
-            context = kwargs.get("context")
-            assert context is not None
-            assert context.get_db_name() == "mydb"
+            # Verify that the extracted db_name is used in requests (only if db_name was extracted)
+            if expected_db_name:
+                client.list_collections()
+                assert mock_handler.list_collections.called
+                _, kwargs = mock_handler.list_collections.call_args
+                context = kwargs.get("context")
+                assert context is not None
+                assert context.get_db_name() == expected_db_name
