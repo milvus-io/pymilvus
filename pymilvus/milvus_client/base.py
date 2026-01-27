@@ -40,9 +40,9 @@ class BaseMilvusClient:
                     path_segments = [segment for segment in parsed_uri.path.split("/") if segment]
                     if path_segments:
                         return path_segments[0]
-            except Exception:
-                # If URI parsing fails, keep db_name as empty string
-                logger.error(f"Error parsing URI: {uri}")
+            except (TypeError, ValueError) as e:
+                # If URI parsing fails (e.g., uri is not a string), keep db_name as empty string
+                logger.debug("Failed to extract db_name from URI %s: %s", uri, e)
         return db_name
 
     def _generate_call_context(self, **kwargs) -> CallContext:
