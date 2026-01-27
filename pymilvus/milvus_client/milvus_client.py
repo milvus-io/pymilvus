@@ -1817,24 +1817,45 @@ class MilvusClient(BaseMilvusClient):
     def get_server_version(
         self,
         timeout: Optional[float] = None,
+        detail: bool = False,
         **kwargs,
-    ) -> str:
+    ) -> Union[str, Dict]:
         """Get the running server's version
 
         Args:
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
+            detail (``bool``, optional): If True, return detailed server info including
+                git commit, build time, etc. Defaults to False.
 
         Returns:
-            str: A string represent the server's version.
+            str: A string represent the server's version when detail=False.
+            dict: Detailed server info when detail=True, containing:
+                - version: Version string (e.g., "2.6.6")
+                - build_time: Build timestamp
+                - git_commit: Git commit hash
+                - go_version: Go version used to build
+                - deploy_mode: Deployment mode (STANDALONE/CLUSTER)
 
         Raises:
             MilvusException: If anything goes wrong
+
+        Example:
+            >>> client.get_server_version()
+            '2.6.6'
+            >>> client.get_server_version(detail=True)
+            {
+                'version': '2.6.6',
+                'build_time': 'Fri Jan 23 03:05:45 UTC 2026',
+                'git_commit': 'cebbe1e4da',
+                'go_version': 'go version go1.24.11 linux/amd64',
+                'deploy_mode': 'STANDALONE'
+            }
         """
         conn = self._get_connection()
         return conn.get_server_version(
-            timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+            timeout=timeout, detail=detail, context=self._generate_call_context(**kwargs), **kwargs
         )
 
     def create_privilege_group(
