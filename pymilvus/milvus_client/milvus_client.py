@@ -906,10 +906,6 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    def truncate_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
-        conn = self._get_connection()
-        conn.truncate_collection(collection_name, timeout=timeout, **kwargs)
-
     def rename_collection(
         self,
         old_name: str,

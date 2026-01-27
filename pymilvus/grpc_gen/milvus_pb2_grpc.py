@@ -106,6 +106,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
+        self.TruncateCollection = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/TruncateCollection',
+                request_serializer=milvus__pb2.TruncateCollectionRequest.SerializeToString,
+                response_deserializer=milvus__pb2.TruncateCollectionResponse.FromString,
+                _registered_method=True)
         self.CreatePartition = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/CreatePartition',
                 request_serializer=milvus__pb2.CreatePartitionRequest.SerializeToString,
@@ -685,6 +690,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DropCollectionFunction(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def TruncateCollection(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1386,6 +1397,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.DropCollectionFunction,
                     request_deserializer=milvus__pb2.DropCollectionFunctionRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'TruncateCollection': grpc.unary_unary_rpc_method_handler(
+                    servicer.TruncateCollection,
+                    request_deserializer=milvus__pb2.TruncateCollectionRequest.FromString,
+                    response_serializer=milvus__pb2.TruncateCollectionResponse.SerializeToString,
             ),
             'CreatePartition': grpc.unary_unary_rpc_method_handler(
                     servicer.CreatePartition,
@@ -2261,6 +2277,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/DropCollectionFunction',
             milvus__pb2.DropCollectionFunctionRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def TruncateCollection(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/TruncateCollection',
+            milvus__pb2.TruncateCollectionRequest.SerializeToString,
+            milvus__pb2.TruncateCollectionResponse.FromString,
             options,
             channel_credentials,
             insecure,

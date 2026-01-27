@@ -540,36 +540,6 @@ def truncate_collection(
     )
 
 
-def truncate_collection(
-    collection_name: str, timeout: Optional[float] = None, using: str = "default"
-):
-    """
-    Truncate a collection by name
-
-    :param collection_name: A string representing the collection to be truncated
-    :type  collection_name: str
-    :param timeout: An optional duration of time in seconds to allow for the RPC. When timeout
-                    is set to None, client waits until server response or error occur.
-    :type  timeout: float
-
-    :example:
-        >>> from pymilvus import Collection, FieldSchema, CollectionSchema, DataType, utility
-        >>> schema = CollectionSchema(fields=[
-        ...     FieldSchema("int64", DataType.INT64, description="int64", is_primary=True),
-        ...     FieldSchema("float_vector", DataType.FLOAT_VECTOR, is_primary=False, dim=2),
-        ... ])
-        >>> collection = Collection(name="truncate_collection_test", schema=schema)
-        >>> collection.insert([[1, 2], [[1.0, 2.0], [3.0, 4.0]]])
-        >>> collection.flush()
-        >>> collection.num_entities
-        2
-        >>> utility.truncate_collection("truncate_collection_test")
-        >>> collection.num_entities
-        0
-    """
-    return _get_connection(using).truncate_collection(collection_name, timeout=timeout)
-
-
 def rename_collection(
     old_collection_name: str,
     new_collection_name: str,
