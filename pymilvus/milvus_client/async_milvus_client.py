@@ -51,11 +51,11 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
-        self._db_name = db_name
+        self._db_name = self._extract_db_name_from_uri(uri, db_name)
         self._using = create_connection(
             uri,
             token,
-            db_name,
+            self._db_name,
             use_async=True,
             user=user,
             password=password,

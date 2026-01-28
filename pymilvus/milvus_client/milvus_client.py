@@ -74,9 +74,9 @@ class MilvusClient(BaseMilvusClient):
                 to None.
                 Unit: second
         """
-        self._db_name = db_name
+        self._db_name = self._extract_db_name_from_uri(uri, db_name)
         self._using = create_connection(
-            uri, token, db_name, user=user, password=password, timeout=timeout, **kwargs
+            uri, token, self._db_name, user=user, password=password, timeout=timeout, **kwargs
         )
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
