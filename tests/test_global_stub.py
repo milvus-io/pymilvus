@@ -1,4 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
+
+from pymilvus.exceptions import MilvusException
 
 
 class TestIsGlobalEndpoint:
@@ -72,3 +76,101 @@ class TestGlobalTopology:
         )
         with pytest.raises(ValueError, match="No primary cluster"):
             _ = topology.primary
+
+
+class TestFetchTopology:
+    def test_fetches_topology_successfully(self):
+        from pymilvus.client.global_stub import fetch_topology
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "code": 0,
+            "data": {
+                "version": "123",
+                "clusters": [
+                    {"clusterId": "in01-xxx", "endpoint": "https://in01-xxx.zilliz.com", "capability": 3},
+                ],
+            },
+        }
+
+        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response) as mock_get:
+            topology = fetch_topology("https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
+
+            mock_get.assert_called_once()
+            call_args = mock_get.call_args
+            assert "global-cluster/topology" in call_args[0][0]
+            assert call_args[1]["headers"]["Authorization"] == "Bearer test-token"
+
+            assert topology.version == 123
+            assert len(topology.clusters) == 1
+            assert topology.primary.cluster_id == "in01-xxx"
+
+    def test_retries_on_failure(self):
+        from pymilvus.client.global_stub import fetch_topology
+
+        mock_response_fail = MagicMock()
+        mock_response_fail.status_code = 500
+
+        mock_response_success = MagicMock()
+        mock_response_success.status_code = 200
+        mock_response_success.json.return_value = {
+            "code": 0,
+            "data": {
+                "version": "1",
+                "clusters": [
+                    {"clusterId": "in01-xxx", "endpoint": "https://in01-xxx.zilliz.com", "capability": 3},
+                ],
+            },
+        }
+
+        with patch("pymilvus.client.global_stub.requests.get", side_effect=[mock_response_fail, mock_response_success]):
+            with patch("pymilvus.client.global_stub.time.sleep"):  # Skip delays in tests
+                topology = fetch_topology("https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
+                assert topology.version == 1
+
+    def test_raises_after_max_retries(self):
+        from pymilvus.client.global_stub import fetch_topology
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+
+        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response):
+            with patch("pymilvus.client.global_stub.time.sleep"):
+                with pytest.raises(MilvusException, match="Failed to fetch global topology"):
+                    fetch_topology("https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
+
+    def test_raises_on_api_error_code(self):
+        from pymilvus.client.global_stub import fetch_topology
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"code": 1, "message": "Invalid token"}
+
+        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response):
+            with patch("pymilvus.client.global_stub.time.sleep"):
+                with pytest.raises(MilvusException, match="Invalid token"):
+                    fetch_topology("https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
+
+    def test_adds_https_prefix_when_missing(self):
+        from pymilvus.client.global_stub import fetch_topology
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "code": 0,
+            "data": {
+                "version": "1",
+                "clusters": [
+                    {"clusterId": "in01-xxx", "endpoint": "https://in01-xxx.zilliz.com", "capability": 3},
+                ],
+            },
+        }
+
+        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response) as mock_get:
+            fetch_topology("glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
+
+            call_args = mock_get.call_args
+            # Verify https:// was added
+            assert call_args[0][0] == "https://glo-xxx.global-cluster.vectordb.zilliz.com/global-cluster/topology"
