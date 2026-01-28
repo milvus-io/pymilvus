@@ -123,11 +123,17 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
             last_error = e
             if attempt < MAX_RETRIES - 1:
                 delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
-                delay += random.uniform(0, delay * 0.1)  # noqa: S311 - jitter doesn't need crypto-grade randomness
-                logger.warning(f"Topology fetch attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s")
+                delay += random.uniform(
+                    0, delay * 0.1
+                )  # noqa: S311 - jitter doesn't need crypto-grade randomness
+                logger.warning(
+                    f"Topology fetch attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s"
+                )
                 time.sleep(delay)
 
-    raise MilvusException(message=f"Failed to fetch global topology after {MAX_RETRIES} attempts: {last_error}")
+    raise MilvusException(
+        message=f"Failed to fetch global topology after {MAX_RETRIES} attempts: {last_error}"
+    )
 
 
 # Default refresh interval
