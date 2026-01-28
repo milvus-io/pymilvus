@@ -177,23 +177,36 @@ class GrpcHandler:
     def _init_global_connection(self, uri: str, **kwargs) -> None:
         """Initialize connection via global cluster endpoint."""
         token = kwargs.pop("token", "")
-        self._global_stub = GlobalStub(global_endpoint=uri, token=token, **kwargs)
+
+        # Lock for thread-safe connection updates
+        self._global_conn_lock = threading.Lock()
+
+        self._global_stub = GlobalStub(
+            global_endpoint=uri,
+            token=token,
+            on_primary_change=self._update_primary_connection,
+            **kwargs,
+        )
 
         # Use primary handler's connection
-        primary_handler = self._global_stub.get_primary_handler()
-        self._stub = primary_handler._stub
-        self._channel = primary_handler._channel
-        self._final_channel = getattr(primary_handler, "_final_channel", None)
-        self._address = primary_handler._address
-        self._log_level = primary_handler._log_level
-        self._user = primary_handler._user
-        self._server_info_cache = primary_handler._server_info_cache
-        self._secure = primary_handler._secure
-        self._authorization_interceptor = getattr(
-            primary_handler, "_authorization_interceptor", None
-        )
-        self.callbacks = []
-        self._reconnect_handler = None
+        self._update_primary_connection(self._global_stub.get_primary_handler())
+
+    def _update_primary_connection(self, primary_handler: "GrpcHandler") -> None:
+        """Thread-safe update of connection attributes from the primary handler."""
+        with self._global_conn_lock:
+            self._stub = primary_handler._stub
+            self._channel = primary_handler._channel
+            self._final_channel = getattr(primary_handler, "_final_channel", None)
+            self._address = primary_handler._address
+            self._log_level = primary_handler._log_level
+            self._user = primary_handler._user
+            self._server_info_cache = primary_handler._server_info_cache
+            self._secure = primary_handler._secure
+            self._authorization_interceptor = getattr(
+                primary_handler, "_authorization_interceptor", None
+            )
+            self.callbacks = []
+            self._reconnect_handler = None
 
     def _handle_global_connection_error(self, error: grpc.RpcError) -> None:
         """Handle connection errors for global connections."""

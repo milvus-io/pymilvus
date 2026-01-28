@@ -674,3 +674,52 @@ class TestGlobalClientEndToEnd:
                 new_handler = stub.get_primary_handler()
                 assert new_handler is mock_handler_2
                 assert stub.get_primary_endpoint() == "https://in02-xxx.zilliz.com"
+
+    def test_grpc_handler_connection_updated_on_topology_change(self):
+        """Test that GrpcHandler's connection attributes are updated when topology changes."""
+        initial_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(
+                    cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3
+                ),
+            ],
+        )
+
+        mock_handler_1 = MagicMock()
+        mock_handler_1._stub = MagicMock(name="stub1")
+        mock_handler_1._channel = MagicMock(name="channel1")
+        mock_handler_1._address = "in01-xxx.zilliz.com:443"
+
+        mock_handler_2 = MagicMock()
+        mock_handler_2._stub = MagicMock(name="stub2")
+        mock_handler_2._channel = MagicMock(name="channel2")
+        mock_handler_2._address = "in02-xxx.zilliz.com:443"
+
+        handler_calls = [mock_handler_1, mock_handler_2]
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=initial_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                grpc_handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                # Mock the internal GrpcHandler creation in GlobalStub
+                with patch("pymilvus.client.grpc_handler.GrpcHandler", side_effect=handler_calls):
+                    # Re-initialize with mocked handlers
+                    grpc_handler._global_stub._primary_handler = mock_handler_1
+                    grpc_handler._update_primary_connection(mock_handler_1)
+
+                    # Verify initial connection
+                    assert grpc_handler._stub is mock_handler_1._stub
+                    assert grpc_handler._channel is mock_handler_1._channel
+                    assert grpc_handler._address == "in01-xxx.zilliz.com:443"
+
+                    # Simulate topology change triggering the callback
+                    grpc_handler._update_primary_connection(mock_handler_2)
+
+                    # Verify connection was updated
+                    assert grpc_handler._stub is mock_handler_2._stub
+                    assert grpc_handler._channel is mock_handler_2._channel
+                    assert grpc_handler._address == "in02-xxx.zilliz.com:443"

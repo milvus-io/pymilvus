@@ -123,9 +123,7 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
             last_error = e
             if attempt < MAX_RETRIES - 1:
                 delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
-                delay += random.uniform(
-                    0, delay * 0.1
-                )  # noqa: S311 - jitter doesn't need crypto-grade randomness
+                delay += random.uniform(0, delay * 0.1)  # noqa: S311
                 logger.warning(
                     f"Topology fetch attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s"
                 )
@@ -228,6 +226,7 @@ class GlobalStub:
         token: str,
         *,
         start_refresher: bool = True,
+        on_primary_change: Optional[callable] = None,
         **handler_kwargs,
     ):
         """Initialize the global stub.
@@ -236,11 +235,13 @@ class GlobalStub:
             global_endpoint: The global cluster endpoint URL
             token: Authentication token
             start_refresher: Whether to start the background topology refresher
+            on_primary_change: Callback when primary cluster changes, receives new GrpcHandler
             **handler_kwargs: Additional kwargs to pass to GrpcHandler
         """
         self._global_endpoint = global_endpoint
         self._token = token
         self._handler_kwargs = handler_kwargs
+        self._on_primary_change = on_primary_change
         self._lock = threading.Lock()
 
         # Fetch initial topology
@@ -278,6 +279,13 @@ class GlobalStub:
                 logger.info(f"Primary changed: {old_primary.endpoint} -> {new_primary.endpoint}")
                 old_handler = self._primary_handler
                 self._primary_handler = self._create_primary_handler()
+
+                # Notify caller about primary change
+                if self._on_primary_change:
+                    try:
+                        self._on_primary_change(self._primary_handler)
+                    except Exception as e:
+                        logger.warning(f"Primary change callback failed: {e}")
 
                 # Close old handler after new one is established
                 try:
