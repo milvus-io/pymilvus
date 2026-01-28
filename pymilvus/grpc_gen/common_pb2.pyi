@@ -141,6 +141,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     AddCollectionFunction: _ClassVar[MsgType]
     AlterCollectionFunction: _ClassVar[MsgType]
     DropCollectionFunction: _ClassVar[MsgType]
+    TruncateCollection: _ClassVar[MsgType]
     CreatePartition: _ClassVar[MsgType]
     DropPartition: _ClassVar[MsgType]
     HasPartition: _ClassVar[MsgType]
@@ -508,6 +509,7 @@ AlterCollectionField: MsgType
 AddCollectionFunction: MsgType
 AlterCollectionFunction: MsgType
 DropCollectionFunction: MsgType
+TruncateCollection: MsgType
 CreatePartition: MsgType
 DropPartition: MsgType
 HasPartition: MsgType
