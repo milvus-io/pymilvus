@@ -32,6 +32,7 @@ from pymilvus.orm.schema import Function, FunctionScore, Highlighter
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
+from .global_stub import GlobalStub, is_global_endpoint
 from .abstract import (
     AnnSearchRequest,
     BaseRanker,
@@ -156,6 +157,12 @@ class GrpcHandler:
     ) -> None:
         self._stub = None
         self._channel = channel
+        self._global_stub = None
+
+        # Check for global endpoint
+        if is_global_endpoint(uri):
+            self._init_global_connection(uri, **kwargs)
+            return
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -166,6 +173,35 @@ class GrpcHandler:
         self._setup_grpc_channel()
         self.callbacks = []
         self._reconnect_handler = None
+
+    def _init_global_connection(self, uri: str, **kwargs) -> None:
+        """Initialize connection via global cluster endpoint."""
+        token = kwargs.pop("token", "")
+        self._global_stub = GlobalStub(global_endpoint=uri, token=token, **kwargs)
+
+        # Use primary handler's connection
+        primary_handler = self._global_stub.get_primary_handler()
+        self._stub = primary_handler._stub
+        self._channel = primary_handler._channel
+        self._final_channel = getattr(primary_handler, "_final_channel", None)
+        self._address = primary_handler._address
+        self._log_level = primary_handler._log_level
+        self._user = primary_handler._user
+        self._server_info_cache = primary_handler._server_info_cache
+        self._secure = primary_handler._secure
+        self._authorization_interceptor = getattr(primary_handler, "_authorization_interceptor", None)
+        self.callbacks = []
+        self._reconnect_handler = None
+
+    def _handle_global_connection_error(self, error: grpc.RpcError) -> None:
+        """Handle connection errors for global connections."""
+        if self._global_stub is None:
+            return
+
+        # Only trigger refresh on connection-related errors
+        error_code = error.code()
+        if error_code in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
+            self._global_stub.trigger_refresh()
 
     def register_reconnect_handler(self, handler: ReconnectHandler):
         if handler is not None:
@@ -237,6 +273,9 @@ class GrpcHandler:
 
     def close(self):
         self.deregister_state_change_callbacks()
+        if self._global_stub is not None:
+            self._global_stub.close()
+            self._global_stub = None
         if self._channel:
             self._channel.close()
             self._channel = None
