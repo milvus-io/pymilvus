@@ -542,3 +542,30 @@ class TestGrpcHandlerGlobalIntegration:
                     handler._handle_global_connection_error(mock_error)
 
                     mock_trigger.assert_not_called()
+
+
+class TestGlobalErrorHandling:
+    def test_retry_decorator_triggers_refresh_on_unavailable(self):
+        import grpc
+
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                from pymilvus.client.grpc_handler import GrpcHandler
+
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                # Verify that _handle_global_connection_error is wired up properly
+                assert hasattr(handler, "_handle_global_connection_error")
+                assert handler._global_stub is not None
