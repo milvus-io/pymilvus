@@ -57,7 +57,8 @@ class GlobalTopology:
         for cluster in self.clusters:
             if cluster.is_primary:
                 return cluster
-        raise ValueError("No primary cluster found in topology")
+        msg = "No primary cluster found in topology"
+        raise ValueError(msg)
 
 
 # Constants for retry logic
@@ -107,9 +108,8 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
             response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
 
             if response.status_code != 200:
-                raise Exception(
-                    f"Topology request failed with status {response.status_code}: {response.text}"
-                )
+                msg = f"Topology request failed with status {response.status_code}: {response.text}"
+                raise RuntimeError(msg)  # Retryable HTTP error
 
             result = response.json()
             if result.get("code", 0) != 0:
@@ -123,7 +123,7 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
             last_error = e
             if attempt < MAX_RETRIES - 1:
                 delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
-                delay += random.uniform(0, delay * 0.1)  # 10% jitter
+                delay += random.uniform(0, delay * 0.1)  # noqa: S311 - jitter doesn't need crypto-grade randomness
                 logger.warning(f"Topology fetch attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s")
                 time.sleep(delay)
 
@@ -255,7 +255,7 @@ class GlobalStub:
 
     def _create_primary_handler(self) -> "GrpcHandler":
         """Create a GrpcHandler for the primary cluster."""
-        from pymilvus.client.grpc_handler import GrpcHandler
+        from pymilvus.client.grpc_handler import GrpcHandler  # noqa: PLC0415
 
         primary = self._topology.primary
         return GrpcHandler(uri=primary.endpoint, token=self._token, **self._handler_kwargs)
