@@ -18,10 +18,12 @@ class TestSearchBench:
         schema = get_default_test_schema()
         query_vectors = [[0.1] * 128]
 
+        precomputed_results = mock_responses.create_search_results_from_schema(
+            schema=schema, num_queries=len(query_vectors), top_k=10, output_fields=output_fields
+        )
+
         def custom_search(request, timeout=None, metadata=None):
-            return mock_responses.create_search_results_from_schema(
-                schema=schema, num_queries=len(query_vectors), top_k=10, output_fields=output_fields
-            )
+            return precomputed_results
 
         setup_search_mock(mocked_milvus_client, custom_search)
 
@@ -41,10 +43,12 @@ class TestSearchBench:
         schema = get_default_test_schema()
         query_vectors = [[0.1] * 128]
 
+        precomputed_results = mock_responses.create_search_results_from_schema(
+            schema=schema, num_queries=1, top_k=top_k, output_fields=["id", "age", "score"]
+        )
+
         def custom_search(request, timeout=None, metadata=None):
-            return mock_responses.create_search_results_from_schema(
-                schema=schema, num_queries=1, top_k=top_k, output_fields=["id", "age", "score"]
-            )
+            return precomputed_results
 
         setup_search_mock(mocked_milvus_client, custom_search)
 
@@ -64,10 +68,12 @@ class TestSearchBench:
         schema = get_default_test_schema()
         query_vectors = [[0.1] * 128] * num_queries
 
+        precomputed_results = mock_responses.create_search_results_from_schema(
+            schema=schema, num_queries=num_queries, top_k=10, output_fields=["id", "score"]
+        )
+
         def custom_search(request, timeout=None, metadata=None):
-            return mock_responses.create_search_results_from_schema(
-                schema=schema, num_queries=num_queries, top_k=10, output_fields=["id", "score"]
-            )
+            return precomputed_results
 
         setup_search_mock(mocked_milvus_client, custom_search)
 
@@ -86,10 +92,12 @@ class TestSearchBench:
         schema = get_default_test_schema()
         query_vectors = [[0.1] * 128]
 
+        precomputed_results = mock_responses.create_search_results_from_schema(
+            schema=schema, num_queries=1, top_k=top_k, output_fields=["*"]
+        )
+
         def custom_search(request, timeout=None, metadata=None):
-            return mock_responses.create_search_results_from_schema(
-                schema=schema, num_queries=1, top_k=top_k, output_fields=["*"]
-            )
+            return precomputed_results
 
         setup_search_mock(mocked_milvus_client, custom_search)
 
