@@ -1,3 +1,5 @@
+import threading
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -174,3 +176,146 @@ class TestFetchTopology:
             call_args = mock_get.call_args
             # Verify https:// was added
             assert call_args[0][0] == "https://glo-xxx.global-cluster.vectordb.zilliz.com/global-cluster/topology"
+
+
+class TestTopologyRefresher:
+    def test_starts_and_stops(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology, TopologyRefresher
+
+        topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.zilliz.com",
+            token="test-token",
+            topology=topology,
+            refresh_interval=0.1,
+        )
+        refresher.start()
+        assert refresher.is_running()
+
+        refresher.stop()
+        assert not refresher.is_running()
+
+    def test_updates_topology_on_version_change(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology, TopologyRefresher
+
+        initial_topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        new_topology = GlobalTopology(
+            version=2,
+            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+        )
+
+        callback_called = threading.Event()
+        received_topology = []
+
+        def on_topology_change(topo):
+            received_topology.append(topo)
+            callback_called.set()
+
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.zilliz.com",
+            token="test-token",
+            topology=initial_topology,
+            refresh_interval=0.05,
+            on_topology_change=on_topology_change,
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=new_topology):
+            refresher.start()
+            callback_called.wait(timeout=1.0)
+            refresher.stop()
+
+        assert len(received_topology) == 1
+        assert received_topology[0].version == 2
+
+    def test_does_not_update_on_same_version(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology, TopologyRefresher
+
+        topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        callback_called = []
+
+        def on_topology_change(topo):
+            callback_called.append(topo)
+
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.zilliz.com",
+            token="test-token",
+            topology=topology,
+            refresh_interval=0.05,
+            on_topology_change=on_topology_change,
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=topology):
+            refresher.start()
+            time.sleep(0.2)  # Allow a few refresh cycles
+            refresher.stop()
+
+        assert len(callback_called) == 0
+
+    def test_trigger_refresh_immediate(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology, TopologyRefresher
+
+        initial_topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        new_topology = GlobalTopology(
+            version=2,
+            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+        )
+
+        callback_called = threading.Event()
+
+        def on_topology_change(topo):
+            callback_called.set()
+
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.zilliz.com",
+            token="test-token",
+            topology=initial_topology,
+            refresh_interval=300,  # Long interval - shouldn't trigger automatically
+            on_topology_change=on_topology_change,
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=new_topology):
+            refresher.start()
+            refresher.trigger_refresh()
+            callback_called.wait(timeout=1.0)
+            refresher.stop()
+
+        assert callback_called.is_set()
+
+    def test_continues_on_fetch_failure(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology, TopologyRefresher
+
+        topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.zilliz.com",
+            token="test-token",
+            topology=topology,
+            refresh_interval=0.05,
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", side_effect=Exception("Network error")):
+            refresher.start()
+            time.sleep(0.2)  # Should not crash
+            assert refresher.is_running()
+            refresher.stop()
+
+        assert refresher.get_topology().version == 1  # Still has original topology
