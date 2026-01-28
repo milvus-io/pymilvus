@@ -189,7 +189,9 @@ class GrpcHandler:
         self._user = primary_handler._user
         self._server_info_cache = primary_handler._server_info_cache
         self._secure = primary_handler._secure
-        self._authorization_interceptor = getattr(primary_handler, "_authorization_interceptor", None)
+        self._authorization_interceptor = getattr(
+            primary_handler, "_authorization_interceptor", None
+        )
         self.callbacks = []
         self._reconnect_handler = None
 
