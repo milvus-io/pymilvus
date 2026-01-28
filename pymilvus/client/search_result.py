@@ -62,7 +62,8 @@ class HybridHits(list):
             ]:
                 data = get_field_data(field_data)
                 col_results[field_name] = apply_valid_data(
-                    data[start:end], field_data.valid_data if has_valid else None, start, end
+                    data[start:end],
+                    field_data.valid_data[start:end] if has_valid else None,
                 )
 
             elif field_data.type == DataType.ARRAY:
@@ -70,9 +71,7 @@ class HybridHits(list):
                 data = field_data.scalars.array_data.data[start:end]
                 col_results[field_name] = apply_valid_data(
                     extract_array_row_data(data, element_type),
-                    field_data.valid_data if has_valid else None,
-                    start,
-                    end,
+                    field_data.valid_data[start:end] if has_valid else None,
                 )
 
             elif field_data.type in {
@@ -426,7 +425,8 @@ class SearchResult(list):
             if dtype == DataType.BOOL:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.bool_data.data[start:end], field.valid_data, start, end
+                        scalars.bool_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -435,7 +435,8 @@ class SearchResult(list):
             if dtype in (DataType.INT8, DataType.INT16, DataType.INT32):
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.int_data.data[start:end], field.valid_data, start, end
+                        scalars.int_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -444,7 +445,8 @@ class SearchResult(list):
             if dtype == DataType.INT64:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.long_data.data[start:end], field.valid_data, start, end
+                        scalars.long_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -453,7 +455,8 @@ class SearchResult(list):
             if dtype == DataType.FLOAT:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.float_data.data[start:end], field.valid_data, start, end
+                        scalars.float_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -462,7 +465,8 @@ class SearchResult(list):
             if dtype == DataType.DOUBLE:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.double_data.data[start:end], field.valid_data, start, end
+                        scalars.double_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -471,7 +475,8 @@ class SearchResult(list):
             if dtype == DataType.VARCHAR:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.string_data.data[start:end], field.valid_data, start, end
+                        scalars.string_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -480,7 +485,8 @@ class SearchResult(list):
             if dtype == DataType.GEOMETRY:
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.geometry_wkt_data.data[start:end], field.valid_data, start, end
+                        scalars.geometry_wkt_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
                 )
@@ -488,7 +494,8 @@ class SearchResult(list):
 
             if dtype == DataType.JSON:
                 res = apply_valid_data(
-                    scalars.json_data.data[start:end], field.valid_data, start, end
+                    scalars.json_data.data[start:end],
+                    field.valid_data[start:end] if field.valid_data else None,
                 )
                 json_dict_list = []
                 for item in res:
@@ -507,7 +514,8 @@ class SearchResult(list):
 
             if dtype == DataType.ARRAY:
                 res = apply_valid_data(
-                    scalars.array_data.data[start:end], field.valid_data, start, end
+                    scalars.array_data.data[start:end],
+                    field.valid_data[start:end] if field.valid_data else None,
                 )
                 field2data[name] = (
                     extract_array_row_data(res, scalars.array_data.element_type),
@@ -851,11 +859,10 @@ def extract_array_row_data(
     return row
 
 
-def apply_valid_data(
-    data: List[Any], valid_data: Union[None, List[bool]], start: int, end: int
-) -> List[Any]:
+def apply_valid_data(data: List[Any], valid_data: Union[None, List[bool]]) -> List[Any]:
+
     if valid_data:
-        return [d if valid else None for d, valid in zip(data, valid_data[start:end])]
+        return [d if valid else None for d, valid in zip(data, valid_data)]
     return data
 
 
