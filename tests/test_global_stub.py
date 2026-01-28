@@ -569,3 +569,90 @@ class TestGlobalErrorHandling:
                 # Verify that _handle_global_connection_error is wired up properly
                 assert hasattr(handler, "_handle_global_connection_error")
                 assert handler._global_stub is not None
+
+
+class TestGlobalClientEndToEnd:
+    def test_full_initialization_flow(self):
+        """Test the complete flow from GlobalStub initialization to handler access."""
+        from pymilvus.client.global_stub import ClusterInfo, GlobalStub, GlobalTopology
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+                ClusterInfo(cluster_id="in02-xxx", endpoint="https://in02-xxx.zilliz.com", capability=1),
+            ],
+        )
+
+        mock_grpc_handler = MagicMock()
+        mock_grpc_handler._stub = MagicMock()
+        mock_grpc_handler._channel = MagicMock()
+        mock_grpc_handler._final_channel = MagicMock()
+        mock_grpc_handler._address = "in01-xxx.zilliz.com:443"
+        mock_grpc_handler.get_server_type.return_value = "zilliz"
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_grpc_handler):
+                # Test GlobalStub initialization and handler access
+                stub = GlobalStub(
+                    global_endpoint="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                    start_refresher=False,
+                )
+
+                # Verify the topology was fetched
+                assert stub.get_topology().version == 1
+                assert len(stub.get_topology().clusters) == 2
+
+                # Verify the primary endpoint is correct
+                assert stub.get_primary_endpoint() == "https://in01-xxx.zilliz.com"
+
+                # Verify handler is accessible
+                handler = stub.get_primary_handler()
+                assert handler is mock_grpc_handler
+
+                # Clean up
+                stub.close()
+
+    def test_topology_refresh_updates_connection(self):
+        """Test that topology refresh properly updates the primary connection."""
+        from pymilvus.client.global_stub import ClusterInfo, GlobalStub, GlobalTopology
+
+        initial_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        new_topology = GlobalTopology(
+            version=2,
+            clusters=[
+                ClusterInfo(cluster_id="in02-xxx", endpoint="https://in02-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        mock_handler_1 = MagicMock()
+        mock_handler_1._stub = MagicMock()
+        mock_handler_2 = MagicMock()
+        mock_handler_2._stub = MagicMock()
+
+        handler_calls = [mock_handler_1, mock_handler_2]
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=initial_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler", side_effect=handler_calls):
+                stub = GlobalStub(
+                    global_endpoint="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                    start_refresher=False,
+                )
+
+                initial_handler = stub.get_primary_handler()
+                assert initial_handler is mock_handler_1
+
+                # Trigger topology change
+                stub._on_topology_change(new_topology)
+
+                new_handler = stub.get_primary_handler()
+                assert new_handler is mock_handler_2
+                assert stub.get_primary_endpoint() == "https://in02-xxx.zilliz.com"
