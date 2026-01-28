@@ -276,9 +276,9 @@ class GrpcHandler:
         if self._global_stub is not None:
             self._global_stub.close()
             self._global_stub = None
-        if self._channel:
+        elif self._channel:
             self._channel.close()
-            self._channel = None
+        self._channel = None
 
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.

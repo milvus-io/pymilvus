@@ -119,7 +119,7 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
 
         except MilvusException:
             raise
-        except Exception as e:
+        except (requests.exceptions.RequestException, RuntimeError) as e:
             last_error = e
             if attempt < MAX_RETRIES - 1:
                 delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
