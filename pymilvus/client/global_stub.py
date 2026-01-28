@@ -211,3 +211,98 @@ class TopologyRefresher:
         except Exception as e:
             logger.warning(f"Topology refresh failed: {e}")
             # Keep using cached topology, will retry next interval
+
+
+class GlobalStub:
+    """Global cluster stub that manages topology discovery and primary connection."""
+
+    def __init__(
+        self,
+        global_endpoint: str,
+        token: str,
+        *,
+        start_refresher: bool = True,
+        **handler_kwargs,
+    ):
+        """Initialize the global stub.
+
+        Args:
+            global_endpoint: The global cluster endpoint URL
+            token: Authentication token
+            start_refresher: Whether to start the background topology refresher
+            **handler_kwargs: Additional kwargs to pass to GrpcHandler
+        """
+        self._global_endpoint = global_endpoint
+        self._token = token
+        self._handler_kwargs = handler_kwargs
+        self._lock = threading.Lock()
+
+        # Fetch initial topology
+        self._topology = fetch_topology(global_endpoint, token)
+
+        # Connect to primary cluster
+        self._primary_handler = self._create_primary_handler()
+
+        # Start background refresher
+        self._refresher = TopologyRefresher(
+            global_endpoint=global_endpoint,
+            token=token,
+            topology=self._topology,
+            on_topology_change=self._on_topology_change,
+        )
+        if start_refresher:
+            self._refresher.start()
+
+    def _create_primary_handler(self) -> "GrpcHandler":
+        """Create a GrpcHandler for the primary cluster."""
+        from pymilvus.client.grpc_handler import GrpcHandler
+
+        primary = self._topology.primary
+        return GrpcHandler(uri=primary.endpoint, token=self._token, **self._handler_kwargs)
+
+    def _on_topology_change(self, new_topology: GlobalTopology) -> None:
+        """Handle topology change - reconnect to new primary if needed."""
+        with self._lock:
+            old_primary = self._topology.primary
+            new_primary = new_topology.primary
+
+            self._topology = new_topology
+
+            if old_primary.endpoint != new_primary.endpoint:
+                logger.info(f"Primary changed: {old_primary.endpoint} -> {new_primary.endpoint}")
+                old_handler = self._primary_handler
+                self._primary_handler = self._create_primary_handler()
+
+                # Close old handler after new one is established
+                try:
+                    old_handler.close()
+                except Exception as e:
+                    logger.warning(f"Failed to close old handler: {e}")
+
+    def get_topology(self) -> GlobalTopology:
+        """Get the current topology."""
+        return self._refresher.get_topology()
+
+    def get_primary_endpoint(self) -> str:
+        """Get the primary cluster endpoint."""
+        with self._lock:
+            return self._topology.primary.endpoint
+
+    def get_primary_handler(self) -> "GrpcHandler":
+        """Get the GrpcHandler for the primary cluster."""
+        with self._lock:
+            return self._primary_handler
+
+    def trigger_refresh(self) -> None:
+        """Trigger an immediate topology refresh."""
+        self._refresher.trigger_refresh()
+
+    def close(self) -> None:
+        """Close the global stub and release resources."""
+        self._refresher.stop()
+        with self._lock:
+            if self._primary_handler:
+                try:
+                    self._primary_handler.close()
+                except Exception as e:
+                    logger.warning(f"Failed to close primary handler: {e}")
