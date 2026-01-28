@@ -450,3 +450,95 @@ class TestGlobalStub:
                 with patch.object(stub._refresher, "trigger_refresh") as mock_trigger:
                     stub.trigger_refresh()
                     mock_trigger.assert_called_once()
+
+
+class TestGrpcHandlerGlobalIntegration:
+    def test_uses_global_stub_for_global_endpoint(self):
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                from pymilvus.client.grpc_handler import GrpcHandler
+
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                assert handler._global_stub is not None
+                assert handler._global_stub.get_primary_endpoint() == "https://in01-xxx.zilliz.com"
+
+    def test_uses_regular_connection_for_non_global_endpoint(self):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+            from pymilvus.client.grpc_handler import GrpcHandler
+
+            handler = GrpcHandler(uri="https://in01-xxx.zilliz.com", token="test-token")
+
+            assert handler._global_stub is None
+
+    def test_triggers_refresh_on_unavailable_error(self):
+        import grpc
+
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                from pymilvus.client.grpc_handler import GrpcHandler
+
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    # Simulate UNAVAILABLE error
+                    mock_error = MagicMock()
+                    mock_error.code.return_value = grpc.StatusCode.UNAVAILABLE
+
+                    handler._handle_global_connection_error(mock_error)
+
+                    mock_trigger.assert_called_once()
+
+    def test_does_not_trigger_refresh_on_other_errors(self):
+        import grpc
+
+        from pymilvus.client.global_stub import ClusterInfo, GlobalTopology
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                from pymilvus.client.grpc_handler import GrpcHandler
+
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    # Simulate INVALID_ARGUMENT error (should not trigger refresh)
+                    mock_error = MagicMock()
+                    mock_error.code.return_value = grpc.StatusCode.INVALID_ARGUMENT
+
+                    handler._handle_global_connection_error(mock_error)
+
+                    mock_trigger.assert_not_called()
