@@ -58,3 +58,73 @@ class GlobalTopology:
             if cluster.is_primary:
                 return cluster
         raise ValueError("No primary cluster found in topology")
+
+
+# Constants for retry logic
+MAX_RETRIES = 3
+BASE_DELAY = 1.0  # seconds
+MAX_DELAY = 10.0  # seconds
+REQUEST_TIMEOUT = 10  # seconds
+
+
+def _parse_topology_response(data: dict) -> GlobalTopology:
+    """Parse the topology response from the REST API."""
+    clusters = [
+        ClusterInfo(
+            cluster_id=c["clusterId"],
+            endpoint=c["endpoint"],
+            capability=c["capability"],
+        )
+        for c in data["clusters"]
+    ]
+    return GlobalTopology(version=int(data["version"]), clusters=clusters)
+
+
+def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
+    """Fetch the global cluster topology from the REST API.
+
+    Args:
+        global_endpoint: The global cluster endpoint URL
+        token: Authentication token
+
+    Returns:
+        GlobalTopology object containing cluster information
+
+    Raises:
+        MilvusException: If topology cannot be fetched after retries
+    """
+    # Build the topology URL
+    endpoint = global_endpoint.rstrip("/")
+    if not endpoint.startswith(("http://", "https://")):
+        endpoint = f"https://{endpoint}"
+    url = f"{endpoint}/global-cluster/topology"
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+
+            if response.status_code != 200:
+                raise Exception(
+                    f"Topology request failed with status {response.status_code}: {response.text}"
+                )
+
+            result = response.json()
+            if result.get("code", 0) != 0:
+                raise MilvusException(message=result.get("message", "Unknown API error"))
+
+            return _parse_topology_response(result["data"])
+
+        except MilvusException:
+            raise
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
+                delay += random.uniform(0, delay * 0.1)  # 10% jitter
+                logger.warning(f"Topology fetch attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s")
+                time.sleep(delay)
+
+    raise MilvusException(message=f"Failed to fetch global topology after {MAX_RETRIES} attempts: {last_error}")
