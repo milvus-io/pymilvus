@@ -1011,20 +1011,21 @@ class TestHelpers:
         assert res == [["a", "b"]]
 
     def test_apply_valid_data(self):
-
+        # Both data and valid_data are pre-sliced by caller; same length required.
         data = [1, 2, 3]
         valid_data = [True, False, True]
 
-        res = apply_valid_data(data, valid_data, 0, 3)
+        res = apply_valid_data(data, valid_data)
         assert res == [1, None, 3]
 
-        # Partial range
+        # Partial range: caller passes pre-sliced data and valid_data
         data = [2, 3]
-        res = apply_valid_data(data, valid_data, 1, 3)  # valid_data[1:3] is [False, True]
+        valid_data_slice = [False, True]
+        res = apply_valid_data(data, valid_data_slice)
         assert res == [None, 3]
 
         # None valid_data
-        res = apply_valid_data([1, 2], None, 0, 2)
+        res = apply_valid_data([1, 2], None)
         assert res == [1, 2]
 
     def test_extract_struct_field_value(self):
