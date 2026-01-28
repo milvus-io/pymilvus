@@ -32,7 +32,6 @@ from pymilvus.orm.schema import Function, FunctionScore, Highlighter
 from pymilvus.settings import Config
 
 from . import entity_helper, interceptor, ts_utils, utils
-from .global_stub import GlobalStub, is_global_endpoint
 from .abstract import (
     AnnSearchRequest,
     BaseRanker,
@@ -55,6 +54,7 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
+from .global_stub import GlobalStub, is_global_endpoint
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
