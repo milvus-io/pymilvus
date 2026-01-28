@@ -356,6 +356,7 @@ class TestAsyncMilvusClientNewFeatures:
                 f"but got '{client._db_name}' for uri='{uri}' and db_name='{db_name}'"
             )
 
+
 # ============================================================
 # AsyncMilvusClient Collection Operations Tests
 # ============================================================
