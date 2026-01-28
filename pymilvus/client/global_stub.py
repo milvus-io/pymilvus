@@ -128,3 +128,86 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
                 time.sleep(delay)
 
     raise MilvusException(message=f"Failed to fetch global topology after {MAX_RETRIES} attempts: {last_error}")
+
+
+# Default refresh interval
+DEFAULT_REFRESH_INTERVAL = 300  # 5 minutes
+
+
+class TopologyRefresher:
+    """Background thread that periodically refreshes the global cluster topology."""
+
+    def __init__(
+        self,
+        global_endpoint: str,
+        token: str,
+        topology: GlobalTopology,
+        refresh_interval: float = DEFAULT_REFRESH_INTERVAL,
+        on_topology_change: Optional[callable] = None,
+    ):
+        self._global_endpoint = global_endpoint
+        self._token = token
+        self._topology = topology
+        self._refresh_interval = refresh_interval
+        self._on_topology_change = on_topology_change
+
+        self._lock = threading.Lock()
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    def start(self) -> None:
+        """Start the background refresh thread."""
+        if self._thread is not None and self._thread.is_alive():
+            return
+
+        self._stop_event.clear()
+        self._thread = threading.Thread(target=self._refresh_loop, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        """Stop the background refresh thread."""
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=5.0)
+            self._thread = None
+
+    def is_running(self) -> bool:
+        """Check if the refresh thread is running."""
+        return self._thread is not None and self._thread.is_alive()
+
+    def get_topology(self) -> GlobalTopology:
+        """Get the current topology (thread-safe)."""
+        with self._lock:
+            return self._topology
+
+    def trigger_refresh(self) -> None:
+        """Trigger an immediate topology refresh (async)."""
+        threading.Thread(target=self._try_refresh, daemon=True).start()
+
+    def _refresh_loop(self) -> None:
+        """Main refresh loop running in background thread."""
+        while not self._stop_event.wait(self._refresh_interval):
+            self._try_refresh()
+
+    def _try_refresh(self) -> None:
+        """Attempt to refresh the topology."""
+        try:
+            new_topology = fetch_topology(self._global_endpoint, self._token)
+
+            with self._lock:
+                if new_topology.version > self._topology.version:
+                    old_topology = self._topology
+                    self._topology = new_topology
+                    logger.info(
+                        f"Topology updated: version {old_topology.version} -> {new_topology.version}"
+                    )
+
+                    if self._on_topology_change:
+                        try:
+                            self._on_topology_change(new_topology)
+                        except Exception as e:
+                            logger.warning(f"Topology change callback failed: {e}")
+
+        except Exception as e:
+            logger.warning(f"Topology refresh failed: {e}")
+            # Keep using cached topology, will retry next interval
