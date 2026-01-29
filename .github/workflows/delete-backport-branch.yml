@@ -1,0 +1,28 @@
+name: Delete Backport Branch
+
+on:
+  pull_request:
+    types:
+      - closed
+
+jobs:
+  delete-branch:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Delete backport branch
+        if: |
+          contains(github.event.pull_request.labels.*.name, 'backport') &&
+          startsWith(github.event.pull_request.head.ref, 'backport-') &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          echo "Attempting to delete backport branch: $HEAD_REF"
+          git push origin --delete "$HEAD_REF" || echo "::warning::Failed to delete branch '$HEAD_REF' (it may strictly not exist anymore)."
