@@ -244,9 +244,9 @@ class TestGetColumnScalarTypes:
         names = hits.get_column("name", return_type="list")
         assert names == ["alice", "bob", "charlie"]
 
-    def test_get_column_varchar_numpy(self):
-        """Test VARCHAR column as numpy (object dtype)."""
-        np = pytest.importorskip("numpy")
+    def test_get_column_varchar_numpy_error(self):
+        """Test VARCHAR column as numpy raises ValueError."""
+        pytest.importorskip("numpy")
 
         field = create_field_data("name", DataType.VARCHAR, ["alice", "bob", "charlie"])
         res = create_search_result_data(
@@ -259,10 +259,8 @@ class TestGetColumnScalarTypes:
         result = ColumnarSearchResult(res)
         hits = result[0]
 
-        arr = hits.get_column("name", return_type="numpy")
-        assert isinstance(arr, np.ndarray)
-        assert arr.dtype == object
-        assert list(arr) == ["alice", "bob", "charlie"]
+        with pytest.raises(ValueError, match="does not support return_type='numpy'"):
+            hits.get_column("name", return_type="numpy")
 
 
 class TestGetColumnVectorTypes:
@@ -446,9 +444,9 @@ class TestGetColumnDynamic:
         values = hits.get_column("extra_field", return_type="list")
         assert values == [100, 200, 300]
 
-    def test_get_column_dynamic_field_numpy(self):
-        """Test dynamic field as numpy returns object array."""
-        np = pytest.importorskip("numpy")
+    def test_get_column_dynamic_field_numpy_error(self):
+        """Test dynamic field as numpy raises ValueError."""
+        pytest.importorskip("numpy")
 
         meta_values = [
             orjson.dumps({"dyn": "a"}),
@@ -466,7 +464,5 @@ class TestGetColumnDynamic:
         result = ColumnarSearchResult(res)
         hits = result[0]
 
-        arr = hits.get_column("dyn", return_type="numpy")
-        assert isinstance(arr, np.ndarray)
-        assert arr.dtype == object
-        assert list(arr) == ["a", "b", "c"]
+        with pytest.raises(ValueError, match="does not support return_type='numpy'"):
+            hits.get_column("dyn", return_type="numpy")

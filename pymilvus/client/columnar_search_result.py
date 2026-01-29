@@ -14,7 +14,6 @@ Performance Benefits:
 """
 
 import collections.abc
-import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -745,7 +744,7 @@ class ColumnarHits:
 
         Note:
             For types not compatible with numpy (JSON, ARRAY, SPARSE, dynamic fields),
-            requesting "numpy" will log a warning and return "list" instead.
+            requesting "numpy" will raise a ValueError.
         """
         # Handle special fields
         if field_name in ("id", self.pk_name):
@@ -869,27 +868,18 @@ class ColumnarHits:
                 arr = np.frombuffer(data, dtype=bfloat16)
                 return arr.reshape(-1, dim)[start:end].copy()
             except ImportError:
-                warnings.warn(
-                    f"Field '{field_name}' is BFLOAT16_VECTOR which requires 'ml_dtypes' package. "
-                    "Falling back to list. Install with: pip install ml_dtypes",
-                    UserWarning,
-                    stacklevel=3,
+                msg = (
+                    f"Field '{field_name}' is BFLOAT16_VECTOR which requires 'ml_dtypes' package "
+                    "for numpy return type. Install with: pip install ml_dtypes"
                 )
-                return self._get_column_as_list(field_name, field_data)
+                raise ImportError(msg) from None
 
-        # VARCHAR - use object dtype (no performance benefit, but works)
-        if dtype in (DataType.VARCHAR, DataType.STRING):
-            accessor = self._accessor_cache.get(field_name) or self._bind_accessor(field_name)
-            return np.array([accessor(i) for i in range(len(self))], dtype=object)
-
-        # Non-compatible types - warn and fallback
-        warnings.warn(
-            f"Field '{field_name}' (type={dtype}) is not numpy-compatible. "
-            "Returning list instead.",
-            UserWarning,
-            stacklevel=3,
+        # Non-compatible types
+        msg = (
+            f"Field '{field_name}' (type={dtype}) does not support return_type='numpy'. "
+            "Please use return_type='list'."
         )
-        return self._get_column_as_list(field_name, field_data)
+        raise ValueError(msg)
 
     def _get_dynamic_column(
         self, field_name: str, return_type: Literal["list", "numpy"]
@@ -902,12 +892,11 @@ class ColumnarHits:
             return values
 
         if return_type == "numpy":
-            if np is None:
-                msg = "numpy is required for return_type='numpy'"
-                raise ImportError(msg)
-
-            # Return object array to maintain consistent return type
-            return np.array(values, dtype=object)
+            msg = (
+                f"Dynamic field '{field_name}' does not support return_type='numpy'. "
+                "Please use return_type='list'."
+            )
+            raise ValueError(msg)
 
         return values
 
