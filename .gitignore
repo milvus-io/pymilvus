@@ -35,6 +35,7 @@ htmlcov/
 **/debug/
 .codecov.yml
 coverage.xml
+junit.xml
 
 # Example data
 /examples/bulk_writer
@@ -45,6 +46,7 @@ uv.lock
 # AI rules
 WARP.md
 CLAUDE.md
+AGENTS.md
 
 # perf
 *.svg
