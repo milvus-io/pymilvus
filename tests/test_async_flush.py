@@ -17,7 +17,7 @@ class TestAsyncFlush:
         immediately after the RPC call, without waiting for segments to be actually flushed.
         """
         # Setup mock channel and stub
-        mock_channel = AsyncMock()
+        mock_channel = MagicMock()
         mock_channel.channel_ready = AsyncMock()
         mock_channel.close = AsyncMock()
         mock_channel._unary_unary_interceptors = []
@@ -85,7 +85,7 @@ class TestAsyncFlush:
         Test that async flush() waits for all collections' segments to be flushed.
         """
         # Setup mock channel and stub
-        mock_channel = AsyncMock()
+        mock_channel = MagicMock()
         mock_channel.channel_ready = AsyncMock()
         mock_channel.close = AsyncMock()
         mock_channel._unary_unary_interceptors = []
@@ -153,7 +153,7 @@ class TestAsyncFlush:
         Test that async flush() raises timeout exception when segments don't flush in time.
         """
         # Setup mock channel and stub
-        mock_channel = AsyncMock()
+        mock_channel = MagicMock()
         mock_channel.channel_ready = AsyncMock()
         mock_channel.close = AsyncMock()
         mock_channel._unary_unary_interceptors = []
@@ -214,7 +214,7 @@ class TestAsyncFlush:
         Test that async flush() validates parameters correctly.
         """
         # Setup mock channel
-        mock_channel = AsyncMock()
+        mock_channel = MagicMock()
         mock_channel.channel_ready = AsyncMock()
         mock_channel.close = AsyncMock()
         mock_channel._unary_unary_interceptors = []
@@ -240,7 +240,7 @@ class TestAsyncFlush:
         Test the get_flush_state() method.
         """
         # Setup mock channel and stub
-        mock_channel = AsyncMock()
+        mock_channel = MagicMock()
         mock_channel.channel_ready = AsyncMock()
         mock_channel.close = AsyncMock()
         mock_channel._unary_unary_interceptors = []

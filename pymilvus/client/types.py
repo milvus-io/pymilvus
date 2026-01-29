@@ -302,7 +302,7 @@ class CompactionState:
         return f"""
 CompactionState
  - compaction id: {self.compaction_id}
- - State: {self.state}
+ - State: {self.state.name}
  - executing plan number: {self.in_executing}
  - timeout plan number: {self.in_timeout}
  - complete plan number: {self.completed}
@@ -332,7 +332,7 @@ class CompactionPlans:
         return f"""
 Compaction Plans:
  - compaction id: {self.compaction_id}
- - state: {self.state}
+ - state: {self.state.name}
  - plans: {self.plans}
  """
 
