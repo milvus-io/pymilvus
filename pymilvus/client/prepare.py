@@ -1297,7 +1297,9 @@ class Prepare:
         )
 
     @classmethod
-    def _prepare_placeholder_str(cls, data: Any, is_embedding_list: bool = False):
+    def _prepare_placeholder_str(
+        cls, data: Any, is_embedding_list: bool = False, is_element_level: bool = False
+    ):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
             pl_type = PlaceholderType.SparseFloatVector
@@ -1355,7 +1357,9 @@ class Prepare:
             pl_type = PlaceholderType.FloatVector
             pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
 
-        pl = common_types.PlaceholderValue(tag="$0", type=pl_type, values=pl_values)
+        pl = common_types.PlaceholderValue(
+            tag="$0", type=pl_type, values=pl_values, element_level=is_element_level
+        )
         return common_types.PlaceholderGroup.SerializeToString(
             common_types.PlaceholderGroup(placeholders=[pl])
         )
@@ -1608,10 +1612,15 @@ class Prepare:
         }
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
+        is_element_level = (
+            not is_embedding_list and expr is not None and "element_filter(" in expr.lower()
+        )
         if data is not None:
             request_kwargs.update(
                 nq=entity_helper.get_input_num_rows(data),
-                placeholder_group=cls._prepare_placeholder_str(data, is_embedding_list),
+                placeholder_group=cls._prepare_placeholder_str(
+                    data, is_embedding_list, is_element_level
+                ),
             )
         elif ids is not None:
             request_kwargs.update(
@@ -1673,7 +1682,6 @@ class Prepare:
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
-
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
