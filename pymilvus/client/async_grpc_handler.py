@@ -40,10 +40,10 @@ from .check import (
     is_legal_host,
     is_legal_port,
 )
+from .columnar_search_result import ColumnarSearchResult
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
-from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
     CompactionState,
@@ -911,7 +911,8 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
         round_decimal = kwargs.get("round_decimal", -1)
-        return SearchResult(
+
+        return ColumnarSearchResult(
             response.results,
             round_decimal,
             status=response.status,
@@ -930,7 +931,8 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
         round_decimal = kwargs.get("round_decimal", -1)
-        return SearchResult(response.results, round_decimal, status=response.status)
+
+        return ColumnarSearchResult(response.results, round_decimal, status=response.status)
 
     @retry_on_rpc_failure()
     async def search(
