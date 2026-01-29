@@ -19,7 +19,7 @@ from pymilvus.client.search_result import (
     extract_struct_field_value,
     get_field_data,
 )
-from pymilvus.client.types import DataType
+from pymilvus.client.types import DataType, HybridExtraList
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 
 LOGGER = logging.getLogger(__name__)
@@ -376,6 +376,145 @@ class TestSearchResult:
         assert len(r[0][0].get("entity").get("bfloat16_vector_field")) == 32
         assert len(r[0][0].get("entity").get("float16_vector_field")) == 32
         assert len(r[0][0].get("entity").get("int8_vector_field")) == 16
+
+    def test_search_result_with_element_indices(self):
+        """Test that element_indices are properly extracted and added as offset field"""
+        # Create test data with element_indices
+        pk = schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6))))
+        element_indices = schema_pb2.LongArray(data=[10, 20, 30, 40, 50, 60])
+
+        result = schema_pb2.SearchResultData(
+            num_queries=2,
+            top_k=3,
+            scores=[1.0 * i for i in range(6)],
+            ids=pk,
+            topks=[3, 3],
+            element_indices=element_indices,
+        )
+        r = SearchResult(result)
+
+        # Verify structure
+        assert len(r) == 2
+
+        # Check first query results
+        first_q = r[0]
+        assert len(first_q) == 3
+        assert first_q[0]["offset"] == 10
+        assert first_q[1]["offset"] == 20
+        assert first_q[2]["offset"] == 30
+
+        # Check second query results
+        second_q = r[1]
+        assert len(second_q) == 3
+        assert second_q[0]["offset"] == 40
+        assert second_q[1]["offset"] == 50
+        assert second_q[2]["offset"] == 60
+
+        # Verify offset is at same level as id and distance
+        hit = first_q[0]
+        assert "offset" in hit
+        assert "id" in hit
+        assert "distance" in hit
+        assert "entity" in hit
+
+        LOGGER.info(f"Hit with offset: {hit}")
+
+    def test_search_result_without_element_indices(self):
+        """Test that results work correctly when element_indices is empty"""
+        pk = schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6))))
+
+        result = schema_pb2.SearchResultData(
+            num_queries=2,
+            top_k=3,
+            scores=[1.0 * i for i in range(6)],
+            ids=pk,
+            topks=[3, 3],
+        )
+        r = SearchResult(result)
+
+        # Verify structure
+        assert len(r) == 2
+
+        # Check that offset field is not present when element_indices is empty
+        first_q = r[0]
+        assert len(first_q) == 3
+        hit = first_q[0]
+        assert "offset" not in hit
+        assert "id" in hit
+        assert "distance" in hit
+        assert "entity" in hit
+
+        LOGGER.info(f"Hit without offset: {hit}")
+
+
+class TestHybridExtraList:
+    def test_query_result_with_element_indices(self):
+        """Test that element_indices are properly extracted and added as offset field for Query results"""
+        # Simulate query results with 3 entities
+        results = [
+            {"pk": 1, "name": "entity1"},
+            {"pk": 2, "name": "entity2"},
+            {"pk": 3, "name": "entity3"},
+        ]
+
+        # element_indices: each entity has a list of element offsets
+        element_indices = [
+            [0, 1, 2],  # entity 1 has 3 matching elements
+            [5, 10],  # entity 2 has 2 matching elements
+            [100],  # entity 3 has 1 matching element
+        ]
+
+        hybrid_list = HybridExtraList(
+            [],  # lazy_field_data
+            results,
+            extra={"session_ts": 12345},
+            element_indices=element_indices,
+        )
+
+        # Verify structure
+        assert len(hybrid_list) == 3
+
+        # Check that offset field is added to each entity
+        entity1 = hybrid_list[0]
+        assert "offset" in entity1
+        assert entity1["offset"] == [0, 1, 2]
+        assert entity1["pk"] == 1
+
+        entity2 = hybrid_list[1]
+        assert "offset" in entity2
+        assert entity2["offset"] == [5, 10]
+
+        entity3 = hybrid_list[2]
+        assert "offset" in entity3
+        assert entity3["offset"] == [100]
+
+        LOGGER.info(f"Entity with offset: {entity1}")
+
+    def test_query_result_without_element_indices(self):
+        """Test that Query results work correctly when element_indices is None"""
+        results = [
+            {"pk": 1, "name": "entity1"},
+            {"pk": 2, "name": "entity2"},
+        ]
+
+        hybrid_list = HybridExtraList(
+            [],  # lazy_field_data
+            results,
+            extra={"session_ts": 12345},
+        )
+
+        # Verify structure
+        assert len(hybrid_list) == 2
+
+        # Check that offset field is not present
+        entity1 = hybrid_list[0]
+        assert "offset" not in entity1
+        assert entity1["pk"] == 1
+
+        entity2 = hybrid_list[1]
+        assert "offset" not in entity2
+
+        LOGGER.info(f"Entity without offset: {entity1}")
 
 
 class TestSearchResultExtended:
