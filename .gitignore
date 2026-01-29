@@ -25,6 +25,7 @@ venv/
 
 # Local Temp
 temp/
+.worktrees/
 *.swp
 assets/
 TODO
