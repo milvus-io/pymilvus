@@ -256,3 +256,624 @@ class TestMilvusClient:
                 context = kwargs.get("context")
                 assert context is not None
                 assert context.get_db_name() == expected_db_name
+
+
+# ============================================================
+# MilvusClient Collection Operations Tests
+# ============================================================
+
+
+class TestMilvusClientCollectionOps:
+    """Tests for MilvusClient collection operations."""
+
+    def test_drop_collection(self):
+        """Test drop_collection method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.drop_collection.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_collection("test_collection")
+
+            mock_handler.drop_collection.assert_called_once()
+
+    def test_has_collection(self):
+        """Test has_collection method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.has_collection.return_value = True
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.has_collection("test_collection")
+
+            assert result is True
+            mock_handler.has_collection.assert_called_once()
+
+    def test_list_collections(self):
+        """Test list_collections method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.list_collections.return_value = ["coll1", "coll2", "coll3"]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_collections()
+
+            assert result == ["coll1", "coll2", "coll3"]
+
+    def test_get_collection_stats(self):
+        """Test get_collection_stats method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        # Method expects list of objects with .key and .value attributes
+        mock_stat = MagicMock()
+        mock_stat.key = "row_count"
+        mock_stat.value = "1000"
+        mock_handler.get_collection_stats.return_value = [mock_stat]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.get_collection_stats("test_collection")
+
+            assert result == {"row_count": 1000}
+
+
+# ============================================================
+# MilvusClient Partition Operations Tests
+# ============================================================
+
+
+class TestMilvusClientPartitionOps:
+    """Tests for MilvusClient partition operations."""
+
+    def test_create_partition(self):
+        """Test create_partition method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.create_partition.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.create_partition("test_collection", "test_partition")
+
+            mock_handler.create_partition.assert_called_once()
+
+    def test_drop_partition(self):
+        """Test drop_partition method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.drop_partition.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_partition("test_collection", "test_partition")
+
+            mock_handler.drop_partition.assert_called_once()
+
+    def test_has_partition(self):
+        """Test has_partition method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.has_partition.return_value = True
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.has_partition("test_collection", "test_partition")
+
+            assert result is True
+
+    def test_list_partitions(self):
+        """Test list_partitions method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.list_partitions.return_value = ["_default", "partition1"]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_partitions("test_collection")
+
+            assert result == ["_default", "partition1"]
+
+
+# ============================================================
+# MilvusClient Index Operations Tests
+# ============================================================
+
+
+class TestMilvusClientIndexOps:
+    """Tests for MilvusClient index operations."""
+
+    def test_drop_index(self):
+        """Test drop_index method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.drop_index.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_index("test_collection", "test_index")
+
+            mock_handler.drop_index.assert_called_once()
+
+    def test_list_indexes(self):
+        """Test list_indexes method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        # Method expects list of objects with .field_name and .index_name attributes
+        mock_index1 = MagicMock()
+        mock_index1.field_name = "vector"
+        mock_index1.index_name = "index1"
+        mock_index2 = MagicMock()
+        mock_index2.field_name = "vector"
+        mock_index2.index_name = "index2"
+        mock_handler.list_indexes.return_value = [mock_index1, mock_index2]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_indexes("test_collection")
+
+            assert result == ["index1", "index2"]
+
+
+# ============================================================
+# MilvusClient Alias Operations Tests
+# ============================================================
+
+
+class TestMilvusClientAliasOps:
+    """Tests for MilvusClient alias operations."""
+
+    def test_create_alias(self):
+        """Test create_alias method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.create_alias.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.create_alias("test_collection", "test_alias")
+
+            mock_handler.create_alias.assert_called_once()
+
+    def test_drop_alias(self):
+        """Test drop_alias method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.drop_alias.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_alias("test_alias")
+
+            mock_handler.drop_alias.assert_called_once()
+
+    def test_alter_alias(self):
+        """Test alter_alias method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.alter_alias.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.alter_alias("test_collection", "test_alias")
+
+            mock_handler.alter_alias.assert_called_once()
+
+
+# ============================================================
+# MilvusClient User/Role Operations Tests
+# ============================================================
+
+
+class TestMilvusClientUserOps:
+    """Tests for MilvusClient user and role operations."""
+
+    def test_create_user(self):
+        """Test create_user method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.create_user.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.create_user("test_user", "password123")
+
+            mock_handler.create_user.assert_called_once()
+
+    def test_drop_user(self):
+        """Test drop_user method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.delete_user.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_user("test_user")
+
+            mock_handler.delete_user.assert_called_once()
+
+    def test_list_users(self):
+        """Test list_users method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.list_usernames.return_value = ["root", "user1"]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_users()
+
+            assert result == ["root", "user1"]
+
+    def test_create_role(self):
+        """Test create_role method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.create_role.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.create_role("test_role")
+
+            mock_handler.create_role.assert_called_once()
+
+    def test_drop_role(self):
+        """Test drop_role method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.drop_role.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.drop_role("test_role")
+
+            mock_handler.drop_role.assert_called_once()
+
+    def test_grant_role(self):
+        """Test grant_role method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.add_user_to_role.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.grant_role("test_user", "test_role")
+
+            mock_handler.add_user_to_role.assert_called_once()
+
+    def test_revoke_role(self):
+        """Test revoke_role method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.remove_user_from_role.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.revoke_role("test_user", "test_role")
+
+            mock_handler.remove_user_from_role.assert_called_once()
+
+
+# ============================================================
+# MilvusClient Utility Operations Tests
+# ============================================================
+
+
+# ============================================================
+# MilvusClient Data Operations Tests
+# ============================================================
+
+
+class TestMilvusClientDataOps:
+    """Tests for MilvusClient data operations."""
+
+    def test_insert_single_dict(self):
+        """Test insert with single dict."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_result = MagicMock()
+        mock_result.insert_count = 1
+        mock_result.primary_keys = [1]
+        mock_result.cost = 0
+        mock_handler.insert_rows.return_value = mock_result
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.insert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
+
+            assert result["insert_count"] == 1
+            assert result["ids"] == [1]
+
+    def test_insert_list_of_dicts(self):
+        """Test insert with list of dicts."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_result = MagicMock()
+        mock_result.insert_count = 2
+        mock_result.primary_keys = [1, 2]
+        mock_result.cost = 0
+        mock_handler.insert_rows.return_value = mock_result
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            data = [{"id": 1, "vector": [0.1, 0.2]}, {"id": 2, "vector": [0.3, 0.4]}]
+            result = client.insert("test_collection", data)
+
+            assert result["insert_count"] == 2
+
+    def test_insert_empty_data(self):
+        """Test insert with empty data returns zero count."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.insert("test_collection", [])
+
+            assert result["insert_count"] == 0
+            assert result["ids"] == []
+
+    def test_insert_invalid_type(self):
+        """Test insert with invalid type raises TypeError."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            with pytest.raises(TypeError, match="wrong type of argument"):
+                client.insert("test_collection", "invalid")
+
+    def test_upsert_single_dict(self):
+        """Test upsert with single dict."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_result = MagicMock()
+        mock_result.upsert_count = 1
+        mock_result.primary_keys = [1]
+        mock_result.cost = 0
+        mock_handler.upsert_rows.return_value = mock_result
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.upsert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
+
+            assert result["upsert_count"] == 1
+
+    def test_upsert_empty_data(self):
+        """Test upsert with empty data returns zero count."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.upsert("test_collection", [])
+
+            assert result["upsert_count"] == 0
+            assert result["ids"] == []
+
+    def test_upsert_invalid_type(self):
+        """Test upsert with invalid type raises TypeError."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            with pytest.raises(TypeError, match="wrong type of argument"):
+                client.upsert("test_collection", "invalid")
+
+    def test_delete_with_ids(self):
+        """Test delete with IDs."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_result = MagicMock()
+        mock_result.delete_count = 2
+        mock_result.cost = 0
+        mock_result.primary_keys = []
+        mock_handler.delete.return_value = mock_result
+        # Mock _get_schema to return schema with primary key field
+        mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
+        mock_handler._get_schema.return_value = (mock_schema, 100)
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.delete("test_collection", ids=[1, 2])
+
+            assert result["delete_count"] == 2
+
+    def test_delete_with_filter(self):
+        """Test delete with filter expression."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_result = MagicMock()
+        mock_result.delete_count = 5
+        mock_result.cost = 0
+        mock_result.primary_keys = []
+        mock_handler.delete.return_value = mock_result
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.delete("test_collection", filter="age > 20")
+
+            assert result["delete_count"] == 5
+
+    def test_search(self):
+        """Test search method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.search.return_value = [[{"id": 1, "distance": 0.1}]]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.search("test_collection", data=[[0.1, 0.2]])
+
+            assert result == [[{"id": 1, "distance": 0.1}]]
+            mock_handler.search.assert_called_once()
+
+    def test_query(self):
+        """Test query method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.query.return_value = [{"id": 1, "name": "test"}]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.query("test_collection", filter="id > 0")
+
+            assert result == [{"id": 1, "name": "test"}]
+            mock_handler.query.assert_called_once()
+
+    def test_get(self):
+        """Test get method (query by ids)."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.query.return_value = [{"id": 1, "name": "test"}]
+        # Mock _get_schema to return schema with primary key field
+        mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
+        mock_handler._get_schema.return_value = (mock_schema, 100)
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.get("test_collection", ids=[1])
+
+            assert result == [{"id": 1, "name": "test"}]
+
+
+class TestMilvusClientUtilityOps:
+    """Tests for MilvusClient utility operations."""
+
+    def test_flush(self):
+        """Test flush method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.flush.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.flush("test_collection")
+
+            mock_handler.flush.assert_called_once()
+
+    def test_get_load_state(self):
+        """Test get_load_state method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.get_load_state.return_value = {"state": "Loaded"}
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.get_load_state("test_collection")
+
+            assert result is not None
+
+    def test_load_collection(self):
+        """Test load_collection method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.load_collection.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.load_collection("test_collection")
+
+            mock_handler.load_collection.assert_called_once()
+
+    def test_release_collection(self):
+        """Test release_collection method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.release_collection.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            client.release_collection("test_collection")
+
+            mock_handler.release_collection.assert_called_once()
+
+    def test_close(self):
+        """Test close method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            with patch("pymilvus.orm.connections.Connections.disconnect") as mock_disconnect:
+                client = MilvusClient()
+                client.close()
+
+                mock_disconnect.assert_called_once()

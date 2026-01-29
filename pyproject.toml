@@ -220,3 +220,18 @@ builtins-ignorelist = [
     "filter",
 ]
 builtins-allowed-modules = ["types"]
+
+[tool.coverage.run]
+omit = [
+    "pymilvus/grpc_gen/*",
+]
+
+[tool.coverage.report]
+omit = [
+    "pymilvus/grpc_gen/*",
+]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]

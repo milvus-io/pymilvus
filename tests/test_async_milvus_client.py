@@ -3,7 +3,7 @@
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
-from pymilvus import AsyncMilvusClient
+from pymilvus import AsyncMilvusClient, DataType
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.types import CompactionPlans, LoadState
 from pymilvus.orm.collection import Function
@@ -36,7 +36,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.get_load_state = AsyncMock(return_value=LoadState.Loading)
             mock_handler.get_loading_progress = AsyncMock(return_value=75)
             mock_fetch.return_value = mock_handler
@@ -55,7 +55,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.get_load_state = AsyncMock(return_value=LoadState.Loaded)
             mock_fetch.return_value = mock_handler
 
@@ -73,7 +73,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_result = {
                 "fields": [{"name": "field1", "type": "INT64"}],
                 "struct_array_fields": [
@@ -97,7 +97,7 @@ class TestAsyncMilvusClientNewFeatures:
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
             # Mock connection and its get_persistent_segment_infos method
-            mock_conn = AsyncMock()
+            mock_conn = MagicMock()
             mock_fetch.return_value = mock_conn
 
             # Create a mock segment info
@@ -110,7 +110,7 @@ class TestAsyncMilvusClientNewFeatures:
             mock_segment_info.level = 1
             mock_segment_info.storage_version = 1
 
-            mock_conn.get_persistent_segment_infos.return_value = [mock_segment_info]
+            mock_conn.get_persistent_segment_infos = AsyncMock(return_value=[mock_segment_info])
 
             # Initialize AsyncMilvusClient
             client = AsyncMilvusClient(uri="http://localhost:19530")
@@ -141,7 +141,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_result = {"fields": [{"name": "field1", "type": "INT64"}]}
             mock_handler.describe_collection = AsyncMock(return_value=mock_result)
             mock_fetch.return_value = mock_handler
@@ -159,7 +159,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
             mock_fetch.return_value = mock_handler
 
@@ -181,7 +181,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.hybrid_search = AsyncMock(return_value=[[{"id": 1}]])
             mock_fetch.return_value = mock_handler
 
@@ -204,7 +204,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.compact = AsyncMock(return_value=123)
             mock_fetch.return_value = mock_handler
 
@@ -221,7 +221,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.flush_all = AsyncMock()
             mock_fetch.return_value = mock_handler
 
@@ -235,7 +235,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.get_flush_all_state = AsyncMock(return_value=True)
             mock_fetch.return_value = mock_handler
 
@@ -254,7 +254,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_handler.get_compaction_plans = AsyncMock(return_value=mock_plans)
             mock_fetch.return_value = mock_handler
 
@@ -280,7 +280,7 @@ class TestAsyncMilvusClientNewFeatures:
         with patch(
             "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
         ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
-            mock_handler = AsyncMock()
+            mock_handler = MagicMock()
             mock_status = MagicMock()
             mock_handler.update_replicate_configuration = AsyncMock(return_value=mock_status)
             mock_fetch.return_value = mock_handler
@@ -355,3 +355,766 @@ class TestAsyncMilvusClientNewFeatures:
                 f"Expected db_name to be '{expected_db_name}', "
                 f"but got '{client._db_name}' for uri='{uri}' and db_name='{db_name}'"
             )
+
+
+# ============================================================
+# AsyncMilvusClient Collection Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientCollectionOps:
+    """Tests for AsyncMilvusClient collection operations."""
+
+    @pytest.mark.asyncio
+    async def test_drop_collection(self):
+        """Test drop_collection method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_collection = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_collection("test_collection")
+
+            mock_handler.drop_collection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_has_collection(self):
+        """Test has_collection method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.has_collection = AsyncMock(return_value=True)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.has_collection("test_collection")
+
+            assert result is True
+            mock_handler.has_collection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_list_collections(self):
+        """Test list_collections method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.list_collections = AsyncMock(return_value=["coll1", "coll2", "coll3"])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.list_collections()
+
+            assert result == ["coll1", "coll2", "coll3"]
+
+    @pytest.mark.asyncio
+    async def test_get_collection_stats(self):
+        """Test get_collection_stats method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_stat = MagicMock()
+            mock_stat.key = "row_count"
+            mock_stat.value = "1000"
+            mock_handler.get_collection_stats = AsyncMock(return_value=[mock_stat])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.get_collection_stats("test_collection")
+
+            assert result == {"row_count": 1000}
+
+    @pytest.mark.asyncio
+    async def test_rename_collection(self):
+        """Test rename_collection method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.rename_collection = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.rename_collection("old_name", "new_name")
+
+            mock_handler.rename_collection.assert_called_once()
+
+
+# ============================================================
+# AsyncMilvusClient Partition Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientPartitionOps:
+    """Tests for AsyncMilvusClient partition operations."""
+
+    @pytest.mark.asyncio
+    async def test_create_partition(self):
+        """Test create_partition method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.create_partition = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_partition("test_collection", "test_partition")
+
+            mock_handler.create_partition.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_partition(self):
+        """Test drop_partition method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_partition = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_partition("test_collection", "test_partition")
+
+            mock_handler.drop_partition.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_has_partition(self):
+        """Test has_partition method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.has_partition = AsyncMock(return_value=True)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.has_partition("test_collection", "test_partition")
+
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_list_partitions(self):
+        """Test list_partitions method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.list_partitions = AsyncMock(return_value=["_default", "partition1"])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.list_partitions("test_collection")
+
+            assert result == ["_default", "partition1"]
+
+
+# ============================================================
+# AsyncMilvusClient Index Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientIndexOps:
+    """Tests for AsyncMilvusClient index operations."""
+
+    @pytest.mark.asyncio
+    async def test_drop_index(self):
+        """Test drop_index method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_index = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_index("test_collection", "test_index")
+
+            mock_handler.drop_index.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_list_indexes(self):
+        """Test list_indexes method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_index1 = MagicMock()
+            mock_index1.field_name = "vector"
+            mock_index1.index_name = "index1"
+            mock_index2 = MagicMock()
+            mock_index2.field_name = "vector"
+            mock_index2.index_name = "index2"
+            mock_handler.list_indexes = AsyncMock(return_value=[mock_index1, mock_index2])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.list_indexes("test_collection")
+
+            assert result == ["index1", "index2"]
+
+
+# ============================================================
+# AsyncMilvusClient Alias Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientAliasOps:
+    """Tests for AsyncMilvusClient alias operations."""
+
+    @pytest.mark.asyncio
+    async def test_create_alias(self):
+        """Test create_alias method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.create_alias = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_alias("test_collection", "test_alias")
+
+            mock_handler.create_alias.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_alias(self):
+        """Test drop_alias method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_alias = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_alias("test_alias")
+
+            mock_handler.drop_alias.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_alter_alias(self):
+        """Test alter_alias method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.alter_alias = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.alter_alias("test_collection", "test_alias")
+
+            mock_handler.alter_alias.assert_called_once()
+
+
+# ============================================================
+# AsyncMilvusClient User/Role Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientUserOps:
+    """Tests for AsyncMilvusClient user and role operations."""
+
+    @pytest.mark.asyncio
+    async def test_create_user(self):
+        """Test create_user method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.create_user = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_user("test_user", "password123")
+
+            mock_handler.create_user.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_user(self):
+        """Test drop_user method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_user = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_user("test_user")
+
+            mock_handler.drop_user.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_list_users(self):
+        """Test list_users method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.list_users = AsyncMock(return_value=["root", "user1"])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.list_users()
+
+            assert result == ["root", "user1"]
+
+    @pytest.mark.asyncio
+    async def test_create_role(self):
+        """Test create_role method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.create_role = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_role("test_role")
+
+            mock_handler.create_role.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_role(self):
+        """Test drop_role method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_role = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_role("test_role")
+
+            mock_handler.drop_role.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_grant_role(self):
+        """Test grant_role method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.grant_role = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.grant_role("test_user", "test_role")
+
+            mock_handler.grant_role.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_revoke_role(self):
+        """Test revoke_role method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.revoke_role = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.revoke_role("test_user", "test_role")
+
+            mock_handler.revoke_role.assert_called_once()
+
+
+# ============================================================
+# AsyncMilvusClient Utility Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientUtilityOps:
+    """Tests for AsyncMilvusClient utility operations."""
+
+    @pytest.mark.asyncio
+    async def test_flush(self):
+        """Test flush method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.flush = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.flush("test_collection")
+
+            mock_handler.flush.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_load_collection(self):
+        """Test load_collection method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.load_collection = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.load_collection("test_collection")
+
+            mock_handler.load_collection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_release_collection(self):
+        """Test release_collection method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.release_collection = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.release_collection("test_collection")
+
+            mock_handler.release_collection.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_load_partitions(self):
+        """Test load_partitions method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.load_partitions = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.load_partitions("test_collection", ["partition1", "partition2"])
+
+            mock_handler.load_partitions.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_release_partitions(self):
+        """Test release_partitions method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.release_partitions = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.release_partitions("test_collection", ["partition1", "partition2"])
+
+            mock_handler.release_partitions.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_partition_stats(self):
+        """Test get_partition_stats method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_stat = MagicMock()
+            mock_stat.key = "row_count"
+            mock_stat.value = "500"
+            mock_handler.get_partition_stats = AsyncMock(return_value=[mock_stat])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.get_partition_stats("test_collection", "test_partition")
+
+            assert result == {"row_count": 500}
+
+    @pytest.mark.asyncio
+    async def test_close(self):
+        """Test close method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_fetch.return_value = mock_handler
+
+            with patch(
+                "pymilvus.milvus_client.async_milvus_client.connections.async_remove_connection",
+                new_callable=AsyncMock,
+            ) as mock_remove:
+                client = AsyncMilvusClient()
+                await client.close()
+
+                mock_remove.assert_called_once()
+
+
+# ============================================================
+# AsyncMilvusClient Database Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientDatabaseOps:
+    """Tests for AsyncMilvusClient database operations."""
+
+    @pytest.mark.asyncio
+    async def test_create_database(self):
+        """Test create_database method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.create_database = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_database("test_db")
+
+            mock_handler.create_database.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_database(self):
+        """Test drop_database method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.drop_database = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_database("test_db")
+
+            mock_handler.drop_database.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_list_databases(self):
+        """Test list_databases method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.list_database = AsyncMock(return_value=["default", "test_db"])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.list_databases()
+
+            assert result == ["default", "test_db"]
+
+
+# ============================================================
+# AsyncMilvusClient Data Operations Tests
+# ============================================================
+
+
+class TestAsyncMilvusClientDataOps:
+    """Tests for AsyncMilvusClient data operations."""
+
+    @pytest.mark.asyncio
+    async def test_insert_single_dict(self):
+        """Test insert with single dict."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_result = MagicMock()
+            mock_result.insert_count = 1
+            mock_result.primary_keys = [1]
+            mock_result.cost = 0
+            mock_handler.insert_rows = AsyncMock(return_value=mock_result)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.insert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
+
+            assert result["insert_count"] == 1
+            assert result["ids"] == [1]
+
+    @pytest.mark.asyncio
+    async def test_insert_list_of_dicts(self):
+        """Test insert with list of dicts."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_result = MagicMock()
+            mock_result.insert_count = 2
+            mock_result.primary_keys = [1, 2]
+            mock_result.cost = 0
+            mock_handler.insert_rows = AsyncMock(return_value=mock_result)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            data = [{"id": 1, "vector": [0.1, 0.2]}, {"id": 2, "vector": [0.3, 0.4]}]
+            result = await client.insert("test_collection", data)
+
+            assert result["insert_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_insert_empty_data(self):
+        """Test insert with empty data returns zero count."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.insert("test_collection", [])
+
+            assert result["insert_count"] == 0
+            assert result["ids"] == []
+
+    @pytest.mark.asyncio
+    async def test_insert_invalid_type(self):
+        """Test insert with invalid type raises TypeError."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+
+            with pytest.raises(TypeError, match="wrong type of argument"):
+                await client.insert("test_collection", "invalid")
+
+    @pytest.mark.asyncio
+    async def test_upsert_single_dict(self):
+        """Test upsert with single dict."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_result = MagicMock()
+            mock_result.upsert_count = 1
+            mock_result.primary_keys = [1]
+            mock_result.cost = 0
+            mock_handler.upsert_rows = AsyncMock(return_value=mock_result)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.upsert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
+
+            assert result["upsert_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_upsert_empty_data(self):
+        """Test upsert with empty data returns zero count."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.upsert("test_collection", [])
+
+            assert result["upsert_count"] == 0
+            assert result["ids"] == []
+
+    @pytest.mark.asyncio
+    async def test_upsert_invalid_type(self):
+        """Test upsert with invalid type raises TypeError."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+
+            with pytest.raises(TypeError, match="wrong type of argument"):
+                await client.upsert("test_collection", "invalid")
+
+    @pytest.mark.asyncio
+    async def test_delete_with_ids(self):
+        """Test delete with IDs."""
+
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_result = MagicMock()
+            mock_result.delete_count = 2
+            mock_result.cost = 0
+            mock_result.primary_keys = []
+            mock_handler.delete = AsyncMock(return_value=mock_result)
+            # Mock _get_schema to return schema with primary key field
+            mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
+            mock_handler._get_schema = AsyncMock(return_value=(mock_schema, 100))
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.delete("test_collection", ids=[1, 2])
+
+            assert result["delete_count"] == 2
+
+    @pytest.mark.asyncio
+    async def test_delete_with_filter(self):
+        """Test delete with filter expression."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_result = MagicMock()
+            mock_result.delete_count = 5
+            mock_result.cost = 0
+            mock_result.primary_keys = []
+            mock_handler.delete = AsyncMock(return_value=mock_result)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.delete("test_collection", filter="age > 20")
+
+            assert result["delete_count"] == 5
+
+    @pytest.mark.asyncio
+    async def test_search(self):
+        """Test search method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.search("test_collection", data=[[0.1, 0.2]])
+
+            assert result == [[{"id": 1, "distance": 0.1}]]
+            mock_handler.search.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_query(self):
+        """Test query method."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.query = AsyncMock(return_value=[{"id": 1, "name": "test"}])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.query("test_collection", filter="id > 0")
+
+            assert result == [{"id": 1, "name": "test"}]
+            mock_handler.query.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get(self):
+        """Test get method (query by ids)."""
+
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.query = AsyncMock(return_value=[{"id": 1, "name": "test"}])
+            # Mock _get_schema to return schema with primary key field
+            mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
+            mock_handler._get_schema = AsyncMock(return_value=(mock_schema, 100))
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            result = await client.get("test_collection", ids=[1])
+
+            assert result == [{"id": 1, "name": "test"}]
