@@ -424,6 +424,9 @@ class CollectionSchema:
             if "mmap_enabled" in kwargs:
                 struct_schema._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
 
+            if "warmup" in kwargs:
+                struct_schema._type_params["warmup"] = kwargs["warmup"]
+
             self._struct_fields.append(struct_schema)
             return self
 
@@ -488,6 +491,9 @@ class FieldSchema:
         self.element_type = kwargs.get("element_type")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+
+        if "warmup" in kwargs:
+            self._type_params["warmup"] = kwargs["warmup"]
 
         for key in ["analyzer_params", "multi_analyzer_params"]:
             if key in self._kwargs and isinstance(self._kwargs[key], dict):
