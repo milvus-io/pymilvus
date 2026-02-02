@@ -375,6 +375,16 @@ class TestFieldSchemaTypeParams:
         field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128, mmap_enabled=True)
         assert field._type_params.get("mmap_enabled") is True
 
+    def test_warmup_param(self):
+        """Test warmup type param."""
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128, warmup=True)
+        assert field._type_params.get("warmup") is True
+
+    def test_warmup_param_false(self):
+        """Test warmup type param with False value."""
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128, warmup=False)
+        assert field._type_params.get("warmup") is False
+
     def test_analyzer_params_dict(self):
         """Test analyzer_params as dict gets serialized."""
         field = FieldSchema(
@@ -657,6 +667,27 @@ class TestCollectionSchemaAddField:
         )
         assert len(schema.struct_fields) == 1
         assert schema.struct_fields[0]._type_params.get("mmap_enabled") is True
+
+    def test_add_struct_field_with_warmup(self):
+        """Test adding struct field with warmup."""
+        struct = StructFieldSchema()
+        struct.add_field("score", DataType.FLOAT)
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ]
+        )
+        schema.add_field(
+            "struct",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct,
+            max_capacity=10,
+            warmup=True,
+        )
+        assert len(schema.struct_fields) == 1
+        assert schema.struct_fields[0]._type_params.get("warmup") is True
 
 
 class TestCollectionSchemaToDict:

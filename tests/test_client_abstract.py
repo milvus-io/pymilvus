@@ -156,6 +156,28 @@ class TestFieldSchema:
 
         assert field.params["mmap_enabled"] is False
 
+    def test_field_schema_with_warmup_enabled(self):
+        """Test FieldSchema with warmup type parameter."""
+        warmup_param = MagicMock()
+        warmup_param.key = "warmup"
+        warmup_param.value = "true"
+
+        raw = self._create_mock_raw_field(type_params=[warmup_param])
+        field = FieldSchema(raw)
+
+        assert field.params["warmup"] == "true"
+
+    def test_field_schema_with_warmup_disabled(self):
+        """Test FieldSchema with warmup set to false."""
+        warmup_param = MagicMock()
+        warmup_param.key = "warmup"
+        warmup_param.value = "false"
+
+        raw = self._create_mock_raw_field(type_params=[warmup_param])
+        field = FieldSchema(raw)
+
+        assert field.params["warmup"] == "false"
+
     def test_field_schema_with_json_params(self):
         """Test FieldSchema with JSON type params."""
         params_param = MagicMock()
