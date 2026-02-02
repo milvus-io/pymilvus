@@ -1,5 +1,8 @@
 # Global Client Design for PyMilvus
 
+- **Created:** 2026-01-28
+- **Author(s):** @bigsheeper
+
 ## Overview
 
 This feature adds transparent support for Milvus global clusters (similar to Amazon Aurora Global Database). When a user connects to a global endpoint, PyMilvus automatically discovers the cluster topology and routes all operations to the primary cluster.
@@ -123,6 +126,8 @@ for attempt in range(max_retries):
 
 ### Error Handling
 
+All global cluster errors use `MilvusException`:
+
 - Topology fetch fails after retries → raise `MilvusException`
 - No primary cluster in topology → raise `MilvusException`
 - Primary endpoint connection fails → raise standard connection error
@@ -189,36 +194,57 @@ All operations (read and write) go through the primary connection. The GlobalStu
 
 ### Integration Point
 
+Note: `GrpcHandler` receives `uri` as a parameter (the URI is parsed into an address
+internally for non-global connections). For global endpoints, the URI is passed directly
+to `GlobalStub` which handles topology discovery.
+
 ```python
 class GrpcHandler:
     def __init__(self, uri, ...):
+        self._global_stub = None
+
         if is_global_endpoint(uri):
-            self._global_stub = GlobalStub(uri, token)
-            self._channel = self._global_stub.primary_connection._channel
-            self._stub = self._global_stub.primary_connection._stub
-        else:
-            # existing logic - direct connection
-            self._channel = create_channel(uri, ...)
-            self._stub = create_stub(self._channel)
-            self._global_stub = None
+            self._init_global_connection(uri, **kwargs)
+            return
+
+        # existing logic - parse address from uri, set up gRPC channel
+        self._address = self.__get_address(uri, host, port)
+        self._setup_grpc_channel()
+
+    def _init_global_connection(self, uri, **kwargs):
+        token = kwargs.pop("token", "")
+        self._global_conn_lock = threading.Lock()
+        self._global_stub = GlobalStub(
+            global_endpoint=uri, token=token,
+            on_primary_change=self._update_primary_connection, **kwargs,
+        )
+        self._update_primary_connection(self._global_stub.get_primary_handler())
+
+    def _update_primary_connection(self, primary_handler):
+        """Thread-safe update of connection attributes from the primary handler."""
+        with self._global_conn_lock:
+            self._stub = primary_handler._stub
+            self._channel = primary_handler._channel
+            # ... copy other connection attributes
 ```
 
 ### Error Handling with Refresh Trigger
 
+Connection errors are intercepted via the existing `retry_on_rpc_failure` decorator. When
+a `grpc.RpcError` is caught, the decorator calls `_handle_global_connection_error` on the
+handler, which triggers a topology refresh for `UNAVAILABLE` errors.
+
 ```python
-def _execute_request(self, request_func):
-    try:
-        return request_func()
-    except grpc.RpcError as e:
-        if self._global_stub and self._is_connection_error(e):
-            self._global_stub.trigger_refresh()
-        raise
+def _handle_global_connection_error(self, error: grpc.RpcError):
+    if self._global_stub is None:
+        return
+    if error.code() == grpc.StatusCode.UNAVAILABLE:
+        self._global_stub.trigger_refresh()
 ```
 
 ### Connection Errors that Trigger Refresh
 
 - `UNAVAILABLE` - server unreachable
-- `DEADLINE_EXCEEDED` - timeout (optional)
 
 ## Implementation Plan
 
@@ -228,11 +254,11 @@ def _execute_request(self, request_func):
 |------|--------|
 | `pymilvus/client/grpc_handler.py` | Add global endpoint detection, integrate GlobalStub |
 | `pymilvus/client/global_stub.py` | **New file** - GlobalStub, TopologyRefresher, data models |
-| `pymilvus/exceptions.py` | Add `GlobalClusterError` if needed (or reuse `MilvusException`) |
+| `pymilvus/decorators.py` | Integrate global connection error handling into `retry_on_rpc_failure` |
 
 ### Dependencies
 
-- `requests` or `urllib3` for REST API calls (check if already in dependencies)
+- `requests` for REST API calls (added to main dependencies)
 - Standard library: `threading`, `dataclasses`, `time`, `random`
 
 ### Test Coverage (>90%)

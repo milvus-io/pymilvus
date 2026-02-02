@@ -214,8 +214,7 @@ class GrpcHandler:
             return
 
         # Only trigger refresh on connection-related errors
-        error_code = error.code()
-        if error_code in (grpc.StatusCode.UNAVAILABLE, grpc.StatusCode.DEADLINE_EXCEEDED):
+        if error.code() == grpc.StatusCode.UNAVAILABLE:
             self._global_stub.trigger_refresh()
 
     def register_reconnect_handler(self, handler: ReconnectHandler):

@@ -1,10 +1,10 @@
 import threading
-import time
 from unittest.mock import MagicMock, patch
 
 import grpc
 import pytest
 from pymilvus.client.global_stub import (
+    GLOBAL_CLUSTER_IDENTIFIER,
     ClusterCapability,
     ClusterInfo,
     GlobalStub,
@@ -268,6 +268,15 @@ class TestTopologyRefresher:
         )
 
         callback_called = []
+        refresh_count = threading.Event()
+        call_count = 0
+
+        def counting_fetch(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count >= 2:
+                refresh_count.set()
+            return topology
 
         def on_topology_change(topo):
             callback_called.append(topo)
@@ -280,9 +289,9 @@ class TestTopologyRefresher:
             on_topology_change=on_topology_change,
         )
 
-        with patch("pymilvus.client.global_stub.fetch_topology", return_value=topology):
+        with patch("pymilvus.client.global_stub.fetch_topology", side_effect=counting_fetch):
             refresher.start()
-            time.sleep(0.2)  # Allow a few refresh cycles
+            refresh_count.wait(timeout=2.0)
             refresher.stop()
 
         assert len(callback_called) == 0
@@ -331,6 +340,12 @@ class TestTopologyRefresher:
             ],
         )
 
+        fetch_attempted = threading.Event()
+
+        def failing_fetch(*args, **kwargs):
+            fetch_attempted.set()
+            raise Exception("Network error")
+
         refresher = TopologyRefresher(
             global_endpoint="https://glo.global-cluster.zilliz.com",
             token="test-token",
@@ -338,11 +353,9 @@ class TestTopologyRefresher:
             refresh_interval=0.05,
         )
 
-        with patch(
-            "pymilvus.client.global_stub.fetch_topology", side_effect=Exception("Network error")
-        ):
+        with patch("pymilvus.client.global_stub.fetch_topology", side_effect=failing_fetch):
             refresher.start()
-            time.sleep(0.2)  # Should not crash
+            fetch_attempted.wait(timeout=2.0)
             assert refresher.is_running()
             refresher.stop()
 
@@ -562,8 +575,23 @@ class TestGrpcHandlerGlobalIntegration:
                     mock_trigger.assert_not_called()
 
 
+class _FakeRpcError(grpc.RpcError):
+    """A fake gRPC error for testing that properly inherits from grpc.RpcError."""
+
+    def __init__(self, status_code, details_msg=""):
+        self._code = status_code
+        self._details = details_msg
+
+    def code(self):
+        return self._code
+
+    def details(self):
+        return self._details
+
+
 class TestGlobalErrorHandling:
     def test_retry_decorator_triggers_refresh_on_unavailable(self):
+        """Test that retry_on_rpc_failure decorator calls _handle_global_connection_error."""
         mock_topology = GlobalTopology(
             version=1,
             clusters=[
@@ -580,9 +608,54 @@ class TestGlobalErrorHandling:
                     token="test-token",
                 )
 
-                # Verify that _handle_global_connection_error is wired up properly
                 assert hasattr(handler, "_handle_global_connection_error")
                 assert handler._global_stub is not None
+
+                # Verify the decorator integration: simulate a gRPC call that raises UNAVAILABLE
+                rpc_error = _FakeRpcError(grpc.StatusCode.UNAVAILABLE, "Connection refused")
+
+                handler._stub = MagicMock()
+                handler._stub.DescribeCollection.side_effect = rpc_error
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    with pytest.raises(MilvusException):
+                        handler.has_collection("test_collection", timeout=0.1, retry_times=1)
+
+                    mock_trigger.assert_called()
+
+    def test_retry_decorator_does_not_trigger_refresh_on_deadline_exceeded(self):
+        """Test that DEADLINE_EXCEEDED does not trigger topology refresh."""
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(
+                    cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3
+                ),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                rpc_error = _FakeRpcError(grpc.StatusCode.DEADLINE_EXCEEDED, "Deadline exceeded")
+
+                handler._stub = MagicMock()
+                handler._stub.DescribeCollection.side_effect = rpc_error
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    with pytest.raises((MilvusException, _FakeRpcError)):
+                        handler.has_collection("test_collection", timeout=0.1)
+
+                    mock_trigger.assert_not_called()
+
+
+class TestGlobalClusterConstant:
+    def test_global_cluster_identifier_constant(self):
+        assert GLOBAL_CLUSTER_IDENTIFIER == "global-cluster"
 
 
 class TestGlobalClientEndToEnd:

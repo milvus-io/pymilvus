@@ -3,7 +3,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional
 
 import requests
 
@@ -14,12 +14,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+GLOBAL_CLUSTER_IDENTIFIER = "global-cluster"
+
 
 def is_global_endpoint(uri: str) -> bool:
     """Check if the URI points to a global cluster endpoint."""
     if not uri:
         return False
-    return "global-cluster" in uri.lower()
+    return GLOBAL_CLUSTER_IDENTIFIER in uri.lower()
 
 
 class ClusterCapability:
@@ -98,7 +100,7 @@ def fetch_topology(global_endpoint: str, token: str) -> GlobalTopology:
     endpoint = global_endpoint.rstrip("/")
     if not endpoint.startswith(("http://", "https://")):
         endpoint = f"https://{endpoint}"
-    url = f"{endpoint}/global-cluster/topology"
+    url = f"{endpoint}/{GLOBAL_CLUSTER_IDENTIFIER}/topology"
 
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -147,7 +149,7 @@ class TopologyRefresher:
         token: str,
         topology: GlobalTopology,
         refresh_interval: float = DEFAULT_REFRESH_INTERVAL,
-        on_topology_change: Optional[callable] = None,
+        on_topology_change: Optional[Callable] = None,
     ):
         self._global_endpoint = global_endpoint
         self._token = token
@@ -209,11 +211,11 @@ class TopologyRefresher:
                     if self._on_topology_change:
                         try:
                             self._on_topology_change(new_topology)
-                        except Exception as e:
-                            logger.warning(f"Topology change callback failed: {e}")
+                        except Exception:
+                            logger.warning("Topology change callback failed", exc_info=True)
 
-        except Exception as e:
-            logger.warning(f"Topology refresh failed: {e}")
+        except Exception:
+            logger.warning("Topology refresh failed", exc_info=True)
             # Keep using cached topology, will retry next interval
 
 
@@ -226,7 +228,7 @@ class GlobalStub:
         token: str,
         *,
         start_refresher: bool = True,
-        on_primary_change: Optional[callable] = None,
+        on_primary_change: Optional[Callable] = None,
         **handler_kwargs,
     ):
         """Initialize the global stub.
@@ -284,14 +286,14 @@ class GlobalStub:
                 if self._on_primary_change:
                     try:
                         self._on_primary_change(self._primary_handler)
-                    except Exception as e:
-                        logger.warning(f"Primary change callback failed: {e}")
+                    except Exception:
+                        logger.warning("Primary change callback failed", exc_info=True)
 
                 # Close old handler after new one is established
                 try:
                     old_handler.close()
-                except Exception as e:
-                    logger.warning(f"Failed to close old handler: {e}")
+                except Exception:
+                    logger.warning("Failed to close old handler", exc_info=True)
 
     def get_topology(self) -> GlobalTopology:
         """Get the current topology."""
@@ -318,5 +320,5 @@ class GlobalStub:
             if self._primary_handler:
                 try:
                     self._primary_handler.close()
-                except Exception as e:
-                    logger.warning(f"Failed to close primary handler: {e}")
+                except Exception:
+                    logger.warning("Failed to close primary handler", exc_info=True)
