@@ -20,6 +20,7 @@ from urllib import parse
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
+from pymilvus.client.global_stub import is_global_endpoint
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.exceptions import (
     ConnectionConfigException,
@@ -410,6 +411,10 @@ class Connections(metaclass=SingleInstanceMetaClass):
         if with_config(config):
             addr, parsed_uri = self.__get_full_address(*config)
             kwargs["address"] = addr
+
+            # Preserve original URI for global client detection
+            if is_global_endpoint(config[1]):
+                kwargs["uri"] = config[1]
 
             if self.has_connection(alias) and self._alias_config[alias].get("address") != addr:
                 raise ConnectionConfigException(message=ExceptionsMessage.ConnDiffConf % alias)
