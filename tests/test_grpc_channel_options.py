@@ -4,10 +4,8 @@ Tests for gRPC channel options: keepalive defaults and user-configurable grpc_op
 
 from unittest.mock import MagicMock, patch
 
-import grpc
-import pytest
 from grpc._cython import cygrpc
-
+from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.grpc_handler import GrpcHandler
 
 
@@ -125,8 +123,6 @@ class TestAsyncGrpcHandlerChannelOptions:
 
     def test_async_default_grpc_options_empty(self):
         """grpc_options defaults to empty dict when not provided."""
-        from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
-
         handler = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
         handler._async_channel = MagicMock()
         handler._grpc_options = {}
@@ -164,8 +160,6 @@ class TestAsyncGrpcHandlerChannelOptions:
         assert opts["grpc.keepalive_timeout_ms"] == 5000
 
     def _create_handler(self):
-        from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
-
         handler = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
         handler._async_channel = None
         handler._secure = False
