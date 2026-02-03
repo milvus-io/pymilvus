@@ -30,6 +30,7 @@ dependencies=[
     "pandas>=1.2.4",
     "numpy<1.25.0;python_version<='3.8'",
     "cachetools>=5.0.0",
+    "requests>=2.20.0",
 ]
 
 classifiers=[
