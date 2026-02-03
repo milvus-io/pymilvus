@@ -82,6 +82,7 @@ class AsyncGrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._user = kwargs.get("user")
+        self._grpc_options = kwargs.get("grpc_options", {})
         self._set_authorization(**kwargs)
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
@@ -140,12 +141,18 @@ class AsyncGrpcHandler:
 
     def _setup_grpc_channel(self, **kwargs):
         if self._async_channel is None:
-            opts = [
-                (cygrpc.ChannelArgKey.max_send_message_length, -1),
-                (cygrpc.ChannelArgKey.max_receive_message_length, -1),
-                ("grpc.enable_retries", 1),
-                ("grpc.keepalive_time_ms", 55000),
-            ]
+            # Default gRPC options
+            default_opts = {
+                cygrpc.ChannelArgKey.max_send_message_length: -1,
+                cygrpc.ChannelArgKey.max_receive_message_length: -1,
+                "grpc.enable_retries": 1,
+                "grpc.keepalive_time_ms": 10000,
+                "grpc.keepalive_timeout_ms": 5000,
+                "grpc.keepalive_permit_without_calls": True,
+            }
+            # Merge user-provided options (user options override defaults)
+            default_opts.update(self._grpc_options)
+            opts = list(default_opts.items())
             if not self._secure:
                 self._async_channel = grpc.aio.insecure_channel(
                     self._address,
