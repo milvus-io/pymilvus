@@ -9,6 +9,7 @@ from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
+    FunctionType,
     LoadedSegmentInfo,
     LoadState,
     OmitZeroDict,
@@ -2821,3 +2822,292 @@ class MilvusClient(BaseMilvusClient):
         return conn.list_restore_snapshot_jobs(
             collection_name=collection_name, timeout=timeout, **kwargs
         )
+
+    # =============================================================================
+    # MinHash Deduplication Methods
+    # =============================================================================
+
+    def _get_minhash_fields(self, collection_name: str, timeout: Optional[float] = None) -> tuple:
+        """Get document and vector field names from MinHash function.
+
+        Args:
+            collection_name: Name of the collection.
+            timeout: Timeout in seconds.
+
+        Returns:
+            tuple: (document_field_name, vector_field_name, primary_field_name)
+
+        Raises:
+            MilvusException: If no MinHash function found.
+        """
+        desc = self.describe_collection(collection_name, timeout=timeout)
+        functions = desc.get("functions", [])
+
+        for func in functions:
+            func_type = func.get("type")
+            # Handle both enum and integer representations
+            if func_type == FunctionType.MINHASH or func_type == 4:
+                input_fields = func.get("input_field_names", [])
+                output_fields = func.get("output_field_names", [])
+                if input_fields and output_fields:
+                    # Get primary field
+                    pk_field = "id"
+                    for field_info in desc.get("fields", []):
+                        if field_info.get("is_primary", False):
+                            pk_field = field_info["name"]
+                            break
+                    return input_fields[0], output_fields[0], pk_field
+
+        raise MilvusException(
+            message=f"Collection '{collection_name}' has no MinHash function. "
+            "Please add a MinHash function before using deduplicate methods."
+        )
+
+    def self_deduplicate(
+        self,
+        collection_name: str,
+        threshold: float = 0.8,
+        batch_size: int = 1000,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict:
+        """Deduplicate documents within the collection based on MinHash similarity.
+
+        Requires the collection to have a MinHash function configured.
+
+        Algorithm:
+        1. Iterate through all documents
+        2. For each document, find similar documents (Jaccard similarity >= threshold)
+        3. Keep the first document in each similar group, mark others as duplicates
+
+        Args:
+            collection_name (str): Name of the collection (must have MinHash function).
+            threshold (float): Jaccard similarity threshold (0.0-1.0). Defaults to 0.8.
+            batch_size (int): Processing batch size. Defaults to 1000.
+            timeout (float, optional): Timeout in seconds.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Dict: {
+                "total_count": int,           # Total documents
+                "unique_count": int,          # Unique documents
+                "duplicate_count": int,       # Duplicate documents
+                "duplicate_ratio": float,     # Ratio of duplicates
+                "duplicate_ids": List,        # IDs to delete
+                "clusters": List[List]        # Groups of similar documents
+            }
+
+        Raises:
+            MilvusException: If collection has no MinHash function.
+
+        Example:
+            >>> result = client.self_deduplicate("my_docs", threshold=0.8)
+            >>> print(f"Found {result['duplicate_count']} duplicates")
+            >>> client.delete("my_docs", ids=result['duplicate_ids'])
+        """
+        # Check MinHash function exists and get field names
+        doc_field, vec_field, pk_field = self._get_minhash_fields(collection_name, timeout)
+
+        # Get collection stats
+        stats = self.get_collection_stats(collection_name, timeout=timeout)
+        total_count = stats.get("row_count", 0)
+
+        if total_count == 0:
+            return {
+                "total_count": 0,
+                "unique_count": 0,
+                "duplicate_count": 0,
+                "duplicate_ratio": 0.0,
+                "duplicate_ids": [],
+                "clusters": [],
+            }
+
+        # Track seen IDs and duplicates
+        seen_ids: set = set()
+        duplicate_ids: List = []
+        clusters: List[List] = []
+
+        # Use query iterator to iterate through all documents
+        iterator = self.query_iterator(
+            collection_name,
+            batch_size=batch_size,
+            output_fields=[doc_field, pk_field],
+            timeout=timeout,
+        )
+
+        try:
+            for batch in iterator:
+                for doc in batch:
+                    doc_id = doc[pk_field]
+
+                    # Skip already processed
+                    if doc_id in seen_ids:
+                        continue
+
+                    doc_text = doc[doc_field]
+
+                    # Search for similar documents
+                    results = self.search(
+                        collection_name,
+                        data=[doc_text],
+                        anns_field=vec_field,
+                        limit=100,
+                        search_params={"metric_type": "MHJACCARD"},
+                        output_fields=[pk_field],
+                        timeout=timeout,
+                    )
+
+                    # Process search results
+                    similar_ids = []
+                    for hit in results[0]:
+                        # MHJACCARD distance: 0=identical, 1=completely different
+                        similarity = 1 - hit["distance"]
+                        hit_id = hit["id"]
+                        if similarity >= threshold and hit_id != doc_id:
+                            similar_ids.append(hit_id)
+
+                    # Find new duplicates (not yet seen)
+                    new_dups = [sid for sid in similar_ids if sid not in seen_ids]
+
+                    if new_dups:
+                        # Create cluster with current doc as representative
+                        clusters.append([doc_id] + new_dups)
+                        duplicate_ids.extend(new_dups)
+
+                    # Mark current doc and similar ones as seen
+                    seen_ids.add(doc_id)
+                    seen_ids.update(similar_ids)
+        finally:
+            iterator.close()
+
+        unique_count = total_count - len(duplicate_ids)
+        duplicate_ratio = len(duplicate_ids) / total_count if total_count > 0 else 0.0
+
+        return {
+            "total_count": total_count,
+            "unique_count": unique_count,
+            "duplicate_count": len(duplicate_ids),
+            "duplicate_ratio": duplicate_ratio,
+            "duplicate_ids": duplicate_ids,
+            "clusters": clusters,
+        }
+
+    def deduplicate(
+        self,
+        collection_name: str,
+        data: Union[List[str], List[Dict]],
+        threshold: float = 0.8,
+        batch_size: int = 100,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict:
+        """Check new documents against existing collection for duplicates.
+
+        Requires the collection to have a MinHash function configured.
+        Does NOT insert any data - only returns which documents are duplicates.
+
+        Args:
+            collection_name (str): Name of the collection (must have MinHash function).
+            data (Union[List[str], List[Dict]]): New documents to check.
+            threshold (float): Jaccard similarity threshold (0.0-1.0). Defaults to 0.8.
+            batch_size (int): Processing batch size. Defaults to 100.
+            timeout (float, optional): Timeout in seconds.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Dict: {
+                "total_count": int,           # Total input documents
+                "unique_count": int,          # Documents not in collection
+                "duplicate_count": int,       # Documents already in collection
+                "duplicate_ratio": float,     # Ratio of duplicates
+                "unique_data": List,          # Non-duplicate documents (can be inserted)
+                "duplicates": List[Dict]      # Duplicate details [{document, similar_to, ...}]
+            }
+
+        Raises:
+            MilvusException: If collection has no MinHash function.
+
+        Example:
+            >>> new_docs = ["doc1", "doc2", "doc3"]
+            >>> result = client.deduplicate("my_docs", new_docs, threshold=0.8)
+            >>> # Only insert unique documents
+            >>> if result['unique_data']:
+            ...     client.insert("my_docs", result['unique_data'])
+        """
+        if not data:
+            return {
+                "total_count": 0,
+                "unique_count": 0,
+                "duplicate_count": 0,
+                "duplicate_ratio": 0.0,
+                "unique_data": [],
+                "duplicates": [],
+            }
+
+        # Check MinHash function exists and get field names
+        doc_field, vec_field, _ = self._get_minhash_fields(collection_name, timeout)
+
+        # Normalize data - extract texts for search
+        is_string_input = isinstance(data[0], str)
+        if is_string_input:
+            texts = list(data)
+        else:
+            # Extract text from dict using document field
+            texts = [d.get(doc_field, d.get("text", "")) for d in data]
+
+        unique_data: List = []
+        duplicates: List[Dict] = []
+
+        # Process in batches
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i : i + batch_size]
+            batch_data = data[i : i + batch_size]
+
+            # Search for similar documents
+            results = self.search(
+                collection_name,
+                data=list(batch_texts),
+                anns_field=vec_field,
+                limit=1,
+                search_params={"metric_type": "MHJACCARD"},
+                output_fields=[doc_field],
+                timeout=timeout,
+            )
+
+            # Process results
+            for j, (original, hits) in enumerate(zip(batch_data, results)):
+                if hits:
+                    top_hit = hits[0]
+                    similarity = 1 - top_hit["distance"]
+
+                    if similarity >= threshold:
+                        # Found duplicate
+                        duplicates.append(
+                            {
+                                "document": original,
+                                "similar_to": {
+                                    "id": top_hit["id"],
+                                    "document": top_hit.get("entity", {}).get(doc_field, ""),
+                                    "distance": top_hit["distance"],
+                                },
+                                "similarity": similarity,
+                            }
+                        )
+                    else:
+                        unique_data.append(original)
+                else:
+                    # No similar document found
+                    unique_data.append(original)
+
+        total_count = len(data)
+        duplicate_count = len(duplicates)
+        duplicate_ratio = duplicate_count / total_count if total_count > 0 else 0.0
+
+        return {
+            "total_count": total_count,
+            "unique_count": len(unique_data),
+            "duplicate_count": duplicate_count,
+            "duplicate_ratio": duplicate_ratio,
+            "unique_data": unique_data,
+            "duplicates": duplicates,
+        }
