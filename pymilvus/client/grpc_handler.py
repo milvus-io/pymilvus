@@ -63,6 +63,7 @@ from .types import (
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
+    FileResourceInfo,
     GrantInfo,
     Group,
     HybridExtraList,
@@ -3346,3 +3347,37 @@ class GrpcHandler:
             )
             for info in response.jobs
         ]
+
+    @retry_on_rpc_failure()
+    def add_file_resource(
+        self,
+        name: str,
+        path: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.add_file_resource(name=name, path=path)
+        resp = self._stub.AddFileResource(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def remove_file_resource(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        req = Prepare.remove_file_resource(name=name)
+        resp = self._stub.RemoveFileResource(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def list_file_resources(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[str]:
+        req = Prepare.list_file_resources()
+        resp = self._stub.ListFileResources(req, timeout=timeout, metadata=_api_level_md(**kwargs))
+        check_status(resp.status)
+        return [FileResourceInfo(info) for info in resp.resources]
