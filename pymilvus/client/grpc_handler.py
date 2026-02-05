@@ -178,6 +178,9 @@ class GrpcHandler:
     def _init_global_connection(self, uri: str, **kwargs) -> None:
         """Initialize connection via global cluster endpoint."""
         token = kwargs.pop("token", "")
+        # Remove address leaked from connections.py - for global connections,
+        # the address is derived from the topology, not the initial URI.
+        kwargs.pop("address", None)
 
         # Lock for thread-safe connection updates
         self._global_conn_lock = threading.Lock()
