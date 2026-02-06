@@ -2686,3 +2686,15 @@ class Prepare:
     @classmethod
     def list_restore_snapshot_jobs_req(cls, collection_name: str = ""):
         return milvus_types.ListRestoreSnapshotJobsRequest(collection_name=collection_name)
+
+    @classmethod
+    def add_file_resource(cls, name: str, path: str):
+        return milvus_types.AddFileResourceRequest(name=name, path=path)
+
+    @classmethod
+    def remove_file_resource(cls, name: str):
+        return milvus_types.RemoveFileResourceRequest(name=name)
+
+    @classmethod
+    def list_file_resources(cls):
+        return milvus_types.ListFileResourcesRequest()

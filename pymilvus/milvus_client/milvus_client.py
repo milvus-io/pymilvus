@@ -2821,3 +2821,24 @@ class MilvusClient(BaseMilvusClient):
         return conn.list_restore_snapshot_jobs(
             collection_name=collection_name, timeout=timeout, **kwargs
         )
+
+    def add_file_resource(
+        self,
+        name: str,
+        path: str,
+        timeout: Optional[float] = None,
+    ):
+        return self._get_connection().add_file_resource(name=name, path=path, timeout=timeout)
+
+    def remove_file_resource(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+    ):
+        return self._get_connection().remove_file_resource(name=name, timeout=timeout)
+
+    def list_file_resources(
+        self,
+        timeout: Optional[float] = None,
+    ):
+        return self._get_connection().list_file_resources(timeout=timeout)

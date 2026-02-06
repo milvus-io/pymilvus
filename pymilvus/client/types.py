@@ -1437,6 +1437,18 @@ class AnalyzeResult:
     __repr__ = __str__
 
 
+class FileResourceInfo:
+    def __init__(self, info: milvus_types.FileResourceInfo) -> None:
+        self.name = info.name
+        self.path = info.path
+
+    def __str__(self) -> str:
+        return f"(name={self.name}, path={self.path})"
+
+    def __repr__(self):
+        return self.__str__()
+
+
 @dataclass
 class SegmentInfo:
     segment_id: int
