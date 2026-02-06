@@ -56,13 +56,13 @@ TYPE_VALIDATOR = {
     DataType.JSON.name: lambda x: isinstance(x, (str, list, dict)),
     DataType.TIMESTAMPTZ.name: lambda x: isinstance(x, str),
     DataType.GEOMETRY.name: lambda x: isinstance(x, str),
-    DataType.STRUCT.name: lambda x, max_cap: struct_validator(x, max_cap),
-    DataType.FLOAT_VECTOR.name: lambda x, dim: float_vector_validator(x, dim),
-    DataType.BINARY_VECTOR.name: lambda x, dim: binary_vector_validator(x, dim),
+    DataType.STRUCT.name: struct_validator,
+    DataType.FLOAT_VECTOR.name: float_vector_validator,
+    DataType.BINARY_VECTOR.name: binary_vector_validator,
     DataType.FLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, False),
     DataType.BFLOAT16_VECTOR.name: lambda x, dim: float16_vector_validator(x, dim, True),
-    DataType.SPARSE_FLOAT_VECTOR.name: lambda x: sparse_vector_validator(x),
-    DataType.INT8_VECTOR.name: lambda x, dim: int8_vector_validator(x, dim),
+    DataType.SPARSE_FLOAT_VECTOR.name: sparse_vector_validator,
+    DataType.INT8_VECTOR.name: int8_vector_validator,
     DataType.ARRAY.name: lambda x, cap: (isinstance(x, (list, np.ndarray)) and len(x) <= cap),
 }
 

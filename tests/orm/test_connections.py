@@ -685,3 +685,39 @@ class TestUnbindWithDb:
             mock_connect.assert_called_once()
             call_kwargs = mock_connect.call_args[1]
             assert call_kwargs.get("_unbind_with_db") is True
+
+
+class TestGlobalEndpointUriPreserved:
+    def test_global_uri_passed_to_grpc_handler(self):
+        """Global endpoint URI should be preserved in kwargs for GrpcHandler."""
+        alias = "test_global_uri"
+        connections.remove_connection(alias)
+        global_uri = "https://glo-xxx.global-cluster.vectordb.zilliz.com"
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(alias, uri=global_uri, token="test-token", keep_alive=False)
+
+            _, call_kwargs = mock_init.call_args
+            assert call_kwargs.get("uri") == global_uri
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
+
+    def test_regular_uri_not_passed_to_grpc_handler(self):
+        """Regular (non-global) URI should NOT be preserved in kwargs."""
+        alias = "test_regular_uri"
+        connections.remove_connection(alias)
+        regular_uri = "https://in01-xxx.zilliz.com"
+
+        with mock.patch(f"{mock_prefix}.__init__", return_value=None) as mock_init, mock.patch(
+            f"{mock_prefix}._wait_for_channel_ready", return_value=None
+        ):
+            connections.connect(alias, uri=regular_uri, token="test-token", keep_alive=False)
+
+            _, call_kwargs = mock_init.call_args
+            assert "uri" not in call_kwargs
+
+        with mock.patch(f"{mock_prefix}.close", return_value=None):
+            connections.remove_connection(alias)
