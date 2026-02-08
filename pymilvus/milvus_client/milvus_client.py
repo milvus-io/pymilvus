@@ -785,7 +785,7 @@ class MilvusClient(BaseMilvusClient):
             Note: You need to passin either ids or filter, and they cannot be used at the same time.
 
         Returns:
-            Dict: with key 'deleted_count' and value number of rows that were deleted.
+            Dict: with key 'delete_count' and value number of rows that were deleted.
         """
         pks = kwargs.get("pks", [])
         if isinstance(pks, (int, str)):
