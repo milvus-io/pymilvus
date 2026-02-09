@@ -322,6 +322,27 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
+def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
+    """Convert a single vector value to bytes for byte-based vector types."""
+    if isinstance(field_value, bytes):
+        return field_value
+    if isinstance(field_value, np.ndarray):
+        expected_dtypes = {
+            DataType.FLOAT16_VECTOR: "float16",
+            DataType.BFLOAT16_VECTOR: "bfloat16",
+            DataType.INT8_VECTOR: "int8",
+        }
+        expected = expected_dtypes.get(element_type)
+        if expected and field_value.dtype != expected:
+            raise ParamError(
+                message=f"invalid input for {expected} vector. Expected an np.ndarray with dtype={expected}"
+            )
+        return field_value.view(np.uint8).tobytes()
+    raise ParamError(
+        message=f"invalid input type for {element_type.name} vector. Expected bytes or np.ndarray"
+    )
+
+
 def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     # Create a single VectorField that contains all vectors flattened
     field_data = schema_types.VectorField()
@@ -345,9 +366,31 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                 f_value = field_value.tolist()
             field_data.float_vector.data.extend(f_value)
 
+    elif element_type in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
+        all_bytes = b""
+        for field_value in obj:
+            all_bytes += _convert_to_vector_bytes(field_value, element_type)
+        if element_type == DataType.FLOAT16_VECTOR:
+            field_data.float16_vector = all_bytes
+        else:
+            field_data.bfloat16_vector = all_bytes
+
+    elif element_type == DataType.INT8_VECTOR:
+        all_bytes = b""
+        for field_value in obj:
+            all_bytes += _convert_to_vector_bytes(field_value, element_type)
+        field_data.int8_vector = all_bytes
+
+    elif element_type == DataType.BINARY_VECTOR:
+        all_bytes = b""
+        for field_value in obj:
+            if isinstance(field_value, bytes):
+                all_bytes += field_value
+            else:
+                all_bytes += bytes(field_value)
+        field_data.binary_vector = all_bytes
+
     else:
-        # todo(SpadeA): other types are now not supported. When it's supported, make sure empty
-        # array is handled correctly.
         raise ParamError(
             message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
         )

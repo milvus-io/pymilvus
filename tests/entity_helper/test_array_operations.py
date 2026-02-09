@@ -278,15 +278,158 @@ class TestConvertToArrayOfVector:
         result = convert_to_array_of_vector(vectors, field_info)
         assert list(result.float_vector.data) == [1.0, 2.0, 3.0, 4.0]
 
-    def test_convert_array_of_vector_unsupported_type(self):
-        """Test unsupported element type raises error"""
+    def test_convert_array_of_float16_vectors(self):
+        """Test converting array of float16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        v1 = np.array([1.0, 2.0], dtype=np.float16)
+        v2 = np.array([3.0, 4.0], dtype=np.float16)
+        result = convert_to_array_of_vector([v1, v2], field_info)
+        assert result.dim == 2
+        expected = v1.view(np.uint8).tobytes() + v2.view(np.uint8).tobytes()
+        assert result.float16_vector == expected
+
+    def test_convert_array_of_float16_vectors_bytes(self):
+        """Test converting array of float16 vectors from raw bytes"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        v1_bytes = np.array([1.0, 2.0], dtype=np.float16).view(np.uint8).tobytes()
+        v2_bytes = np.array([3.0, 4.0], dtype=np.float16).view(np.uint8).tobytes()
+        result = convert_to_array_of_vector([v1_bytes, v2_bytes], field_info)
+        assert result.float16_vector == v1_bytes + v2_bytes
+
+    def test_convert_empty_array_of_float16_vectors(self):
+        """Test converting empty array of float16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 4},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 4
+        assert result.float16_vector == b""
+
+    def test_convert_array_of_bfloat16_vectors(self):
+        """Test converting array of bfloat16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        # Use raw bytes since bfloat16 may not be available in all numpy versions
+        v1_bytes = b"\x00\x3f\x00\x40"  # 4 bytes for dim=2
+        v2_bytes = b"\x00\x41\x00\x42"
+        result = convert_to_array_of_vector([v1_bytes, v2_bytes], field_info)
+        assert result.dim == 2
+        assert result.bfloat16_vector == v1_bytes + v2_bytes
+
+    def test_convert_empty_array_of_bfloat16_vectors(self):
+        """Test converting empty array of bfloat16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 4},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 4
+        assert result.bfloat16_vector == b""
+
+    def test_convert_array_of_int8_vectors(self):
+        """Test converting array of int8 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 3},
+        }
+        v1 = np.array([1, -2, 3], dtype=np.int8)
+        v2 = np.array([4, -5, 6], dtype=np.int8)
+        result = convert_to_array_of_vector([v1, v2], field_info)
+        assert result.dim == 3
+        expected = v1.view(np.uint8).tobytes() + v2.view(np.uint8).tobytes()
+        assert result.int8_vector == expected
+
+    def test_convert_empty_array_of_int8_vectors(self):
+        """Test converting empty array of int8 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 3},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 3
+        assert result.int8_vector == b""
+
+    def test_convert_array_of_binary_vectors(self):
+        """Test converting array of binary vectors"""
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.BINARY_VECTOR,
             "params": {"dim": 8},
         }
+        v1 = b"\xff"
+        v2 = b"\x0f"
+        result = convert_to_array_of_vector([v1, v2], field_info)
+        assert result.dim == 8
+        assert result.binary_vector == b"\xff\x0f"
+
+    def test_convert_empty_array_of_binary_vectors(self):
+        """Test converting empty array of binary vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.BINARY_VECTOR,
+            "params": {"dim": 16},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 16
+        assert result.binary_vector == b""
+
+    def test_convert_array_of_vector_unsupported_type(self):
+        """Test unsupported element type raises error"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.SPARSE_FLOAT_VECTOR,
+            "params": {"dim": 8},
+        }
         with pytest.raises(ParamError, match="Unsupported element type"):
             convert_to_array_of_vector([[1, 2]], field_info)
+
+    def test_convert_array_of_float16_vectors_invalid_dtype(self):
+        """Test numpy array with invalid dtype raises error for float16"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        vectors = [np.array([1.0, 2.0], dtype=np.float32)]
+        with pytest.raises(ParamError, match="invalid input for float16 vector"):
+            convert_to_array_of_vector(vectors, field_info)
+
+    def test_convert_array_of_int8_vectors_invalid_dtype(self):
+        """Test numpy array with invalid dtype raises error for int8"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 2},
+        }
+        vectors = [np.array([1, 2], dtype=np.int32)]
+        with pytest.raises(ParamError, match="invalid input for int8 vector"):
+            convert_to_array_of_vector(vectors, field_info)
+
+    def test_convert_array_of_float16_vectors_invalid_type(self):
+        """Test non-bytes non-ndarray input raises error for float16"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        with pytest.raises(ParamError, match="invalid input type"):
+            convert_to_array_of_vector([[1.0, 2.0]], field_info)
 
     def test_convert_array_of_float_vectors_invalid_dtype(self):
         """Test numpy array with invalid dtype raises error"""
