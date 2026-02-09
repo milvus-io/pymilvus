@@ -546,3 +546,42 @@ class TestGrpcHandlerDescribeIndexEmpty:
         # With empty index_descriptions, it raises AmbiguousIndexName
         with pytest.raises(AmbiguousIndexName):
             handler.describe_index("coll", "nonexistent")
+
+
+class TestGrpcHandlerFileResource:
+    """Tests for file resource operations."""
+
+    def test_add_file_resource(self, handler):
+        mock_resp = MagicMock()
+        mock_resp.code = 0
+        mock_resp.error_code = 0
+        mock_resp.reason = ""
+        handler._stub.AddFileResource.return_value = mock_resp
+
+        handler.add_file_resource("test_resource", "/path/to/file")
+        handler._stub.AddFileResource.assert_called_once()
+
+    def test_remove_file_resource(self, handler):
+        mock_resp = MagicMock()
+        mock_resp.code = 0
+        mock_resp.error_code = 0
+        mock_resp.reason = ""
+        handler._stub.RemoveFileResource.return_value = mock_resp
+
+        handler.remove_file_resource("test_resource")
+        handler._stub.RemoveFileResource.assert_called_once()
+
+    def test_list_file_resources(self, handler):
+        mock_info = MagicMock()
+        mock_info.name = "res1"
+        mock_info.path = "/path/to/res1"
+        mock_resp = MagicMock()
+        mock_resp.status.code = 0
+        mock_resp.status.error_code = 0
+        mock_resp.status.reason = ""
+        mock_resp.resources = [mock_info]
+        handler._stub.ListFileResources.return_value = mock_resp
+
+        result = handler.list_file_resources()
+        assert len(result) == 1
+        handler._stub.ListFileResources.assert_called_once()
