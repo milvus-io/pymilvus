@@ -1537,9 +1537,9 @@ class TestCheckInsertSchema:
                 FieldSchema("vec", DataType.FLOAT_VECTOR, dim=2),
             ]
         )
-        df = pd.DataFrame({"id": [1, 2], "vec": [[1.0, 2.0], [3.0, 4.0]]})
+        insert_data = pd.DataFrame({"id": [1, 2], "vec": [[1.0, 2.0], [3.0, 4.0]]})
         with pytest.raises(DataNotMatchException, match="auto_id"):
-            check_insert_schema(schema, df)
+            check_insert_schema(schema, insert_data)
 
 
 class TestCheckUpsertSchema:
@@ -1552,9 +1552,9 @@ class TestCheckUpsertSchema:
 
     def test_check_upsert_schema_missing_pk(self, basic_schema):
         """Test upsert with missing primary key in DataFrame."""
-        df = pd.DataFrame({"vec": [[1.0] * 128, [2.0] * 128]})
+        upsert_data = pd.DataFrame({"vec": [[1.0] * 128, [2.0] * 128]})
         with pytest.raises(DataNotMatchException, match="pk"):
-            check_upsert_schema(basic_schema, df)
+            check_upsert_schema(basic_schema, upsert_data)
 
 
 class TestCheckSchema:
@@ -1588,9 +1588,9 @@ class TestPrepareFieldsFromDataframe:
 
     def test_empty_dataframe_unknown_dtype(self):
         """Test with empty DataFrame having unknown dtype."""
-        df = pd.DataFrame({"col": pd.array([], dtype=object)})
+        empty_frame = pd.DataFrame({"col": pd.array([], dtype=object)})
         with pytest.raises(CannotInferSchemaException):
-            prepare_fields_from_dataframe(df)
+            prepare_fields_from_dataframe(empty_frame)
 
     @pytest.mark.parametrize(
         "vec_data,expected_dtype",
@@ -1605,8 +1605,8 @@ class TestPrepareFieldsFromDataframe:
     )
     def test_dataframe_with_vectors(self, vec_data, expected_dtype):
         """Test DataFrame with vector columns."""
-        df = pd.DataFrame({"id": [1], "vec": [vec_data]})
-        _, data_types, params = prepare_fields_from_dataframe(df)
+        vec_frame = pd.DataFrame({"id": [1], "vec": [vec_data]})
+        _, data_types, params = prepare_fields_from_dataframe(vec_frame)
         assert expected_dtype in data_types
         assert "vec" in params
 
