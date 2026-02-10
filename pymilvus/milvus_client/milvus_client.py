@@ -2346,7 +2346,7 @@ class MilvusClient(BaseMilvusClient):
     def _list_vector_indexes(
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
-        schema_dict = self._get_connection()._get_schema(
+        schema_dict, _ = self._get_connection()._get_schema(
             collection_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
