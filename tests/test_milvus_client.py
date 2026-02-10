@@ -706,7 +706,10 @@ class TestMilvusClientIndexOps:
         mock_index.field_name = "vector"
         mock_index.index_name = "vec_index"
         mock_handler.list_indexes.return_value = [mock_index]
-        mock_handler.describe_index.return_value = {"field_name": "vector", "index_name": "vec_index"}
+        mock_handler.describe_index.return_value = {
+            "field_name": "vector",
+            "index_name": "vec_index",
+        }
 
         with patch(
             "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
