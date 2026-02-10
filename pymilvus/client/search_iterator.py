@@ -49,7 +49,7 @@ class SearchIteratorV2:
             self._left_res_cnt = limit
 
         self._conn = connection
-        self._set_up_collection_id(collection_name)
+        self._set_up_collection_id(collection_name, **kwargs)
         kwargs[COLLECTION_ID] = self._collection_id
         self._params = {
             "collection_name": collection_name,
@@ -73,8 +73,8 @@ class SearchIteratorV2:
         self._batch_size = batch_size
         self._probe_for_compability(self._params)
 
-    def _set_up_collection_id(self, collection_name: str):
-        res = self._conn.describe_collection(collection_name)
+    def _set_up_collection_id(self, collection_name: str, **kwargs):
+        res = self._conn.describe_collection(collection_name, **kwargs)
         self._collection_id = res[COLLECTION_ID]
 
     def _check_token_exists(self, token: Union[str, None]):
