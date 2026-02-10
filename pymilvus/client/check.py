@@ -130,7 +130,7 @@ def is_legal_ids(ids: Any) -> bool:
             if isinstance(i, bool) or not isinstance(i, (int, np.integer)):
                 return False
             value = int(i)
-            if value < 0 or value > sys.maxsize:
+            if not (-(2**63) <= value <= 2**63 - 1):
                 return False
         return True
 
@@ -142,7 +142,7 @@ def is_legal_ids(ids: Any) -> bool:
                 value = int(i)
             except (TypeError, ValueError, OverflowError):
                 continue
-            if value < 0 or value > sys.maxsize:
+            if not (-(2**63) <= value <= 2**63 - 1):
                 return False
         return True
 
