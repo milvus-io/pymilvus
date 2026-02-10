@@ -689,6 +689,55 @@ class TestMilvusClientIndexOps:
 
             assert result == ["index1", "index2"]
 
+    def test_list_vector_indexes(self):
+        """Test _list_vector_indexes correctly unpacks _get_schema tuple return."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        schema_dict = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "vector", "type": DataType.FLOAT_VECTOR},
+            ]
+        }
+        mock_handler._get_schema.return_value = (schema_dict, 12345)
+
+        mock_index = MagicMock()
+        mock_index.field_name = "vector"
+        mock_index.index_name = "vec_index"
+        mock_handler.list_indexes.return_value = [mock_index]
+        mock_handler.describe_index.return_value = {"field_name": "vector", "index_name": "vec_index"}
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client._list_vector_indexes("test_collection")
+
+            assert result == ["vec_index"]
+            mock_handler._get_schema.assert_called_once()
+
+    def test_list_vector_indexes_no_vector_fields(self):
+        """Test _list_vector_indexes returns empty list when no vector fields."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+
+        schema_dict = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "text", "type": DataType.VARCHAR},
+            ]
+        }
+        mock_handler._get_schema.return_value = (schema_dict, 12345)
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client._list_vector_indexes("test_collection")
+
+            assert result == []
+
 
 # ============================================================
 # MilvusClient Alias Operations Tests
