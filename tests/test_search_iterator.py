@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.search_result import SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
@@ -87,6 +88,20 @@ class TestSearchIteratorV2:
                 data=[[1, 2], [3, 4]],  # Multiple vectors
                 batch_size=100,
             )
+
+    def test_context_passed_to_describe_collection(self, mock_connection, search_data):
+        """Regression test for #3270: context (db_name) must be forwarded to describe_collection"""
+        ctx = CallContext(db_name="nondefault")
+
+        SearchIteratorV2(
+            connection=mock_connection,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=100,
+            context=ctx,
+        )
+
+        mock_connection.describe_collection.assert_called_once_with("test_collection", context=ctx)
 
     @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
     def test_next_without_external_filter(self, mock_probe, mock_connection, search_data):
