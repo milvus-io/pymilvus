@@ -10,6 +10,9 @@ from pymilvus.settings import Config
 from . import entity_helper
 from .singleton_utils import Singleton
 
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
+
 
 def validate_strs(**kwargs):
     """validate if all values are legal non-emtpy str"""
@@ -129,7 +132,7 @@ def is_legal_ids(ids: Any) -> bool:
             if isinstance(i, bool) or not isinstance(i, (int, np.integer)):
                 return False
             value = int(i)
-            if not (-(2**63) <= value <= 2**63 - 1):
+            if not (_INT64_MIN <= value <= _INT64_MAX):
                 return False
         return True
 
@@ -141,7 +144,7 @@ def is_legal_ids(ids: Any) -> bool:
                 value = int(i)
             except (TypeError, ValueError, OverflowError):
                 continue
-            if not (-(2**63) <= value <= 2**63 - 1):
+            if not (_INT64_MIN <= value <= _INT64_MAX):
                 return False
         return True
 
