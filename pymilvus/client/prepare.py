@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
@@ -56,6 +57,8 @@ from .types import (
     get_consistency_level,
 )
 from .utils import get_params, traverse_info, traverse_upsert_info
+
+_META_KEY_PATTERN = re.compile(r"""^\$meta\[['"](.+?)['"]\]$""")
 
 
 class Prepare:
@@ -838,11 +841,12 @@ class Prepare:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
                         )
-                json_dict = {
-                    k: v
-                    for k, v in entity.items()
-                    if k not in fields_data and k not in struct_fields_data and enable_dynamic
-                }
+                json_dict = {}
+                for k, v in entity.items():
+                    if k in fields_data or k in struct_fields_data or not enable_dynamic:
+                        continue
+                    m = _META_KEY_PATTERN.match(k)
+                    json_dict[m.group(1) if m else k] = v
 
                 if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)
@@ -999,11 +1003,12 @@ class Prepare:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
                         )
-                json_dict = {
-                    k: v
-                    for k, v in entity.items()
-                    if k not in fields_data and k not in struct_fields_data and enable_dynamic
-                }
+                json_dict = {}
+                for k, v in entity.items():
+                    if k in fields_data or k in struct_fields_data or not enable_dynamic:
+                        continue
+                    m = _META_KEY_PATTERN.match(k)
+                    json_dict[m.group(1) if m else k] = v
 
                 if enable_dynamic:
                     json_value = entity_helper.convert_to_json(json_dict)
