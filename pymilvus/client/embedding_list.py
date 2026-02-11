@@ -87,11 +87,15 @@ class EmbeddingList:
         if isinstance(dtype, str):
             return np.dtype(dtype)
         if isinstance(dtype, DataType):
+            if dtype == DataType.BFLOAT16_VECTOR:
+                try:
+                    return np.dtype("bfloat16")
+                except TypeError:
+                    return np.dtype(np.float16)
             # Map DataType enum to numpy dtype
             dtype_map = {
                 DataType.FLOAT_VECTOR: np.float32,
                 DataType.FLOAT16_VECTOR: np.float16,
-                DataType.BFLOAT16_VECTOR: np.float16,  # Use float16 as approximation
                 DataType.BINARY_VECTOR: np.uint8,
                 DataType.INT8_VECTOR: np.int8,
             }
@@ -109,12 +113,12 @@ class EmbeddingList:
             return np.dtype(np.float32)
         return array.dtype
 
-    def add(self, embedding: Union[np.ndarray, List[Any]]) -> "EmbeddingList":
+    def add(self, embedding: Union[np.ndarray, bytes, List[Any]]) -> "EmbeddingList":
         """
         Add a single embedding vector to the list.
 
         Args:
-            embedding: A single embedding vector (1D array or list)
+            embedding: A single embedding vector (1D array, bytes, or list)
 
         Returns:
             Self for method chaining
@@ -122,7 +126,13 @@ class EmbeddingList:
         Raises:
             ValueError: If embedding dimension doesn't match existing embeddings
         """
-        embedding = np.asarray(embedding)
+        if isinstance(embedding, bytes):
+            if self._dtype is not None:
+                embedding = np.frombuffer(embedding, dtype=self._dtype)
+            else:
+                embedding = np.frombuffer(embedding, dtype=np.uint8)
+        else:
+            embedding = np.asarray(embedding)
 
         if embedding.ndim != 1:
             msg = f"Embedding must be 1D, got shape {embedding.shape}"

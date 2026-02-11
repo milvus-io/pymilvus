@@ -1337,16 +1337,24 @@ class Prepare:
                 )
                 pl_values = (array.tobytes() for array in data)
 
-            elif dtype == "byte":
-                pl_type = PlaceholderType.BinaryVector
-                pl_values = data
+            elif dtype in ("byte", "uint8"):
+                pl_type = (
+                    PlaceholderType.BinaryVector
+                    if not is_embedding_list
+                    else PlaceholderType.EmbListBinaryVector
+                )
+                pl_values = (array.tobytes() for array in data)
 
             else:
                 err_msg = f"unsupported data type: {dtype}"
                 raise ParamError(message=err_msg)
 
         elif isinstance(data[0], bytes):
-            pl_type = PlaceholderType.BinaryVector
+            pl_type = (
+                PlaceholderType.BinaryVector
+                if not is_embedding_list
+                else PlaceholderType.EmbListBinaryVector
+            )
             pl_values = data  # data is already a list of bytes
 
         elif isinstance(data[0], str):
