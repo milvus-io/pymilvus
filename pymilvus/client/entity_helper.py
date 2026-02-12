@@ -349,20 +349,6 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                 f_value = field_value.tolist()
             field_data.float_vector.data.extend(f_value)
 
-    elif element_type in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
-        all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-        if element_type == DataType.FLOAT16_VECTOR:
-            field_data.float16_vector = all_bytes
-        else:
-            field_data.bfloat16_vector = all_bytes
-
-    elif element_type == DataType.INT8_VECTOR:
-        field_data.int8_vector = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-
-    elif element_type == DataType.BINARY_VECTOR:
-        field_data.binary_vector = b"".join(
-            fv if isinstance(fv, bytes) else bytes(fv) for fv in obj
-        )
     else:
         # todo(SpadeA): other types are now not supported. When it's supported, make sure empty
         # array is handled correctly.
