@@ -9,6 +9,62 @@ from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 from pymilvus.grpc_gen.schema_pb2 import FieldData
 
+_SCALAR_TYPES = frozenset(
+    {
+        DataType.BOOL,
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.INT64,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+        DataType.VARCHAR,
+        DataType.GEOMETRY,
+        DataType.TIMESTAMPTZ,
+    }
+)
+
+_DENSE_VECTOR_TYPES = frozenset(
+    {
+        DataType.FLOAT_VECTOR,
+        DataType.BINARY_VECTOR,
+        DataType.BFLOAT16_VECTOR,
+        DataType.FLOAT16_VECTOR,
+        DataType.INT8_VECTOR,
+    }
+)
+
+_HALF_PRECISION_VECTOR_TYPES = frozenset(
+    {
+        DataType.BFLOAT16_VECTOR,
+        DataType.FLOAT16_VECTOR,
+    }
+)
+
+_SCALAR_DATA_ATTR = {
+    DataType.BOOL: "bool_data",
+    DataType.INT8: "int_data",
+    DataType.INT16: "int_data",
+    DataType.INT32: "int_data",
+    DataType.INT64: "long_data",
+    DataType.FLOAT: "float_data",
+    DataType.DOUBLE: "double_data",
+    DataType.VARCHAR: "string_data",
+    DataType.TIMESTAMPTZ: "string_data",
+    DataType.GEOMETRY: "geometry_wkt_data",
+    DataType.JSON: "json_data",
+    DataType.ARRAY: "array_data",
+}
+
+_VECTOR_DATA_ATTR = {
+    DataType.FLOAT_VECTOR: "float_vector",
+    DataType.BINARY_VECTOR: "binary_vector",
+    DataType.BFLOAT16_VECTOR: "bfloat16_vector",
+    DataType.FLOAT16_VECTOR: "float16_vector",
+    DataType.INT8_VECTOR: "int8_vector",
+    DataType.SPARSE_FLOAT_VECTOR: "sparse_float_vector",
+}
+
 from . import entity_helper
 
 logger = logging.getLogger(__name__)
@@ -42,6 +98,7 @@ class HybridHits(list):
         self.lazy_field_data = []
         self.has_materialized = False
         self.start = start
+        self._prefix_sum_cache = {}
 
         offsets = all_offsets[start:end] if all_offsets else None
 
@@ -50,18 +107,7 @@ class HybridHits(list):
             has_valid = len(field_data.valid_data) > 0
             field_name = field_data.field_name
 
-            if field_data.type in [
-                DataType.BOOL,
-                DataType.INT8,
-                DataType.INT16,
-                DataType.INT32,
-                DataType.INT64,
-                DataType.FLOAT,
-                DataType.DOUBLE,
-                DataType.VARCHAR,
-                DataType.GEOMETRY,
-                DataType.TIMESTAMPTZ,
-            ]:
+            if field_data.type in _SCALAR_TYPES:
                 data = get_field_data(field_data)
                 col_results[field_name] = apply_valid_data(
                     data[start:end],
@@ -69,8 +115,9 @@ class HybridHits(list):
                 )
 
             elif field_data.type == DataType.ARRAY:
-                element_type = field_data.scalars.array_data.element_type
-                data = field_data.scalars.array_data.data[start:end]
+                array_data = field_data.scalars.array_data
+                element_type = array_data.element_type
+                data = array_data.data[start:end]
                 col_results[field_name] = apply_valid_data(
                     extract_array_row_data(data, element_type),
                     field_data.valid_data[start:end] if has_valid else None,
@@ -142,9 +189,6 @@ class HybridHits(list):
         Uses prefix sum for O(1) lookup instead of O(n) iteration.
         Caches prefix sum in instance variable using field_data id as key.
         """
-        if not hasattr(self, "_prefix_sum_cache"):
-            self._prefix_sum_cache = {}
-
         field_id = id(field_data)
         if field_id not in self._prefix_sum_cache:
             if len(field_data.valid_data) == 0:
@@ -160,26 +204,21 @@ class HybridHits(list):
 
     def materialize(self):
         if not self.has_materialized:
+            n = len(self)
             for field_data in self.lazy_field_data:
                 field_name = field_data.field_name
                 has_valid = len(field_data.valid_data) > 0
 
-                if field_data.type in [
-                    DataType.FLOAT_VECTOR,
-                    DataType.BINARY_VECTOR,
-                    DataType.BFLOAT16_VECTOR,
-                    DataType.FLOAT16_VECTOR,
-                    DataType.INT8_VECTOR,
-                ]:
+                if field_data.type in _DENSE_VECTOR_TYPES:
                     data = get_field_data(field_data)
                     dim = field_data.vectors.dim
-                    if field_data.type in [DataType.BINARY_VECTOR]:
+                    if field_data.type == DataType.BINARY_VECTOR:
                         dim = dim // 8
-                    elif field_data.type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
+                    elif field_data.type in _HALF_PRECISION_VECTOR_TYPES:
                         dim = dim * 2
 
                     if has_valid:
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             actual_idx = self.start + i
                             if not field_data.valid_data[actual_idx]:
@@ -191,13 +230,13 @@ class HybridHits(list):
                                 ]
                     else:
                         idx = self.start * dim
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             item["entity"][field_name] = data[idx : idx + dim]
                             idx += dim
                 elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
                     if has_valid:
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             actual_idx = self.start + i
                             if not field_data.valid_data[actual_idx]:
@@ -209,7 +248,7 @@ class HybridHits(list):
                                 )[0]
                     else:
                         idx = self.start
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             item["entity"][field_name] = entity_helper.sparse_proto_to_rows(
                                 field_data.vectors.sparse_float_vector, idx, idx + 1
@@ -217,7 +256,7 @@ class HybridHits(list):
                             idx += 1
                 elif field_data.type == DataType.JSON:
                     idx = self.start
-                    for i in range(len(self)):
+                    for i in range(n):
                         item = self.get_raw_item(i)
                         if field_data.valid_data and not field_data.valid_data[idx]:
                             item["entity"][field_name] = None
@@ -250,7 +289,7 @@ class HybridHits(list):
                     idx = self.start
                     struct_arrays = get_field_data(field_data)
                     if struct_arrays and hasattr(struct_arrays, "fields"):
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             item["entity"][field_name] = (
                                 entity_helper.extract_struct_array_from_column_data(
@@ -259,7 +298,7 @@ class HybridHits(list):
                             )
                             idx += 1
                     else:
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             item["entity"][field_name] = None
                 elif field_data.type == DataType._ARRAY_OF_VECTOR:
@@ -268,7 +307,7 @@ class HybridHits(list):
                         field_data.vectors, "vector_array"
                     ):
                         vector_array = field_data.vectors.vector_array
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             if idx < len(vector_array.data):
                                 vector_data = vector_array.data[idx]
@@ -285,7 +324,7 @@ class HybridHits(list):
                                 item["entity"][field_name] = []
                             idx += 1
                     else:
-                        for i in range(len(self)):
+                        for i in range(n):
                             item = self.get_raw_item(i)
                             item["entity"][field_name] = []
                 else:
@@ -609,41 +648,20 @@ class SearchResult(list):
 
 
 def get_field_data(field_data: FieldData):
-    if field_data.type == DataType.BOOL:
-        return field_data.scalars.bool_data.data
-    if field_data.type in {DataType.INT8, DataType.INT16, DataType.INT32}:
-        return field_data.scalars.int_data.data
-    if field_data.type == DataType.INT64:
-        return field_data.scalars.long_data.data
-    if field_data.type == DataType.FLOAT:
-        return field_data.scalars.float_data.data
-    if field_data.type == DataType.DOUBLE:
-        return field_data.scalars.double_data.data
-    if field_data.type in (DataType.VARCHAR, DataType.TIMESTAMPTZ):
-        return field_data.scalars.string_data.data
-    if field_data.type == DataType.GEOMETRY:
-        return field_data.scalars.geometry_wkt_data.data
-    if field_data.type == DataType.JSON:
-        return field_data.scalars.json_data.data
-    if field_data.type == DataType.ARRAY:
-        return field_data.scalars.array_data.data
-    if field_data.type == DataType.FLOAT_VECTOR:
-        return field_data.vectors.float_vector.data
-    if field_data.type == DataType.BINARY_VECTOR:
-        return field_data.vectors.binary_vector
-    if field_data.type == DataType.BFLOAT16_VECTOR:
-        return field_data.vectors.bfloat16_vector
-    if field_data.type == DataType.FLOAT16_VECTOR:
-        return field_data.vectors.float16_vector
-    if field_data.type == DataType.INT8_VECTOR:
-        return field_data.vectors.int8_vector
-    if field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-        return field_data.vectors.sparse_float_vector
-    if field_data.type == DataType._ARRAY_OF_STRUCT:
+    field_type = field_data.type
+    scalar_attr = _SCALAR_DATA_ATTR.get(field_type)
+    if scalar_attr is not None:
+        return getattr(field_data.scalars, scalar_attr).data
+    vector_attr = _VECTOR_DATA_ATTR.get(field_type)
+    if vector_attr is not None:
+        obj = getattr(field_data.vectors, vector_attr)
+        # float_vector returns .data, others return the bytes/proto directly
+        return obj.data if field_type == DataType.FLOAT_VECTOR else obj
+    if field_type == DataType._ARRAY_OF_STRUCT:
         return field_data.struct_arrays
-    if field_data.type == DataType._ARRAY_OF_VECTOR:
+    if field_type == DataType._ARRAY_OF_VECTOR:
         return field_data.vectors.vector_array
-    msg = f"Unsupported field type: {field_data.type}"
+    msg = f"Unsupported field type: {field_type}"
     raise MilvusException(msg)
 
 

@@ -1,5 +1,4 @@
 import asyncio
-import datetime
 import functools
 import logging
 import time
@@ -334,96 +333,79 @@ def retry_on_rpc_failure(
     return wrapper
 
 
+def _log_rpc_error(inner_name: str, label: str, msg: str, start_ts: float):
+    if not LOGGER.isEnabledFor(logging.ERROR):
+        return
+    elapsed_ms = (time.monotonic() - start_ts) * 1000
+    tb_str = traceback.format_exc()
+    LOGGER.error(
+        f"{label}: [{inner_name}], {msg}, <elapsed:{elapsed_ms:.1f}ms>\nTraceback:\n{tb_str}"
+    )
+
+
 def error_handler(func_name: str = ""):
     def wrapper(func: Callable):
         if asyncio.iscoroutinefunction(func):
+            inner_name = func_name or func.__name__
 
             @functools.wraps(func)
             async def async_handler(*args, **kwargs):
-                inner_name = func_name or func.__name__
-                record_dict = {}
+                start_ts = time.monotonic()
                 try:
-                    record_dict["RPC start"] = str(datetime.datetime.now())
                     return await func(*args, **kwargs)
                 except MilvusException as e:
-                    record_dict["RPC error"] = str(datetime.datetime.now())
-                    tb_str = traceback.format_exc()
-                    LOGGER.error(
-                        f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>\n"
-                        f"Traceback:\n{tb_str}"
-                    )
+                    _log_rpc_error(inner_name, "RPC error", str(e), start_ts)
                     raise e from e
                 except grpc.FutureTimeoutError as e:
-                    record_dict["gRPC timeout"] = str(datetime.datetime.now())
-                    tb_str = traceback.format_exc()
-                    LOGGER.error(
-                        f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
-                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
-                        f"Traceback:\n{tb_str}"
+                    _log_rpc_error(
+                        inner_name,
+                        "grpc Timeout",
+                        f"<{e.__class__.__name__}: {e.code()}, {e.details()}>",
+                        start_ts,
                     )
                     raise e from e
                 except grpc.RpcError as e:
-                    record_dict["gRPC error"] = str(datetime.datetime.now())
-                    tb_str = traceback.format_exc()
-                    LOGGER.error(
-                        f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
-                        f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
-                        f"Traceback:\n{tb_str}"
+                    _log_rpc_error(
+                        inner_name,
+                        "grpc RpcError",
+                        f"<{e.__class__.__name__}: {e.code()}, {e.details()}>",
+                        start_ts,
                     )
                     raise e from e
                 except Exception as e:
-                    record_dict["Exception"] = str(datetime.datetime.now())
-                    tb_str = traceback.format_exc()
-                    LOGGER.error(
-                        f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>\n"
-                        f"Traceback:\n{tb_str}"
-                    )
+                    _log_rpc_error(inner_name, "Unexpected error", str(e), start_ts)
                     raise MilvusException(message=f"Unexpected error, message=<{e!s}>") from e
 
             return async_handler
 
+        inner_name = func_name or func.__name__
+
         @functools.wraps(func)
         def handler(*args, **kwargs):
-            inner_name = func_name
-            if inner_name == "":
-                inner_name = func.__name__
-            record_dict = {}
+            start_ts = time.monotonic()
             try:
-                record_dict["RPC start"] = str(datetime.datetime.now())
                 return func(*args, **kwargs)
             except MilvusException as e:
-                record_dict["RPC error"] = str(datetime.datetime.now())
-                tb_str = traceback.format_exc()
-                LOGGER.error(
-                    f"RPC error: [{inner_name}], {e}, <Time:{record_dict}>\n"
-                    f"Traceback:\n{tb_str}"
-                )
+                _log_rpc_error(inner_name, "RPC error", str(e), start_ts)
                 raise e from e
             except grpc.FutureTimeoutError as e:
-                record_dict["gRPC timeout"] = str(datetime.datetime.now())
-                tb_str = traceback.format_exc()
-                LOGGER.error(
-                    f"grpc Timeout: [{inner_name}], <{e.__class__.__name__}: "
-                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
-                    f"Traceback:\n{tb_str}"
+                _log_rpc_error(
+                    inner_name,
+                    "grpc Timeout",
+                    f"<{e.__class__.__name__}: {e.code()}, {e.details()}>",
+                    start_ts,
                 )
                 raise e from e
             except grpc.RpcError as e:
-                record_dict["gRPC error"] = str(datetime.datetime.now())
-                tb_str = traceback.format_exc()
-                LOGGER.error(
-                    f"grpc RpcError: [{inner_name}], <{e.__class__.__name__}: "
-                    f"{e.code()}, {e.details()}>, <Time:{record_dict}>\n"
-                    f"Traceback:\n{tb_str}"
+                _log_rpc_error(
+                    inner_name,
+                    "grpc RpcError",
+                    f"<{e.__class__.__name__}: {e.code()}, {e.details()}>",
+                    start_ts,
                 )
                 raise e from e
             except Exception as e:
-                record_dict["Exception"] = str(datetime.datetime.now())
-                tb_str = traceback.format_exc()
-                LOGGER.error(
-                    f"Unexpected error: [{inner_name}], {e}, <Time: {record_dict}>\n"
-                    f"Traceback:\n{tb_str}"
-                )
+                _log_rpc_error(inner_name, "Unexpected error", str(e), start_ts)
                 raise MilvusException(message=f"Unexpected error, message=<{e!s}>") from e
 
         return handler
