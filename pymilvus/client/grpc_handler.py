@@ -1,5 +1,4 @@
 import base64
-import json
 import logging
 import socket
 import threading
@@ -9,6 +8,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 from urllib import parse
 
 import grpc
+import orjson
 from grpc._cython import cygrpc
 
 from pymilvus.client.call_context import CallContext, _api_level_md
@@ -1222,7 +1222,6 @@ class GrpcHandler:
             raise e from e
 
     @retry_on_rpc_failure()
-    @retry_on_rpc_failure()
     def search(
         self,
         collection_name: str,
@@ -1590,7 +1589,7 @@ class GrpcHandler:
             info_dict["field_name"] = response.index_descriptions[0].field_name
             info_dict["index_name"] = response.index_descriptions[0].index_name
             if info_dict.get("params"):
-                info_dict["params"] = json.loads(info_dict["params"])
+                info_dict["params"] = orjson.loads(info_dict["params"])
             info_dict["total_rows"] = response.index_descriptions[0].total_rows
             info_dict["indexed_rows"] = response.index_descriptions[0].indexed_rows
             info_dict["pending_index_rows"] = response.index_descriptions[0].pending_index_rows
@@ -2201,7 +2200,8 @@ class GrpcHandler:
 
         keys = [field_data.field_name for field_data in response.fields_data]
         filtered_keys = [k for k in keys if k != "$meta"]
-        results = [dict.fromkeys(filtered_keys) for _ in range(num_entities)]
+        template = dict.fromkeys(filtered_keys)
+        results = [template.copy() for _ in range(num_entities)]
         lazy_field_data = []
         for field_data in response.fields_data:
             lazy_extracted = entity_helper.extract_row_data_from_fields_data_v2(field_data, results)
