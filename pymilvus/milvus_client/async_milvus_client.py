@@ -371,13 +371,13 @@ class AsyncMilvusClient(BaseMilvusClient):
         **kwargs,
     ) -> Dict:
         # If no data provided, we cannot input anything
-        if isinstance(data, Dict):
+        if isinstance(data, dict):
             data = [data]
 
         msg = "wrong type of argument 'data',"
         msg += f"expected 'Dict' or list of 'Dict', got '{type(data).__name__}'"
 
-        if not isinstance(data, List):
+        if not isinstance(data, list):
             raise TypeError(msg)
 
         if len(data) == 0:
@@ -432,13 +432,13 @@ class AsyncMilvusClient(BaseMilvusClient):
             Dict: Number of rows that were upserted.
         """
         # If no data provided, we cannot input anything
-        if isinstance(data, Dict):
+        if isinstance(data, dict):
             data = [data]
 
         msg = "wrong type of argument 'data',"
         msg += f"expected 'Dict' or list of 'Dict', got '{type(data).__name__}'"
 
-        if not isinstance(data, List):
+        if not isinstance(data, list):
             raise TypeError(msg)
 
         if len(data) == 0:

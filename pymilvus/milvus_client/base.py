@@ -135,7 +135,7 @@ class BaseMilvusClient:
             return {}
 
         for field_dict in fields:
-            if field_dict.get("is_primary", None) is not None:
+            if field_dict.get("is_primary"):
                 return field_dict
 
         return {}
