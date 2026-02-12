@@ -2,7 +2,6 @@ import datetime
 import importlib.util
 import struct
 import time
-from copy import deepcopy
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
@@ -18,48 +17,56 @@ from .types import DataType
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
 
-valid_index_types = [
-    "GPU_IVF_FLAT",
-    "GPU_IVF_PQ",
-    "FLAT",
-    "IVF_FLAT",
-    "IVF_SQ8",
-    "IVF_PQ",
-    "HNSW",
-    "BIN_FLAT",
-    "BIN_IVF_FLAT",
-    "DISKANN",
-    "AUTOINDEX",
-    "GPU_CAGRA",
-    "GPU_BRUTE_FORCE",
-]
+valid_index_types = frozenset(
+    {
+        "GPU_IVF_FLAT",
+        "GPU_IVF_PQ",
+        "FLAT",
+        "IVF_FLAT",
+        "IVF_SQ8",
+        "IVF_PQ",
+        "HNSW",
+        "BIN_FLAT",
+        "BIN_IVF_FLAT",
+        "DISKANN",
+        "AUTOINDEX",
+        "GPU_CAGRA",
+        "GPU_BRUTE_FORCE",
+    }
+)
 
-valid_index_params_keys = [
-    "nlist",
-    "m",
-    "nbits",
-    "M",
-    "efConstruction",
-    "PQM",
-    "n_trees",
-    "intermediate_graph_degree",
-    "graph_degree",
-    "build_algo",
-    "cache_dataset_on_device",
-]
+valid_index_params_keys = frozenset(
+    {
+        "nlist",
+        "m",
+        "nbits",
+        "M",
+        "efConstruction",
+        "PQM",
+        "n_trees",
+        "intermediate_graph_degree",
+        "graph_degree",
+        "build_algo",
+        "cache_dataset_on_device",
+    }
+)
 
-valid_binary_index_types = [
-    "BIN_FLAT",
-    "BIN_IVF_FLAT",
-]
+valid_binary_index_types = frozenset(
+    {
+        "BIN_FLAT",
+        "BIN_IVF_FLAT",
+    }
+)
 
-valid_binary_metric_types = [
-    "JACCARD",
-    "HAMMING",
-    "TANIMOTO",
-    "SUBSTRUCTURE",
-    "SUPERSTRUCTURE",
-]
+valid_binary_metric_types = frozenset(
+    {
+        "JACCARD",
+        "HAMMING",
+        "TANIMOTO",
+        "SUBSTRUCTURE",
+        "SUPERSTRUCTURE",
+    }
+)
 
 
 def check_status(status: common_pb2.Status):
@@ -156,80 +163,47 @@ def check_invalid_binary_vector(entities: List) -> bool:
 
 
 def len_of(field_data: Any) -> int:
-    if field_data.HasField("scalars"):
-        if field_data.scalars.HasField("bool_data"):
-            return len(field_data.scalars.bool_data.data)
+    field_kind = field_data.WhichOneof("field")
+    if field_kind == "scalars":
+        scalar_kind = field_data.scalars.WhichOneof("data")
+        if scalar_kind is None:
+            raise MilvusException(message="Unsupported scalar type")
+        scalar_field = getattr(field_data.scalars, scalar_kind)
+        return len(scalar_field.data)
 
-        if field_data.scalars.HasField("int_data"):
-            return len(field_data.scalars.int_data.data)
-
-        if field_data.scalars.HasField("long_data"):
-            return len(field_data.scalars.long_data.data)
-
-        if field_data.scalars.HasField("float_data"):
-            return len(field_data.scalars.float_data.data)
-
-        if field_data.scalars.HasField("double_data"):
-            return len(field_data.scalars.double_data.data)
-
-        if field_data.scalars.HasField("timestamptz_data"):
-            return len(field_data.scalars.timestamptz_data.data)
-
-        if field_data.scalars.HasField("string_data"):
-            return len(field_data.scalars.string_data.data)
-
-        if field_data.scalars.HasField("bytes_data"):
-            return len(field_data.scalars.bytes_data.data)
-
-        if field_data.scalars.HasField("json_data"):
-            return len(field_data.scalars.json_data.data)
-
-        if field_data.scalars.HasField("array_data"):
-            return len(field_data.scalars.array_data.data)
-
-        if field_data.scalars.HasField("geometry_wkt_data"):
-            return len(field_data.scalars.geometry_wkt_data.data)
-
-        raise MilvusException(message="Unsupported scalar type")
-
-    if field_data.HasField("vectors"):
+    if field_kind == "vectors":
         if len(field_data.valid_data) > 0:
             return len(field_data.valid_data)
 
         dim = field_data.vectors.dim
-        if field_data.vectors.HasField("float_vector"):
+        vector_kind = field_data.vectors.WhichOneof("data")
+        if vector_kind == "float_vector":
             total_len = len(field_data.vectors.float_vector.data)
             if total_len % dim != 0:
                 raise MilvusException(
                     message=f"Invalid vector length: total_len={total_len}, dim={dim}"
                 )
-            return int(total_len / dim)
-        if field_data.vectors.HasField("bfloat16_vector") or field_data.vectors.HasField(
-            "float16_vector"
-        ):
-            total_len = (
-                len(field_data.vectors.bfloat16_vector)
-                if field_data.vectors.HasField("bfloat16_vector")
-                else len(field_data.vectors.float16_vector)
-            )
+            return total_len // dim
+        if vector_kind in ("bfloat16_vector", "float16_vector"):
+            total_len = len(getattr(field_data.vectors, vector_kind))
             data_wide_in_bytes = 2
             if total_len % (dim * data_wide_in_bytes) != 0:
                 raise MilvusException(
                     message=f"Invalid bfloat16 or float16 vector length: total_len={total_len}, dim={dim}"
                 )
-            return int(total_len / (dim * data_wide_in_bytes))
-        if field_data.vectors.HasField("sparse_float_vector"):
+            return total_len // (dim * data_wide_in_bytes)
+        if vector_kind == "sparse_float_vector":
             return len(field_data.vectors.sparse_float_vector.contents)
-        if field_data.vectors.HasField("int8_vector"):
+        if vector_kind == "int8_vector":
             total_len = len(field_data.vectors.int8_vector)
-            return int(total_len / dim)
-        if field_data.vectors.HasField("vector_array"):
+            return total_len // dim
+        if vector_kind == "vector_array":
             return len(field_data.vectors.vector_array.data)
 
         total_len = len(field_data.vectors.binary_vector)
         return int(total_len / (dim / 8))
 
-    if field_data.HasField("struct_arrays"):
+    if field_kind == "struct_arrays":
         return len_of(field_data.struct_arrays.fields[0])
 
     raise MilvusException(message="Unknown data type")
@@ -305,7 +279,7 @@ def get_params(search_params: Dict):
     # no more parameters will be written searchParams.params
     # to ensure compatibility and milvus can still get a json format parameter
     # try to write all the parameters under searchParams into searchParams.Params
-    params = deepcopy(search_params.get("params", {}))
+    params = dict(search_params.get("params", {}))
     for key, value in search_params.items():
         if key in params:
             if params[key] != value:

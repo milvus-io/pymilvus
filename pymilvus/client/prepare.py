@@ -56,6 +56,16 @@ from .types import (
 )
 from .utils import get_params, traverse_info, traverse_upsert_info
 
+_JSON_TYPE_MAP = {
+    DataType.INT8: "Int8",
+    DataType.INT16: "Int16",
+    DataType.INT32: "Int32",
+    DataType.INT64: "Int64",
+    DataType.BOOL: "Bool",
+    DataType.VARCHAR: "VarChar",
+    DataType.STRING: "VarChar",
+}
+
 
 class Prepare:
     @classmethod
@@ -557,7 +567,7 @@ class Prepare:
 
     @staticmethod
     def _num_input_fields(fields_info: List[Dict], is_upsert: bool):
-        return len([field for field in fields_info if Prepare._is_input_field(field, is_upsert)])
+        return sum(1 for field in fields_info if Prepare._is_input_field(field, is_upsert))
 
     @staticmethod
     def _process_struct_field(
@@ -783,7 +793,7 @@ class Prepare:
 
         try:
             for entity in entities:
-                if not isinstance(entity, Dict):
+                if not isinstance(entity, dict):
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
                 for k, v in entity.items():
@@ -837,13 +847,12 @@ class Prepare:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
                         )
-                json_dict = {
-                    k: v
-                    for k, v in entity.items()
-                    if k not in fields_data and k not in struct_fields_data and enable_dynamic
-                }
-
                 if enable_dynamic:
+                    json_dict = {
+                        k: v
+                        for k, v in entity.items()
+                        if k not in fields_data and k not in struct_fields_data
+                    }
                     json_value = entity_helper.convert_to_json(json_dict)
                     d_field.scalars.json_data.data.append(json_value)
 
@@ -938,7 +947,7 @@ class Prepare:
 
         try:
             for entity in entities:
-                if not isinstance(entity, Dict):
+                if not isinstance(entity, dict):
                     msg = f"expected Dict, got '{type(entity).__name__}'"
                     raise TypeError(msg)
                 for k, v in entity.items():
@@ -998,13 +1007,12 @@ class Prepare:
                         raise DataNotMatchException(
                             message=ExceptionsMessage.InsertMissedField % key
                         )
-                json_dict = {
-                    k: v
-                    for k, v in entity.items()
-                    if k not in fields_data and k not in struct_fields_data and enable_dynamic
-                }
-
                 if enable_dynamic:
+                    json_dict = {
+                        k: v
+                        for k, v in entity.items()
+                        if k not in fields_data and k not in struct_fields_data
+                    }
                     json_value = entity_helper.convert_to_json(json_dict)
                     d_field.scalars.json_data.data.append(json_value)
                     field_len[DYNAMIC_FIELD_NAME] += 1
@@ -1048,7 +1056,7 @@ class Prepare:
                     )
             request.fields_data.extend(struct_fields_data.values())
 
-        for _, field in enumerate(input_fields_info):
+        for field in input_fields_info:
             is_dynamic = False
             field_name = field["name"]
 
@@ -1546,20 +1554,10 @@ class Prepare:
 
         json_type = kwargs.get(JSON_TYPE)
         if json_type is not None:
-            if json_type == DataType.INT8:
-                search_params[JSON_TYPE] = "Int8"
-            elif json_type == DataType.INT16:
-                search_params[JSON_TYPE] = "Int16"
-            elif json_type == DataType.INT32:
-                search_params[JSON_TYPE] = "Int32"
-            elif json_type == DataType.INT64:
-                search_params[JSON_TYPE] = "Int64"
-            elif json_type == DataType.BOOL:
-                search_params[JSON_TYPE] = "Bool"
-            elif json_type in (DataType.VARCHAR, DataType.STRING):
-                search_params[JSON_TYPE] = "VarChar"
-            else:
+            json_type_name = _JSON_TYPE_MAP.get(json_type)
+            if json_type_name is None:
                 raise ParamError(message=f"Unsupported json cast type: {json_type}")
+            search_params[JSON_TYPE] = json_type_name
 
         strict_cast = kwargs.get(STRICT_CAST)
         if strict_cast is not None:
@@ -1699,41 +1697,15 @@ class Prepare:
             ]
         )
 
-        if kwargs.get(RANK_GROUP_SCORER) is not None:
-            request.rank_params.extend(
-                [
+        for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
+            val = kwargs.get(param_key)
+            if val is not None:
+                request.rank_params.append(
                     common_types.KeyValuePair(
-                        key=RANK_GROUP_SCORER, value=kwargs.get(RANK_GROUP_SCORER)
+                        key=param_key,
+                        value=val if param_key == RANK_GROUP_SCORER else utils.dumps(val),
                     )
-                ]
-            )
-
-        if kwargs.get(GROUP_BY_FIELD) is not None:
-            request.rank_params.extend(
-                [
-                    common_types.KeyValuePair(
-                        key=GROUP_BY_FIELD, value=utils.dumps(kwargs.get(GROUP_BY_FIELD))
-                    )
-                ]
-            )
-
-        if kwargs.get(GROUP_SIZE) is not None:
-            request.rank_params.extend(
-                [
-                    common_types.KeyValuePair(
-                        key=GROUP_SIZE, value=utils.dumps(kwargs.get(GROUP_SIZE))
-                    )
-                ]
-            )
-
-        if kwargs.get(STRICT_GROUP_SIZE) is not None:
-            request.rank_params.extend(
-                [
-                    common_types.KeyValuePair(
-                        key=STRICT_GROUP_SIZE, value=utils.dumps(kwargs.get(STRICT_GROUP_SIZE))
-                    )
-                ]
-            )
+                )
 
         if isinstance(rerank, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))

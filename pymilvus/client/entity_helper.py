@@ -1,3 +1,4 @@
+import itertools
 import json
 import logging
 import math
@@ -29,26 +30,28 @@ logger = logging.getLogger(__name__)
 CHECK_STR_ARRAY = True
 
 
+def _is_type_in_str(v: Any, t: Any):
+    if not isinstance(v, str):
+        return False
+    try:
+        t(v)
+    except ValueError:
+        return False
+    return True
+
+
+def _is_int_type(v: Any):
+    return isinstance(v, (int, np.integer)) or _is_type_in_str(v, int)
+
+
+def _is_float_type(v: Any):
+    return isinstance(v, (float, np.floating)) or _is_type_in_str(v, float)
+
+
 def entity_is_sparse_matrix(entity: Any):
     if SciPyHelper.is_scipy_sparse(entity):
         return True
     try:
-
-        def is_type_in_str(v: Any, t: Any):
-            if not isinstance(v, str):
-                return False
-            try:
-                t(v)
-            except ValueError:
-                return False
-            return True
-
-        def is_int_type(v: Any):
-            return isinstance(v, (int, np.integer)) or is_type_in_str(v, int)
-
-        def is_float_type(v: Any):
-            return isinstance(v, (float, np.floating)) or is_type_in_str(v, float)
-
         # must be of multiple rows
         if len(entity) == 0:
             return False
@@ -60,7 +63,7 @@ def entity_is_sparse_matrix(entity: Any):
             pairs = item.items() if isinstance(item, dict) else item
             # each row must be a list of Tuple[int, float]. we allow empty sparse row
             for pair in pairs:
-                if len(pair) != 2 or not is_int_type(pair[0]) or not is_float_type(pair[1]):
+                if len(pair) != 2 or not _is_int_type(pair[0]) or not _is_float_type(pair[1]):
                     return False
     except Exception:
         return False
@@ -76,17 +79,18 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
             raise ParamError(
                 message=f"length of indices and values must be the same, got {len(indices)} and {len(values)}"
             )
-        data = b""
-        for i, v in sorted(zip(indices, values), key=lambda x: x[0]):
+        sorted_pairs = sorted(zip(indices, values), key=lambda x: x[0])
+        for i, v in sorted_pairs:
             if not (0 <= i < 2**32 - 1):
                 raise ParamError(
                     message=f"sparse vector index must be positive and less than 2^32-1: {i}"
                 )
             if math.isnan(v):
                 raise ParamError(message="sparse vector value must not be NaN")
-            data += struct.pack("I", i)
-            data += struct.pack("f", v)
-        return data
+        n = len(sorted_pairs)
+        # Pack all pairs at once: interleaved (uint32 index, float value) pairs
+        fmt = f"<{'If' * n}"
+        return struct.pack(fmt, *itertools.chain.from_iterable(sorted_pairs))
 
     if not entity_is_sparse_matrix(data):
         raise ParamError(message="input must be a sparse matrix in supported format")
@@ -102,7 +106,7 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
             )
     else:
         dim = 0
-        for _, row_data in enumerate(data):
+        for row_data in data:
             if SciPyHelper.is_scipy_sparse(row_data):
                 if row_data.shape[0] != 1:
                     raise ParamError(message="invalid input for sparse float vector: expect 1 row")
@@ -160,7 +164,7 @@ def get_max_len_of_var_char(field_info: Dict) -> int:
 
 def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True):
     arr = []
-    if Config.EncodeProtocol.lower() != "utf-8".lower():
+    if Config.EncodeProtocol.lower() != "utf-8":
         for s in orig_str_arr:
             arr.append(s.encode(Config.EncodeProtocol))
     else:
@@ -220,8 +224,7 @@ def convert_to_json(obj: object):
                 processed = {}
                 assign_to_parent(processed)
                 # Add items to stack for processing (reverse order to maintain original order)
-                items = list(current.items())
-                for k, v in reversed(items):
+                for k, v in reversed(tuple(current.items())):
                     stack.append((v, processed, k))
             elif isinstance(current, list):
                 # Process list: create new list with placeholders first
@@ -276,10 +279,11 @@ def convert_to_json(obj: object):
 
 
 def convert_to_json_arr(objs: List[object], field_info: Any):
+    field_name = field_info["name"]
     arr = []
     for obj in objs:
         if obj is None:
-            raise ParamError(message=f"field ({field_info['name']}) expects a non-None input")
+            raise ParamError(message=f"field ({field_name}) expects a non-None input")
         arr.append(convert_to_json(obj))
     return arr
 
@@ -358,6 +362,14 @@ def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
 
 
+_VECTOR_ATTR_MAP = {
+    DataType.INT8_VECTOR: "int8_vector",
+    DataType.BINARY_VECTOR: "binary_vector",
+    DataType.FLOAT16_VECTOR: "float16_vector",
+    DataType.BFLOAT16_VECTOR: "bfloat16_vector",
+}
+
+
 def flush_vector_bytes(
     field_data: schema_types.FieldData, vector_bytes_cache: Dict[int, List[bytes]]
 ):
@@ -372,14 +384,7 @@ def flush_vector_bytes(
     if not bytes_list:
         return
 
-    vector_attr_map = {
-        DataType.INT8_VECTOR: "int8_vector",
-        DataType.BINARY_VECTOR: "binary_vector",
-        DataType.FLOAT16_VECTOR: "float16_vector",
-        DataType.BFLOAT16_VECTOR: "bfloat16_vector",
-    }
-
-    attr_name = vector_attr_map.get(field_data.type)
+    attr_name = _VECTOR_ATTR_MAP.get(field_data.type)
     if attr_name:
         setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
@@ -785,8 +790,9 @@ def extract_dynamic_field_from_result(raw: Any):
 
 def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
     field_name = field_data.field_name
-    data = field_data.scalars.array_data.data
-    element_type = field_data.scalars.array_data.element_type
+    array_data = field_data.scalars.array_data
+    data = array_data.data
+    element_type = array_data.element_type
     if element_type == DataType.INT64:
         [
             entity_rows[i].__setitem__(
@@ -842,8 +848,9 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
 
 def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
     field_name = field_data.field_name
-    data = field_data.scalars.array_data.data
-    element_type = field_data.scalars.array_data.element_type
+    array_data = field_data.scalars.array_data
+    data = array_data.data
+    element_type = array_data.element_type
     if element_type == DataType.INT64:
         [entity_rows[i].__setitem__(field_name, data[i].long_data.data) for i in range(row_count)]
     elif element_type == DataType.BOOL:
@@ -868,25 +875,20 @@ def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict],
 
 
 def extract_array_row_data(field_data: Any, index: int):
-    array = field_data.scalars.array_data.data[index]
-    if field_data.scalars.array_data.element_type == DataType.INT64:
+    array_data = field_data.scalars.array_data
+    array = array_data.data[index]
+    element_type = array_data.element_type
+    if element_type == DataType.INT64:
         return array.long_data.data
-    if field_data.scalars.array_data.element_type == DataType.BOOL:
+    if element_type == DataType.BOOL:
         return array.bool_data.data
-    if field_data.scalars.array_data.element_type in (
-        DataType.INT8,
-        DataType.INT16,
-        DataType.INT32,
-    ):
+    if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         return array.int_data.data
-    if field_data.scalars.array_data.element_type == DataType.FLOAT:
+    if element_type == DataType.FLOAT:
         return array.float_data.data
-    if field_data.scalars.array_data.element_type == DataType.DOUBLE:
+    if element_type == DataType.DOUBLE:
         return array.double_data.data
-    if field_data.scalars.array_data.element_type in (
-        DataType.STRING,
-        DataType.VARCHAR,
-    ):
+    if element_type in (DataType.STRING, DataType.VARCHAR):
         return array.string_data.data
     return None
 
@@ -1043,174 +1045,152 @@ def extract_row_data_from_fields_data(
         if field_data.type == DataType.STRING:
             raise MilvusException(message="Not support string yet")
 
-        if field_data.type == DataType.BOOL and len(field_data.scalars.bool_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = field_data.scalars.bool_data.data[index]
-            return
+        field_name = field_data.field_name
+        valid_data = field_data.valid_data
+        has_valid = len(valid_data) > 0
+        is_null = has_valid and valid_data[index] is False
 
-        if (
-            field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32)
-            and len(field_data.scalars.int_data.data) >= index
-        ):
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = field_data.scalars.int_data.data[index]
-            return
-
-        if field_data.type == DataType.INT64 and len(field_data.scalars.long_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = field_data.scalars.long_data.data[index]
-            return
-
-        if field_data.type == DataType.FLOAT and len(field_data.scalars.float_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = np.single(field_data.scalars.float_data.data[index])
-            return
-
-        if field_data.type == DataType.DOUBLE and len(field_data.scalars.double_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = field_data.scalars.double_data.data[index]
-            return
-
-        if (
-            field_data.type == DataType.VARCHAR
-            and len(field_data.scalars.string_data.data) >= index
-        ):
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = field_data.scalars.string_data.data[index]
-            return
-
-        if (
-            field_data.type == DataType.GEOMETRY
-            and len(field_data.scalars.geometry_wkt_data.data) >= index
-        ):
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                entity_row_data[field_data.field_name] = None
-                return
-            entity_row_data[field_data.field_name] = field_data.scalars.geometry_wkt_data.data[
-                index
-            ]
-            return
-
-        if field_data.type == DataType.JSON and len(field_data.scalars.json_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            try:
-                json_dict = orjson.loads(field_data.scalars.json_data.data[index])
-            except Exception as e:
-                logger.error(
-                    f"extract_row_data_from_fields_data::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
-                )
-                raise
-
-            if not field_data.is_dynamic:
-                row_data[field_data.field_name] = json_dict
+        if field_data.type == DataType.BOOL:
+            scalar_data = field_data.scalars.bool_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
                 return
 
-            if not dynamic_fields:
-                row_data.update(json_dict)
+        if field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
+            scalar_data = field_data.scalars.int_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
                 return
 
-            row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
-            return
+        if field_data.type == DataType.INT64:
+            scalar_data = field_data.scalars.long_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
+                return
+
+        if field_data.type == DataType.FLOAT:
+            scalar_data = field_data.scalars.float_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else np.single(scalar_data[index])
+                return
+
+        if field_data.type == DataType.DOUBLE:
+            scalar_data = field_data.scalars.double_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
+                return
+
+        if field_data.type == DataType.VARCHAR:
+            scalar_data = field_data.scalars.string_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
+                return
+
+        if field_data.type == DataType.GEOMETRY:
+            scalar_data = field_data.scalars.geometry_wkt_data.data
+            if len(scalar_data) >= index:
+                entity_row_data[field_name] = None if is_null else scalar_data[index]
+                return
+
+        if field_data.type == DataType.JSON:
+            scalar_data = field_data.scalars.json_data.data
+            if len(scalar_data) >= index:
+                if is_null:
+                    row_data[field_name] = None
+                    return
+                try:
+                    json_dict = orjson.loads(scalar_data[index])
+                except Exception as e:
+                    logger.error(
+                        f"extract_row_data_from_fields_data::Failed to load JSON data: {e}, original data: {scalar_data[index]}"
+                    )
+                    raise
+
+                if not field_data.is_dynamic:
+                    row_data[field_name] = json_dict
+                    return
+
+                if not dynamic_fields:
+                    row_data.update(json_dict)
+                    return
+
+                row_data.update({k: v for k, v in json_dict.items() if k in dynamic_fields})
+                return
         if field_data.type == DataType.ARRAY and len(field_data.scalars.array_data.data) >= index:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            row_data[field_data.field_name] = extract_array_row_data(field_data, index)
+            row_data[field_name] = None if is_null else extract_array_row_data(field_data, index)
+            return
 
-        elif field_data.type == DataType.FLOAT_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+        if field_data.type == DataType.FLOAT_VECTOR:
+            if is_null:
+                row_data[field_name] = None
             else:
                 dim = field_data.vectors.dim
                 phys_idx = get_physical_index(field_data, index)
-                if len(field_data.vectors.float_vector.data) >= (phys_idx + 1) * dim:
+                float_data = field_data.vectors.float_vector.data
+                if len(float_data) >= (phys_idx + 1) * dim:
                     start_pos, end_pos = phys_idx * dim, (phys_idx + 1) * dim
-                    # Here we use numpy.array to convert the float64 values to numpy.float32 values,
-                    # and return a list of numpy.float32 to users
-                    # By using numpy.array, performance improved by 60%
-                    # for topk=16384 dim=1536 case.
-                    arr = np.array(
-                        field_data.vectors.float_vector.data[start_pos:end_pos], dtype=np.float32
-                    )
-                    row_data[field_data.field_name] = list(arr)
+                    arr = np.array(float_data[start_pos:end_pos], dtype=np.float32)
+                    row_data[field_name] = list(arr)
         elif field_data.type == DataType.BINARY_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+            if is_null:
+                row_data[field_name] = None
             else:
                 dim = field_data.vectors.dim
                 blen = dim // 8
                 phys_idx = get_physical_index(field_data, index)
-                if len(field_data.vectors.binary_vector) >= (phys_idx + 1) * blen:
+                binary_data = field_data.vectors.binary_vector
+                if len(binary_data) >= (phys_idx + 1) * blen:
                     start_pos, end_pos = phys_idx * blen, (phys_idx + 1) * blen
-                    row_data[field_data.field_name] = [
-                        field_data.vectors.binary_vector[start_pos:end_pos]
-                    ]
+                    row_data[field_name] = [binary_data[start_pos:end_pos]]
         elif field_data.type == DataType.BFLOAT16_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+            if is_null:
+                row_data[field_name] = None
             else:
                 dim = field_data.vectors.dim
                 byte_per_row = dim * 2
                 phys_idx = get_physical_index(field_data, index)
-                if len(field_data.vectors.bfloat16_vector) >= (phys_idx + 1) * byte_per_row:
+                vec_data = field_data.vectors.bfloat16_vector
+                if len(vec_data) >= (phys_idx + 1) * byte_per_row:
                     start_pos, end_pos = phys_idx * byte_per_row, (phys_idx + 1) * byte_per_row
-                    row_data[field_data.field_name] = [
-                        field_data.vectors.bfloat16_vector[start_pos:end_pos]
-                    ]
+                    row_data[field_name] = [vec_data[start_pos:end_pos]]
         elif field_data.type == DataType.FLOAT16_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+            if is_null:
+                row_data[field_name] = None
             else:
                 dim = field_data.vectors.dim
                 byte_per_row = dim * 2
                 phys_idx = get_physical_index(field_data, index)
-                if len(field_data.vectors.float16_vector) >= (phys_idx + 1) * byte_per_row:
+                vec_data = field_data.vectors.float16_vector
+                if len(vec_data) >= (phys_idx + 1) * byte_per_row:
                     start_pos, end_pos = phys_idx * byte_per_row, (phys_idx + 1) * byte_per_row
-                    row_data[field_data.field_name] = [
-                        field_data.vectors.float16_vector[start_pos:end_pos]
-                    ]
+                    row_data[field_name] = [vec_data[start_pos:end_pos]]
         elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+            if is_null:
+                row_data[field_name] = None
             else:
                 phys_idx = get_physical_index(field_data, index)
-                row_data[field_data.field_name] = sparse_parse_single_row(
+                row_data[field_name] = sparse_parse_single_row(
                     field_data.vectors.sparse_float_vector.contents[phys_idx]
                 )
         elif field_data.type == DataType.INT8_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
+            if is_null:
+                row_data[field_name] = None
             else:
                 dim = field_data.vectors.dim
                 phys_idx = get_physical_index(field_data, index)
-                if len(field_data.vectors.int8_vector) >= (phys_idx + 1) * dim:
+                vec_data = field_data.vectors.int8_vector
+                if len(vec_data) >= (phys_idx + 1) * dim:
                     start_pos, end_pos = phys_idx * dim, (phys_idx + 1) * dim
-                    row_data[field_data.field_name] = [
-                        field_data.vectors.int8_vector[start_pos:end_pos]
-                    ]
+                    row_data[field_name] = [vec_data[start_pos:end_pos]]
         elif (
             field_data.type == DataType._ARRAY_OF_VECTOR
             and len(field_data.vectors.vector_array.data) >= index
         ):
-            row_data[field_data.field_name] = extract_vector_array_row_data(field_data, index)
+            row_data[field_name] = extract_vector_array_row_data(field_data, index)
         elif field_data.type == DataType._ARRAY_OF_STRUCT:
-            row_data[field_data.field_name] = {}
+            row_data[field_name] = {}
             for sub_field_data in field_data.struct_arrays.fields:
-                check_append(sub_field_data, row_data[field_data.field_name])
+                check_append(sub_field_data, row_data[field_name])
 
     for field_data in fields_data:
         check_append(field_data, entity_row_data)
@@ -1218,73 +1198,33 @@ def extract_row_data_from_fields_data(
     return entity_row_data
 
 
+_ARRAY_DATA_ATTRS = (
+    "string_data",
+    "int_data",
+    "long_data",
+    "float_data",
+    "double_data",
+    "bool_data",
+)
+
+
 def get_array_length(array_item: Any) -> int:
     """Get the length of an array field from its data."""
-    if hasattr(array_item, "string_data") and hasattr(array_item.string_data, "data"):
-        length = len(array_item.string_data.data)
-        if length > 0:
-            return length
-    if hasattr(array_item, "int_data") and hasattr(array_item.int_data, "data"):
-        length = len(array_item.int_data.data)
-        if length > 0:
-            return length
-    if hasattr(array_item, "long_data") and hasattr(array_item.long_data, "data"):
-        length = len(array_item.long_data.data)
-        if length > 0:
-            return length
-    if hasattr(array_item, "float_data") and hasattr(array_item.float_data, "data"):
-        length = len(array_item.float_data.data)
-        if length > 0:
-            return length
-    if hasattr(array_item, "double_data") and hasattr(array_item.double_data, "data"):
-        length = len(array_item.double_data.data)
-        if length > 0:
-            return length
-    if hasattr(array_item, "bool_data") and hasattr(array_item.bool_data, "data"):
-        length = len(array_item.bool_data.data)
-        if length > 0:
-            return length
+    for attr_name in _ARRAY_DATA_ATTRS:
+        data = getattr(array_item, attr_name, None)
+        if data is not None:
+            length = len(data.data)
+            if length > 0:
+                return length
     return 0
 
 
 def get_array_value_at_index(array_item: Any, idx: int) -> Any:
     """Get the value at a specific index from an array field."""
-    if (
-        hasattr(array_item, "string_data")
-        and hasattr(array_item.string_data, "data")
-        and len(array_item.string_data.data) > idx
-    ):
-        return array_item.string_data.data[idx]
-    if (
-        hasattr(array_item, "int_data")
-        and hasattr(array_item.int_data, "data")
-        and len(array_item.int_data.data) > idx
-    ):
-        return array_item.int_data.data[idx]
-    if (
-        hasattr(array_item, "long_data")
-        and hasattr(array_item.long_data, "data")
-        and len(array_item.long_data.data) > idx
-    ):
-        return array_item.long_data.data[idx]
-    if (
-        hasattr(array_item, "float_data")
-        and hasattr(array_item.float_data, "data")
-        and len(array_item.float_data.data) > idx
-    ):
-        return array_item.float_data.data[idx]
-    if (
-        hasattr(array_item, "double_data")
-        and hasattr(array_item.double_data, "data")
-        and len(array_item.double_data.data) > idx
-    ):
-        return array_item.double_data.data[idx]
-    if (
-        hasattr(array_item, "bool_data")
-        and hasattr(array_item.bool_data, "data")
-        and len(array_item.bool_data.data) > idx
-    ):
-        return array_item.bool_data.data[idx]
+    for attr_name in _ARRAY_DATA_ATTRS:
+        data = getattr(array_item, attr_name, None)
+        if data is not None and len(data.data) > idx:
+            return data.data[idx]
     return None
 
 
