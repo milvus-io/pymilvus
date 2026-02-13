@@ -211,11 +211,11 @@ def retry_on_rpc_failure(
                     try:
                         return await func(*args, **kwargs)
                     except grpc.RpcError as e:
-                        # Trigger global topology refresh on connection errors
-                        if args and hasattr(args[0], "_handle_global_connection_error"):
-                            args[0]._handle_global_connection_error(e)
                         if e.code() in IGNORE_RETRY_CODES:
                             raise e from e
+                        # Notify connection manager of retryable RPC errors for recovery
+                        if args and hasattr(args[0], "_on_rpc_error"):
+                            await args[0]._on_rpc_error(e)
                         if is_timeout(start_time):
                             raise MilvusException(
                                 e.code(), f"{to_msg}, {_get_rpc_error_info(e, channel)}"
@@ -291,12 +291,11 @@ def retry_on_rpc_failure(
                 try:
                     return func(*args, **kwargs)
                 except grpc.RpcError as e:
-                    # Trigger global topology refresh on connection errors
-                    if args and hasattr(args[0], "_handle_global_connection_error"):
-                        args[0]._handle_global_connection_error(e)
-                    # Do not retry on these codes
                     if e.code() in IGNORE_RETRY_CODES:
                         raise e from e
+                    # Notify connection manager of retryable RPC errors for recovery
+                    if args and hasattr(args[0], "_on_rpc_error"):
+                        args[0]._on_rpc_error(e)
                     if timeout(start_time):
                         raise MilvusException(
                             e.code, f"{to_msg}, {_get_rpc_error_info(e, channel)}"

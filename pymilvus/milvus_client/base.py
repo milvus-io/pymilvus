@@ -2,11 +2,9 @@
 
 import logging
 from typing import Dict, List
-from urllib.parse import urlparse
 
 from pymilvus.client.call_context import CallContext
 from pymilvus.orm.collection import CollectionSchema, FieldSchema
-from pymilvus.orm.connections import connections
 from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
 
@@ -19,35 +17,9 @@ logger = logging.getLogger(__name__)
 class BaseMilvusClient:
     """Base class for Milvus clients (synchronous and asynchronous)."""
 
-    @staticmethod
-    def _extract_db_name_from_uri(uri: str, db_name: str) -> str:
-        """Extract db_name from URI path if db_name is empty and URI contains a path.
-
-        Args:
-            uri (str): The connection URI.
-            db_name (str): The explicitly provided db_name (may be empty string).
-
-        Returns:
-            str: The db_name to use. If db_name is provided, it's returned as-is.
-                 If db_name is empty and URI has a path, the first path segment is returned.
-                 Otherwise, returns empty string.
-        """
-        if db_name == "":
-            try:
-                parsed_uri = urlparse(uri)
-                if parsed_uri.path:
-                    # Extract first non-empty path segment as db_name
-                    path_segments = [segment for segment in parsed_uri.path.split("/") if segment]
-                    if path_segments:
-                        return path_segments[0]
-            except (TypeError, ValueError) as e:
-                # If URI parsing fails (e.g., uri is not a string), keep db_name as empty string
-                logger.debug("Failed to extract db_name from URI %s: %s", uri, e)
-        return db_name
-
     def _generate_call_context(self, **kwargs) -> CallContext:
         client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
-        return CallContext(db_name=self._db_name, client_request_id=client_request_id)
+        return CallContext(db_name=self._config.db_name, client_request_id=client_request_id)
 
     @classmethod
     def create_schema(cls, **kwargs):
@@ -114,12 +86,8 @@ class BaseMilvusClient:
         return self._get_connection().get_server_type()
 
     def _get_connection(self):
-        """Get the connection handler.
-
-        Returns:
-            The connection handler instance.
-        """
-        return connections._fetch_handler(self._using)
+        """Get the connection handler. Subclasses must override."""
+        raise NotImplementedError
 
     def _extract_primary_field(self, schema_dict: Dict) -> dict:
         """Extract the primary field from a schema dictionary.
