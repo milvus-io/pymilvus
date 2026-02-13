@@ -220,11 +220,14 @@ class AsyncGrpcHandler:
     def get_server_type(self):
         return get_server_type(self.server_address.split(":")[0])
 
-    async def ensure_channel_ready(self):
+    async def ensure_channel_ready(self, timeout: Optional[float] = None):
         try:
             if not self._is_channel_ready:
                 # wait for channel ready
-                await self._async_channel.channel_ready()
+                if timeout is not None:
+                    await asyncio.wait_for(self._async_channel.channel_ready(), timeout=timeout)
+                else:
+                    await self._async_channel.channel_ready()
                 # set identifier interceptor
                 host = socket.gethostname()
                 req = Prepare.register_request(self._user, host)
@@ -254,7 +257,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
         response = await self._async_stub.CreateCollection(
@@ -270,7 +272,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_request(collection_name)
         response = await self._async_stub.DropCollection(
@@ -291,7 +292,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.truncate_collection_request(collection_name)
         response = await self._async_stub.TruncateCollection(
@@ -308,8 +308,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
-
         check_pass_param(timeout=timeout)
         request = Prepare.load_collection(collection_name, replica_number, **kwargs)
         response = await self._async_stub.LoadCollection(
@@ -381,7 +379,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         response = await self._async_stub.DescribeCollection(
@@ -402,7 +399,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-        await self.ensure_channel_ready()
+
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         reply = await self._async_stub.DescribeCollection(
@@ -430,7 +427,7 @@ class AsyncGrpcHandler:
     async def list_collections(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> List[str]:
-        await self.ensure_channel_ready()
+
         request = Prepare.show_collections_request()
         response = await self._async_stub.ShowCollections(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -447,7 +444,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         index_param = Prepare.get_collection_stats_request(collection_name)
         response = await self._async_stub.GetCollectionStatistics(
@@ -466,7 +462,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_partition_stats_request(collection_name, partition_name)
         response = await self._async_stub.GetPartitionStatistics(
@@ -485,7 +480,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.get_load_state(collection_name, partition_names)
         response = await self._async_stub.GetLoadState(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -502,7 +496,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.get_loading_progress(collection_name, partition_names)
         response = await self._async_stub.GetLoadingProgress(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -518,7 +511,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> Union[str, dict]:
-        await self.ensure_channel_ready()
+
         if detail:
             if self._server_info_cache is None:
                 req = Prepare.register_request("", "")
@@ -548,7 +541,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[ReplicaInfo]:
-        await self.ensure_channel_ready()
+
         collection_schema, _ = await self._get_schema(
             collection_name, timeout=timeout, context=context, **kwargs
         )
@@ -587,7 +580,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=new_name, timeout=timeout)
         check_pass_param(collection_name=old_name)
         if new_db_name:
@@ -659,7 +651,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.release_collection("", collection_name)
         response = await self._async_stub.ReleaseCollection(
@@ -679,7 +670,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = await self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, context=context, **kwargs
         )
@@ -737,7 +727,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-        await self.ensure_channel_ready()
+
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = await self._async_stub.GetPersistentSegmentInfo(
@@ -755,7 +745,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         try:
             req = Prepare.delete_request(
@@ -829,7 +818,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
 
@@ -888,7 +876,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         if isinstance(entities, dict):
             entities = [entities]
         request = await self._prepare_row_upsert_request(
@@ -959,7 +946,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         if isinstance(ids, (int, str)):
             ids = [ids]
         check_id_and_data(ids, data)
@@ -1017,7 +1003,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -1082,7 +1067,6 @@ class AsyncGrpcHandler:
     ):
         index_name = kwargs.pop("index_name", Config.IndexName)
 
-        await self.ensure_channel_ready()
         # Note: Field validation is handled by the server.
         # Client-side validation for nested fields (e.g., "chunks[text_vector]")
         # is not reliable as it only checks top-level field names.
@@ -1181,7 +1165,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_index_request(collection_name, field_name, index_name)
         response = await self._async_stub.DropIndex(
@@ -1198,7 +1181,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
@@ -1217,7 +1199,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
@@ -1238,7 +1219,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(timeout=timeout)
 
         request = Prepare.load_partitions(
@@ -1301,7 +1281,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(
             collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
         )
@@ -1320,7 +1299,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-        await self.ensure_channel_ready()
+
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
@@ -1339,7 +1318,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[str]:
-        await self.ensure_channel_ready()
+
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.show_partitions_request(collection_name)
         response = await self._async_stub.ShowPartitions(
@@ -1360,7 +1339,7 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         # TODO: some check
-        await self.ensure_channel_ready()
+
         request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
         return await self._async_stub.Retrieve.get(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1378,7 +1357,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         if output_fields is not None and not isinstance(output_fields, (list,)):
             raise ParamError(message="Invalid query format. 'output_fields' must be a list")
 
@@ -1436,7 +1414,7 @@ class AsyncGrpcHandler:
     async def alloc_timestamp(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> int:
-        await self.ensure_channel_ready()
+
         request = milvus_types.AllocTimestampRequest()
         response = await self._async_stub.AllocTimestamp(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1453,7 +1431,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, properties=properties, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, properties=properties)
         status = await self._async_stub.AlterCollection(
@@ -1470,7 +1447,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_collection_request(collection_name, delete_keys=property_keys)
         status = await self._async_stub.AlterCollection(
@@ -1488,7 +1464,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, properties=field_params, timeout=timeout)
         request = Prepare.alter_collection_field_request(
             collection_name=collection_name, field_name=field_name, field_param=field_params
@@ -1507,7 +1482,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.add_collection_field_request(collection_name, field_schema)
         status = await self._async_stub.AddCollectionField(
@@ -1524,7 +1498,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.drop_collection_function_request(collection_name, function_name)
 
@@ -1542,7 +1515,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.add_collection_function_request(collection_name, function)
 
@@ -1561,7 +1533,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_collection_function_request(
             collection_name, function_name, function
@@ -1580,7 +1551,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, "")
 
@@ -1604,7 +1574,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         request = Prepare.describe_index_request(collection_name, index_name, timestamp=timestamp)
 
@@ -1639,7 +1608,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         if properties is None:
             raise ParamError(message="properties should not be None")
@@ -1660,7 +1628,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, index_name=index_name, timeout=timeout)
         request = Prepare.drop_index_properties_request(
             collection_name, index_name, delete_keys=property_keys
@@ -1679,7 +1646,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_alias_request(collection_name, alias)
         response = await self._async_stub.CreateAlias(
@@ -1695,7 +1661,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.drop_alias_request(alias)
         response = await self._async_stub.DropAlias(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1711,7 +1676,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.alter_alias_request(collection_name, alias)
         response = await self._async_stub.AlterAlias(
@@ -1727,7 +1691,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(alias=alias, timeout=timeout)
         request = Prepare.describe_alias_request(alias)
         response = await self._async_stub.DescribeAlias(
@@ -1751,7 +1714,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.list_aliases_request(collection_name)
         response = await self._async_stub.ListAliases(
@@ -1776,7 +1738,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.create_database_req(db_name, properties=properties)
         status = await self._async_stub.CreateDatabase(
@@ -1792,7 +1753,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.drop_database_req(db_name)
         status = await self._async_stub.DropDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1806,7 +1766,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         check_pass_param(timeout=timeout)
         request = Prepare.list_database_req()
         response = await self._async_stub.ListDatabases(
@@ -1824,7 +1783,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.alter_database_properties_req(db_name, properties)
         status = await self._async_stub.AlterDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1840,7 +1798,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = await self._async_stub.AlterDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1855,7 +1812,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         request = Prepare.describe_database_req(db_name=db_name)
         resp = await self._async_stub.DescribeDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1871,7 +1827,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.create_privilege_group_req(privilege_group)
         resp = await self._async_stub.CreatePrivilegeGroup(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -1886,7 +1841,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.drop_privilege_group_req(privilege_group)
         resp = await self._async_stub.DropPrivilegeGroup(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -1900,7 +1854,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.list_privilege_groups_req()
         resp = await self._async_stub.ListPrivilegeGroups(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -1917,7 +1870,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_group_req(
             privilege_group, privileges, milvus_types.OperatePrivilegeGroupType.AddPrivilegesToGroup
         )
@@ -1935,7 +1887,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_group_req(
             privilege_group,
             privileges,
@@ -2030,7 +1981,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.create_role_request(role_name)
         resp = await self._async_stub.CreateRole(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -2046,7 +1996,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.drop_role_request(role_name, force_drop=force_drop)
         resp = await self._async_stub.DropRole(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -2062,7 +2011,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_user_role_request(
             username, role_name, milvus_types.OperateUserRoleType.AddUserToRole
         )
@@ -2080,7 +2028,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_user_role_request(
             username, role_name, milvus_types.OperateUserRoleType.RemoveUserFromRole
         )
@@ -2098,7 +2045,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.select_role_request(role_name, include_user_info)
         resp = await self._async_stub.SelectRole(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -2114,7 +2060,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.select_role_request(None, include_user_info)
         resp = await self._async_stub.SelectRole(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -2131,7 +2076,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.select_grant_request(role_name, None, None, db_name)
         resp = await self._async_stub.SelectGrant(
             req, timeout=timeout, metadata=_api_level_md(context)
@@ -2152,7 +2096,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_request(
             role_name,
             object,
@@ -2178,7 +2121,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_request(
             role_name,
             object,
@@ -2203,7 +2145,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_v2_request(
             role_name,
             privilege,
@@ -2227,7 +2168,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.ensure_channel_ready()
         req = Prepare.operate_privilege_v2_request(
             role_name,
             privilege,
@@ -2339,7 +2279,7 @@ class AsyncGrpcHandler:
         **kwargs,
     ) -> bool:
         """Get the flush state for given segments."""
-        await self.ensure_channel_ready()
+
         req = Prepare.get_flush_state_request(segment_ids, collection_name, flush_ts)
         response = await self._async_stub.GetFlushState(
             req, timeout=timeout, metadata=_api_level_md(context)

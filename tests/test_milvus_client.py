@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from pymilvus import DataType
+from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.types import RestoreSnapshotJobInfo, SnapshotInfo
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams
@@ -11,15 +12,22 @@ from pymilvus.milvus_client.milvus_client import MilvusClient
 log = logging.getLogger(__name__)
 
 
+@pytest.fixture(autouse=True)
+def reset_connection_manager():
+    """Reset ConnectionManager singleton before and after each test."""
+    ConnectionManager._reset_instance()
+    yield
+    ConnectionManager._reset_instance()
+
+
 class TestMilvusClient:
     @pytest.mark.parametrize("index_params", [None, {}, "str", MilvusClient.prepare_index_params()])
     def test_create_index_invalid_params(self, index_params):
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             if isinstance(index_params, IndexParams):
@@ -50,18 +58,49 @@ class TestMilvusClient:
             log.info(index)
 
     def test_connection_reuse(self):
-        mock_handler = MagicMock()
-        mock_handler.get_server_type.return_value = "milvus"
+        """Test that connections with same config share handler, different configs get different handlers."""
+        mock_handler1 = MagicMock()
+        mock_handler1.get_server_type.return_value = "milvus"
+        mock_handler1._wait_for_channel_ready = MagicMock()
 
-        with patch("pymilvus.orm.connections.Connections.connect", return_value=None), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
+        mock_handler2 = MagicMock()
+        mock_handler2.get_server_type.return_value = "milvus"
+        mock_handler2._wait_for_channel_ready = MagicMock()
+
+        mock_handler3 = MagicMock()
+        mock_handler3.get_server_type.return_value = "milvus"
+        mock_handler3._wait_for_channel_ready = MagicMock()
+
+        with patch(
+            "pymilvus.client.grpc_handler.GrpcHandler",
+            side_effect=[mock_handler1, mock_handler2, mock_handler3],
         ):
-            client = MilvusClient()
-            assert client._using == "http://localhost:19530"
-            client = MilvusClient(user="test", password="foobar")
-            assert client._using == "http://localhost:19530-test"
-            client = MilvusClient(token="foobar")
-            assert client._using == "http://localhost:19530-3858f62230ac3c915f300c664312c63f"
+            # Same URI and no token - should share same handler
+            client1 = MilvusClient()
+            client1_handler = client1._handler
+
+            client2 = MilvusClient()
+            assert client2._handler is client1_handler, "Same config should share handler"
+
+            # Different token - should get different handler
+            client3 = MilvusClient(user="test", password="foobar")
+            assert (
+                client3._handler is not client1_handler
+            ), "Different token should get different handler"
+
+            # Different token again - should get yet another handler
+            client4 = MilvusClient(token="foobar")
+            assert (
+                client4._handler is not client1_handler
+            ), "Different token should get different handler"
+            assert (
+                client4._handler is not client3._handler
+            ), "Different token should get different handler"
+
+            client1.close()
+            client2.close()
+            client3.close()
+            client4.close()
 
     @pytest.mark.parametrize(
         "data_type",
@@ -79,10 +118,9 @@ class TestMilvusClient:
 
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             dtype = getattr(DataType, data_type)
 
@@ -115,15 +153,12 @@ class TestMilvusClient:
         """Test that adding vector field with nullable=True passes validation"""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_conn = MagicMock()
 
         with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
-        ), patch.object(
-            MilvusClient, "_get_connection", return_value=mock_conn
-        ):
+            "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
+        ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
             client = MilvusClient()
 
             # Should not raise when nullable=True
@@ -140,15 +175,12 @@ class TestMilvusClient:
         """Test that non-vector fields don't require nullable=True"""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_conn = MagicMock()
 
         with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
-        ), patch.object(
-            MilvusClient, "_get_connection", return_value=mock_conn
-        ):
+            "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
+        ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
             client = MilvusClient()
 
             # Non-vector types should not require nullable
@@ -167,11 +199,10 @@ class TestMilvusClientSnapshot:
         """Test create_snapshot method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_snapshot.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             client.create_snapshot(
@@ -191,11 +222,10 @@ class TestMilvusClientSnapshot:
         """Test create_snapshot with minimal parameters."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_snapshot.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             client.create_snapshot(collection_name="test_collection", snapshot_name="test_snapshot")
@@ -210,11 +240,10 @@ class TestMilvusClientSnapshot:
         """Test drop_snapshot method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_snapshot.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             client.drop_snapshot(snapshot_name="test_snapshot")
@@ -227,11 +256,10 @@ class TestMilvusClientSnapshot:
         """Test list_snapshots method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_snapshots.return_value = ["snapshot1", "snapshot2"]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             snapshots = client.list_snapshots(collection_name="test_collection")
@@ -245,11 +273,10 @@ class TestMilvusClientSnapshot:
         """Test list_snapshots for all collections."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_snapshots.return_value = ["snapshot1", "snapshot2", "snapshot3"]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             snapshots = client.list_snapshots()
@@ -263,6 +290,7 @@ class TestMilvusClientSnapshot:
         """Test describe_snapshot method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.describe_snapshot.return_value = SnapshotInfo(
             name="test_snapshot",
             description="Test description",
@@ -272,9 +300,7 @@ class TestMilvusClientSnapshot:
             s3_location="s3://bucket/path",
         )
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             info = client.describe_snapshot(snapshot_name="test_snapshot")
@@ -294,11 +320,10 @@ class TestMilvusClientSnapshot:
         """Test restore_snapshot method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.restore_snapshot.return_value = 12345
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             job_id = client.restore_snapshot(
@@ -317,6 +342,7 @@ class TestMilvusClientSnapshot:
         """Test get_restore_snapshot_state method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.get_restore_snapshot_state.return_value = RestoreSnapshotJobInfo(
             job_id=12345,
             snapshot_name="test_snapshot",
@@ -329,9 +355,7 @@ class TestMilvusClientSnapshot:
             time_cost=5000,
         )
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             state = client.get_restore_snapshot_state(job_id=12345)
@@ -351,6 +375,7 @@ class TestMilvusClientSnapshot:
         """Test list_restore_snapshot_jobs method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_restore_snapshot_jobs.return_value = [
             RestoreSnapshotJobInfo(
                 job_id=12345,
@@ -376,9 +401,7 @@ class TestMilvusClientSnapshot:
             ),
         ]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             jobs = client.list_restore_snapshot_jobs(collection_name="test_collection")
@@ -397,11 +420,10 @@ class TestMilvusClientSnapshot:
         """Test list_restore_snapshot_jobs for all collections."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_restore_snapshot_jobs.return_value = []
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             jobs = client.list_restore_snapshot_jobs()
@@ -418,27 +440,22 @@ class TestMilvusClientSnapshot:
         """
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client._utils.create_connection", return_value="shared_alias"
-        ), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
-        ), patch(
-            "pymilvus.orm.connections.Connections.has_connection", return_value=True
-        ):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client_a = MilvusClient(uri="http://localhost:19530", db_name="default")
             client_b = MilvusClient(uri="http://localhost:19530", db_name="testdb")
 
-            assert client_a._db_name == "default"
-            assert client_b._db_name == "testdb"
+            assert client_a._config.db_name == "default"
+            assert client_b._config.db_name == "testdb"
 
             # Mock describe_database to simulate that 'db1' exists
             # use_database now validates database existence by calling describe_database
             with patch.object(client_a, "describe_database", return_value={}):
                 client_a.use_database("db1")
 
-            assert client_a._db_name == "db1"
-            assert client_b._db_name == "testdb"
+            assert client_a._config.db_name == "db1"
+            assert client_b._config.db_name == "testdb"
 
             client_b.list_collections()
 
@@ -483,22 +500,13 @@ class TestMilvusClientSnapshot:
         """
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client._utils.create_connection", return_value="test_alias"
-        ), patch(
-            "pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler
-        ), patch(
-            "pymilvus.orm.connections.Connections.has_connection", return_value=False
-        ), patch(
-            "pymilvus.orm.connections.Connections.connect"
-        ), patch.object(
-            MilvusClient, "get_server_type", return_value="milvus"
-        ):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient(uri=uri, db_name=db_name)
-            assert client._db_name == expected_db_name, (
+            assert client._config.db_name == expected_db_name, (
                 f"Expected db_name to be '{expected_db_name}', "
-                f"but got '{client._db_name}' for uri='{uri}' and db_name='{db_name}'"
+                f"but got '{client._config.db_name}' for uri='{uri}' and db_name='{db_name}'"
             )
 
             # Verify that the extracted db_name is used in requests (only if db_name was extracted)
@@ -523,11 +531,10 @@ class TestMilvusClientCollectionOps:
         """Test drop_collection method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_collection.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_collection("test_collection")
 
@@ -537,11 +544,10 @@ class TestMilvusClientCollectionOps:
         """Test has_collection method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.has_collection.return_value = True
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.has_collection("test_collection")
 
@@ -552,11 +558,10 @@ class TestMilvusClientCollectionOps:
         """Test list_collections method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_collections.return_value = ["coll1", "coll2", "coll3"]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.list_collections()
 
@@ -566,15 +571,14 @@ class TestMilvusClientCollectionOps:
         """Test get_collection_stats method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         # Method expects list of objects with .key and .value attributes
         mock_stat = MagicMock()
         mock_stat.key = "row_count"
         mock_stat.value = "1000"
         mock_handler.get_collection_stats.return_value = [mock_stat]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.get_collection_stats("test_collection")
 
@@ -593,11 +597,10 @@ class TestMilvusClientPartitionOps:
         """Test create_partition method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_partition.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.create_partition("test_collection", "test_partition")
 
@@ -607,11 +610,10 @@ class TestMilvusClientPartitionOps:
         """Test drop_partition method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_partition.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_partition("test_collection", "test_partition")
 
@@ -621,11 +623,10 @@ class TestMilvusClientPartitionOps:
         """Test has_partition method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.has_partition.return_value = True
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.has_partition("test_collection", "test_partition")
 
@@ -635,11 +636,10 @@ class TestMilvusClientPartitionOps:
         """Test list_partitions method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_partitions.return_value = ["_default", "partition1"]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.list_partitions("test_collection")
 
@@ -658,11 +658,10 @@ class TestMilvusClientIndexOps:
         """Test drop_index method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_index.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_index("test_collection", "test_index")
 
@@ -672,6 +671,7 @@ class TestMilvusClientIndexOps:
         """Test list_indexes method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         # Method expects list of objects with .field_name and .index_name attributes
         mock_index1 = MagicMock()
         mock_index1.field_name = "vector"
@@ -681,9 +681,7 @@ class TestMilvusClientIndexOps:
         mock_index2.index_name = "index2"
         mock_handler.list_indexes.return_value = [mock_index1, mock_index2]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.list_indexes("test_collection")
 
@@ -693,6 +691,7 @@ class TestMilvusClientIndexOps:
         """Test _list_vector_indexes correctly unpacks _get_schema tuple return."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
         schema_dict = {
             "fields": [
@@ -711,9 +710,7 @@ class TestMilvusClientIndexOps:
             "index_name": "vec_index",
         }
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client._list_vector_indexes("test_collection")
 
@@ -724,6 +721,7 @@ class TestMilvusClientIndexOps:
         """Test _list_vector_indexes returns empty list when no vector fields."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
         schema_dict = {
             "fields": [
@@ -733,9 +731,7 @@ class TestMilvusClientIndexOps:
         }
         mock_handler._get_schema.return_value = (schema_dict, 12345)
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client._list_vector_indexes("test_collection")
 
@@ -754,11 +750,10 @@ class TestMilvusClientAliasOps:
         """Test create_alias method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_alias.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.create_alias("test_collection", "test_alias")
 
@@ -768,11 +763,10 @@ class TestMilvusClientAliasOps:
         """Test drop_alias method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_alias.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_alias("test_alias")
 
@@ -782,11 +776,10 @@ class TestMilvusClientAliasOps:
         """Test alter_alias method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.alter_alias.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.alter_alias("test_collection", "test_alias")
 
@@ -805,11 +798,10 @@ class TestMilvusClientUserOps:
         """Test create_user method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_user.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.create_user("test_user", "password123")
 
@@ -819,11 +811,10 @@ class TestMilvusClientUserOps:
         """Test drop_user method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.delete_user.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_user("test_user")
 
@@ -833,11 +824,10 @@ class TestMilvusClientUserOps:
         """Test list_users method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.list_usernames.return_value = ["root", "user1"]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.list_users()
 
@@ -847,11 +837,10 @@ class TestMilvusClientUserOps:
         """Test create_role method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.create_role.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.create_role("test_role")
 
@@ -861,11 +850,10 @@ class TestMilvusClientUserOps:
         """Test drop_role method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.drop_role.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.drop_role("test_role")
 
@@ -875,11 +863,10 @@ class TestMilvusClientUserOps:
         """Test grant_role method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.add_user_to_role.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.grant_role("test_user", "test_role")
 
@@ -889,11 +876,10 @@ class TestMilvusClientUserOps:
         """Test revoke_role method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.remove_user_from_role.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.revoke_role("test_user", "test_role")
 
@@ -917,15 +903,14 @@ class TestMilvusClientDataOps:
         """Test insert with single dict."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_result = MagicMock()
         mock_result.insert_count = 1
         mock_result.primary_keys = [1]
         mock_result.cost = 0
         mock_handler.insert_rows.return_value = mock_result
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.insert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
 
@@ -936,15 +921,14 @@ class TestMilvusClientDataOps:
         """Test insert with list of dicts."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_result = MagicMock()
         mock_result.insert_count = 2
         mock_result.primary_keys = [1, 2]
         mock_result.cost = 0
         mock_handler.insert_rows.return_value = mock_result
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             data = [{"id": 1, "vector": [0.1, 0.2]}, {"id": 2, "vector": [0.3, 0.4]}]
             result = client.insert("test_collection", data)
@@ -955,10 +939,9 @@ class TestMilvusClientDataOps:
         """Test insert with empty data returns zero count."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.insert("test_collection", [])
 
@@ -969,10 +952,9 @@ class TestMilvusClientDataOps:
         """Test insert with invalid type raises TypeError."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             with pytest.raises(TypeError, match="wrong type of argument"):
@@ -982,15 +964,14 @@ class TestMilvusClientDataOps:
         """Test upsert with single dict."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_result = MagicMock()
         mock_result.upsert_count = 1
         mock_result.primary_keys = [1]
         mock_result.cost = 0
         mock_handler.upsert_rows.return_value = mock_result
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.upsert("test_collection", {"id": 1, "vector": [0.1, 0.2]})
 
@@ -1000,10 +981,9 @@ class TestMilvusClientDataOps:
         """Test upsert with empty data returns zero count."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.upsert("test_collection", [])
 
@@ -1014,10 +994,9 @@ class TestMilvusClientDataOps:
         """Test upsert with invalid type raises TypeError."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
             with pytest.raises(TypeError, match="wrong type of argument"):
@@ -1027,6 +1006,7 @@ class TestMilvusClientDataOps:
         """Test delete with IDs."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_result = MagicMock()
         mock_result.delete_count = 2
         mock_result.cost = 0
@@ -1036,9 +1016,7 @@ class TestMilvusClientDataOps:
         mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
         mock_handler._get_schema.return_value = (mock_schema, 100)
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.delete("test_collection", ids=[1, 2])
 
@@ -1048,15 +1026,14 @@ class TestMilvusClientDataOps:
         """Test delete with filter expression."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_result = MagicMock()
         mock_result.delete_count = 5
         mock_result.cost = 0
         mock_result.primary_keys = []
         mock_handler.delete.return_value = mock_result
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.delete("test_collection", filter="age > 20")
 
@@ -1066,11 +1043,10 @@ class TestMilvusClientDataOps:
         """Test search method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.search.return_value = [[{"id": 1, "distance": 0.1}]]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.search("test_collection", data=[[0.1, 0.2]])
 
@@ -1081,11 +1057,10 @@ class TestMilvusClientDataOps:
         """Test query method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.query.return_value = [{"id": 1, "name": "test"}]
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.query("test_collection", filter="id > 0")
 
@@ -1096,14 +1071,13 @@ class TestMilvusClientDataOps:
         """Test get method (query by ids)."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.query.return_value = [{"id": 1, "name": "test"}]
         # Mock _get_schema to return schema with primary key field
         mock_schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
         mock_handler._get_schema.return_value = (mock_schema, 100)
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.get("test_collection", ids=[1])
 
@@ -1117,11 +1091,10 @@ class TestMilvusClientUtilityOps:
         """Test flush method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.flush.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.flush("test_collection")
 
@@ -1131,11 +1104,10 @@ class TestMilvusClientUtilityOps:
         """Test get_load_state method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.get_load_state.return_value = {"state": "Loaded"}
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             result = client.get_load_state("test_collection")
 
@@ -1145,11 +1117,10 @@ class TestMilvusClientUtilityOps:
         """Test load_collection method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.load_collection.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.load_collection("test_collection")
 
@@ -1159,26 +1130,25 @@ class TestMilvusClientUtilityOps:
         """Test release_collection method."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
         mock_handler.release_collection.return_value = None
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
             client.release_collection("test_collection")
 
             mock_handler.release_collection.assert_called_once()
 
     def test_close(self):
-        """Test close method."""
+        """Test close method releases the connection via ConnectionManager."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
 
-        with patch(
-            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
-        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
-            with patch("pymilvus.orm.connections.Connections.disconnect") as mock_disconnect:
-                client = MilvusClient()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            manager = client._manager
+
+            with patch.object(manager, "release") as mock_release:
                 client.close()
-
-                mock_disconnect.assert_called_once()
+                mock_release.assert_called_once_with(mock_handler, client=client)
