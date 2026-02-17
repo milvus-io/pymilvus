@@ -241,6 +241,13 @@ def retry_on_rpc_failure(
                         ):
                             await asyncio.sleep(back_off)
                             back_off = min(back_off * back_off_multiplier, max_back_off)
+                        elif (
+                            args
+                            and hasattr(args[0], "_handle_global_routing_error")
+                            and args[0]._handle_global_routing_error(e)
+                        ):
+                            await asyncio.sleep(back_off)
+                            back_off = min(back_off * back_off_multiplier, max_back_off)
                         else:
                             raise e from e
                     except Exception as e:
@@ -318,6 +325,13 @@ def retry_on_rpc_failure(
                         ) from e
                     if _retry_on_rate_limit and (
                         e.code == ErrorCode.RATE_LIMIT or e.compatible_code == common_pb2.RateLimit
+                    ):
+                        time.sleep(back_off)
+                        back_off = min(back_off * back_off_multiplier, max_back_off)
+                    elif (
+                        args
+                        and hasattr(args[0], "_handle_global_routing_error")
+                        and args[0]._handle_global_routing_error(e)
                     ):
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)

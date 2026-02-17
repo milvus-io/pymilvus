@@ -652,6 +652,115 @@ class TestGlobalErrorHandling:
 
                     mock_trigger.assert_not_called()
 
+    def test_routing_error_triggers_refresh_on_replicate_violation(self):
+        """Test that _handle_global_routing_error detects REPLICATE_VIOLATION and triggers refresh."""
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(
+                    cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3
+                ),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    error = MilvusException(
+                        code=65535,
+                        message="code: STREAMING_CODE_REPLICATE_VIOLATION, "
+                        "cause: non-replicate message cannot be received in secondary role",
+                    )
+
+                    result = handler._handle_global_routing_error(error)
+
+                    assert result is True
+                    mock_trigger.assert_called_once()
+
+    def test_routing_error_ignores_non_replicate_errors(self):
+        """Test that _handle_global_routing_error ignores unrelated MilvusExceptions."""
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[
+                ClusterInfo(
+                    cluster_id="in01-xxx", endpoint="https://in01-xxx.zilliz.com", capability=3
+                ),
+            ],
+        )
+
+        with patch("pymilvus.client.global_stub.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+                handler = GrpcHandler(
+                    uri="https://glo-xxx.global-cluster.vectordb.zilliz.com",
+                    token="test-token",
+                )
+
+                with patch.object(handler._global_stub, "trigger_refresh") as mock_trigger:
+                    error = MilvusException(code=1, message="collection not found")
+
+                    result = handler._handle_global_routing_error(error)
+
+                    assert result is False
+                    mock_trigger.assert_not_called()
+
+    def test_routing_error_noop_without_global_stub(self):
+        """Test that _handle_global_routing_error returns False when no global stub exists."""
+        with patch("pymilvus.client.grpc_handler.GrpcHandler._setup_grpc_channel"):
+            handler = GrpcHandler(uri="http://localhost:19530")
+
+            assert handler._global_stub is None
+
+            error = MilvusException(
+                code=65535, message="STREAMING_CODE_REPLICATE_VIOLATION"
+            )
+            result = handler._handle_global_routing_error(error)
+
+            assert result is False
+
+    def test_retry_decorator_retries_on_replicate_violation(self):
+        """Test that retry_on_rpc_failure retries write operations on REPLICATE_VIOLATION."""
+        from pymilvus.decorators import retry_on_rpc_failure
+
+        replicate_error = MilvusException(
+            code=65535,
+            message="code: STREAMING_CODE_REPLICATE_VIOLATION, "
+            "cause: non-replicate message cannot be received in secondary role",
+        )
+
+        call_count = 0
+
+        class FakeHandler:
+            """Simulate a GrpcHandler with global stub for decorator testing."""
+
+            _global_stub = MagicMock()
+            _channel = MagicMock()
+
+            def _handle_global_routing_error(self, error):
+                if "REPLICATE_VIOLATION" in str(error.message):
+                    self._global_stub.trigger_refresh()
+                    return True
+                return False
+
+            @retry_on_rpc_failure()
+            def insert(self, **kwargs):
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    raise replicate_error
+                return {"insert_count": 1}
+
+        handler = FakeHandler()
+        result = handler.insert(timeout=5, retry_times=3)
+
+        assert call_count == 2  # First call raises, second succeeds
+        assert result == {"insert_count": 1}
+        handler._global_stub.trigger_refresh.assert_called_once()
+
 
 class TestGlobalClusterConstant:
     def test_global_cluster_identifier_constant(self):

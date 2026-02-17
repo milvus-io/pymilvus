@@ -222,6 +222,20 @@ class GrpcHandler:
         if error.code() == grpc.StatusCode.UNAVAILABLE:
             self._global_stub.trigger_refresh()
 
+    def _handle_global_routing_error(self, error: MilvusException) -> bool:
+        """Handle routing errors for global connections (e.g. primary switched).
+
+        Returns True if a topology refresh was triggered and the caller should retry.
+        """
+        if self._global_stub is None:
+            return False
+
+        if "REPLICATE_VIOLATION" in str(error.message):
+            logger.info("Detected REPLICATE_VIOLATION, triggering topology refresh")
+            self._global_stub.trigger_refresh()
+            return True
+        return False
+
     def register_reconnect_handler(self, handler: ReconnectHandler):
         if handler is not None:
             self._reconnect_handler = handler
