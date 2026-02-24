@@ -5,7 +5,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pytest
 from pymilvus import AsyncMilvusClient, DataType
 from pymilvus.client.abstract import AnnSearchRequest
-from pymilvus.client.types import CompactionPlans, LoadState
+from pymilvus.client.types import CompactionPlans, LoadState, RestoreSnapshotJobInfo, SnapshotInfo
 from pymilvus.orm.collection import Function
 from pymilvus.orm.schema import StructFieldSchema
 
@@ -1118,3 +1118,173 @@ class TestAsyncMilvusClientDataOps:
             result = await client.get("test_collection", ids=[1])
 
             assert result == [{"id": 1, "name": "test"}]
+
+
+class TestAsyncMilvusClientSnapshot:
+    """Test snapshot-related APIs in AsyncMilvusClient."""
+
+    @pytest.mark.asyncio
+    async def test_create_snapshot(self):
+        """Test create_snapshot passes context."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.create_snapshot = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.create_snapshot(
+                collection_name="test_collection",
+                snapshot_name="test_snapshot",
+                description="Test description",
+            )
+
+            mock_handler.create_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                description="Test description",
+                timeout=None,
+                context=ANY,
+            )
+
+    @pytest.mark.asyncio
+    async def test_drop_snapshot(self):
+        """Test drop_snapshot passes context."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.drop_snapshot = AsyncMock(return_value=None)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            await client.drop_snapshot(snapshot_name="test_snapshot")
+
+            mock_handler.drop_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot", timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_list_snapshots(self):
+        """Test list_snapshots passes context."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.list_snapshots = AsyncMock(return_value=["snapshot1", "snapshot2"])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            snapshots = await client.list_snapshots(collection_name="test_collection")
+
+            assert snapshots == ["snapshot1", "snapshot2"]
+            mock_handler.list_snapshots.assert_called_once_with(
+                collection_name="test_collection", timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_describe_snapshot(self):
+        """Test describe_snapshot passes context."""
+        mock_info = SnapshotInfo(
+            name="test_snapshot",
+            description="Test description",
+            collection_name="test_collection",
+            partition_names=["_default"],
+            create_ts=1234567890,
+            s3_location="s3://bucket/path",
+        )
+
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.describe_snapshot = AsyncMock(return_value=mock_info)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            info = await client.describe_snapshot(snapshot_name="test_snapshot")
+
+            assert info.name == "test_snapshot"
+            mock_handler.describe_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot", timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_restore_snapshot(self):
+        """Test restore_snapshot passes context."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.restore_snapshot = AsyncMock(return_value=12345)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            job_id = await client.restore_snapshot(
+                snapshot_name="test_snapshot", collection_name="restored_collection"
+            )
+
+            assert job_id == 12345
+            mock_handler.restore_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="restored_collection",
+                rewrite_data=False,
+                timeout=None,
+                context=ANY,
+            )
+
+    @pytest.mark.asyncio
+    async def test_get_restore_snapshot_state(self):
+        """Test get_restore_snapshot_state passes context."""
+        mock_state = RestoreSnapshotJobInfo(
+            job_id=12345,
+            snapshot_name="test_snapshot",
+            db_name="default",
+            collection_name="test_collection",
+            state="RestoreSnapshotCompleted",
+            progress=100,
+            reason="",
+            start_time=1234567890,
+            time_cost=5000,
+        )
+
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.get_restore_snapshot_state = AsyncMock(return_value=mock_state)
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            state = await client.get_restore_snapshot_state(job_id=12345)
+
+            assert state.job_id == 12345
+            mock_handler.get_restore_snapshot_state.assert_called_once_with(
+                job_id=12345, timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_list_restore_snapshot_jobs(self):
+        """Test list_restore_snapshot_jobs passes context."""
+        with patch(
+            "pymilvus.milvus_client.async_milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler") as mock_fetch:
+            mock_handler = MagicMock()
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.list_restore_snapshot_jobs = AsyncMock(return_value=[])
+            mock_fetch.return_value = mock_handler
+
+            client = AsyncMilvusClient()
+            jobs = await client.list_restore_snapshot_jobs(collection_name="test_collection")
+
+            assert len(jobs) == 0
+            mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
+                collection_name="test_collection", timeout=None, context=ANY
+            )
