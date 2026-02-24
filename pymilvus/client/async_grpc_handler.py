@@ -983,6 +983,12 @@ class AsyncGrpcHandler:
             collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
         )
 
+        if not kwargs.get("schema") and data and isinstance(data[0], bytes):
+            schema_dict, _ = await self._get_schema(
+                collection_name, timeout=timeout, context=context, **kwargs
+            )
+            kwargs["schema"] = schema_dict
+
         request = Prepare.search_requests_with_expr(
             collection_name=collection_name,
             data=data,
@@ -1031,6 +1037,15 @@ class AsyncGrpcHandler:
             collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
         )
 
+        _cached_schema = kwargs.get("schema")
+        if not _cached_schema:
+            for req in reqs:
+                if req.data and isinstance(req.data[0], bytes):
+                    _cached_schema, _ = await self._get_schema(
+                        collection_name, timeout=timeout, context=context, **kwargs
+                    )
+                    break
+
         requests = []
         for req in reqs:
             data = req.data
@@ -1039,6 +1054,9 @@ class AsyncGrpcHandler:
             if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
+
+            if _cached_schema and not req_kwargs.get("schema"):
+                req_kwargs["schema"] = _cached_schema
 
             search_request = Prepare.search_requests_with_expr(
                 collection_name=collection_name,
