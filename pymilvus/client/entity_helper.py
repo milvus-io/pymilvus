@@ -770,7 +770,12 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
             field_data.vectors.bfloat16_vector = b"".join(entity_values)
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
-            if len(entity_values) > 0:
+            entity_len = (
+                entity_values.shape[0]
+                if SciPyHelper.is_scipy_sparse(entity_values)
+                else len(entity_values)
+            )
+            if entity_len > 0:
                 field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
         elif entity_type == DataType.INT8_VECTOR:
             if len(entity_values) > 0:
