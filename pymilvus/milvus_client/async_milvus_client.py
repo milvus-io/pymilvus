@@ -1936,6 +1936,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             description=description,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -1953,7 +1954,12 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs: Additional arguments.
         """
         conn = self._get_connection()
-        await conn.drop_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+        await conn.drop_snapshot(
+            snapshot_name=snapshot_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     async def list_snapshots(
         self,
@@ -1972,7 +1978,12 @@ class AsyncMilvusClient(BaseMilvusClient):
             List[str]: A list of snapshot names.
         """
         conn = self._get_connection()
-        return await conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
+        return await conn.list_snapshots(
+            collection_name=collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     async def describe_snapshot(
         self,
@@ -1991,7 +2002,12 @@ class AsyncMilvusClient(BaseMilvusClient):
             SnapshotInfo: Snapshot information dataclass.
         """
         conn = self._get_connection()
-        return await conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+        return await conn.describe_snapshot(
+            snapshot_name=snapshot_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     async def restore_snapshot(
         self,
@@ -2017,6 +2033,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             rewrite_data=False,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -2037,7 +2054,12 @@ class AsyncMilvusClient(BaseMilvusClient):
             RestoreSnapshotJobInfo: Restore job information dataclass.
         """
         conn = self._get_connection()
-        return await conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
+        return await conn.get_restore_snapshot_state(
+            job_id=job_id,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     async def list_restore_snapshot_jobs(
         self,
@@ -2057,5 +2079,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return await conn.list_restore_snapshot_jobs(
-            collection_name=collection_name, timeout=timeout, **kwargs
+            collection_name=collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )

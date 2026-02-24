@@ -2608,6 +2608,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             description=description,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -2631,7 +2632,12 @@ class MilvusClient(BaseMilvusClient):
             >>> client.drop_snapshot(snapshot_name="backup_20240101")
         """
         conn = self._get_connection()
-        conn.drop_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+        conn.drop_snapshot(
+            snapshot_name=snapshot_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def list_snapshots(
         self,
@@ -2660,7 +2666,12 @@ class MilvusClient(BaseMilvusClient):
             ['backup_20240101', 'backup_20240102']
         """
         conn = self._get_connection()
-        return conn.list_snapshots(collection_name=collection_name, timeout=timeout, **kwargs)
+        return conn.list_snapshots(
+            collection_name=collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def describe_snapshot(
         self,
@@ -2694,7 +2705,12 @@ class MilvusClient(BaseMilvusClient):
             >>> print(f"Created: {info.create_ts}")
         """
         conn = self._get_connection()
-        return conn.describe_snapshot(snapshot_name=snapshot_name, timeout=timeout, **kwargs)
+        return conn.describe_snapshot(
+            snapshot_name=snapshot_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def restore_snapshot(
         self,
@@ -2745,6 +2761,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             rewrite_data=False,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -2788,7 +2805,12 @@ class MilvusClient(BaseMilvusClient):
             ...     print(f"Failure Reason: {state.reason}")
         """
         conn = self._get_connection()
-        return conn.get_restore_snapshot_state(job_id=job_id, timeout=timeout, **kwargs)
+        return conn.get_restore_snapshot_state(
+            job_id=job_id,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def list_restore_snapshot_jobs(
         self,
@@ -2819,7 +2841,10 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.list_restore_snapshot_jobs(
-            collection_name=collection_name, timeout=timeout, **kwargs
+            collection_name=collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def add_file_resource(
