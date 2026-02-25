@@ -1145,6 +1145,7 @@ class TestAsyncMilvusClientSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="test_collection",
                 description="Test description",
+                db_name="",
                 timeout=None,
                 context=ANY,
             )
@@ -1183,7 +1184,7 @@ class TestAsyncMilvusClientSnapshot:
 
             assert snapshots == ["snapshot1", "snapshot2"]
             mock_handler.list_snapshots.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
 
     @pytest.mark.asyncio
@@ -1235,6 +1236,7 @@ class TestAsyncMilvusClientSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="restored_collection",
                 rewrite_data=False,
+                db_name="",
                 timeout=None,
                 context=ANY,
             )
@@ -1286,5 +1288,5 @@ class TestAsyncMilvusClientSnapshot:
 
             assert len(jobs) == 0
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
