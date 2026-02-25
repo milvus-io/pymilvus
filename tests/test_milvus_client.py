@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pymilvus import DataType
@@ -185,6 +185,7 @@ class TestMilvusClientSnapshot:
                 collection_name="test_collection",
                 description="Test description",
                 timeout=None,
+                context=ANY,
             )
 
     def test_create_snapshot_minimal(self):
@@ -220,7 +221,7 @@ class TestMilvusClientSnapshot:
             client.drop_snapshot(snapshot_name="test_snapshot")
 
             mock_handler.drop_snapshot.assert_called_once_with(
-                snapshot_name="test_snapshot", timeout=None
+                snapshot_name="test_snapshot", timeout=None, context=ANY
             )
 
     def test_list_snapshots(self):
@@ -238,7 +239,7 @@ class TestMilvusClientSnapshot:
 
             assert snapshots == ["snapshot1", "snapshot2"]
             mock_handler.list_snapshots.assert_called_once_with(
-                collection_name="test_collection", timeout=None
+                collection_name="test_collection", timeout=None, context=ANY
             )
 
     def test_list_snapshots_all(self):
@@ -287,7 +288,7 @@ class TestMilvusClientSnapshot:
             assert info.s3_location == "s3://bucket/path"
 
             mock_handler.describe_snapshot.assert_called_once_with(
-                snapshot_name="test_snapshot", timeout=None
+                snapshot_name="test_snapshot", timeout=None, context=ANY
             )
 
     def test_restore_snapshot(self):
@@ -311,6 +312,7 @@ class TestMilvusClientSnapshot:
                 collection_name="restored_collection",
                 rewrite_data=False,
                 timeout=None,
+                context=ANY,
             )
 
     def test_get_restore_snapshot_state(self):
@@ -344,7 +346,7 @@ class TestMilvusClientSnapshot:
             assert state.time_cost == 5000
 
             mock_handler.get_restore_snapshot_state.assert_called_once_with(
-                job_id=12345, timeout=None
+                job_id=12345, timeout=None, context=ANY
             )
 
     def test_list_restore_snapshot_jobs(self):
@@ -390,7 +392,7 @@ class TestMilvusClientSnapshot:
             assert jobs[1].progress == 50
 
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
-                collection_name="test_collection", timeout=None
+                collection_name="test_collection", timeout=None, context=ANY
             )
 
     def test_list_restore_snapshot_jobs_all(self):
