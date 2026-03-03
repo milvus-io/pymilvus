@@ -323,8 +323,7 @@ def retry_on_rpc_failure(
                     # Retry on rate-limit, or on errors handled by
                     # connection manager (e.g. REPLICATE_VIOLATION)
                     should_retry = _retry_on_rate_limit and (
-                        e.code == ErrorCode.RATE_LIMIT
-                        or e.compatible_code == common_pb2.RateLimit
+                        e.code == ErrorCode.RATE_LIMIT or e.compatible_code == common_pb2.RateLimit
                     )
                     if not should_retry and args and hasattr(args[0], "_on_rpc_error"):
                         should_retry = args[0]._on_rpc_error(e)
