@@ -14,6 +14,7 @@ from pymilvus.client.global_stub import (
     is_global_endpoint,
 )
 from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.decorators import retry_on_rpc_failure
 from pymilvus.exceptions import MilvusException
 
 
@@ -722,7 +723,6 @@ class TestGlobalErrorHandling:
 
     def test_retry_decorator_retries_on_replicate_violation(self):
         """Test that retry_on_rpc_failure retries write operations on REPLICATE_VIOLATION."""
-        from pymilvus.decorators import retry_on_rpc_failure
 
         replicate_error = MilvusException(
             code=65535,
@@ -762,7 +762,6 @@ class TestGlobalErrorHandling:
     @pytest.mark.asyncio
     async def test_async_retry_decorator_retries_on_replicate_violation(self):
         """Test that async retry_on_rpc_failure retries on REPLICATE_VIOLATION."""
-        from pymilvus.decorators import retry_on_rpc_failure
 
         replicate_error = MilvusException(
             code=65535,
