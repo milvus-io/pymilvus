@@ -57,12 +57,13 @@ class AsyncMilvusClient(BaseMilvusClient):
             final_token = f"{user}:{password}"
 
         # Store config for deferred connection
+        self._dedicated = kwargs.pop("dedicated", False)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
             db_name=db_name,
+            **kwargs,
         )
-        self._dedicated = kwargs.pop("dedicated", False)
         self._timeout = timeout
         self._manager: Optional[AsyncConnectionManager] = None
         self._handler = None

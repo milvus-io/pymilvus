@@ -79,15 +79,17 @@ class MilvusClient(BaseMilvusClient):
             final_token = f"{user}:{password}"
 
         # Create config and get handler via ConnectionManager
+        dedicated = kwargs.pop("dedicated", False)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
             db_name=db_name,
+            **kwargs,
         )
         self._manager = ConnectionManager.get_instance()
         self._handler = self._manager.get_or_create(
             self._config,
-            dedicated=kwargs.pop("dedicated", False),
+            dedicated=dedicated,
             client=self,
             timeout=timeout,
         )

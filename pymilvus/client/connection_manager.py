@@ -7,12 +7,13 @@ connection handling for MilvusClient, bypassing the legacy connections singleton
 import asyncio
 import contextlib
 import logging
+import pathlib
 import threading
 import time
 import weakref
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, Optional, Tuple
 from urllib.parse import urlparse
 
 import grpc
@@ -27,7 +28,7 @@ from pymilvus.client.global_stub import (
     TopologyRefresher,
     fetch_topology,
 )
-from pymilvus.exceptions import ConnectionConfigException
+from pymilvus.exceptions import ConnectionConfigException, MilvusException
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,11 @@ class ConnectionConfig:
     address: str
     token: str = ""
     db_name: str = ""
+    handler_kwargs: Tuple = ()
+
+    def get_handler_kwargs(self) -> Dict[str, Any]:
+        """Return handler_kwargs as a dict."""
+        return dict(self.handler_kwargs)
 
     @property
     def key(self) -> str:
@@ -68,6 +74,7 @@ class ConnectionConfig:
         *,
         token: Optional[str] = None,
         db_name: Optional[str] = None,
+        **kwargs,
     ) -> "ConnectionConfig":
         """Create ConnectionConfig from URI with optional overrides.
 
@@ -75,6 +82,8 @@ class ConnectionConfig:
             uri: Connection URI (e.g., https://user:pass@host:19530/mydb)
             token: Override token (default: extracted from URI)
             db_name: Override database name (default: extracted from URI path)
+            **kwargs: Additional keyword arguments forwarded to GrpcHandler
+                (e.g., secure, server_pem_path, grpc_options)
 
         Returns:
             ConnectionConfig with parsed/overridden values
@@ -82,15 +91,45 @@ class ConnectionConfig:
         Raises:
             ConnectionConfigException: If the URI format is invalid
         """
-        # Validate URI format
-        valid_schemes = ("unix", "http", "https", "tcp")
-        is_local_db = uri.endswith(".db")
+        # --- Milvus-Lite: rewrite .db URIs to a local gRPC endpoint ---
+        if uri.endswith(".db"):
+            parent = pathlib.Path(uri).parent
+            if not parent.is_dir():
+                raise ConnectionConfigException(
+                    message=f"Open local milvus failed, dir: {parent} not exists"
+                )
+            try:
+                from milvus_lite.server_manager import (  # noqa: PLC0415
+                    server_manager_instance,
+                )
+            except ImportError as e:
+                raise ConnectionConfigException(
+                    message="milvus-lite is required for local database connections. "
+                    "Please install it with: pip install pymilvus[milvus_lite]"
+                ) from e
+            local_uri = server_manager_instance.start_and_get_uri(uri)
+            if local_uri is None:
+                raise ConnectionConfigException(message="Open local milvus failed")
+            uri = local_uri  # continue below with the rewritten gRPC URI
+
+        # --- Unix socket: pass raw string as address ---
+        if uri.startswith("unix:"):
+            return cls(
+                uri=uri,
+                address=uri,
+                token=token or "",
+                db_name=db_name or "",
+                handler_kwargs=tuple(kwargs.items()),
+            )
+
+        # --- Normal URI parsing ---
+        valid_schemes = ("http", "https", "tcp")
         parsed = urlparse(uri)
 
-        if not is_local_db and parsed.scheme.lower() not in valid_schemes:
-            schemes_str = "[" + ", ".join(valid_schemes) + "]"
+        if parsed.scheme.lower() not in valid_schemes:
+            all_schemes = "[unix, " + ", ".join(valid_schemes) + "]"
             raise ConnectionConfigException(
-                message=f"uri: {uri} is illegal, needs start with {schemes_str} "
+                message=f"uri: {uri} is illegal, needs start with {all_schemes} "
                 f"or a local file endswith [.db]"
             )
 
@@ -118,11 +157,16 @@ class ConnectionConfig:
         final_token = token if token else uri_token
         final_db_name = db_name if db_name else uri_db_name
 
+        # Auto-detect secure from https:// scheme
+        if parsed.scheme == "https" and "secure" not in kwargs:
+            kwargs["secure"] = True
+
         return cls(
             uri=uri,
             address=address,
             token=final_token,
             db_name=final_db_name,
+            handler_kwargs=tuple(kwargs.items()),
         )
 
 
@@ -232,6 +276,7 @@ class RegularStrategy(ConnectionStrategy):
             uri=config.uri,
             token=config.token,
             db_name=config.db_name,
+            **config.get_handler_kwargs(),
         )
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
@@ -338,6 +383,7 @@ class GlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
             uri=primary.endpoint,
             token=config.token,
             db_name=config.db_name,
+            **config.get_handler_kwargs(),
         )
 
     def close(self, managed: ManagedConnection) -> None:
@@ -426,10 +472,12 @@ class ConnectionManager:
             return self._create_shared(config, client, timeout)
 
     def _register_error_callback(self, handler: "GrpcHandler") -> None:
-        """Register an RPC error callback on the handler.
+        """Register an error callback on the handler.
 
         The retry_on_rpc_failure decorator calls handler._on_rpc_error(e)
-        on gRPC errors. This routes errors to ConnectionManager.handle_error().
+        on gRPC errors and retryable MilvusExceptions. This routes errors
+        to ConnectionManager.handle_error() which returns True if the error
+        was handled and the caller should retry.
         """
         handler._on_rpc_error = lambda error: self.handle_error(handler, error)
 
@@ -615,10 +663,14 @@ class ConnectionManager:
         self,
         handler: "GrpcHandler",
         error: Exception,
-    ) -> None:
+    ) -> bool:
         """Handle an error from a connection.
 
-        For UNAVAILABLE errors, triggers strategy-specific recovery.
+        For gRPC UNAVAILABLE errors, triggers strategy-specific recovery.
+        For STREAMING_CODE_REPLICATE_VIOLATION (MilvusException), triggers
+        topology refresh and recovery on global connections so the retry
+        decorator can re-route to the new primary.
+
         The lock is released before calling on_unavailable() so that
         strategy-level network I/O (e.g. GlobalStrategy topology fetch)
         does not block other threads.
@@ -626,20 +678,23 @@ class ConnectionManager:
         Args:
             handler: The handler that encountered the error
             error: The exception that occurred
+
+        Returns:
+            True if the error was handled and the caller should retry.
         """
-
-        # Only handle UNAVAILABLE
-        if not isinstance(error, grpc.RpcError):
-            return
-
-        code = error.code()
-        if code != grpc.StatusCode.UNAVAILABLE:
-            return
+        if isinstance(error, grpc.RpcError):
+            if error.code() != grpc.StatusCode.UNAVAILABLE:
+                return False
+        elif isinstance(error, MilvusException):
+            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
+                return False
+        else:
+            return False
 
         with self._lock:
             managed = self._get_managed(handler)
             if managed is None:
-                return
+                return False
 
         # Run strategy decision outside lock (may do network I/O)
         should_recover = managed.strategy.on_unavailable(managed)
@@ -649,8 +704,10 @@ class ConnectionManager:
                 # Re-verify the handler is still the current one; another
                 # thread may have already recovered this connection.
                 if managed.handler is not handler:
-                    return
+                    return True
                 self._recover(managed)
+
+        return should_recover
 
     def get_stats(self) -> Dict[str, Any]:
         """Get pool statistics.
@@ -703,6 +760,7 @@ class AsyncRegularStrategy(ConnectionStrategy):
             uri=config.uri,
             token=config.token,
             db_name=config.db_name,
+            **config.get_handler_kwargs(),
         )
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
@@ -749,6 +807,7 @@ class AsyncGlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
             uri=primary.endpoint,
             token=config.token,
             db_name=config.db_name,
+            **config.get_handler_kwargs(),
         )
 
     async def close_async(self, managed: ManagedConnection) -> None:
@@ -855,11 +914,12 @@ class AsyncConnectionManager:
             return await self._create_shared(config, client, timeout)
 
     def _register_error_callback(self, handler: "AsyncGrpcHandler") -> None:
-        """Register an RPC error callback on the handler.
+        """Register an error callback on the handler.
 
         The async retry_on_rpc_failure decorator awaits handler._on_rpc_error(e)
-        on gRPC errors. This routes errors to AsyncConnectionManager.handle_error().
-        The callback is an async def so the entire chain is awaitable.
+        on gRPC errors and retryable MilvusExceptions. This routes errors to
+        AsyncConnectionManager.handle_error() which returns True if the error
+        was handled and the caller should retry.
 
         The closure captures ``handler`` by reference. After recovery, the old
         handler's closure still points to the old handler object, so
@@ -868,8 +928,8 @@ class AsyncConnectionManager:
         in-flight RPCs fail on the same old handler.
         """
 
-        async def _on_rpc_error(error: Exception) -> None:
-            await self.handle_error(handler, error)
+        async def _on_rpc_error(error: Exception) -> bool:
+            return await self.handle_error(handler, error)
 
         handler._on_rpc_error = _on_rpc_error
 
@@ -986,28 +1046,37 @@ class AsyncConnectionManager:
         self,
         handler: "AsyncGrpcHandler",
         error: Exception,
-    ) -> None:
+    ) -> bool:
         """Handle an error from an async connection.
 
-        For UNAVAILABLE errors, triggers strategy-specific recovery.
+        For gRPC UNAVAILABLE errors, triggers strategy-specific recovery.
+        For STREAMING_CODE_REPLICATE_VIOLATION (MilvusException), triggers
+        topology refresh and recovery on global connections so the retry
+        decorator can re-route to the new primary.
+
         Uses asyncio.Lock to prevent concurrent recovery attempts from
-        multiple coroutines hitting the same UNAVAILABLE error.
+        multiple coroutines hitting the same error.
 
         Args:
             handler: The handler that encountered the error
             error: The exception that occurred
-        """
-        if not isinstance(error, grpc.RpcError):
-            return
 
-        code = error.code()
-        if code != grpc.StatusCode.UNAVAILABLE:
-            return
+        Returns:
+            True if the error was handled and the caller should retry.
+        """
+        if isinstance(error, grpc.RpcError):
+            if error.code() != grpc.StatusCode.UNAVAILABLE:
+                return False
+        elif isinstance(error, MilvusException):
+            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
+                return False
+        else:
+            return False
 
         async with self._get_lock():
             managed = self._get_managed(handler)
             if managed is None:
-                return
+                return False
 
             # Run sync on_unavailable in executor to avoid blocking the
             # event loop (GlobalStrategy.on_unavailable does network I/O).
@@ -1017,6 +1086,8 @@ class AsyncConnectionManager:
             )
             if should_recover:
                 await self._recover(managed)
+
+        return should_recover
 
     async def _recover(self, managed: ManagedConnection) -> None:
         """Recover an async connection by creating new handler.
