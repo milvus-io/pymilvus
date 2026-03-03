@@ -3,6 +3,7 @@ import time
 from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
+from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.search_iterator import SearchIteratorV2
@@ -32,12 +33,10 @@ from pymilvus.exceptions import (
     ServerVersionIncompatibleException,
 )
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
-from pymilvus.orm.connections import connections
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
-from ._utils import create_connection
 from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
@@ -74,10 +73,28 @@ class MilvusClient(BaseMilvusClient):
                 to None.
                 Unit: second
         """
-        self._db_name = self._extract_db_name_from_uri(uri, db_name)
-        self._using = create_connection(
-            uri, token, self._db_name, user=user, password=password, timeout=timeout, **kwargs
+        # Build token from user/password if not provided
+        final_token = token
+        if not token and user and password:
+            final_token = f"{user}:{password}"
+
+        # Create config and get handler via ConnectionManager
+        self._config = ConnectionConfig.from_uri(
+            uri,
+            token=final_token,
+            db_name=db_name,
         )
+        self._manager = ConnectionManager.get_instance()
+        self._handler = self._manager.get_or_create(
+            self._config,
+            dedicated=kwargs.pop("dedicated", False),
+            client=self,
+            timeout=timeout,
+        )
+
+        # Legacy compatibility - store alias for _using attribute
+        self._using = f"cm-{id(self._handler)}"
+
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
 
     def create_collection(
@@ -951,8 +968,16 @@ class MilvusClient(BaseMilvusClient):
             self.create_index(collection_name, index_params, timeout=timeout)
             self.load_collection(collection_name, timeout=timeout)
 
+    def _get_connection(self):
+        """Return the handler for this client."""
+        return self._handler
+
     def close(self):
-        connections.remove_connection(self._using)
+        """Close the client and release the connection."""
+        if self._handler is None:
+            return
+        self._manager.release(self._handler, client=self)
+        self._handler = None
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
@@ -1684,7 +1709,7 @@ class MilvusClient(BaseMilvusClient):
         """
 
         self.describe_database(db_name, **kwargs)
-        self._db_name = db_name
+        self._config.db_name = db_name
 
     def create_database(
         self,
