@@ -1206,9 +1206,7 @@ class TestConnectionConfigInvalidUri:
             "sys.modules",
             {
                 "milvus_lite": Mock(),
-                "milvus_lite.server_manager": Mock(
-                    server_manager_instance=mock_manager
-                ),
+                "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager),
             },
         ):
             config = ConnectionConfig.from_uri("mydata.db")
@@ -1472,36 +1470,41 @@ class TestReplicateViolationRecovery:
 
         mock_topology = GlobalTopology(
             version=1,
-            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+            clusters=[
+                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
+            ],
         )
         new_topology = GlobalTopology(
             version=2,
-            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+            clusters=[
+                ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)
+            ],
         )
 
-        with (
-            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
-            patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler,
-        ):
-            mock_handler = Mock()
-            mock_handler._wait_for_channel_ready = Mock()
-            mock_handler.close = Mock()
-            MockHandler.return_value = mock_handler
+        with patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler:
+                mock_handler = Mock()
+                mock_handler._wait_for_channel_ready = Mock()
+                mock_handler.close = Mock()
+                MockHandler.return_value = mock_handler
 
-            handler = mgr.get_or_create(config)
-            managed = mgr._get_managed(handler)
-            assert isinstance(managed.strategy, GlobalStrategy)
+                handler = mgr.get_or_create(config)
+                managed = mgr._get_managed(handler)
+                assert isinstance(managed.strategy, GlobalStrategy)
 
-            # Now make fetch_topology return new primary
-            new_handler = Mock()
-            new_handler._wait_for_channel_ready = Mock()
-            MockHandler.return_value = new_handler
+                # Now make fetch_topology return new primary
+                new_handler = Mock()
+                new_handler._wait_for_channel_ready = Mock()
+                MockHandler.return_value = new_handler
 
-            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=new_topology):
-                result = mgr.handle_error(handler, self._make_replicate_error())
+                with patch(
+                    "pymilvus.client.connection_manager.fetch_topology",
+                    return_value=new_topology,
+                ):
+                    result = mgr.handle_error(handler, self._make_replicate_error())
 
-            assert result is True
-            mock_handler.close.assert_called()  # old handler closed
+                assert result is True
+                mock_handler.close.assert_called()  # old handler closed
 
     def test_replicate_violation_ignored_for_regular_strategy(self):
         """Test handle_error returns True for REPLICATE_VIOLATION on regular connections
@@ -1551,25 +1554,28 @@ class TestReplicateViolationRecovery:
 
         mock_topology = GlobalTopology(
             version=1,
-            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+            clusters=[
+                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
+            ],
         )
 
-        with (
-            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
-            patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler,
-        ):
-            mock_handler = Mock()
-            mock_handler._wait_for_channel_ready = Mock()
-            MockHandler.return_value = mock_handler
+        with patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler:
+                mock_handler = Mock()
+                mock_handler._wait_for_channel_ready = Mock()
+                MockHandler.return_value = mock_handler
 
-            handler = mgr.get_or_create(config)
+                handler = mgr.get_or_create(config)
 
-            # Same topology on re-fetch → primary unchanged → no recovery
-            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology):
-                result = mgr.handle_error(handler, self._make_replicate_error())
+                # Same topology on re-fetch → primary unchanged → no recovery
+                with patch(
+                    "pymilvus.client.connection_manager.fetch_topology",
+                    return_value=mock_topology,
+                ):
+                    result = mgr.handle_error(handler, self._make_replicate_error())
 
-            assert result is False
-            mock_handler.close.assert_not_called()
+                assert result is False
+                mock_handler.close.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_async_replicate_violation_triggers_recovery(self):
@@ -1581,33 +1587,38 @@ class TestReplicateViolationRecovery:
 
         mock_topology = GlobalTopology(
             version=1,
-            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+            clusters=[
+                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
+            ],
         )
         new_topology = GlobalTopology(
             version=2,
-            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+            clusters=[
+                ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)
+            ],
         )
 
-        with (
-            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
-            patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as MockHandler,
-        ):
-            mock_handler = Mock(spec=[])
-            mock_handler.ensure_channel_ready = AsyncMock()
-            mock_handler.close = AsyncMock()
-            MockHandler.return_value = mock_handler
+        with patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology):
+            with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as MockHandler:
+                mock_handler = Mock(spec=[])
+                mock_handler.ensure_channel_ready = AsyncMock()
+                mock_handler.close = AsyncMock()
+                MockHandler.return_value = mock_handler
 
-            handler = await mgr.get_or_create(config)
+                handler = await mgr.get_or_create(config)
 
-            new_handler = Mock(spec=[])
-            new_handler.ensure_channel_ready = AsyncMock()
-            new_handler.close = AsyncMock()
-            MockHandler.return_value = new_handler
+                new_handler = Mock(spec=[])
+                new_handler.ensure_channel_ready = AsyncMock()
+                new_handler.close = AsyncMock()
+                MockHandler.return_value = new_handler
 
-            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=new_topology):
-                result = await mgr.handle_error(handler, self._make_replicate_error())
+                with patch(
+                    "pymilvus.client.connection_manager.fetch_topology",
+                    return_value=new_topology,
+                ):
+                    result = await mgr.handle_error(handler, self._make_replicate_error())
 
-            assert result is True
+                assert result is True
 
     @pytest.mark.asyncio
     async def test_async_unrelated_milvus_exception_not_retried(self):
@@ -2328,7 +2339,13 @@ class TestMilvusLiteUri:
         mock_manager = Mock()
         mock_manager.start_and_get_uri.return_value = "http://127.0.0.1:12345"
 
-        with patch.dict("sys.modules", {"milvus_lite": Mock(), "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager)}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "milvus_lite": Mock(),
+                "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager),
+            },
+        ):
             config = ConnectionConfig.from_uri(db_path)
             mock_manager.start_and_get_uri.assert_called_once_with(db_path)
             assert config.uri == "http://127.0.0.1:12345"
@@ -2353,7 +2370,13 @@ class TestMilvusLiteUri:
         mock_manager = Mock()
         mock_manager.start_and_get_uri.return_value = None
 
-        with patch.dict("sys.modules", {"milvus_lite": Mock(), "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager)}):
+        with patch.dict(
+            "sys.modules",
+            {
+                "milvus_lite": Mock(),
+                "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager),
+            },
+        ):
             with pytest.raises(ConnectionConfigException, match="Open local milvus failed"):
                 ConnectionConfig.from_uri(db_path)
 
@@ -2369,7 +2392,9 @@ class TestUnixSocketUri:
 
     def test_unix_socket_with_token(self):
         """Unix socket preserves token and db_name."""
-        config = ConnectionConfig.from_uri("unix:///tmp/milvus.sock", token="root:milvus", db_name="mydb")
+        config = ConnectionConfig.from_uri(
+            "unix:///tmp/milvus.sock", token="root:milvus", db_name="mydb"
+        )
         assert config.token == "root:milvus"
         assert config.db_name == "mydb"
 
