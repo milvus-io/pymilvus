@@ -244,7 +244,7 @@ class TestRegularStrategy:
             handler = strategy.create_handler(config)
 
             MockHandler.assert_called_once_with(
-                uri="https://host:19530/mydb", token="mytoken", db_name="mydb"
+                uri="https://host:19530/mydb", token="mytoken", db_name="mydb", secure=True
             )
             assert handler is MockHandler.return_value
 
@@ -292,7 +292,10 @@ class TestGlobalStrategy:
                         "https://global-cluster.example.com:19530", "mytoken"
                     )
                     MockHandler.assert_called_once_with(
-                        uri="https://primary:19530", token="mytoken", db_name=""
+                        uri="https://primary:19530",
+                        token="mytoken",
+                        db_name="",
+                        secure=True,
                     )
                     assert strategy.get_topology() is sample_topology
                     assert handler is MockHandler.return_value
@@ -488,7 +491,10 @@ class TestAsyncGlobalStrategy:
 
                     mock_fetch.assert_called_once()
                     MockHandler.assert_called_once_with(
-                        uri="https://primary:19530", token="mytoken", db_name=""
+                        uri="https://primary:19530",
+                        token="mytoken",
+                        db_name="",
+                        secure=True,
                     )
                     mock_refresher.start.assert_called_once()
                     assert handler is MockHandler.return_value
@@ -1192,9 +1198,21 @@ class TestConnectionConfigInvalidUri:
             ConnectionConfig.from_uri("ftp://host:19530")
 
     def test_local_db_skips_scheme_check(self):
-        """Test that .db files skip scheme validation."""
-        config = ConnectionConfig.from_uri("mydata.db")
-        assert config.address is not None
+        """Test that .db files skip scheme validation and go through milvus-lite."""
+        mock_manager = Mock()
+        mock_manager.start_and_get_uri.return_value = "http://127.0.0.1:12345"
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "milvus_lite": Mock(),
+                "milvus_lite.server_manager": Mock(
+                    server_manager_instance=mock_manager
+                ),
+            },
+        ):
+            config = ConnectionConfig.from_uri("mydata.db")
+            assert config.address == "127.0.0.1:12345"
 
 
 # =============================================================================
@@ -1362,12 +1380,11 @@ class TestSyncHandleErrorEdgeCases:
     """Tests for handle_error edge cases."""
 
     def test_non_rpc_error_ignored(self):
-        """Test handle_error ignores non-RpcError exceptions."""
+        """Test handle_error ignores non-RpcError/non-MilvusException errors."""
         mgr = ConnectionManager.get_instance()
         handler = Mock()
 
-        # Should not raise, just return
-        mgr.handle_error(handler, ValueError("some error"))
+        assert mgr.handle_error(handler, ValueError("some error")) is False
 
     def test_managed_not_found(self):
         """Test handle_error returns when handler not in registry."""
@@ -1429,6 +1446,177 @@ class TestSyncGetManagedReturnsNone:
         mgr = ConnectionManager.get_instance()
         unknown_handler = Mock()
         assert mgr._get_managed(unknown_handler) is None
+
+
+# =============================================================================
+# TestReplicateViolationRecovery
+# =============================================================================
+
+
+class TestReplicateViolationRecovery:
+    """Tests for STREAMING_CODE_REPLICATE_VIOLATION handling."""
+
+    def _make_replicate_error(self):
+        return MilvusException(
+            code=65535,
+            message="code: STREAMING_CODE_REPLICATE_VIOLATION, "
+            "cause: non-replicate message cannot be received in secondary role",
+        )
+
+    def test_replicate_violation_triggers_recovery_for_global_strategy(self):
+        """Test handle_error triggers recovery on REPLICATE_VIOLATION for global connections."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+        new_topology = GlobalTopology(
+            version=2,
+            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+        )
+
+        with (
+            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
+            patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler,
+        ):
+            mock_handler = Mock()
+            mock_handler._wait_for_channel_ready = Mock()
+            mock_handler.close = Mock()
+            MockHandler.return_value = mock_handler
+
+            handler = mgr.get_or_create(config)
+            managed = mgr._get_managed(handler)
+            assert isinstance(managed.strategy, GlobalStrategy)
+
+            # Now make fetch_topology return new primary
+            new_handler = Mock()
+            new_handler._wait_for_channel_ready = Mock()
+            MockHandler.return_value = new_handler
+
+            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=new_topology):
+                result = mgr.handle_error(handler, self._make_replicate_error())
+
+            assert result is True
+            mock_handler.close.assert_called()  # old handler closed
+
+    def test_replicate_violation_ignored_for_regular_strategy(self):
+        """Test handle_error returns True for REPLICATE_VIOLATION on regular connections
+        (RegularStrategy.on_unavailable always returns True)."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler:
+            mock_handler = Mock()
+            mock_handler._wait_for_channel_ready = Mock()
+            mock_handler.close = Mock()
+            MockHandler.return_value = mock_handler
+
+            handler = mgr.get_or_create(config)
+            managed = mgr._get_managed(handler)
+            assert isinstance(managed.strategy, RegularStrategy)
+
+            new_handler = Mock()
+            new_handler._wait_for_channel_ready = Mock()
+            MockHandler.return_value = new_handler
+
+            result = mgr.handle_error(handler, self._make_replicate_error())
+            assert result is True  # RegularStrategy.on_unavailable() always returns True
+
+    def test_unrelated_milvus_exception_not_retried(self):
+        """Test handle_error ignores MilvusExceptions without REPLICATE_VIOLATION."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler:
+            mock_handler = Mock()
+            mock_handler._wait_for_channel_ready = Mock()
+            MockHandler.return_value = mock_handler
+
+            handler = mgr.get_or_create(config)
+
+            error = MilvusException(code=1, message="collection not found")
+            result = mgr.handle_error(handler, error)
+            assert result is False
+
+    def test_replicate_violation_no_recovery_when_primary_unchanged(self):
+        """Test REPLICATE_VIOLATION returns False when global primary hasn't changed."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+
+        with (
+            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
+            patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler,
+        ):
+            mock_handler = Mock()
+            mock_handler._wait_for_channel_ready = Mock()
+            MockHandler.return_value = mock_handler
+
+            handler = mgr.get_or_create(config)
+
+            # Same topology on re-fetch → primary unchanged → no recovery
+            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology):
+                result = mgr.handle_error(handler, self._make_replicate_error())
+
+            assert result is False
+            mock_handler.close.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_replicate_violation_triggers_recovery(self):
+        """Test async handle_error triggers recovery on REPLICATE_VIOLATION."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+
+        mock_topology = GlobalTopology(
+            version=1,
+            clusters=[ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)],
+        )
+        new_topology = GlobalTopology(
+            version=2,
+            clusters=[ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)],
+        )
+
+        with (
+            patch("pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology),
+            patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as MockHandler,
+        ):
+            mock_handler = Mock(spec=[])
+            mock_handler.ensure_channel_ready = AsyncMock()
+            mock_handler.close = AsyncMock()
+            MockHandler.return_value = mock_handler
+
+            handler = await mgr.get_or_create(config)
+
+            new_handler = Mock(spec=[])
+            new_handler.ensure_channel_ready = AsyncMock()
+            new_handler.close = AsyncMock()
+            MockHandler.return_value = new_handler
+
+            with patch("pymilvus.client.connection_manager.fetch_topology", return_value=new_topology):
+                result = await mgr.handle_error(handler, self._make_replicate_error())
+
+            assert result is True
+
+    @pytest.mark.asyncio
+    async def test_async_unrelated_milvus_exception_not_retried(self):
+        """Test async handle_error ignores MilvusExceptions without REPLICATE_VIOLATION."""
+        mgr = AsyncConnectionManager.get_instance()
+        handler = Mock()
+
+        error = MilvusException(code=1, message="collection not found")
+        assert await mgr.handle_error(handler, error) is False
 
 
 # =============================================================================
@@ -1714,12 +1902,11 @@ class TestAsyncHandleErrorEdgeCases:
 
     @pytest.mark.asyncio
     async def test_non_rpc_error_ignored(self):
-        """Test async handle_error ignores non-RpcError exceptions."""
+        """Test async handle_error ignores non-RpcError/non-MilvusException errors."""
         mgr = AsyncConnectionManager.get_instance()
         handler = Mock()
 
-        # Should not raise, just return
-        await mgr.handle_error(handler, ValueError("some error"))
+        assert await mgr.handle_error(handler, ValueError("some error")) is False
 
     @pytest.mark.asyncio
     async def test_non_unavailable_ignored(self):
@@ -1731,7 +1918,7 @@ class TestAsyncHandleErrorEdgeCases:
             def code(self):
                 return grpc.StatusCode.NOT_FOUND
 
-        await mgr.handle_error(handler, MockRpcError())
+        assert await mgr.handle_error(handler, MockRpcError()) is False
 
     @pytest.mark.asyncio
     async def test_managed_not_found(self):
@@ -2125,3 +2312,133 @@ class TestAsyncMilvusClientChangedCode:
             assert client._config.db_name == "mydb"
 
             await client.close()
+
+
+# =============================================================================
+# Milvus-Lite, Unix Socket, TLS/Secure, handler_kwargs
+# =============================================================================
+
+
+class TestMilvusLiteUri:
+    """Tests for milvus-lite .db URI handling."""
+
+    def test_milvus_lite_rewrites_uri(self, tmp_path):
+        """Milvus-Lite URI rewrite: from_uri('./test.db') rewrites to local gRPC URI."""
+        db_path = str(tmp_path / "test.db")
+        mock_manager = Mock()
+        mock_manager.start_and_get_uri.return_value = "http://127.0.0.1:12345"
+
+        with patch.dict("sys.modules", {"milvus_lite": Mock(), "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager)}):
+            config = ConnectionConfig.from_uri(db_path)
+            mock_manager.start_and_get_uri.assert_called_once_with(db_path)
+            assert config.uri == "http://127.0.0.1:12345"
+            assert config.address == "127.0.0.1:12345"
+
+    def test_milvus_lite_parent_dir_missing(self):
+        """ConnectionConfigException when parent directory doesn't exist."""
+        with pytest.raises(ConnectionConfigException, match="not exists"):
+            ConnectionConfig.from_uri("/nonexistent/dir/test.db")
+
+    def test_milvus_lite_import_error(self, tmp_path):
+        """Helpful error when milvus-lite is not installed."""
+        db_path = str(tmp_path / "test.db")
+
+        with patch.dict("sys.modules", {"milvus_lite": None, "milvus_lite.server_manager": None}):
+            with pytest.raises(ConnectionConfigException, match="milvus-lite is required"):
+                ConnectionConfig.from_uri(db_path)
+
+    def test_milvus_lite_returns_none(self, tmp_path):
+        """ConnectionConfigException when start_and_get_uri returns None."""
+        db_path = str(tmp_path / "test.db")
+        mock_manager = Mock()
+        mock_manager.start_and_get_uri.return_value = None
+
+        with patch.dict("sys.modules", {"milvus_lite": Mock(), "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager)}):
+            with pytest.raises(ConnectionConfigException, match="Open local milvus failed"):
+                ConnectionConfig.from_uri(db_path)
+
+
+class TestUnixSocketUri:
+    """Tests for unix socket URI handling."""
+
+    def test_unix_socket_address(self):
+        """Unix socket URI is passed through as address."""
+        config = ConnectionConfig.from_uri("unix:///tmp/milvus.sock")
+        assert config.address == "unix:///tmp/milvus.sock"
+        assert config.uri == "unix:///tmp/milvus.sock"
+
+    def test_unix_socket_with_token(self):
+        """Unix socket preserves token and db_name."""
+        config = ConnectionConfig.from_uri("unix:///tmp/milvus.sock", token="root:milvus", db_name="mydb")
+        assert config.token == "root:milvus"
+        assert config.db_name == "mydb"
+
+
+class TestHttpsAutoSecure:
+    """Tests for HTTPS auto-secure detection."""
+
+    def test_https_sets_secure_true(self):
+        """HTTPS URI auto-sets secure=True in handler_kwargs."""
+        config = ConnectionConfig.from_uri("https://host:443")
+        kwargs = config.get_handler_kwargs()
+        assert kwargs.get("secure") is True
+
+    def test_https_explicit_secure_false(self):
+        """Explicit secure=False overrides HTTPS auto-detect."""
+        config = ConnectionConfig.from_uri("https://host:443", secure=False)
+        kwargs = config.get_handler_kwargs()
+        assert kwargs.get("secure") is False
+
+    def test_http_no_auto_secure(self):
+        """HTTP URI does not set secure."""
+        config = ConnectionConfig.from_uri("http://host:19530")
+        kwargs = config.get_handler_kwargs()
+        assert "secure" not in kwargs
+
+
+class TestHandlerKwargs:
+    """Tests for handler_kwargs storage and forwarding."""
+
+    def test_extra_kwargs_stored(self):
+        """Extra kwargs are stored and retrievable."""
+        config = ConnectionConfig.from_uri(
+            "http://host:19530",
+            grpc_options={"max_receive_message_length": 100},
+        )
+        kwargs = config.get_handler_kwargs()
+        assert kwargs["grpc_options"] == {"max_receive_message_length": 100}
+
+    def test_handler_kwargs_forwarded_to_grpc_handler(self):
+        """handler_kwargs are forwarded when creating a GrpcHandler."""
+        config = ConnectionConfig.from_uri("http://host:19530", secure=True)
+        strategy = RegularStrategy()
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as MockHandler:
+            MockHandler.return_value = Mock()
+            strategy.create_handler(config)
+            MockHandler.assert_called_once_with(
+                uri=config.uri,
+                token=config.token,
+                db_name=config.db_name,
+                secure=True,
+            )
+
+    def test_handler_kwargs_forwarded_async(self):
+        """handler_kwargs are forwarded when creating an AsyncGrpcHandler."""
+        config = ConnectionConfig.from_uri("http://host:19530", secure=True)
+        strategy = AsyncRegularStrategy()
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as MockHandler:
+            MockHandler.return_value = Mock()
+            strategy.create_handler(config)
+            MockHandler.assert_called_once_with(
+                uri=config.uri,
+                token=config.token,
+                db_name=config.db_name,
+                secure=True,
+            )
+
+    def test_empty_handler_kwargs(self):
+        """Default handler_kwargs is empty."""
+        config = ConnectionConfig.from_uri("http://host:19530")
+        assert config.get_handler_kwargs() == {}
