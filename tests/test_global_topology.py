@@ -2,7 +2,7 @@ import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus.client.global_stub import (
+from pymilvus.client.global_topology import (
     GLOBAL_CLUSTER_IDENTIFIER,
     ClusterCapability,
     ClusterInfo,
@@ -98,7 +98,7 @@ class TestFetchTopology:
         }
 
         with patch(
-            "pymilvus.client.global_stub.requests.get", return_value=mock_response
+            "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get:
             topology = fetch_topology(
                 "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
@@ -134,10 +134,10 @@ class TestFetchTopology:
         }
 
         with patch(
-            "pymilvus.client.global_stub.requests.get",
+            "pymilvus.client.global_topology.requests.get",
             side_effect=[mock_response_fail, mock_response_success],
         ):
-            with patch("pymilvus.client.global_stub.time.sleep"):  # Skip delays in tests
+            with patch("pymilvus.client.global_topology.time.sleep"):  # Skip delays in tests
                 topology = fetch_topology(
                     "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
                 )
@@ -148,8 +148,8 @@ class TestFetchTopology:
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
 
-        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response):
-            with patch("pymilvus.client.global_stub.time.sleep"):
+        with patch("pymilvus.client.global_topology.requests.get", return_value=mock_response):
+            with patch("pymilvus.client.global_topology.time.sleep"):
                 with pytest.raises(MilvusException, match="Failed to fetch global topology"):
                     fetch_topology(
                         "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
@@ -160,8 +160,8 @@ class TestFetchTopology:
         mock_response.status_code = 200
         mock_response.json.return_value = {"code": 1, "message": "Invalid token"}
 
-        with patch("pymilvus.client.global_stub.requests.get", return_value=mock_response):
-            with patch("pymilvus.client.global_stub.time.sleep"):
+        with patch("pymilvus.client.global_topology.requests.get", return_value=mock_response):
+            with patch("pymilvus.client.global_topology.time.sleep"):
                 with pytest.raises(MilvusException, match="Invalid token"):
                     fetch_topology(
                         "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
@@ -185,7 +185,7 @@ class TestFetchTopology:
         }
 
         with patch(
-            "pymilvus.client.global_stub.requests.get", return_value=mock_response
+            "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get:
             fetch_topology("glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
 
@@ -248,7 +248,7 @@ class TestTopologyRefresher:
             on_topology_change=on_topology_change,
         )
 
-        with patch("pymilvus.client.global_stub.fetch_topology", return_value=new_topology):
+        with patch("pymilvus.client.global_topology.fetch_topology", return_value=new_topology):
             refresher.start()
             callback_called.wait(timeout=1.0)
             refresher.stop()
@@ -286,7 +286,7 @@ class TestTopologyRefresher:
             on_topology_change=on_topology_change,
         )
 
-        with patch("pymilvus.client.global_stub.fetch_topology", side_effect=counting_fetch):
+        with patch("pymilvus.client.global_topology.fetch_topology", side_effect=counting_fetch):
             refresher.start()
             refresh_count.wait(timeout=2.0)
             refresher.stop()
@@ -321,7 +321,7 @@ class TestTopologyRefresher:
             on_topology_change=on_topology_change,
         )
 
-        with patch("pymilvus.client.global_stub.fetch_topology", return_value=new_topology):
+        with patch("pymilvus.client.global_topology.fetch_topology", return_value=new_topology):
             refresher.start()
             refresher.trigger_refresh()
             callback_called.wait(timeout=1.0)
@@ -350,7 +350,7 @@ class TestTopologyRefresher:
             refresh_interval=0.05,
         )
 
-        with patch("pymilvus.client.global_stub.fetch_topology", side_effect=failing_fetch):
+        with patch("pymilvus.client.global_topology.fetch_topology", side_effect=failing_fetch):
             refresher.start()
             fetch_attempted.wait(timeout=2.0)
             assert refresher.is_running()

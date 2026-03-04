@@ -21,7 +21,7 @@ from pymilvus.client.connection_manager import (
     RegularStrategy,
     _GlobalStrategyMixin,
 )
-from pymilvus.client.global_stub import ClusterInfo
+from pymilvus.client.global_topology import ClusterInfo
 from pymilvus.exceptions import ConnectionConfigException, MilvusException
 
 # =============================================================================
