@@ -87,8 +87,16 @@ https://{user:pass|token}@host:19530/mydb
   │      │    │           └── host
   │      │    └── password (optional, extracted to token)
   │      └── user (optional, extracted to token)
-  └── scheme (validated: http/https/tcp/unix)
+  └── scheme (validated: http/https/tcp; also unix: and .db suffix)
 ```
+
+### Special URI Forms
+
+| Form | Behavior |
+|------|----------|
+| `.db` suffix (e.g. `./local.db`) | Milvus-lite: validates parent dir, starts local server via `server_manager_instance`, rewrites URI to local gRPC endpoint |
+| `unix:` scheme (e.g. `unix:/var/run/milvus.sock`) | Raw URI passed as `address` (no parsing) |
+| `https://` scheme | Auto-sets `secure=True` in handler kwargs |
 
 ### ConnectionConfig.from_uri(uri, ...) -> ConnectionConfig
 
@@ -103,8 +111,10 @@ https://{user:pass|token}@host:19530/mydb
 | URI | Result |
 |-----|--------|
 | `http://localhost:19530` | `address=localhost:19530, token=""` |
-| `https://host:19530/mydb` | `address=host:19530, db_name=mydb` |
-| `https://user:pass@host:19530` | `address=host:19530, token=user:pass` |
+| `https://host:19530/mydb` | `address=host:19530, db_name=mydb, secure=True` |
+| `https://user:pass@host:19530` | `address=host:19530, token=user:pass, secure=True` |
+| `./local.db` | milvus-lite: starts local server, rewrites to gRPC URI |
+| `unix:/var/run/milvus.sock` | `address=unix:/var/run/milvus.sock` (raw pass-through) |
 
 ### Priority
 
@@ -143,11 +153,11 @@ MilvusClient(uri="https://user:pass@host", token="other")  # token = "other"
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `get_instance` | `() -> ConnectionManager` | Get singleton |
-| `get_or_create` | `(config, dedicated=False, client=None) -> GrpcHandler` | Get/create handler |
+| `get_instance` | `() -> ConnectionManager` | Get singleton (sync: process-wide; async: per-event-loop via `AsyncConnectionManager`) |
+| `get_or_create` | `(config, dedicated=False, client=None, timeout=None) -> GrpcHandler` | Get/create handler |
 | `release` | `(handler, client=None) -> None` | Release connection |
 | `close_all` | `() -> None` | Close all connections |
-| `handle_error` | `(handler, error) -> None` | Handle UNAVAILABLE |
+| `handle_error` | `(handler, error) -> bool` | Handle UNAVAILABLE / REPLICATE_VIOLATION. Returns True if handled (caller should retry). |
 | `get_stats` | `() -> Dict` | Pool statistics |
 | `_check_health` | `(managed) -> bool` | gRPC state + GetVersion (private) |
 | `_recover` | `(managed) -> None` | Reset connection (private) |
@@ -228,6 +238,12 @@ Both strategies share the same recovery logic on UNAVAILABLE:
 the lock and re-verifies the handler hasn't been swapped by another thread before
 calling `_recover()`.
 
+**Async locking:** `AsyncConnectionManager.handle_error()` holds the `asyncio.Lock`
+throughout the entire operation and runs `on_unavailable()` via `run_in_executor`
+to avoid blocking the event loop. No split-lock is needed because `asyncio.Lock`
+queues coroutines (doesn't block threads), and holding the lock serializes recovery
+so double-recovery cannot happen.
+
 ## Health Check (On Checkout)
 
 Runs if connection idle > 30 seconds:
@@ -241,6 +257,7 @@ Runs if connection idle > 30 seconds:
 | Error | Action |
 |-------|--------|
 | `UNAVAILABLE` | Trigger recovery via strategy |
+| `STREAMING_CODE_REPLICATE_VIOLATION` (MilvusException) | Trigger recovery via strategy (same as UNAVAILABLE) |
 | Other errors | No action |
 
 ### Error Callback Chain
@@ -298,15 +315,37 @@ class MilvusClient:
 
 ### AsyncMilvusClient
 
+`__init__` stores config only (no connection). Connection is deferred to first use.
+
 ```python
 class AsyncMilvusClient:
-    async def __aenter__(self):
+    def __init__(self, uri, token, *, dedicated=False, **kwargs):
+        self._config = ConnectionConfig.from_uri(uri, token=token, **kwargs)
+        self._manager = None
+        self._handler = None
+
+    async def _connect(self):
+        """Establish the async connection (idempotent)."""
+        if self._handler is not None:
+            return
         self._manager = AsyncConnectionManager.get_instance()
-        self._handler = await self._manager.get_or_create(config, dedicated, client=self)
+        self._handler = await self._manager.get_or_create(
+            self._config, dedicated, client=self
+        )
+
+    async def __aenter__(self):
+        await self._connect()
         return self
 
+    async def _get_connection(self):
+        """Return handler, auto-connecting if needed."""
+        if self._handler is None:
+            await self._connect()
+        return self._handler
+
     async def close(self):
-        await self._manager.release(self._handler, client=self)
+        if self._manager and self._handler:
+            await self._manager.release(self._handler, client=self)
 ```
 
 ## File Structure
@@ -325,7 +364,7 @@ pymilvus/client/
 │   ├── AsyncGlobalStrategy
 │   └── AsyncConnectionManager
 │
-├── global_stub.py             # Topology helpers (fetch, refresh, data classes)
+├── global_topology.py         # Topology helpers (fetch, refresh, data classes)
 ├── grpc_handler.py            # Simplified: no global detection
 └── async_grpc_handler.py
 ```
@@ -337,7 +376,7 @@ pymilvus/client/
 | GlobalStub inside GrpcHandler | GlobalStrategy inside ConnectionManager |
 | GrpcHandler detects global URI | ConnectionManager detects global URI |
 | Separate error handling | Unified via strategy + shared _recover() |
-| GlobalStub class in global_stub.py | Removed (superseded by GlobalStrategy) |
+| GlobalStub class in global_stub.py | Removed (superseded by GlobalStrategy in global_topology.py) |
 
 ## Testing
 

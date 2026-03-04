@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
     from pymilvus.client.grpc_handler import GrpcHandler
 
-from pymilvus.client.global_stub import (
+from pymilvus.client.global_topology import (
     GLOBAL_CLUSTER_IDENTIFIER,
     GlobalTopology,
     TopologyRefresher,
