@@ -44,6 +44,7 @@ class RemoteBulkWriter(LocalBulkWriter):
             access_key: Optional[str] = None,
             secret_key: Optional[str] = None,
             secure: bool = False,
+            enable_virtual_style_endpoint: bool = False,
             session_token: Optional[str] = None,
             region: Optional[str] = None,
             http_client: Any = None,
@@ -54,6 +55,7 @@ class RemoteBulkWriter(LocalBulkWriter):
             self._access_key = access_key
             self._secret_key = secret_key
             self._secure = (secure,)
+            self._enable_virtual_style_endpoint = (enable_virtual_style_endpoint,)
             self._session_token = (session_token,)
             self._region = (region,)
             self._http_client = (http_client,)  # urllib3.poolmanager.PoolManager
@@ -159,6 +161,10 @@ class RemoteBulkWriter(LocalBulkWriter):
                     http_client=arg_parse(self._connect_param._http_client),
                     credentials=arg_parse(self._connect_param._credentials),
                 )
+
+                if arg_parse(self._connect_param._enable_virtual_style_endpoint):
+                    self._client.enable_virtual_style_endpoint()
+
                 logger.info("Minio/S3 blob storage client successfully initialized")
             except Exception as err:
                 logger.error(f"Failed to connect MinIO/S3, error: {err}")
