@@ -1,6 +1,7 @@
 # Global Client Design for PyMilvus
 
 - **Created:** 2026-01-28
+- **Updated:** 2026-01-28
 - **Author(s):** @bigsheeper
 
 ## Overview
