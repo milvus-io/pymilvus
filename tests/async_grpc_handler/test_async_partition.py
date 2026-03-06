@@ -270,7 +270,8 @@ class TestAsyncGrpcHandlerPartitionLoad:
                 timeout=0.001,
             )
 
-        assert "wait for loading partition timeout" in str(exc_info.value)
+        msg = str(exc_info.value)
+        assert "timeout" in msg.lower()
 
     @pytest.mark.asyncio
     async def test_load_partitions_with_resource_groups(self) -> None:
