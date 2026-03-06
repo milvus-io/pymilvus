@@ -209,6 +209,11 @@ def retry_on_rpc_failure(
 
                 while True:
                     try:
+                        if retry_timeout is not None:
+                            remaining = retry_timeout - (time.time() - start_time)
+                            if remaining <= 0:
+                                raise MilvusException(message=to_msg)
+                            return await asyncio.wait_for(func(*args, **kwargs), timeout=remaining)
                         return await func(*args, **kwargs)
                     except grpc.RpcError as e:
                         # Trigger global topology refresh on connection errors
@@ -250,6 +255,8 @@ def retry_on_rpc_failure(
                             back_off = min(back_off * back_off_multiplier, max_back_off)
                         else:
                             raise e from e
+                    except asyncio.TimeoutError as e:
+                        raise MilvusException(message=to_msg) from e
                     except Exception as e:
                         raise e from e
                     finally:

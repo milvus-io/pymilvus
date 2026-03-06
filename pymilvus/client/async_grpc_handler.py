@@ -217,11 +217,12 @@ class AsyncGrpcHandler:
     def get_server_type(self):
         return get_server_type(self.server_address.split(":")[0])
 
-    async def ensure_channel_ready(self):
+    async def ensure_channel_ready(self, timeout: Optional[float] = None):
         try:
             if not self._is_channel_ready:
-                # wait for channel ready
-                await self._async_channel.channel_ready()
+                # wait for channel ready, default 10s to match sync _wait_for_channel_ready
+                wait_timeout = timeout if timeout is not None else 10
+                await asyncio.wait_for(self._async_channel.channel_ready(), timeout=wait_timeout)
                 # set identifier interceptor
                 host = socket.gethostname()
                 req = Prepare.register_request(self._user, host)
@@ -234,7 +235,7 @@ class AsyncGrpcHandler:
                 self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._async_channel)
 
                 self._is_channel_ready = True
-        except grpc.FutureTimeoutError as e:
+        except (grpc.FutureTimeoutError, asyncio.TimeoutError) as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",

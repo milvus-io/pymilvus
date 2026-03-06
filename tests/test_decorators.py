@@ -1,3 +1,4 @@
+import asyncio
 import time
 from unittest.mock import MagicMock, patch
 
@@ -916,3 +917,45 @@ class MockFutureTimeoutError(grpc.FutureTimeoutError):
 
     def details(self):
         return "Future timed out"
+
+
+class TestAsyncRetryTimeout:
+    """Test that async retry_on_rpc_failure respects timeout for blocking calls."""
+
+    @pytest.mark.asyncio
+    async def test_async_timeout_enforced_on_blocking_call(self):
+        """When inner function blocks indefinitely, timeout should still be enforced."""
+        mock_self = MockSelfForTracing()
+        call_count = 0
+
+        @retry_on_rpc_failure()
+        async def blocking_func(self_arg, timeout=None):
+            nonlocal call_count
+            call_count += 1
+            # Simulate a call that blocks much longer than timeout
+            await asyncio.sleep(60)
+
+        start = time.time()
+        with pytest.raises(MilvusException, match="Retry timeout"):
+            await blocking_func(mock_self, timeout=1)
+        elapsed = time.time() - start
+
+        assert elapsed < 5, f"Expected to finish within 5s, took {elapsed:.1f}s"
+        assert call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_async_timeout_not_affected_when_no_timeout(self):
+        """Without timeout, retry_times controls retries (no asyncio.wait_for)."""
+        mock_self = MockSelfForTracing()
+        call_count = 0
+
+        @retry_on_rpc_failure(retry_times=2)
+        async def failing_func(self_arg, timeout=None):
+            nonlocal call_count
+            call_count += 1
+            raise MockUnavailableError
+
+        with pytest.raises(MilvusException):
+            await failing_func(mock_self)
+
+        assert call_count == 3  # initial + 2 retries

@@ -205,7 +205,7 @@ class TestAsyncFlush:
 
             # Verify timeout exception was raised
             assert (
-                "wait for flush timeout" in str(exc_info.value).lower()
+                "timeout" in str(exc_info.value).lower()
             ), "Should raise timeout exception when flush takes too long"
 
     @pytest.mark.asyncio
