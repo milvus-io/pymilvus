@@ -3217,6 +3217,7 @@ class GrpcHandler:
         collection_name: str,
         snapshot_name: str,
         description: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -3225,6 +3226,7 @@ class GrpcHandler:
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             description=description,
+            db_name=db_name,
         )
         status = self._stub.CreateSnapshot(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -3247,11 +3249,12 @@ class GrpcHandler:
     def list_snapshots(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[str]:
-        request = Prepare.list_snapshots_req(collection_name=collection_name)
+        request = Prepare.list_snapshots_req(collection_name=collection_name, db_name=db_name)
         response = self._stub.ListSnapshots(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -3289,6 +3292,7 @@ class GrpcHandler:
         collection_name: str,
         snapshot_name: str,
         rewrite_data: bool = False,
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -3297,6 +3301,7 @@ class GrpcHandler:
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             rewrite_data=rewrite_data,
+            db_name=db_name,
         )
         response = self._stub.RestoreSnapshot(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -3337,11 +3342,14 @@ class GrpcHandler:
     def list_restore_snapshot_jobs(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[RestoreSnapshotJobInfo]:
-        request = Prepare.list_restore_snapshot_jobs_req(collection_name=collection_name)
+        request = Prepare.list_restore_snapshot_jobs_req(
+            collection_name=collection_name, db_name=db_name
+        )
         response = self._stub.ListRestoreSnapshotJobs(
             request, timeout=timeout, metadata=_api_level_md(context)
         )

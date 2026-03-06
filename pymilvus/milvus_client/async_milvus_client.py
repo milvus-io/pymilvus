@@ -1909,6 +1909,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         collection_name: str,
         snapshot_name: str,
         description: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
@@ -1918,6 +1919,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name (str): The name of the collection to snapshot.
             snapshot_name (str): The name of the snapshot. Must be unique.
             description (str): Optional description for the snapshot.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -1935,6 +1937,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             description=description,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1964,6 +1967,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def list_snapshots(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[str]:
@@ -1971,6 +1975,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         Args:
             collection_name (str): Optional collection name to filter snapshots.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -1980,6 +1985,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return await conn.list_snapshots(
             collection_name=collection_name,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2013,6 +2019,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         snapshot_name: str,
         collection_name: str,
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -2021,6 +2028,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         Args:
             snapshot_name (str): The name of the snapshot to restore.
             collection_name (str): The name of the target collection to create.
+            db_name (str): The target database name to restore into.
+                If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2032,6 +2041,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             rewrite_data=False,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2064,6 +2074,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def list_restore_snapshot_jobs(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[RestoreSnapshotJobInfo]:
@@ -2071,6 +2082,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         Args:
             collection_name (str): Optional collection name to filter jobs.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2080,6 +2092,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return await conn.list_restore_snapshot_jobs(
             collection_name=collection_name,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,

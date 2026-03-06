@@ -2576,6 +2576,7 @@ class MilvusClient(BaseMilvusClient):
         collection_name: str,
         snapshot_name: str,
         description: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> None:
@@ -2585,6 +2586,7 @@ class MilvusClient(BaseMilvusClient):
             collection_name (str): The name of the collection to snapshot.
             snapshot_name (str): The name of the snapshot. Must be unique.
             description (str): Optional description for the snapshot.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2607,6 +2609,7 @@ class MilvusClient(BaseMilvusClient):
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             description=description,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2642,6 +2645,7 @@ class MilvusClient(BaseMilvusClient):
     def list_snapshots(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[str]:
@@ -2650,6 +2654,7 @@ class MilvusClient(BaseMilvusClient):
         Args:
             collection_name (str): Optional collection name to filter snapshots.
                 If empty, lists all snapshots.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2668,6 +2673,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.list_snapshots(
             collection_name=collection_name,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2716,6 +2722,7 @@ class MilvusClient(BaseMilvusClient):
         self,
         snapshot_name: str,
         collection_name: str,
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -2727,6 +2734,8 @@ class MilvusClient(BaseMilvusClient):
         Args:
             snapshot_name (str): The name of the snapshot to restore.
             collection_name (str): The name of the target collection to create.
+            db_name (str): The target database name to restore into.
+                If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2742,24 +2751,19 @@ class MilvusClient(BaseMilvusClient):
             ...     collection_name="restored_collection"
             ... )
             >>> print(f"Restore job ID: {job_id}")
-            >>> # Monitor progress
-            >>> import time
-            >>> while True:
-            ...     state = client.get_restore_snapshot_state(job_id=job_id)
-            ...     if state.state == "RestoreSnapshotCompleted":
-            ...         print("Restore completed!")
-            ...         break
-            ...     elif state.state == "RestoreSnapshotFailed":
-            ...         print(f"Restore failed: {state.reason}")
-            ...         break
-            ...     print(f"Progress: {state.progress}%")
-            ...     time.sleep(1)
+            >>> # Restore to a different database
+            >>> job_id = client.restore_snapshot(
+            ...     snapshot_name="backup_20240101",
+            ...     collection_name="restored_collection",
+            ...     db_name="target_db"
+            ... )
         """
         conn = self._get_connection()
         return conn.restore_snapshot(
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             rewrite_data=False,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2815,6 +2819,7 @@ class MilvusClient(BaseMilvusClient):
     def list_restore_snapshot_jobs(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[RestoreSnapshotJobInfo]:
@@ -2823,6 +2828,7 @@ class MilvusClient(BaseMilvusClient):
         Args:
             collection_name (str): Optional collection name to filter jobs.
                 If empty, lists all restore jobs.
+            db_name (str): The database name. If empty, uses the client's current database.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2842,6 +2848,7 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.list_restore_snapshot_jobs(
             collection_name=collection_name,
+            db_name=db_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
