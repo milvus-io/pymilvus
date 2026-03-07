@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import inspect
 import logging
 import time
 import traceback
@@ -84,7 +85,7 @@ def retry_on_schema_mismatch():
     """
 
     def wrapper(func: Callable):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_handler(self: Any, collection_name: str, *args, **kwargs):
@@ -171,7 +172,7 @@ def retry_on_rpc_failure(
     back_off_multiplier: int = 3,
 ):
     def wrapper(func: Any):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             @error_handler(func_name=func.__name__)
@@ -367,7 +368,7 @@ def _log_rpc_error(inner_name: str, label: str, msg: str, start_ts: float):
 
 def error_handler(func_name: str = ""):
     def wrapper(func: Callable):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
             inner_name = func_name or func.__name__
 
             @functools.wraps(func)
@@ -437,7 +438,7 @@ def error_handler(func_name: str = ""):
 
 def tracing_request():
     def wrapper(func: Callable):
-        if asyncio.iscoroutinefunction(func):
+        if inspect.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_handler(self: Callable, *args, **kwargs):
