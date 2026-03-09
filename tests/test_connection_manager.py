@@ -718,7 +718,7 @@ class TestAsyncMilvusClientIntegration:
         with patch.object(AsyncConnectionManager, "get_instance") as mock_get_instance:
             mock_manager = Mock()
             mock_handler = Mock()
-            mock_handler.get_server_type = AsyncMock(return_value="milvus")
+            mock_handler.get_server_type = Mock(return_value="milvus")
 
             async def mock_get_or_create(*args, **kwargs):
                 return mock_handler
@@ -1824,8 +1824,8 @@ class TestAsyncCheckHealthActual:
         channel = Mock()
         state = Mock()
         state.name = "READY"
-        channel.check_connectivity_state.return_value = state
-        handler._channel = channel
+        channel.get_state.return_value = state
+        handler._async_channel = channel
         handler.get_server_version = AsyncMock(return_value="v2.0")
 
         managed = ManagedConnection(handler=handler, config=config, strategy=AsyncRegularStrategy())
@@ -1837,7 +1837,7 @@ class TestAsyncCheckHealthActual:
         mgr = AsyncConnectionManager.get_instance()
         config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
 
-        handler = Mock(spec=[])  # no _channel attribute
+        handler = Mock(spec=[])  # no _async_channel attribute
         managed = ManagedConnection(handler=handler, config=config, strategy=AsyncRegularStrategy())
         assert await mgr._check_health(managed) is False
 
@@ -1851,8 +1851,8 @@ class TestAsyncCheckHealthActual:
         channel = Mock()
         state = Mock()
         state.name = "SHUTDOWN"
-        channel.check_connectivity_state.return_value = state
-        handler._channel = channel
+        channel.get_state.return_value = state
+        handler._async_channel = channel
 
         managed = ManagedConnection(handler=handler, config=config, strategy=AsyncRegularStrategy())
         assert await mgr._check_health(managed) is False
@@ -1867,8 +1867,8 @@ class TestAsyncCheckHealthActual:
         channel = Mock()
         state = Mock()
         state.name = "READY"
-        channel.check_connectivity_state.return_value = state
-        handler._channel = channel
+        channel.get_state.return_value = state
+        handler._async_channel = channel
         handler.get_server_version = AsyncMock(side_effect=Exception("timeout"))
 
         managed = ManagedConnection(handler=handler, config=config, strategy=AsyncRegularStrategy())

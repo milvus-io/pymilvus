@@ -1009,11 +1009,14 @@ class AsyncConnectionManager:
             True if healthy, False if needs recovery
         """
         try:
-            channel = getattr(managed.handler, "_channel", None)
+            # AsyncGrpcHandler uses _async_channel (grpc.aio.Channel),
+            # not _channel (grpc.Channel used by sync GrpcHandler).
+            channel = getattr(managed.handler, "_async_channel", None)
             if channel is None:
                 return False
 
-            state = channel.check_connectivity_state(True)
+            # grpc.aio.Channel uses get_state(), not check_connectivity_state()
+            state = channel.get_state()
             if state.name == "SHUTDOWN":
                 return False
 
