@@ -8,7 +8,12 @@ from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage
 from pymilvus.settings import Config
 
 from . import utils
-from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
+from .constants import (
+    DEFAULT_CONSISTENCY_LEVEL,
+    RANKER_TYPE_RRF,
+    RANKER_TYPE_WEIGHTED,
+    ConsistencyLevel,
+)
 
 # ruff: noqa: F401
 # TODO: This is a patch for older version
@@ -300,7 +305,6 @@ class CollectionSchema:
 
     def _consistency_level_to_str(self, level: int) -> str:
         """Convert numeric consistency level to human-readable string."""
-        from pymilvus.client.constants import ConsistencyLevel
 
         # Map integer values to their string names
         consistency_map = {
