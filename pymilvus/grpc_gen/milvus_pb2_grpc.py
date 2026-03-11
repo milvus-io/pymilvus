@@ -596,6 +596,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
+        self.GetReplicateConfiguration = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetReplicateConfiguration',
+                request_serializer=milvus__pb2.GetReplicateConfigurationRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetReplicateConfigurationResponse.FromString,
+                _registered_method=True)
         self.GetReplicateInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetReplicateInfo',
                 request_serializer=milvus__pb2.GetReplicateInfoRequest.SerializeToString,
@@ -1303,6 +1308,15 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetReplicateConfiguration(self, request, context):
+        """
+        GetReplicateConfiguration retrieves the current cross-cluster replication topology.
+        Sensitive fields (like connection tokens) are redacted in the response.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetReplicateInfo(self, request, context):
         """
         GetReplicateInfo retrieves replication-related metadata of specified channel from a target Milvus cluster.
@@ -1887,6 +1901,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.UpdateReplicateConfiguration,
                     request_deserializer=milvus__pb2.UpdateReplicateConfigurationRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'GetReplicateConfiguration': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReplicateConfiguration,
+                    request_deserializer=milvus__pb2.GetReplicateConfigurationRequest.FromString,
+                    response_serializer=milvus__pb2.GetReplicateConfigurationResponse.SerializeToString,
             ),
             'GetReplicateInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetReplicateInfo,
@@ -4923,6 +4942,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/UpdateReplicateConfiguration',
             milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetReplicateConfiguration(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetReplicateConfiguration',
+            milvus__pb2.GetReplicateConfigurationRequest.SerializeToString,
+            milvus__pb2.GetReplicateConfigurationResponse.FromString,
             options,
             channel_credentials,
             insecure,

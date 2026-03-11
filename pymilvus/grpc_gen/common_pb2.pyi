@@ -358,6 +358,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
+    PrivilegeGetReplicateConfiguration: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -708,6 +709,7 @@ PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
 PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
+PrivilegeGetReplicateConfiguration: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
