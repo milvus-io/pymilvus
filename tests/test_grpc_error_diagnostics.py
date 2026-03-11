@@ -252,7 +252,3 @@ class TestGrpcErrorDiagnosticsIntegration:
         assert error.code() == grpc.StatusCode.DEADLINE_EXCEEDED
         assert "debug=" in error_info
         assert "channel_state=CONNECTING" in error_info
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

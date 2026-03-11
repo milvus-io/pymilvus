@@ -216,11 +216,11 @@ def retry_on_rpc_failure(
                             return await asyncio.wait_for(func(*args, **kwargs), timeout=remaining)
                         return await func(*args, **kwargs)
                     except grpc.RpcError as e:
-                        # Trigger global topology refresh on connection errors
-                        if args and hasattr(args[0], "_handle_global_connection_error"):
-                            args[0]._handle_global_connection_error(e)
                         if e.code() in IGNORE_RETRY_CODES:
                             raise e from e
+                        # Notify connection manager of retryable RPC errors for recovery
+                        if args and hasattr(args[0], "_on_rpc_error"):
+                            await args[0]._on_rpc_error(e)
                         if is_timeout(start_time):
                             raise MilvusException(
                                 e.code(), f"{to_msg}, {_get_rpc_error_info(e, channel)}"
@@ -240,17 +240,15 @@ def retry_on_rpc_failure(
                             raise MilvusException(
                                 code=e.code, message=f"{to_msg}, message={e.message}"
                             ) from e
-                        if (
-                            _retry_on_rate_limit
-                            and (
-                                e.code == ErrorCode.RATE_LIMIT
-                                or e.compatible_code == common_pb2.RateLimit
-                            )
-                        ) or (
-                            args
-                            and hasattr(args[0], "_handle_global_routing_error")
-                            and args[0]._handle_global_routing_error(e)
-                        ):
+                        # Retry on rate-limit, or on errors handled by
+                        # connection manager (e.g. REPLICATE_VIOLATION)
+                        should_retry = _retry_on_rate_limit and (
+                            e.code == ErrorCode.RATE_LIMIT
+                            or e.compatible_code == common_pb2.RateLimit
+                        )
+                        if not should_retry and args and hasattr(args[0], "_on_rpc_error"):
+                            should_retry = await args[0]._on_rpc_error(e)
+                        if should_retry:
                             await asyncio.sleep(back_off)
                             back_off = min(back_off * back_off_multiplier, max_back_off)
                         else:
@@ -305,12 +303,11 @@ def retry_on_rpc_failure(
                 try:
                     return func(*args, **kwargs)
                 except grpc.RpcError as e:
-                    # Trigger global topology refresh on connection errors
-                    if args and hasattr(args[0], "_handle_global_connection_error"):
-                        args[0]._handle_global_connection_error(e)
-                    # Do not retry on these codes
                     if e.code() in IGNORE_RETRY_CODES:
                         raise e from e
+                    # Notify connection manager of retryable RPC errors for recovery
+                    if args and hasattr(args[0], "_on_rpc_error"):
+                        args[0]._on_rpc_error(e)
                     if timeout(start_time):
                         raise MilvusException(
                             e.code, f"{to_msg}, {_get_rpc_error_info(e, channel)}"
@@ -330,17 +327,14 @@ def retry_on_rpc_failure(
                         raise MilvusException(
                             code=e.code, message=f"{to_msg}, message={e.message}"
                         ) from e
-                    if (
-                        _retry_on_rate_limit
-                        and (
-                            e.code == ErrorCode.RATE_LIMIT
-                            or e.compatible_code == common_pb2.RateLimit
-                        )
-                    ) or (
-                        args
-                        and hasattr(args[0], "_handle_global_routing_error")
-                        and args[0]._handle_global_routing_error(e)
-                    ):
+                    # Retry on rate-limit, or on errors handled by
+                    # connection manager (e.g. REPLICATE_VIOLATION)
+                    should_retry = _retry_on_rate_limit and (
+                        e.code == ErrorCode.RATE_LIMIT or e.compatible_code == common_pb2.RateLimit
+                    )
+                    if not should_retry and args and hasattr(args[0], "_on_rpc_error"):
+                        should_retry = args[0]._on_rpc_error(e)
+                    if should_retry:
                         time.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     else:
