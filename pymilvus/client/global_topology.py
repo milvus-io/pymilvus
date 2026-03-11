@@ -157,6 +157,7 @@ class TopologyRefresher:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._refreshing = False  # Debounce flag to prevent concurrent refreshes
 
     def start(self) -> None:
         """Start the background refresh thread."""
@@ -184,8 +185,14 @@ class TopologyRefresher:
             return self._topology
 
     def trigger_refresh(self) -> None:
-        """Trigger an immediate topology refresh (async)."""
-        threading.Thread(target=self._try_refresh, daemon=True).start()
+        """Trigger an immediate topology refresh (async, debounced)."""
+        with self._lock:
+            if self._refreshing:
+                # Already refreshing, skip to avoid duplicate requests
+                return
+            self._refreshing = True
+
+        threading.Thread(target=self._try_refresh_with_cleanup, daemon=True).start()
 
     def _refresh_loop(self) -> None:
         """Main refresh loop running in background thread."""
@@ -214,3 +221,11 @@ class TopologyRefresher:
         except Exception:
             logger.warning("Topology refresh failed", exc_info=True)
             # Keep using cached topology, will retry next interval
+
+    def _try_refresh_with_cleanup(self) -> None:
+        """Attempt to refresh the topology and reset the refreshing flag."""
+        try:
+            self._try_refresh()
+        finally:
+            with self._lock:
+                self._refreshing = False
