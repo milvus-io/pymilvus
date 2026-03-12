@@ -2696,10 +2696,24 @@ class ListRowPoliciesResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., policies: _Optional[_Iterable[_Union[RowPolicy, _Mapping]]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class UpdateReplicateConfigurationRequest(_message.Message):
-    __slots__ = ("replicate_configuration",)
+    __slots__ = ("replicate_configuration", "force_promote")
     REPLICATE_CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    FORCE_PROMOTE_FIELD_NUMBER: _ClassVar[int]
     replicate_configuration: _common_pb2.ReplicateConfiguration
-    def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
+    force_promote: bool
+    def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ..., force_promote: bool = ...) -> None: ...
+
+class GetReplicateConfigurationRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetReplicateConfigurationResponse(_message.Message):
+    __slots__ = ("status", "configuration")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    configuration: _common_pb2.ReplicateConfiguration
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
 
 class GetReplicateInfoRequest(_message.Message):
     __slots__ = ("source_cluster_id", "target_pchannel")
