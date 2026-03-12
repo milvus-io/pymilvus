@@ -13,6 +13,43 @@ from pymilvus.client.global_topology import (
 )
 from pymilvus.exceptions import MilvusException
 
+# ── Fixtures / helpers ────────────────────────────────────────────────────────
+
+
+def _make_topology(version=1, clusters=None):
+    if clusters is None:
+        clusters = [
+            ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
+        ]
+    return GlobalTopology(version=version, clusters=clusters)
+
+
+def _mock_response(
+    version="1",
+    cluster_id="in01-xxx",
+    endpoint="https://in01-xxx.zilliz.com",
+    capability=3,
+    code=0,
+    message=None,
+):
+    resp = MagicMock()
+    resp.status_code = 200
+    body = {
+        "code": code,
+        "data": {
+            "version": version,
+            "clusters": [{"clusterId": cluster_id, "endpoint": endpoint, "capability": capability}],
+        },
+    }
+    if message is not None:
+        body["message"] = message
+        body.pop("data", None)
+    resp.json.return_value = body
+    return resp
+
+
+# ── TestIsGlobalEndpoint ──────────────────────────────────────────────────────
+
 
 class TestIsGlobalEndpoint:
     def test_detects_global_cluster_in_url(self):
@@ -28,11 +65,17 @@ class TestIsGlobalEndpoint:
         assert is_global_endpoint("") is False
 
 
+# ── TestClusterCapability ─────────────────────────────────────────────────────
+
+
 class TestClusterCapability:
     def test_primary_capability(self):
         assert ClusterCapability.PRIMARY == 0b11
         assert ClusterCapability.READABLE == 0b01
         assert ClusterCapability.WRITABLE == 0b10
+
+
+# ── TestClusterInfo ───────────────────────────────────────────────────────────
 
 
 class TestClusterInfo:
@@ -47,6 +90,9 @@ class TestClusterInfo:
             cluster_id="in02-xxx", endpoint="https://in02-xxx.zilliz.com", capability=1
         )
         assert cluster.is_primary is False
+
+
+# ── TestGlobalTopology ────────────────────────────────────────────────────────
 
 
 class TestGlobalTopology:
@@ -79,133 +125,75 @@ class TestGlobalTopology:
             _ = topology.primary
 
 
+# ── TestFetchTopology ─────────────────────────────────────────────────────────
+
+_GLOBAL_URL = "https://glo-xxx.global-cluster.vectordb.zilliz.com"
+_TOKEN = "test-token"
+
+
 class TestFetchTopology:
     def test_fetches_topology_successfully(self):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "code": 0,
-            "data": {
-                "version": "123",
-                "clusters": [
-                    {
-                        "clusterId": "in01-xxx",
-                        "endpoint": "https://in01-xxx.zilliz.com",
-                        "capability": 3,
-                    },
-                ],
-            },
-        }
-
+        mock_response = _mock_response(version="123")
         with patch(
             "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get:
-            topology = fetch_topology(
-                "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
-            )
-
+            topology = fetch_topology(_GLOBAL_URL, _TOKEN)
             mock_get.assert_called_once()
             call_args = mock_get.call_args
             assert "global-cluster/topology" in call_args[0][0]
-            assert call_args[1]["headers"]["Authorization"] == "Bearer test-token"
-
+            assert call_args[1]["headers"]["Authorization"] == f"Bearer {_TOKEN}"
             assert topology.version == 123
             assert len(topology.clusters) == 1
             assert topology.primary.cluster_id == "in01-xxx"
 
     def test_retries_on_failure(self):
-        mock_response_fail = MagicMock()
-        mock_response_fail.status_code = 500
-
-        mock_response_success = MagicMock()
-        mock_response_success.status_code = 200
-        mock_response_success.json.return_value = {
-            "code": 0,
-            "data": {
-                "version": "1",
-                "clusters": [
-                    {
-                        "clusterId": "in01-xxx",
-                        "endpoint": "https://in01-xxx.zilliz.com",
-                        "capability": 3,
-                    },
-                ],
-            },
-        }
-
+        mock_fail = MagicMock()
+        mock_fail.status_code = 500
+        mock_success = _mock_response(version="1")
         with patch(
             "pymilvus.client.global_topology.requests.get",
-            side_effect=[mock_response_fail, mock_response_success],
-        ):
-            with patch("pymilvus.client.global_topology.time.sleep"):  # Skip delays in tests
-                topology = fetch_topology(
-                    "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
-                )
-                assert topology.version == 1
+            side_effect=[mock_fail, mock_success],
+        ), patch("pymilvus.client.global_topology.time.sleep"):
+            topology = fetch_topology(_GLOBAL_URL, _TOKEN)
+            assert topology.version == 1
 
     def test_raises_after_max_retries(self):
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
-
-        with patch("pymilvus.client.global_topology.requests.get", return_value=mock_response):
-            with patch("pymilvus.client.global_topology.time.sleep"):
-                with pytest.raises(MilvusException, match="Failed to fetch global topology"):
-                    fetch_topology(
-                        "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
-                    )
+        with patch(
+            "pymilvus.client.global_topology.requests.get", return_value=mock_response
+        ), patch("pymilvus.client.global_topology.time.sleep"):
+            with pytest.raises(MilvusException, match="Failed to fetch global topology"):
+                fetch_topology(_GLOBAL_URL, _TOKEN)
 
     def test_raises_on_api_error_code(self):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"code": 1, "message": "Invalid token"}
-
-        with patch("pymilvus.client.global_topology.requests.get", return_value=mock_response):
-            with patch("pymilvus.client.global_topology.time.sleep"):
-                with pytest.raises(MilvusException, match="Invalid token"):
-                    fetch_topology(
-                        "https://glo-xxx.global-cluster.vectordb.zilliz.com", "test-token"
-                    )
+        mock_response = _mock_response(code=1, message="Invalid token")
+        with patch(
+            "pymilvus.client.global_topology.requests.get", return_value=mock_response
+        ), patch("pymilvus.client.global_topology.time.sleep"):
+            with pytest.raises(MilvusException, match="Invalid token"):
+                fetch_topology(_GLOBAL_URL, _TOKEN)
 
     def test_adds_https_prefix_when_missing(self):
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "code": 0,
-            "data": {
-                "version": "1",
-                "clusters": [
-                    {
-                        "clusterId": "in01-xxx",
-                        "endpoint": "https://in01-xxx.zilliz.com",
-                        "capability": 3,
-                    },
-                ],
-            },
-        }
-
+        mock_response = _mock_response()
         with patch(
             "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get:
-            fetch_topology("glo-xxx.global-cluster.vectordb.zilliz.com", "test-token")
-
+            fetch_topology("glo-xxx.global-cluster.vectordb.zilliz.com", _TOKEN)
             call_args = mock_get.call_args
-            # Verify https:// was added
             assert (
                 call_args[0][0]
                 == "https://glo-xxx.global-cluster.vectordb.zilliz.com/global-cluster/topology"
             )
 
 
+# ── TestTopologyRefresher ─────────────────────────────────────────────────────
+
+
 class TestTopologyRefresher:
     def test_starts_and_stops(self):
-        topology = GlobalTopology(
-            version=1,
-            clusters=[
-                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
-            ],
-        )
-
+        topology = _make_topology()
         refresher = TopologyRefresher(
             global_endpoint="https://glo.global-cluster.zilliz.com",
             token="test-token",
@@ -214,19 +202,12 @@ class TestTopologyRefresher:
         )
         refresher.start()
         assert refresher.is_running()
-
         refresher.stop()
         assert not refresher.is_running()
 
     def test_updates_topology_on_version_change(self):
-        initial_topology = GlobalTopology(
-            version=1,
-            clusters=[
-                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
-            ],
-        )
-
-        new_topology = GlobalTopology(
+        initial_topology = _make_topology(version=1)
+        new_topology = _make_topology(
             version=2,
             clusters=[
                 ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)
@@ -257,13 +238,7 @@ class TestTopologyRefresher:
         assert received_topology[0].version == 2
 
     def test_does_not_update_on_same_version(self):
-        topology = GlobalTopology(
-            version=1,
-            clusters=[
-                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
-            ],
-        )
-
+        topology = _make_topology(version=1)
         callback_called = []
         refresh_count = threading.Event()
         call_count = 0
@@ -294,14 +269,8 @@ class TestTopologyRefresher:
         assert len(callback_called) == 0
 
     def test_trigger_refresh_immediate(self):
-        initial_topology = GlobalTopology(
-            version=1,
-            clusters=[
-                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
-            ],
-        )
-
-        new_topology = GlobalTopology(
+        initial_topology = _make_topology(version=1)
+        new_topology = _make_topology(
             version=2,
             clusters=[
                 ClusterInfo(cluster_id="in02", endpoint="https://in02.zilliz.com", capability=3)
@@ -330,13 +299,7 @@ class TestTopologyRefresher:
         assert callback_called.is_set()
 
     def test_continues_on_fetch_failure(self):
-        topology = GlobalTopology(
-            version=1,
-            clusters=[
-                ClusterInfo(cluster_id="in01", endpoint="https://in01.zilliz.com", capability=3)
-            ],
-        )
-
+        topology = _make_topology(version=1)
         fetch_attempted = threading.Event()
 
         def failing_fetch(*args, **kwargs):
@@ -357,6 +320,9 @@ class TestTopologyRefresher:
             refresher.stop()
 
         assert refresher.get_topology().version == 1  # Still has original topology
+
+
+# ── TestGlobalClusterConstant ─────────────────────────────────────────────────
 
 
 class TestGlobalClusterConstant:

@@ -43,7 +43,7 @@ class MockChannel:
         self._state = state
 
     def check_connectivity_state(self, try_to_connect: bool):
-        return self._state  # Return enum value like real gRPC
+        return self._state
 
 
 class MockGrpcHandler:
@@ -58,12 +58,8 @@ class TestGetRpcErrorInfo:
 
     def test_basic_error_info(self):
         """Test that basic error info includes code and details."""
-        error = MockRpcError(
-            code=grpc.StatusCode.UNAVAILABLE,
-            details="connection refused",
-        )
+        error = MockRpcError(code=grpc.StatusCode.UNAVAILABLE, details="connection refused")
         result = _get_rpc_error_info(error)
-
         assert "StatusCode.UNAVAILABLE" in result
         assert "connection refused" in result
 
@@ -75,55 +71,37 @@ class TestGetRpcErrorInfo:
             debug_error_string='{"grpc_status":14,"grpc_message":"Connection refused"}',
         )
         result = _get_rpc_error_info(error)
-
         assert "debug=" in result
         assert "Connection refused" in result
 
     def test_handles_missing_debug_error_string(self):
         """Test graceful handling when debug_error_string is None."""
         error = MockRpcError(
-            code=grpc.StatusCode.UNAVAILABLE,
-            details="some error",
-            debug_error_string=None,
+            code=grpc.StatusCode.UNAVAILABLE, details="some error", debug_error_string=None
         )
         result = _get_rpc_error_info(error)
-
         assert "StatusCode.UNAVAILABLE" in result
         assert "debug=" not in result
 
-    def test_includes_channel_state_when_provided(self):
-        """Test that channel_state is included when channel is provided."""
+    @pytest.mark.parametrize(
+        "state,expected_label",
+        [
+            (grpc.ChannelConnectivity.CONNECTING, "CONNECTING"),
+            (grpc.ChannelConnectivity.READY, "READY"),
+            (grpc.ChannelConnectivity.TRANSIENT_FAILURE, "TRANSIENT_FAILURE"),
+        ],
+    )
+    def test_channel_state_in_result(self, state, expected_label):
+        """Test that the correct channel_state label appears for each connectivity state."""
         error = MockRpcError(code=grpc.StatusCode.DEADLINE_EXCEEDED)
-        channel = MockChannel(state=grpc.ChannelConnectivity.CONNECTING)
-
+        channel = MockChannel(state=state)
         result = _get_rpc_error_info(error, channel)
-
-        assert "channel_state=CONNECTING" in result
-
-    def test_channel_state_ready(self):
-        """Test channel_state=READY for connected channel."""
-        error = MockRpcError(code=grpc.StatusCode.DEADLINE_EXCEEDED)
-        channel = MockChannel(state=grpc.ChannelConnectivity.READY)
-
-        result = _get_rpc_error_info(error, channel)
-
-        assert "channel_state=READY" in result
-
-    def test_channel_state_transient_failure(self):
-        """Test channel_state=TRANSIENT_FAILURE for failed connection."""
-        error = MockRpcError(code=grpc.StatusCode.UNAVAILABLE)
-        channel = MockChannel(state=grpc.ChannelConnectivity.TRANSIENT_FAILURE)
-
-        result = _get_rpc_error_info(error, channel)
-
-        assert "channel_state=TRANSIENT_FAILURE" in result
+        assert f"channel_state={expected_label}" in result
 
     def test_no_channel_state_when_channel_is_none(self):
         """Test that channel_state is not included when channel is None."""
         error = MockRpcError(code=grpc.StatusCode.UNAVAILABLE)
-
         result = _get_rpc_error_info(error, channel=None)
-
         assert "channel_state=" not in result
 
     def test_full_error_info_format(self):
@@ -134,9 +112,7 @@ class TestGetRpcErrorInfo:
             debug_error_string='{"grpc_status":4}',
         )
         channel = MockChannel(state=grpc.ChannelConnectivity.CONNECTING)
-
         result = _get_rpc_error_info(error, channel)
-
         assert "StatusCode.DEADLINE_EXCEEDED" in result
         assert "Deadline Exceeded" in result
         assert "channel_state=CONNECTING" in result
@@ -149,17 +125,13 @@ class TestTryGetChannel:
     def test_extracts_channel_from_grpc_handler(self):
         """Test that channel is extracted from GrpcHandler-like object."""
         handler = MockGrpcHandler(channel_state=grpc.ChannelConnectivity.READY)
-
         channel = _try_get_channel((handler,))
-
         assert channel is not None
         assert channel._state == grpc.ChannelConnectivity.READY
 
     def test_returns_none_for_empty_args(self):
         """Test that None is returned when args is empty."""
-        channel = _try_get_channel(())
-
-        assert channel is None
+        assert _try_get_channel(()) is None
 
     def test_returns_none_when_no_channel_attribute(self):
         """Test that None is returned when object has no _channel."""
@@ -167,9 +139,7 @@ class TestTryGetChannel:
         class NoChannelObject:
             pass
 
-        channel = _try_get_channel((NoChannelObject(),))
-
-        assert channel is None
+        assert _try_get_channel((NoChannelObject(),)) is None
 
 
 class TestConnectivityStateMapping:
@@ -218,7 +188,7 @@ class TestGrpcErrorDiagnosticsIntegration:
             error_info = _get_rpc_error_info(e, channel)
             return e, error_info
         else:
-            return None, None  # No error
+            return None, None
         finally:
             if channel:
                 channel.close()
@@ -226,7 +196,6 @@ class TestGrpcErrorDiagnosticsIntegration:
     def test_dns_failure_includes_debug_and_channel_state(self):
         """Test DNS resolution failure includes diagnostic info."""
         error, error_info = self._test_connection("http://baddomain.invalid:19530")
-
         assert error is not None
         assert error.code() == grpc.StatusCode.UNAVAILABLE
         assert "debug=" in error_info
@@ -236,7 +205,6 @@ class TestGrpcErrorDiagnosticsIntegration:
     def test_connection_refused_includes_debug_and_channel_state(self):
         """Test connection refused includes diagnostic info."""
         error, error_info = self._test_connection("http://127.0.0.1:19999")
-
         assert error is not None
         assert error.code() == grpc.StatusCode.UNAVAILABLE
         assert "debug=" in error_info
@@ -245,9 +213,7 @@ class TestGrpcErrorDiagnosticsIntegration:
 
     def test_deadline_exceeded_shows_connecting_state(self):
         """Test that deadline exceeded with unresponsive server shows CONNECTING state."""
-        # 8.8.8.8:80 is likely to timeout (firewall drops packets)
         error, error_info = self._test_connection("http://8.8.8.8:80", timeout=3.0)
-
         assert error is not None
         assert error.code() == grpc.StatusCode.DEADLINE_EXCEEDED
         assert "debug=" in error_info

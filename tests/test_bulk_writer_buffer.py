@@ -56,28 +56,17 @@ class TestBuffer:
         ]
         return CollectionSchema(fields=fields, enable_dynamic_field=True)
 
-    def test_buffer_init_numpy(self, simple_schema: CollectionSchema):
-        buffer = Buffer(simple_schema, BulkFileType.NUMPY)
-        assert buffer._file_type == BulkFileType.NUMPY
+    @pytest.mark.parametrize(
+        "file_type",
+        [BulkFileType.NUMPY, BulkFileType.JSON, BulkFileType.PARQUET, BulkFileType.CSV],
+    )
+    def test_buffer_init_file_types(self, simple_schema: CollectionSchema, file_type):
+        buffer = Buffer(simple_schema, file_type)
+        assert buffer._file_type == file_type
         assert len(buffer._buffer) == 3
         assert "id" in buffer._buffer
         assert "vector" in buffer._buffer
         assert "text" in buffer._buffer
-
-    def test_buffer_init_json(self, simple_schema: CollectionSchema):
-        buffer = Buffer(simple_schema, BulkFileType.JSON)
-        assert buffer._file_type == BulkFileType.JSON
-        assert len(buffer._buffer) == 3
-
-    def test_buffer_init_parquet(self, simple_schema: CollectionSchema):
-        buffer = Buffer(simple_schema, BulkFileType.PARQUET)
-        assert buffer._file_type == BulkFileType.PARQUET
-        assert len(buffer._buffer) == 3
-
-    def test_buffer_init_csv(self, simple_schema: CollectionSchema):
-        buffer = Buffer(simple_schema, BulkFileType.CSV)
-        assert buffer._file_type == BulkFileType.CSV
-        assert len(buffer._buffer) == 3
 
     def test_buffer_init_with_dynamic_field(self, dynamic_schema: CollectionSchema):
         buffer = Buffer(dynamic_schema, BulkFileType.JSON)
@@ -523,98 +512,80 @@ class TestBufferExtended:
         with pytest.raises(MilvusException, match="Failed to persist file"):
             buffer.persist("/tmp/test")
 
-    def test_persist_parquet_with_json_and_sparse(self):
-        """Test Parquet persist with JSON and sparse vector fields"""
-        fields = [
-            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(name="json_field", dtype=DataType.JSON),
-            FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
-        ]
-        schema = CollectionSchema(fields=fields)
-        buffer = Buffer(schema, BulkFileType.PARQUET)
-
-        buffer.append_row(
-            {"id": 1, "json_field": {"key": "value"}, "sparse_vector": {1: 0.5, 10: 0.3}}
-        )
-
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "pandas.DataFrame.to_parquet"
-        ) as mock_to_parquet:
-            # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
-            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
-            assert len(files) == 1
-            mock_to_parquet.assert_called_once()
-
-    def test_persist_parquet_with_float16_vectors(self):
-        """Test Parquet persist with float16 vectors only"""
-        # Skip bfloat16 as it has issues with numpy dtype
-        fields = [
-            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
-        ]
-        schema = CollectionSchema(fields=fields)
-        buffer = Buffer(schema, BulkFileType.PARQUET)
-
-        float16_data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes()
-
-        buffer.append_row(
-            {
-                "id": 1,
-                "float16_vector": float16_data,
-            }
-        )
-
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "pandas.DataFrame.to_parquet"
-        ) as mock_to_parquet:
-            # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
-            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
-            assert len(files) == 1
-            mock_to_parquet.assert_called_once()
-
-    def test_persist_parquet_with_array_field(self):
-        """Test Parquet persist with array field"""
-        fields = [
-            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(
-                name="array_field",
-                dtype=DataType.ARRAY,
-                max_capacity=100,
-                element_type=DataType.INT64,
+    @pytest.mark.parametrize(
+        "fields,rows,row_count",
+        [
+            (
+                "json_and_sparse",
+                [{"id": 1, "json_field": {"key": "value"}, "sparse_vector": {1: 0.5, 10: 0.3}}],
+                1,
             ),
-        ]
-        schema = CollectionSchema(fields=fields)
+            (
+                "float16",
+                [{"id": 1, "float16_vector": None}],  # data set in test body
+                1,
+            ),
+            (
+                "array",
+                [{"id": 1, "array_field": [1, 2, 3, 4, 5]}, {"id": 2, "array_field": None}],
+                2,
+            ),
+            (
+                "varchar_json",
+                [{"id": 1, "field1": "test_value", "field2": {"key": "value"}}],
+                1,
+            ),
+        ],
+    )
+    def test_persist_parquet_variants(self, fields, rows, row_count):
+        """Test Parquet persist with various field type combinations"""
+        schema_map = {
+            "json_and_sparse": CollectionSchema(
+                fields=[
+                    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                    FieldSchema(name="json_field", dtype=DataType.JSON),
+                    FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
+                ]
+            ),
+            "float16": CollectionSchema(
+                fields=[
+                    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                    FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+                ]
+            ),
+            "array": CollectionSchema(
+                fields=[
+                    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                    FieldSchema(
+                        name="array_field",
+                        dtype=DataType.ARRAY,
+                        max_capacity=100,
+                        element_type=DataType.INT64,
+                    ),
+                ]
+            ),
+            "varchar_json": CollectionSchema(
+                fields=[
+                    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                    FieldSchema(name="field1", dtype=DataType.VARCHAR, max_length=100),
+                    FieldSchema(name="field2", dtype=DataType.JSON),
+                ]
+            ),
+        }
+        schema = schema_map[fields]
         buffer = Buffer(schema, BulkFileType.PARQUET)
 
-        buffer.append_row({"id": 1, "array_field": [1, 2, 3, 4, 5]})
-        buffer.append_row({"id": 2, "array_field": None})  # Test None value
+        if fields == "float16":
+            float16_data = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes()
+            rows = [{"id": 1, "float16_vector": float16_data}]
+
+        for row in rows:
+            buffer.append_row(row)
 
         with tempfile.TemporaryDirectory() as temp_dir, patch(
             "pandas.DataFrame.to_parquet"
         ) as mock_to_parquet:
-            # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
-            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=2)
-            assert len(files) == 1
-            mock_to_parquet.assert_called_once()
-
-    def test_persist_parquet_with_unknown_dtype(self):
-        """Test Parquet persist with fields having standard dtypes"""
-        # Using standard field types that work with parquet
-        fields = [
-            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
-            FieldSchema(name="field1", dtype=DataType.VARCHAR, max_length=100),
-            FieldSchema(name="field2", dtype=DataType.JSON),
-        ]
-        schema = CollectionSchema(fields=fields)
-        buffer = Buffer(schema, BulkFileType.PARQUET)
-
-        buffer.append_row({"id": 1, "field1": "test_value", "field2": {"key": "value"}})
-
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "pandas.DataFrame.to_parquet"
-        ) as mock_to_parquet:
-            # Pass buffer_size and buffer_row_count to avoid UnboundLocalError
-            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=1)
+            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=row_count)
             assert len(files) == 1
             mock_to_parquet.assert_called_once()
 
