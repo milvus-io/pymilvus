@@ -18,8 +18,8 @@ import pandas as pd
 
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
+from pymilvus.client.columnar_search_result import ColumnarSearchResult
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import (
     CompactionPlans,
     CompactionState,
@@ -809,8 +809,8 @@ class Collection:
                     Note: only valid in Bounded consistency level
 
         Returns:
-            SearchResult:
-                Returns ``SearchResult`` if `_async` is False , otherwise ``SearchFuture``
+            ColumnarSearchResult:
+                Returns ``ColumnarSearchResult`` if `_async` is False , otherwise ``SearchFuture``
 
         .. _Metric type documentations:
             https://milvus.io/docs/v2.2.x/metric.md
@@ -861,7 +861,7 @@ class Collection:
 
         empty_scipy_sparse = utils.SciPyHelper.is_scipy_sparse(data) and (data.shape[0] == 0)
         if (isinstance(data, list) and len(data) == 0) or empty_scipy_sparse:
-            resp = SearchResult(schema_pb2.SearchResultData())
+            resp = ColumnarSearchResult(schema_pb2.SearchResultData())
             return SearchFuture(None) if kwargs.get("_async", False) else resp
 
         conn, context = self._get_connection(**kwargs)
@@ -949,8 +949,8 @@ class Collection:
                     Note: only valid in Bounded consistency level
 
         Returns:
-            SearchResult:
-                Returns ``SearchResult`` if `_async` is False , otherwise ``SearchFuture``
+            ColumnarSearchResult:
+                Returns ``ColumnarSearchResult`` if `_async` is False , otherwise ``SearchFuture``
 
         .. _Metric type documentations:
             https://milvus.io/docs/v2.2.x/metric.md
@@ -1010,7 +1010,7 @@ class Collection:
             - Top1 hit id: 8, score: 0.10143111646175385
         """
         if isinstance(reqs, list) and len(reqs) == 0:
-            resp = SearchResult(schema_pb2.SearchResultData())
+            resp = ColumnarSearchResult(schema_pb2.SearchResultData())
             return SearchFuture(None) if kwargs.get("_async", False) else resp
 
         conn, context = self._get_connection(**kwargs)
