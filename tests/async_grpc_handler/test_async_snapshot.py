@@ -51,6 +51,7 @@ class TestAsyncGrpcHandlerSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="test_collection",
                 description="test description",
+                db_name="",
             )
 
     @pytest.mark.asyncio
@@ -118,7 +119,7 @@ class TestAsyncGrpcHandlerSnapshot:
             result = await handler.list_snapshots(collection_name="test_collection", timeout=30)
 
             mock_prepare.list_snapshots_req.assert_called_once_with(
-                collection_name="test_collection"
+                collection_name="test_collection", db_name=""
             )
             assert len(result) == 2
 
@@ -200,7 +201,10 @@ class TestAsyncGrpcHandlerSnapshot:
             )
 
             mock_prepare.restore_snapshot_req.assert_called_once_with(
-                snapshot_name="test_snapshot", collection_name="new_collection", rewrite_data=False
+                snapshot_name="test_snapshot",
+                collection_name="new_collection",
+                rewrite_data=False,
+                db_name="",
             )
             assert job_id == 12345
 
@@ -314,7 +318,7 @@ class TestAsyncGrpcHandlerSnapshot:
             )
 
             mock_prepare.list_restore_snapshot_jobs_req.assert_called_once_with(
-                collection_name="test_collection"
+                collection_name="test_collection", db_name=""
             )
             assert len(result) == 2
             assert result[0].job_id == 1
