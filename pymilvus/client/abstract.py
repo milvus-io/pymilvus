@@ -8,7 +8,12 @@ from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage
 from pymilvus.settings import Config
 
 from . import utils
-from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
+from .constants import (
+    DEFAULT_CONSISTENCY_LEVEL,
+    RANKER_TYPE_RRF,
+    RANKER_TYPE_WEIGHTED,
+    ConsistencyLevel,
+)
 
 # ruff: noqa: F401
 # TODO: This is a patch for older version
@@ -298,6 +303,19 @@ class CollectionSchema:
                 schema_dict["auto_id"] = field_dict["auto_id"]
                 return
 
+    def _consistency_level_to_str(self, level: int) -> str:
+        """Convert numeric consistency level to human-readable string."""
+
+        # Map integer values to their string names
+        consistency_map = {
+            ConsistencyLevel.Strong: "Strong",
+            ConsistencyLevel.Session: "Session",
+            ConsistencyLevel.Bounded: "Bounded",
+            ConsistencyLevel.Eventually: "Eventually",
+            ConsistencyLevel.Customized: "Customized",
+        }
+        return consistency_map.get(level, level)  # Return int if not found (fallback)
+
     def dict(self):
         if not self._raw:
             return {}
@@ -311,7 +329,7 @@ class CollectionSchema:
             "functions": [f.dict() for f in self.functions],
             "aliases": self.aliases,
             "collection_id": self.collection_id,
-            "consistency_level": self.consistency_level,
+            "consistency_level": self._consistency_level_to_str(self.consistency_level),
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
