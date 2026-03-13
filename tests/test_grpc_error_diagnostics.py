@@ -231,7 +231,14 @@ class TestGrpcErrorDiagnosticsIntegration:
         assert error.code() == grpc.StatusCode.UNAVAILABLE
         assert "debug=" in error_info
         assert "channel_state=" in error_info
-        assert "DNS" in error_info or "name" in error_info.lower()
+        # Different grpcio versions and OS DNS resolvers produce different messages:
+        # - "DNS resolution failed" / "Name resolution failure" on Linux
+        # - "failed to connect to all addresses" on macOS (resolves .invalid to sinkhole IP)
+        error_lower = error_info.lower()
+        assert any(
+            kw in error_lower
+            for kw in ("dns", "name", "resolve", "failed to connect", "socket closed")
+        )
 
     def test_connection_refused_includes_debug_and_channel_state(self):
         """Test connection refused includes diagnostic info."""
