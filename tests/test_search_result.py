@@ -25,6 +25,71 @@ from pymilvus.grpc_gen import common_pb2, schema_pb2
 LOGGER = logging.getLogger(__name__)
 
 
+# ---------------------------------------------------------------------------
+# Field-builder helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_scalar_field(dtype, name, data, field_id=0, is_dynamic=False, valid_data=None):
+    """Build a schema_pb2.FieldData for scalar types."""
+    kwargs = {"type": dtype, "field_name": name, "is_dynamic": is_dynamic}
+    if field_id:
+        kwargs["field_id"] = field_id
+    if valid_data is not None:
+        kwargs["valid_data"] = valid_data
+    scalar_map = {
+        DataType.BOOL: lambda d: schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=d)),
+        DataType.INT8: lambda d: schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=d)),
+        DataType.INT16: lambda d: schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=d)),
+        DataType.INT32: lambda d: schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=d)),
+        DataType.INT64: lambda d: schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=d)),
+        DataType.FLOAT: lambda d: schema_pb2.ScalarField(float_data=schema_pb2.FloatArray(data=d)),
+        DataType.DOUBLE: lambda d: schema_pb2.ScalarField(
+            double_data=schema_pb2.DoubleArray(data=d)
+        ),
+        DataType.VARCHAR: lambda d: schema_pb2.ScalarField(
+            string_data=schema_pb2.StringArray(data=d)
+        ),
+        DataType.JSON: lambda d: schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=d)),
+        DataType.GEOMETRY: lambda d: schema_pb2.ScalarField(
+            geometry_wkt_data=schema_pb2.GeometryWktArray(data=d)
+        ),
+    }
+    kwargs["scalars"] = scalar_map[dtype](data)
+    return schema_pb2.FieldData(**kwargs)
+
+
+def _make_array_field(element_dtype, name, row_scalars, field_id=0):
+    """Build a schema_pb2.FieldData for ARRAY types."""
+    kwargs = {"type": DataType.ARRAY, "field_name": name}
+    if field_id:
+        kwargs["field_id"] = field_id
+    kwargs["scalars"] = schema_pb2.ScalarField(
+        array_data=schema_pb2.ArrayArray(data=row_scalars, element_type=element_dtype)
+    )
+    return schema_pb2.FieldData(**kwargs)
+
+
+def _make_vector_field(dtype, name, dim, data, field_id=0):
+    """Build a schema_pb2.FieldData for vector types."""
+    kwargs = {"type": dtype, "field_name": name}
+    if field_id:
+        kwargs["field_id"] = field_id
+    vec_kwargs = {"dim": dim}
+    if dtype == DataType.FLOAT_VECTOR:
+        vec_kwargs["float_vector"] = schema_pb2.FloatArray(data=data)
+    elif dtype == DataType.BINARY_VECTOR:
+        vec_kwargs["binary_vector"] = data
+    elif dtype == DataType.FLOAT16_VECTOR:
+        vec_kwargs["float16_vector"] = data
+    elif dtype == DataType.BFLOAT16_VECTOR:
+        vec_kwargs["bfloat16_vector"] = data
+    elif dtype == DataType.INT8_VECTOR:
+        vec_kwargs["int8_vector"] = data
+    kwargs["vectors"] = schema_pb2.VectorField(**vec_kwargs)
+    return schema_pb2.FieldData(**kwargs)
+
+
 class TestHit:
     @pytest.mark.parametrize(
         "pk_dist",
@@ -162,194 +227,68 @@ class TestSearchResult:
         ],
     )
     def test_search_result_with_fields_data(self, pk):
+        _int_rows = [schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(10))))]
+        _long_rows = [schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=list(range(10))))]
+        _float_rows = [
+            schema_pb2.ScalarField(
+                float_data=schema_pb2.FloatArray(data=[j * 1.0 for j in range(10)])
+            )
+        ]
+        _str_rows = [
+            schema_pb2.ScalarField(
+                string_data=schema_pb2.StringArray(data=[str(j * 1.0) for j in range(10)])
+            )
+        ]
         fields_data = [
-            schema_pb2.FieldData(
-                type=DataType.BOOL,
-                field_name="bool_field",
-                field_id=100,
-                scalars=schema_pb2.ScalarField(
-                    bool_data=schema_pb2.BoolArray(data=[True for i in range(6)])
-                ),
+            _make_scalar_field(DataType.BOOL, "bool_field", [True] * 6, field_id=100),
+            _make_scalar_field(DataType.INT8, "int8_field", list(range(6)), field_id=101),
+            _make_scalar_field(DataType.INT16, "int16_field", list(range(6)), field_id=102),
+            _make_scalar_field(DataType.INT32, "int32_field", list(range(6)), field_id=103),
+            _make_scalar_field(DataType.INT64, "int64_field", list(range(6)), field_id=104),
+            _make_scalar_field(
+                DataType.FLOAT, "float_field", [i * 1.0 for i in range(6)], field_id=105
             ),
-            schema_pb2.FieldData(
-                type=DataType.INT8,
-                field_name="int8_field",
-                field_id=101,
-                scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6)))),
+            _make_scalar_field(
+                DataType.DOUBLE, "double_field", [i * 1.0 for i in range(6)], field_id=106
             ),
-            schema_pb2.FieldData(
-                type=DataType.INT16,
-                field_name="int16_field",
-                field_id=102,
-                scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6)))),
+            _make_scalar_field(
+                DataType.VARCHAR, "varchar_field", [str(i * 10) for i in range(6)], field_id=107
             ),
-            schema_pb2.FieldData(
-                type=DataType.INT32,
-                field_name="int32_field",
-                field_id=103,
-                scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=list(range(6)))),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.INT64,
-                field_name="int64_field",
-                field_id=104,
-                scalars=schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=list(range(6)))),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.FLOAT,
-                field_name="float_field",
-                field_id=105,
-                scalars=schema_pb2.ScalarField(
-                    float_data=schema_pb2.FloatArray(data=[i * 1.0 for i in range(6)])
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.DOUBLE,
-                field_name="double_field",
-                field_id=106,
-                scalars=schema_pb2.ScalarField(
-                    double_data=schema_pb2.DoubleArray(data=[i * 1.0 for i in range(6)])
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.VARCHAR,
-                field_name="varchar_field",
-                field_id=107,
-                scalars=schema_pb2.ScalarField(
-                    string_data=schema_pb2.StringArray(data=[str(i * 10) for i in range(6)])
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.ARRAY,
-                field_name="int16_array_field",
-                field_id=108,
-                scalars=schema_pb2.ScalarField(
-                    array_data=schema_pb2.ArrayArray(
-                        data=[
-                            schema_pb2.ScalarField(
-                                int_data=schema_pb2.IntArray(data=list(range(10)))
-                            )
-                            for i in range(6)
-                        ],
-                        element_type=DataType.INT16,
-                    ),
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.ARRAY,
-                field_name="int64_array_field",
-                field_id=109,
-                scalars=schema_pb2.ScalarField(
-                    array_data=schema_pb2.ArrayArray(
-                        data=[
-                            schema_pb2.ScalarField(
-                                long_data=schema_pb2.LongArray(data=list(range(10)))
-                            )
-                            for i in range(6)
-                        ],
-                        element_type=DataType.INT64,
-                    ),
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.ARRAY,
-                field_name="float_array_field",
-                field_id=110,
-                scalars=schema_pb2.ScalarField(
-                    array_data=schema_pb2.ArrayArray(
-                        data=[
-                            schema_pb2.ScalarField(
-                                float_data=schema_pb2.FloatArray(data=[j * 1.0 for j in range(10)])
-                            )
-                            for i in range(6)
-                        ],
-                        element_type=DataType.FLOAT,
-                    ),
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.ARRAY,
-                field_name="varchar_array_field",
-                field_id=110,
-                scalars=schema_pb2.ScalarField(
-                    array_data=schema_pb2.ArrayArray(
-                        data=[
-                            schema_pb2.ScalarField(
-                                string_data=schema_pb2.StringArray(
-                                    data=[str(j * 1.0) for j in range(10)]
-                                )
-                            )
-                            for i in range(6)
-                        ],
-                        element_type=DataType.VARCHAR,
-                    ),
-                ),
-            ),
-            schema_pb2.FieldData(
-                type=DataType.JSON,
-                field_name="normal_json_field",
+            _make_array_field(DataType.INT16, "int16_array_field", _int_rows * 6, field_id=108),
+            _make_array_field(DataType.INT64, "int64_array_field", _long_rows * 6, field_id=109),
+            _make_array_field(DataType.FLOAT, "float_array_field", _float_rows * 6, field_id=110),
+            _make_array_field(DataType.VARCHAR, "varchar_array_field", _str_rows * 6, field_id=110),
+            _make_scalar_field(
+                DataType.JSON,
+                "normal_json_field",
+                [orjson.dumps({str(i): i for i in range(3)}) for i in range(6)],
                 field_id=111,
-                scalars=schema_pb2.ScalarField(
-                    json_data=schema_pb2.JSONArray(
-                        data=[orjson.dumps({str(i): i for i in range(3)}) for i in range(6)]
-                    )
-                ),
             ),
-            schema_pb2.FieldData(
-                type=DataType.JSON,
-                field_name="$meta",
+            _make_scalar_field(
+                DataType.JSON,
+                "$meta",
+                [orjson.dumps({str(i * 100): i}) for i in range(6)],
                 field_id=112,
                 is_dynamic=True,
-                scalars=schema_pb2.ScalarField(
-                    json_data=schema_pb2.JSONArray(
-                        data=[orjson.dumps({str(i * 100): i}) for i in range(6)]
-                    )
-                ),
             ),
-            schema_pb2.FieldData(
-                type=DataType.FLOAT_VECTOR,
-                field_name="float_vector_field",
+            _make_vector_field(
+                DataType.FLOAT_VECTOR,
+                "float_vector_field",
+                4,
+                [random.random() for i in range(24)],
                 field_id=113,
-                vectors=schema_pb2.VectorField(
-                    dim=4,
-                    float_vector=schema_pb2.FloatArray(data=[random.random() for i in range(24)]),
-                ),
             ),
-            schema_pb2.FieldData(
-                type=DataType.BINARY_VECTOR,
-                field_name="binary_vector_field",
-                field_id=114,
-                vectors=schema_pb2.VectorField(
-                    dim=8,
-                    binary_vector=os.urandom(6),
-                ),
+            _make_vector_field(
+                DataType.BINARY_VECTOR, "binary_vector_field", 8, os.urandom(6), field_id=114
             ),
-            schema_pb2.FieldData(
-                type=DataType.FLOAT16_VECTOR,
-                field_name="float16_vector_field",
-                field_id=115,
-                vectors=schema_pb2.VectorField(
-                    dim=16,
-                    float16_vector=os.urandom(32),
-                ),
+            _make_vector_field(
+                DataType.FLOAT16_VECTOR, "float16_vector_field", 16, os.urandom(32), field_id=115
             ),
-            schema_pb2.FieldData(
-                type=DataType.BFLOAT16_VECTOR,
-                field_name="bfloat16_vector_field",
-                field_id=116,
-                vectors=schema_pb2.VectorField(
-                    dim=16,
-                    bfloat16_vector=os.urandom(32),
-                ),
+            _make_vector_field(
+                DataType.BFLOAT16_VECTOR, "bfloat16_vector_field", 16, os.urandom(32), field_id=116
             ),
-            schema_pb2.FieldData(
-                type=DataType.INT8_VECTOR,
-                field_name="int8_vector_field",
-                field_id=117,
-                vectors=schema_pb2.VectorField(
-                    dim=16,
-                    int8_vector=os.urandom(32),
-                ),
+            _make_vector_field(
+                DataType.INT8_VECTOR, "int8_vector_field", 16, os.urandom(32), field_id=117
             ),
         ]
         result = schema_pb2.SearchResultData(
@@ -746,182 +685,36 @@ class TestGetFieldsByRange:
     """Test SearchResult._get_fields_by_range"""
 
     def test_get_fields_all_types(self):
-        # We can use SearchResult instance to call this method
         # It's stateless regarding instance data, it just uses the args
-
         res = SearchResult(schema_pb2.SearchResultData())
-
-        # Prepare all fields data
-        all_fields_data = []
         count = 5
 
-        # BOOL
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.BOOL,
-                field_name="bool",
-                scalars=schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True] * count)),
-            )
-        )
-
-        # INTs
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.INT32,
-                field_name="int32",
-                scalars=schema_pb2.ScalarField(
-                    int_data=schema_pb2.IntArray(data=list(range(count)))
-                ),
-            )
-        )
-
-        # INT64
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.INT64,
-                field_name="int64",
-                scalars=schema_pb2.ScalarField(
-                    long_data=schema_pb2.LongArray(data=list(range(count)))
-                ),
-            )
-        )
-
-        # FLOAT/DOUBLE
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.FLOAT,
-                field_name="float",
-                scalars=schema_pb2.ScalarField(
-                    float_data=schema_pb2.FloatArray(data=[float(i) for i in range(count)])
-                ),
-            )
-        )
-
-        # DOUBLE
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.DOUBLE,
-                field_name="double",
-                scalars=schema_pb2.ScalarField(
-                    double_data=schema_pb2.DoubleArray(data=[float(i) for i in range(count)])
-                ),
-            )
-        )
-
-        # VARCHAR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.VARCHAR,
-                field_name="varchar",
-                scalars=schema_pb2.ScalarField(
-                    string_data=schema_pb2.StringArray(data=[str(i) for i in range(count)])
-                ),
-            )
-        )
-
-        # JSON
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.JSON,
-                field_name="json",
-                scalars=schema_pb2.ScalarField(
-                    json_data=schema_pb2.JSONArray(data=[b"{}"] * count)
-                ),
-            )
-        )
-
-        # GEOMETRY
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.GEOMETRY,
-                field_name="geom",
-                scalars=schema_pb2.ScalarField(
-                    geometry_wkt_data=schema_pb2.GeometryWktArray(data=["POINT(0 0)"] * count)
-                ),
-            )
-        )
-
-        # ARRAY
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.ARRAY,
-                field_name="array",
-                scalars=schema_pb2.ScalarField(
-                    array_data=schema_pb2.ArrayArray(
-                        data=[
-                            schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[1]))
-                            for _ in range(count)
-                        ],
-                        element_type=DataType.INT32,
-                    )
-                ),
-            )
-        )
-
-        # ARRAY_OF_STRUCT (mocking helper)
-        aos_fd = schema_pb2.FieldData(type=DataType._ARRAY_OF_STRUCT, field_name="aos")
-        # We need check usage:
-        # We can mock extract_struct_array_from_column_data
-        all_fields_data.append(aos_fd)
-
-        # VECTORS
-        # FLOAT_VECTOR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.FLOAT_VECTOR,
-                field_name="fv",
-                vectors=schema_pb2.VectorField(
-                    dim=2, float_vector=schema_pb2.FloatArray(data=[0.0] * (count * 2))
-                ),
-            )
-        )
-
-        # BINARY_VECTOR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.BINARY_VECTOR,
-                field_name="bv",
-                vectors=schema_pb2.VectorField(dim=8, binary_vector=b"\x00" * count),
-            )
-        )
-
-        # FLOAT16_VECTOR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.FLOAT16_VECTOR,
-                field_name="f16v",
-                vectors=schema_pb2.VectorField(dim=2, float16_vector=b"\x00" * (count * 2 * 2)),
-            )
-        )
-
-        # BFLOAT16_VECTOR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.BFLOAT16_VECTOR,
-                field_name="bf16v",
-                vectors=schema_pb2.VectorField(dim=2, bfloat16_vector=b"\x00" * (count * 2 * 2)),
-            )
-        )
-
-        # INT8_VECTOR
-        all_fields_data.append(
-            schema_pb2.FieldData(
-                type=DataType.INT8_VECTOR,
-                field_name="i8v",
-                vectors=schema_pb2.VectorField(dim=2, int8_vector=b"\x00" * (count * 2)),
-            )
-        )
-
-        # SPARSE_FLOAT_VECTOR
-        all_fields_data.append(
+        _int_row = schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[1]))
+        all_fields_data = [
+            _make_scalar_field(DataType.BOOL, "bool", [True] * count),
+            _make_scalar_field(DataType.INT32, "int32", list(range(count))),
+            _make_scalar_field(DataType.INT64, "int64", list(range(count))),
+            _make_scalar_field(DataType.FLOAT, "float", [float(i) for i in range(count)]),
+            _make_scalar_field(DataType.DOUBLE, "double", [float(i) for i in range(count)]),
+            _make_scalar_field(DataType.VARCHAR, "varchar", [str(i) for i in range(count)]),
+            _make_scalar_field(DataType.JSON, "json", [b"{}"] * count),
+            _make_scalar_field(DataType.GEOMETRY, "geom", ["POINT(0 0)"] * count),
+            _make_array_field(DataType.INT32, "array", [_int_row] * count),
+            # ARRAY_OF_STRUCT — mocked helper
+            schema_pb2.FieldData(type=DataType._ARRAY_OF_STRUCT, field_name="aos"),
+            _make_vector_field(DataType.FLOAT_VECTOR, "fv", 2, [0.0] * (count * 2)),
+            _make_vector_field(DataType.BINARY_VECTOR, "bv", 8, b"\x00" * count),
+            _make_vector_field(DataType.FLOAT16_VECTOR, "f16v", 2, b"\x00" * (count * 2 * 2)),
+            _make_vector_field(DataType.BFLOAT16_VECTOR, "bf16v", 2, b"\x00" * (count * 2 * 2)),
+            _make_vector_field(DataType.INT8_VECTOR, "i8v", 2, b"\x00" * (count * 2)),
             schema_pb2.FieldData(
                 type=DataType.SPARSE_FLOAT_VECTOR,
                 field_name="sv",
                 vectors=schema_pb2.VectorField(
                     sparse_float_vector=schema_pb2.SparseFloatArray(contents=[b""] * count)
                 ),
-            )
-        )
+            ),
+        ]
 
         original_struct_func = entity_helper.extract_struct_array_from_column_data
         original_sparse_func = entity_helper.sparse_proto_to_rows
@@ -932,23 +725,27 @@ class TestGetFieldsByRange:
 
             result = res._get_fields_by_range(0, count, all_fields_data)
 
-            assert "bool" in result
+            expected_keys = [
+                "bool",
+                "int32",
+                "int64",
+                "float",
+                "double",
+                "varchar",
+                "json",
+                "geom",
+                "array",
+                "aos",
+                "fv",
+                "bv",
+                "f16v",
+                "bf16v",
+                "i8v",
+                "sv",
+            ]
+            for key in expected_keys:
+                assert key in result
             assert len(result["bool"][0]) == count
-            assert "int32" in result
-            assert "int64" in result
-            assert "float" in result
-            assert "double" in result
-            assert "varchar" in result
-            assert "json" in result
-            assert "geom" in result
-            assert "array" in result
-            assert "aos" in result
-            assert "fv" in result
-            assert "bv" in result
-            assert "f16v" in result
-            assert "bf16v" in result
-            assert "i8v" in result
-            assert "sv" in result
 
         finally:
             entity_helper.extract_struct_array_from_column_data = original_struct_func
@@ -974,41 +771,46 @@ class TestGetFieldsByRange:
 class TestHelpers:
     """Test standalone helper functions in search_result.py"""
 
-    def test_extract_array_row_data(self):
+    def test_extract_array_row_data_none(self):
+        assert extract_array_row_data([None, None], DataType.INT64) == [None, None]
 
-        # Test None input
-        res = extract_array_row_data([None, None], DataType.INT64)
-        assert res == [None, None]
-
-        # Test INT64
-        arr = [schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[1, 2]))]
-        res = extract_array_row_data(arr, DataType.INT64)
-        assert res == [[1, 2]]
-
-        # Test BOOL
-        arr = [schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True, False]))]
-        res = extract_array_row_data(arr, DataType.BOOL)
-        assert res == [[True, False]]
-
-        # Test INT8/16/32
-        arr = [schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[1, 2]))]
-        res = extract_array_row_data(arr, DataType.INT32)
-        assert res == [[1, 2]]
-
-        # Test FLOAT
-        arr = [schema_pb2.ScalarField(float_data=schema_pb2.FloatArray(data=[1.0, 2.0]))]
-        res = extract_array_row_data(arr, DataType.FLOAT)
-        assert res == [[1.0, 2.0]]
-
-        # Test DOUBLE
-        arr = [schema_pb2.ScalarField(double_data=schema_pb2.DoubleArray(data=[1.0, 2.0]))]
-        res = extract_array_row_data(arr, DataType.DOUBLE)
-        assert res == [[1.0, 2.0]]
-
-        # Test VARCHAR
-        arr = [schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["a", "b"]))]
-        res = extract_array_row_data(arr, DataType.VARCHAR)
-        assert res == [["a", "b"]]
+    @pytest.mark.parametrize(
+        "scalar_field,dtype,expected",
+        [
+            (
+                schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[1, 2])),
+                DataType.INT64,
+                [[1, 2]],
+            ),
+            (
+                schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True, False])),
+                DataType.BOOL,
+                [[True, False]],
+            ),
+            (
+                schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[1, 2])),
+                DataType.INT32,
+                [[1, 2]],
+            ),
+            (
+                schema_pb2.ScalarField(float_data=schema_pb2.FloatArray(data=[1.0, 2.0])),
+                DataType.FLOAT,
+                [[1.0, 2.0]],
+            ),
+            (
+                schema_pb2.ScalarField(double_data=schema_pb2.DoubleArray(data=[1.0, 2.0])),
+                DataType.DOUBLE,
+                [[1.0, 2.0]],
+            ),
+            (
+                schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["a", "b"])),
+                DataType.VARCHAR,
+                [["a", "b"]],
+            ),
+        ],
+    )
+    def test_extract_array_row_data(self, scalar_field, dtype, expected):
+        assert extract_array_row_data([scalar_field], dtype) == expected
 
     def test_apply_valid_data(self):
         # Both data and valid_data are pre-sliced by caller; same length required.
@@ -1028,26 +830,137 @@ class TestHelpers:
         res = apply_valid_data([1, 2], None)
         assert res == [1, 2]
 
-    def test_extract_struct_field_value(self):
+    @pytest.mark.parametrize(
+        "fd,idx,expected",
+        [
+            (
+                schema_pb2.FieldData(
+                    type=DataType.INT32,
+                    scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[10, 20])),
+                ),
+                0,
+                10,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.INT32,
+                    scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[10, 20])),
+                ),
+                1,
+                20,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.INT32,
+                    scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[10, 20])),
+                ),
+                2,
+                None,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.INT64,
+                    scalars=schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[10])),
+                ),
+                0,
+                10,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.DOUBLE,
+                    scalars=schema_pb2.ScalarField(double_data=schema_pb2.DoubleArray(data=[1.0])),
+                ),
+                0,
+                1.0,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.BOOL,
+                    scalars=schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True])),
+                ),
+                0,
+                True,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.VARCHAR,
+                    scalars=schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["s"])),
+                ),
+                0,
+                "s",
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.JSON,
+                    scalars=schema_pb2.ScalarField(
+                        json_data=schema_pb2.JSONArray(data=[b'{"a":1}'])
+                    ),
+                ),
+                0,
+                {"a": 1},
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.FLOAT_VECTOR,
+                    vectors=schema_pb2.VectorField(
+                        dim=2, float_vector=schema_pb2.FloatArray(data=[1.0, 2.0, 3.0, 4.0])
+                    ),
+                ),
+                0,
+                [1.0, 2.0],
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.FLOAT_VECTOR,
+                    vectors=schema_pb2.VectorField(
+                        dim=2, float_vector=schema_pb2.FloatArray(data=[1.0, 2.0, 3.0, 4.0])
+                    ),
+                ),
+                1,
+                [3.0, 4.0],
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.FLOAT_VECTOR,
+                    vectors=schema_pb2.VectorField(
+                        dim=2, float_vector=schema_pb2.FloatArray(data=[1.0, 2.0, 3.0, 4.0])
+                    ),
+                ),
+                2,
+                None,
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.BINARY_VECTOR,
+                    vectors=schema_pb2.VectorField(dim=8, binary_vector=b"\x01\x02"),
+                ),
+                0,
+                b"\x01",
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.BINARY_VECTOR,
+                    vectors=schema_pb2.VectorField(dim=8, binary_vector=b"\x01\x02"),
+                ),
+                1,
+                b"\x02",
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.BINARY_VECTOR,
+                    vectors=schema_pb2.VectorField(dim=8, binary_vector=b"\x01\x02"),
+                ),
+                2,
+                None,
+            ),
+            (schema_pb2.FieldData(type=DataType.INT8), 0, None),
+        ],
+    )
+    def test_extract_struct_field_value(self, fd, idx, expected):
+        assert extract_struct_field_value(fd, idx) == expected
 
-        # Scalar types
-        # INT32
-        fd = schema_pb2.FieldData(
-            type=DataType.INT32,
-            scalars=schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[10, 20])),
-        )
-        assert extract_struct_field_value(fd, 0) == 10
-        assert extract_struct_field_value(fd, 1) == 20
-        assert extract_struct_field_value(fd, 2) is None
-
-        # INT64
-        fd = schema_pb2.FieldData(
-            type=DataType.INT64,
-            scalars=schema_pb2.ScalarField(long_data=schema_pb2.LongArray(data=[10, 20])),
-        )
-        assert extract_struct_field_value(fd, 0) == 10
-
-        # FLOAT (returns np.single)
+    def test_extract_struct_field_value_float_type(self):
+        # FLOAT returns np.single — verify the type separately
         fd = schema_pb2.FieldData(
             type=DataType.FLOAT,
             scalars=schema_pb2.ScalarField(float_data=schema_pb2.FloatArray(data=[1.0])),
@@ -1055,59 +968,6 @@ class TestHelpers:
         val = extract_struct_field_value(fd, 0)
         assert val == 1.0
         assert isinstance(val, (float, np.floating))
-
-        # DOUBLE
-        fd = schema_pb2.FieldData(
-            type=DataType.DOUBLE,
-            scalars=schema_pb2.ScalarField(double_data=schema_pb2.DoubleArray(data=[1.0])),
-        )
-        assert extract_struct_field_value(fd, 0) == 1.0
-
-        # BOOL
-        fd = schema_pb2.FieldData(
-            type=DataType.BOOL,
-            scalars=schema_pb2.ScalarField(bool_data=schema_pb2.BoolArray(data=[True])),
-        )
-        assert extract_struct_field_value(fd, 0) is True
-
-        # VARCHAR
-        fd = schema_pb2.FieldData(
-            type=DataType.VARCHAR,
-            scalars=schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["s"])),
-        )
-        assert extract_struct_field_value(fd, 0) == "s"
-
-        # JSON
-        fd = schema_pb2.FieldData(
-            type=DataType.JSON,
-            scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[b'{"a":1}'])),
-        )
-        assert extract_struct_field_value(fd, 0) == {"a": 1}
-
-        # FLOAT_VECTOR
-        fd = schema_pb2.FieldData(
-            type=DataType.FLOAT_VECTOR,
-            vectors=schema_pb2.VectorField(
-                dim=2, float_vector=schema_pb2.FloatArray(data=[1.0, 2.0, 3.0, 4.0])
-            ),
-        )
-        assert extract_struct_field_value(fd, 0) == [1.0, 2.0]
-        assert extract_struct_field_value(fd, 1) == [3.0, 4.0]
-        assert extract_struct_field_value(fd, 2) is None
-
-        # BINARY_VECTOR
-        fd = schema_pb2.FieldData(
-            type=DataType.BINARY_VECTOR,
-            vectors=schema_pb2.VectorField(dim=8, binary_vector=b"\x01\x02"),
-        )
-        # dim=8 means 1 byte per vector
-        assert extract_struct_field_value(fd, 0) == b"\x01"
-        assert extract_struct_field_value(fd, 1) == b"\x02"
-        assert extract_struct_field_value(fd, 2) is None
-
-        # Unsupported / Out of range
-        fd = schema_pb2.FieldData(type=DataType.INT8)
-        assert extract_struct_field_value(fd, 0) is None
 
 
 class TestCoverageEdgeCases:
