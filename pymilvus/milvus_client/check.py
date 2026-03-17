@@ -17,9 +17,10 @@ def validate_param(
         raise ParamError(message=msg)
 
     if not isinstance(param, expected_type):
+        expected_name = getattr(expected_type, "__name__", str(expected_type))
         msg = (
             f"wrong type of argument [{param_name}], "
-            f"expected type: [{expected_type.__name__}], "
+            f"expected type: [{expected_name}], "
             f"got type: [{type(param).__name__}]"
         )
         raise ParamError(message=msg)

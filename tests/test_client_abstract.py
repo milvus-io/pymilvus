@@ -97,86 +97,30 @@ class TestFieldSchema:
         assert field.is_primary is True
         assert field.auto_id is True
 
-    def test_field_schema_with_type_params_dim(self):
-        """Test FieldSchema with dim type parameter."""
-        dim_param = MagicMock()
-        dim_param.key = "dim"
-        dim_param.value = "128"
+    @pytest.mark.parametrize(
+        "key,value,data_type,expected_param_key,expected_value",
+        [
+            ("dim", "128", DataType.FLOAT_VECTOR, "dim", 128),
+            ("max_length", "256", DataType.VARCHAR, "max_length", 256),
+            ("max_capacity", "100", DataType.ARRAY, "max_capacity", 100),
+            ("mmap.enabled", "true", DataType.INT64, "mmap_enabled", True),
+            ("mmap.enabled", "false", DataType.INT64, "mmap_enabled", False),
+            ("warmup", "true", DataType.INT64, "warmup", "true"),
+            ("warmup", "false", DataType.INT64, "warmup", "false"),
+        ],
+    )
+    def test_field_schema_with_type_params(
+        self, key, value, data_type, expected_param_key, expected_value
+    ):
+        """Test FieldSchema with various type parameters."""
+        param = MagicMock()
+        param.key = key
+        param.value = value
 
-        raw = self._create_mock_raw_field(data_type=DataType.FLOAT_VECTOR, type_params=[dim_param])
+        raw = self._create_mock_raw_field(data_type=data_type, type_params=[param])
         field = FieldSchema(raw)
 
-        assert field.params["dim"] == 128
-
-    def test_field_schema_with_type_params_max_length(self):
-        """Test FieldSchema with max_length type parameter for VARCHAR."""
-        max_length_param = MagicMock()
-        max_length_param.key = "max_length"
-        max_length_param.value = "256"
-
-        raw = self._create_mock_raw_field(
-            data_type=DataType.VARCHAR, type_params=[max_length_param]
-        )
-        field = FieldSchema(raw)
-
-        assert field.params["max_length"] == 256
-
-    def test_field_schema_with_type_params_max_capacity(self):
-        """Test FieldSchema with max_capacity type parameter for ARRAY."""
-        max_capacity_param = MagicMock()
-        max_capacity_param.key = "max_capacity"
-        max_capacity_param.value = "100"
-
-        raw = self._create_mock_raw_field(
-            data_type=DataType.ARRAY, type_params=[max_capacity_param]
-        )
-        field = FieldSchema(raw)
-
-        assert field.params["max_capacity"] == 100
-
-    def test_field_schema_with_mmap_enabled(self):
-        """Test FieldSchema with mmap.enabled type parameter."""
-        mmap_param = MagicMock()
-        mmap_param.key = "mmap.enabled"
-        mmap_param.value = "true"
-
-        raw = self._create_mock_raw_field(type_params=[mmap_param])
-        field = FieldSchema(raw)
-
-        assert field.params["mmap_enabled"] is True
-
-    def test_field_schema_with_mmap_disabled(self):
-        """Test FieldSchema with mmap.enabled set to false."""
-        mmap_param = MagicMock()
-        mmap_param.key = "mmap.enabled"
-        mmap_param.value = "false"
-
-        raw = self._create_mock_raw_field(type_params=[mmap_param])
-        field = FieldSchema(raw)
-
-        assert field.params["mmap_enabled"] is False
-
-    def test_field_schema_with_warmup_enabled(self):
-        """Test FieldSchema with warmup type parameter."""
-        warmup_param = MagicMock()
-        warmup_param.key = "warmup"
-        warmup_param.value = "true"
-
-        raw = self._create_mock_raw_field(type_params=[warmup_param])
-        field = FieldSchema(raw)
-
-        assert field.params["warmup"] == "true"
-
-    def test_field_schema_with_warmup_disabled(self):
-        """Test FieldSchema with warmup set to false."""
-        warmup_param = MagicMock()
-        warmup_param.key = "warmup"
-        warmup_param.value = "false"
-
-        raw = self._create_mock_raw_field(type_params=[warmup_param])
-        field = FieldSchema(raw)
-
-        assert field.params["warmup"] == "false"
+        assert field.params[expected_param_key] == expected_value
 
     def test_field_schema_with_json_params(self):
         """Test FieldSchema with JSON type params."""
@@ -189,48 +133,44 @@ class TestFieldSchema:
 
         assert field.params["params"] == {"key1": "value1", "key2": 42}
 
-    def test_field_schema_with_index_params(self):
+    @pytest.mark.parametrize(
+        "key,value,expected_key,expected_value",
+        [
+            ("index_type", "IVF_FLAT", "index_type", "IVF_FLAT"),
+            ("params", '{"nlist": 1024}', "params", {"nlist": 1024}),
+        ],
+    )
+    def test_field_schema_with_index_params(self, key, value, expected_key, expected_value):
         """Test FieldSchema with index parameters."""
         index_param = MagicMock()
-        index_param.key = "index_type"
-        index_param.value = "IVF_FLAT"
+        index_param.key = key
+        index_param.value = value
 
         raw = self._create_mock_raw_field(index_params=[index_param])
         field = FieldSchema(raw)
 
         assert len(field.indexes) == 1
-        assert field.indexes[0]["index_type"] == "IVF_FLAT"
+        assert field.indexes[0][expected_key] == expected_value
 
-    def test_field_schema_with_json_index_params(self):
-        """Test FieldSchema with JSON index parameters."""
-        index_param = MagicMock()
-        index_param.key = "params"
-        index_param.value = '{"nlist": 1024}'
-
-        raw = self._create_mock_raw_field(index_params=[index_param])
-        field = FieldSchema(raw)
-
-        assert field.indexes[0]["params"] == {"nlist": 1024}
-
-    def test_field_schema_default_value_none(self):
-        """Test FieldSchema with default_value that has WhichOneof returning None."""
+    @pytest.mark.parametrize(
+        "which_oneof,expected",
+        [
+            (None, None),
+            ("int_data", "use_mock"),
+        ],
+    )
+    def test_field_schema_default_value(self, which_oneof, expected):
+        """Test FieldSchema with various default_value WhichOneof results."""
         default_val = MagicMock()
-        default_val.WhichOneof.return_value = None
+        default_val.WhichOneof.return_value = which_oneof
 
         raw = self._create_mock_raw_field(default_value=default_val)
         field = FieldSchema(raw)
 
-        assert field.default_value is None
-
-    def test_field_schema_default_value_with_data(self):
-        """Test FieldSchema with default_value that has data."""
-        default_val = MagicMock()
-        default_val.WhichOneof.return_value = "int_data"
-
-        raw = self._create_mock_raw_field(default_value=default_val)
-        field = FieldSchema(raw)
-
-        assert field.default_value == default_val
+        if expected is None:
+            assert field.default_value is None
+        else:
+            assert field.default_value == default_val
 
     def test_field_schema_dict_basic(self):
         """Test FieldSchema dict method basic output."""
@@ -464,6 +404,43 @@ class TestFunctionSchema:
 class TestCollectionSchema:
     """Tests for CollectionSchema class."""
 
+    def _create_mock_collection_raw(
+        self,
+        name="test_collection",
+        description="Test",
+        enable_dynamic_field=False,
+        enable_namespace=False,
+        aliases=None,
+        collection_id=1,
+        shards_num=1,
+        num_partitions=1,
+        created_timestamp=0,
+        update_timestamp=0,
+        consistency_level=2,
+        properties=None,
+    ):
+        """Create a mock raw CollectionInfo object."""
+        mock_schema = MagicMock()
+        mock_schema.name = name
+        mock_schema.description = description
+        mock_schema.enable_dynamic_field = enable_dynamic_field
+        mock_schema.enable_namespace = enable_namespace
+        mock_schema.fields = []
+        mock_schema.struct_array_fields = []
+        mock_schema.functions = []
+
+        raw = MagicMock()
+        raw.schema = mock_schema
+        raw.aliases = aliases if aliases is not None else []
+        raw.collectionID = collection_id
+        raw.shards_num = shards_num
+        raw.num_partitions = num_partitions
+        raw.created_timestamp = created_timestamp
+        raw.update_timestamp = update_timestamp
+        raw.consistency_level = consistency_level
+        raw.properties = properties if properties is not None else []
+        return raw
+
     def test_collection_schema_none_raw(self):
         """Test CollectionSchema with None raw data."""
         schema = CollectionSchema(None)
@@ -478,28 +455,17 @@ class TestCollectionSchema:
 
     def test_collection_schema_basic_init(self):
         """Test CollectionSchema basic initialization."""
-        # Create mock schema
-        mock_schema = MagicMock()
-        mock_schema.name = "test_collection"
-        mock_schema.description = "Test collection"
-        mock_schema.enable_dynamic_field = True
-        mock_schema.enable_namespace = False
-        mock_schema.fields = []
-        mock_schema.struct_array_fields = []
-        mock_schema.functions = []
-
-        # Create mock raw
-        raw = MagicMock()
-        raw.schema = mock_schema
-        raw.aliases = ["alias1", "alias2"]
-        raw.collectionID = 12345
-        raw.shards_num = 2
-        raw.num_partitions = 4
-        raw.created_timestamp = 1704067200
-        raw.update_timestamp = 1704153600
-        raw.consistency_level = 2  # Bounded
-        raw.properties = []
-
+        raw = self._create_mock_collection_raw(
+            name="test_collection",
+            description="Test collection",
+            enable_dynamic_field=True,
+            aliases=["alias1", "alias2"],
+            collection_id=12345,
+            shards_num=2,
+            num_partitions=4,
+            created_timestamp=1704067200,
+            update_timestamp=1704153600,
+        )
         schema = CollectionSchema(raw)
 
         assert schema.collection_name == "test_collection"
@@ -515,61 +481,21 @@ class TestCollectionSchema:
 
     def test_collection_schema_with_properties(self):
         """Test CollectionSchema with properties."""
-        # Create mock schema
-        mock_schema = MagicMock()
-        mock_schema.name = "test_collection"
-        mock_schema.description = ""
-        mock_schema.enable_dynamic_field = False
-        mock_schema.enable_namespace = False
-        mock_schema.fields = []
-        mock_schema.struct_array_fields = []
-        mock_schema.functions = []
-
-        # Create mock property
         prop = MagicMock()
         prop.key = "ttl"
         prop.value = "3600"
 
-        # Create mock raw
-        raw = MagicMock()
-        raw.schema = mock_schema
-        raw.aliases = []
-        raw.collectionID = 1
-        raw.shards_num = 1
-        raw.num_partitions = 1
-        raw.created_timestamp = 0
-        raw.update_timestamp = 0
-        raw.consistency_level = 2
-        raw.properties = [prop]
-
+        raw = self._create_mock_collection_raw(properties=[prop])
         schema = CollectionSchema(raw)
 
         assert schema.properties == {"ttl": "3600"}
 
     def test_collection_schema_dict_with_timestamps(self):
         """Test CollectionSchema dict method with timestamps."""
-        # Create mock schema
-        mock_schema = MagicMock()
-        mock_schema.name = "test_collection"
-        mock_schema.description = "Test"
-        mock_schema.enable_dynamic_field = False
-        mock_schema.enable_namespace = False
-        mock_schema.fields = []
-        mock_schema.struct_array_fields = []
-        mock_schema.functions = []
-
-        # Create mock raw
-        raw = MagicMock()
-        raw.schema = mock_schema
-        raw.aliases = []
-        raw.collectionID = 1
-        raw.shards_num = 1
-        raw.num_partitions = 1
-        raw.created_timestamp = 1704067200
-        raw.update_timestamp = 1704153600
-        raw.consistency_level = 2
-        raw.properties = []
-
+        raw = self._create_mock_collection_raw(
+            created_timestamp=1704067200,
+            update_timestamp=1704153600,
+        )
         schema = CollectionSchema(raw)
         d = schema.dict()
 
@@ -578,28 +504,10 @@ class TestCollectionSchema:
 
     def test_collection_schema_dict_without_timestamps(self):
         """Test CollectionSchema dict method without timestamps."""
-        # Create mock schema
-        mock_schema = MagicMock()
-        mock_schema.name = "test_collection"
-        mock_schema.description = "Test"
-        mock_schema.enable_dynamic_field = False
-        mock_schema.enable_namespace = False
-        mock_schema.fields = []
-        mock_schema.struct_array_fields = []
-        mock_schema.functions = []
-
-        # Create mock raw
-        raw = MagicMock()
-        raw.schema = mock_schema
-        raw.aliases = []
-        raw.collectionID = 1
-        raw.shards_num = 1
-        raw.num_partitions = 1
-        raw.created_timestamp = 0
-        raw.update_timestamp = 0
-        raw.consistency_level = 2
-        raw.properties = []
-
+        raw = self._create_mock_collection_raw(
+            created_timestamp=0,
+            update_timestamp=0,
+        )
         schema = CollectionSchema(raw)
         d = schema.dict()
 
@@ -832,24 +740,14 @@ class TestWeightedRanker:
 
         assert ranker._weights == [1, 2, 3]
 
-    def test_weighted_ranker_invalid_bool_weight(self):
-        """Test WeightedRanker raises error for bool weight."""
+    @pytest.mark.parametrize(
+        "invalid_weight",
+        [True, "0.5", None],
+    )
+    def test_weighted_ranker_invalid_weight(self, invalid_weight):
+        """Test WeightedRanker raises error for invalid weight types."""
         with pytest.raises(TypeError) as exc_info:
-            WeightedRanker(0.5, True, 0.5)
-
-        assert "Weight must be a number" in str(exc_info.value)
-
-    def test_weighted_ranker_invalid_string_weight(self):
-        """Test WeightedRanker raises error for string weight."""
-        with pytest.raises(TypeError) as exc_info:
-            WeightedRanker(0.5, "0.5", 0.5)
-
-        assert "Weight must be a number" in str(exc_info.value)
-
-    def test_weighted_ranker_invalid_none_weight(self):
-        """Test WeightedRanker raises error for None weight."""
-        with pytest.raises(TypeError) as exc_info:
-            WeightedRanker(0.5, None)
+            WeightedRanker(0.5, invalid_weight)
 
         assert "Weight must be a number" in str(exc_info.value)
 
