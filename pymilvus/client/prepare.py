@@ -2604,6 +2604,7 @@ class Prepare:
         snapshot_name: str,
         collection_name: str = "",
         description: str = "",
+        db_name: str = "",
     ):
         if not validate_str(snapshot_name):
             msg = "snapshot_name must be a non-empty string"
@@ -2615,6 +2616,7 @@ class Prepare:
             name=snapshot_name,
             collection_name=collection_name,
             description=description,
+            db_name=db_name,
         )
 
     @classmethod
@@ -2625,9 +2627,10 @@ class Prepare:
         return milvus_types.DropSnapshotRequest(name=snapshot_name)
 
     @classmethod
-    def list_snapshots_req(cls, collection_name: str = ""):
+    def list_snapshots_req(cls, collection_name: str = "", db_name: str = ""):
         return milvus_types.ListSnapshotsRequest(
             collection_name=collection_name,
+            db_name=db_name,
         )
 
     @classmethod
@@ -2643,6 +2646,7 @@ class Prepare:
         snapshot_name: str,
         collection_name: str = "",
         rewrite_data: bool = False,
+        db_name: str = "",
     ):
         if not validate_str(snapshot_name):
             msg = "snapshot_name must be a non-empty string"
@@ -2654,6 +2658,7 @@ class Prepare:
             name=snapshot_name,
             collection_name=collection_name,
             rewrite_data=rewrite_data,
+            db_name=db_name,
         )
 
     @classmethod
@@ -2664,8 +2669,11 @@ class Prepare:
         return milvus_types.GetRestoreSnapshotStateRequest(job_id=job_id)
 
     @classmethod
-    def list_restore_snapshot_jobs_req(cls, collection_name: str = ""):
-        return milvus_types.ListRestoreSnapshotJobsRequest(collection_name=collection_name)
+    def list_restore_snapshot_jobs_req(cls, collection_name: str = "", db_name: str = ""):
+        return milvus_types.ListRestoreSnapshotJobsRequest(
+            collection_name=collection_name,
+            db_name=db_name,
+        )
 
     @classmethod
     def add_file_resource(cls, name: str, path: str):

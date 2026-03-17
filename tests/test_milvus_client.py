@@ -215,6 +215,7 @@ class TestMilvusClientSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="test_collection",
                 description="Test description",
+                db_name="",
                 timeout=None,
                 context=ANY,
             )
@@ -267,7 +268,7 @@ class TestMilvusClientSnapshot:
 
             assert snapshots == ["snapshot1", "snapshot2"]
             mock_handler.list_snapshots.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
 
     def test_list_snapshots_all(self):
@@ -336,6 +337,7 @@ class TestMilvusClientSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="restored_collection",
                 rewrite_data=False,
+                db_name="",
                 timeout=None,
                 context=ANY,
             )
@@ -415,7 +417,7 @@ class TestMilvusClientSnapshot:
             assert jobs[1].progress == 50
 
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
 
     def test_list_restore_snapshot_jobs_all(self):
@@ -434,6 +436,97 @@ class TestMilvusClientSnapshot:
             mock_handler.list_restore_snapshot_jobs.assert_called_once()
             call_kwargs = mock_handler.list_restore_snapshot_jobs.call_args[1]
             assert call_kwargs["collection_name"] == ""
+
+    def test_create_snapshot_with_db_name(self):
+        """Test create_snapshot with explicit db_name."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.create_snapshot.return_value = None
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            client.create_snapshot(
+                collection_name="test_collection",
+                snapshot_name="test_snapshot",
+                db_name="target_db",
+            )
+
+            mock_handler.create_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                description="",
+                db_name="target_db",
+                timeout=None,
+                context=ANY,
+            )
+
+    def test_list_snapshots_with_db_name(self):
+        """Test list_snapshots with explicit db_name."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.list_snapshots.return_value = ["snapshot1"]
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            snapshots = client.list_snapshots(collection_name="test_collection", db_name="other_db")
+
+            assert snapshots == ["snapshot1"]
+            mock_handler.list_snapshots.assert_called_once_with(
+                collection_name="test_collection", db_name="other_db", timeout=None, context=ANY
+            )
+
+    def test_restore_snapshot_cross_db(self):
+        """Test restore_snapshot to a different database."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.restore_snapshot.return_value = 12345
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            job_id = client.restore_snapshot(
+                snapshot_name="test_snapshot",
+                collection_name="restored_collection",
+                db_name="target_db",
+            )
+
+            assert job_id == 12345
+            mock_handler.restore_snapshot.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="restored_collection",
+                rewrite_data=False,
+                db_name="target_db",
+                timeout=None,
+                context=ANY,
+            )
+
+    def test_list_restore_snapshot_jobs_with_db_name(self):
+        """Test list_restore_snapshot_jobs with explicit db_name."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.list_restore_snapshot_jobs.return_value = []
+
+        with patch(
+            "pymilvus.milvus_client.milvus_client.create_connection", return_value="test"
+        ), patch("pymilvus.orm.connections.Connections._fetch_handler", return_value=mock_handler):
+            client = MilvusClient()
+
+            jobs = client.list_restore_snapshot_jobs(
+                collection_name="test_collection", db_name="other_db"
+            )
+
+            assert len(jobs) == 0
+            mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
+                collection_name="test_collection", db_name="other_db", timeout=None, context=ANY
+            )
 
     def test_client_db_isolation(self):
         """
