@@ -692,7 +692,8 @@ class TestUpgradeReminderDecorator:
         with pytest.raises(MilvusException) as exc_info:
             unimplemented_func()
 
-        assert "sdk is incompatible with server" in exc_info.value.message
+        assert "default: 19530" in exc_info.value.message
+        assert "pymilvus version" in exc_info.value.message
 
     def test_upgrade_reminder_raises_other_grpc_errors(self):
         """Test that other gRPC errors are raised as-is."""
