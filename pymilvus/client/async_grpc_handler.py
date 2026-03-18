@@ -125,6 +125,26 @@ class AsyncGrpcHandler:
         await self._async_channel.close()
         self._async_channel = None
 
+    async def reconnect(self, address: Optional[str] = None, timeout: Optional[float] = None):
+        """Reset the async gRPC channel, reconnecting to the same or a new address.
+
+        Preserves the handler object identity so that all existing references
+        (AsyncMilvusClient._handler, in-flight retry loops) continue to work.
+
+        Args:
+            address: Optional new address to connect to.
+            timeout: Connection timeout in seconds.
+        """
+        try:
+            await self.close()
+        except Exception:
+            self._async_channel = None
+        if address:
+            self._address = address
+        self._setup_grpc_channel()
+        self._is_channel_ready = False
+        await self.ensure_channel_ready(timeout=timeout)
+
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
         values = []
