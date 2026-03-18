@@ -30,7 +30,7 @@ jobs:
        ((github.event.action == 'closed') ||
         (github.event.action == 'labeled' && startsWith(github.event.label.name, 'backport-to-'))))
     permissions:
-      contents: write
+      contents: read
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
@@ -40,9 +40,12 @@ jobs:
           fetch-depth: 0
 
       - name: Configure Git
+        env:
+          GH_TOKEN: ${{ secrets.PYMILVUS_BOT_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "pymilvus-bot"
+          git config user.email "pymilvus-bot@users.noreply.github.com"
+          git remote add fork "https://x-access-token:${GH_TOKEN}@github.com/pymilvus-bot/pymilvus.git"
 
       - name: Execute Backport
         id: execute-backport
@@ -231,7 +234,7 @@ jobs:
               fi
             fi
 
-            if ! git push origin "$BACKPORT_BRANCH"; then
+            if ! git push fork "$BACKPORT_BRANCH"; then
               echo "::error::Failed to push branch $BACKPORT_BRANCH"
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to push branch |"
               gh pr comment "$PR_NUMBER" --body $'❌ **Backport Failed**\nHi @'"$PR_AUTHOR"$', failed to push backport branch for `'"$TARGET_BRANCH"$'`.\n\n'"$CC_LINE"''
@@ -247,8 +250,9 @@ jobs:
             fi
 
             if NEW_PR_URL=$(gh pr create \
+              --repo "${{ github.repository }}" \
               --base "$TARGET_BRANCH" \
-              --head "$BACKPORT_BRANCH" \
+              --head "pymilvus-bot:$BACKPORT_BRANCH" \
               --title "[Backport $TARGET_BRANCH] $PR_TITLE_CLEAN (#$PR_NUMBER)" \
               --body "$PR_BODY" \
               --label "backport" \
@@ -263,7 +267,7 @@ jobs:
             else
               echo "::error::Failed to create backport PR."
               SUMMARY_RESULTS="${SUMMARY_RESULTS}\n| \`$TARGET_BRANCH\` | ❌ Failed | Failed to create PR |"
-              git push origin --delete "$BACKPORT_BRANCH" 2>/dev/null || true
+              git push fork --delete "$BACKPORT_BRANCH" 2>/dev/null || true
               gh pr comment "$PR_NUMBER" --body $'❌ **Backport PR Creation Failed**\nHi @'"$PR_AUTHOR"$', Failed to create backport PR for `'"$TARGET_BRANCH"$'`.\n\nError: '"$NEW_PR_URL"$'\n\n'"$CC_LINE"''
             fi
             
