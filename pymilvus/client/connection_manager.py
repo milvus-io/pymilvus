@@ -274,6 +274,7 @@ class RegularStrategy(ConnectionStrategy):
 
         return GrpcHandler(
             uri=config.uri,
+            address=config.address,
             token=config.token,
             db_name=config.db_name,
             **config.get_handler_kwargs(),
@@ -758,6 +759,7 @@ class AsyncRegularStrategy(ConnectionStrategy):
 
         return AsyncGrpcHandler(
             uri=config.uri,
+            address=config.address,
             token=config.token,
             db_name=config.db_name,
             **config.get_handler_kwargs(),

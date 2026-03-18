@@ -326,6 +326,7 @@ class TestConnectionConfig:
             strategy.create_handler(config)
             mock_handler_cls.assert_called_once_with(
                 uri=config.uri,
+                address=config.address,
                 token=config.token,
                 db_name=config.db_name,
                 secure=True,
@@ -341,6 +342,7 @@ class TestConnectionConfig:
             strategy.create_handler(config)
             mock_handler_cls.assert_called_once_with(
                 uri=config.uri,
+                address=config.address,
                 token=config.token,
                 db_name=config.db_name,
                 secure=True,
@@ -370,7 +372,11 @@ class TestRegularStrategy:
             handler = strategy.create_handler(config)
 
             mock_handler_cls.assert_called_once_with(
-                uri="https://host:19530/mydb", token="mytoken", db_name="mydb", secure=True
+                uri="https://host:19530/mydb",
+                address="host:19530",
+                token="mytoken",
+                db_name="mydb",
+                secure=True,
             )
             assert handler is mock_handler_cls.return_value
 
