@@ -30,28 +30,24 @@ class TestGetServerType:
 
 class TestHybridtsToUnixtime:
     def test_basic_conversion(self):
-        # Create a hybrid timestamp with known physical time (1000ms) and logical part (0)
         physical_ms = 1000
         hybridts = physical_ms << LOGICAL_BITS
         result = utils.hybridts_to_unixtime(hybridts)
-        assert result == 1.0  # 1000ms = 1.0 seconds
+        assert result == 1.0
 
     def test_with_logical_part(self):
-        # The logical part should not affect the unix time conversion
         physical_ms = 5000
         logical = 100
         hybridts = (physical_ms << LOGICAL_BITS) | logical
         result = utils.hybridts_to_unixtime(hybridts)
-        assert result == 5.0  # 5000ms = 5.0 seconds
+        assert result == 5.0
 
     def test_zero_timestamp(self):
         result = utils.hybridts_to_unixtime(0)
         assert result == 0.0
 
     def test_large_timestamp(self):
-        # Test with a realistic timestamp (e.g., around 2023)
-        # Unix timestamp for 2023-01-01 00:00:00 UTC is 1672531200
-        physical_ms = 1672531200000  # Convert to milliseconds
+        physical_ms = 1672531200000
         hybridts = physical_ms << LOGICAL_BITS
         result = utils.hybridts_to_unixtime(hybridts)
         assert result == 1672531200.0
@@ -77,7 +73,6 @@ class TestMktsFromHybridts:
         hybridts = physical_ms << LOGICAL_BITS
         delta = timedelta(microseconds=500000)  # 500ms
         result = utils.mkts_from_hybridts(hybridts, delta=delta)
-        # 500000 microseconds = 500ms
         expected = (physical_ms + 500) << LOGICAL_BITS
         assert result == expected
 
@@ -87,7 +82,6 @@ class TestMktsFromHybridts:
         offset_ms = 100.0
         delta = timedelta(microseconds=200000)  # 200ms
         result = utils.mkts_from_hybridts(hybridts, milliseconds=offset_ms, delta=delta)
-        # Total offset: 100 + 200 = 300ms
         expected = (physical_ms + 300) << LOGICAL_BITS
         assert result == expected
 
@@ -119,7 +113,7 @@ class TestMktsFromHybridts:
 
 class TestMktsFromUnixtime:
     def test_basic_conversion(self):
-        epoch = 1.0  # 1 second = 1000ms
+        epoch = 1.0
         result = utils.mkts_from_unixtime(epoch)
         expected = 1000 << LOGICAL_BITS
         assert result == expected
@@ -128,7 +122,6 @@ class TestMktsFromUnixtime:
         epoch = 1.0
         offset_ms = 500.0
         result = utils.mkts_from_unixtime(epoch, milliseconds=offset_ms)
-        # 1.0 second + 0.5 seconds = 1.5 seconds = 1500ms
         expected = 1500 << LOGICAL_BITS
         assert result == expected
 
@@ -144,7 +137,6 @@ class TestMktsFromUnixtime:
         offset_ms = 100.0
         delta = timedelta(microseconds=200000)  # 200ms
         result = utils.mkts_from_unixtime(epoch, milliseconds=offset_ms, delta=delta)
-        # 1000 + 100 + 200 = 1300ms
         expected = 1300 << LOGICAL_BITS
         assert result == expected
 
@@ -153,7 +145,7 @@ class TestMktsFromUnixtime:
         assert result == 0
 
     def test_float_epoch(self):
-        epoch = 1.5  # 1500ms
+        epoch = 1.5
         result = utils.mkts_from_unixtime(epoch)
         expected = 1500 << LOGICAL_BITS
         assert result == expected
@@ -177,10 +169,8 @@ class TestMktsFromUnixtime:
 
 class TestMktsFromDatetime:
     def test_basic_conversion(self):
-        # Use a known datetime
         dt = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
         result = utils.mkts_from_datetime(dt)
-        # Verify it converts correctly by checking round-trip
         expected_epoch = dt.timestamp()
         expected = int(expected_epoch * 1000) << LOGICAL_BITS
         assert result == expected
@@ -189,7 +179,7 @@ class TestMktsFromDatetime:
         dt = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
         offset_ms = 500.0
         result = utils.mkts_from_datetime(dt, milliseconds=offset_ms)
-        expected_epoch = dt.timestamp() + 0.5  # 500ms = 0.5s
+        expected_epoch = dt.timestamp() + 0.5
         expected = int(expected_epoch * 1000) << LOGICAL_BITS
         assert result == expected
 
@@ -221,9 +211,7 @@ class TestCurrentTimeMs:
 
     def test_returns_reasonable_value(self):
         result = utils.current_time_ms()
-        # Should be parseable as an integer
         value = int(result)
-        # Should be a reasonable timestamp (after year 2020)
         assert value > 1577836800000  # Jan 1, 2020 in ms
 
 
@@ -236,104 +224,83 @@ class TestDumps:
         assert "42" in result
 
     def test_dumps_string(self):
-        data = "hello"
-        result = utils.dumps(data)
-        assert result == "hello"
+        assert utils.dumps("hello") == "hello"
 
     def test_dumps_number(self):
-        result = utils.dumps(42)
-        assert result == "42"
+        assert utils.dumps(42) == "42"
 
     def test_dumps_boolean(self):
-        result = utils.dumps(True)
-        assert result == "True"
+        assert utils.dumps(True) == "True"
 
 
 class TestCheckInvalidBinaryVector:
     def test_valid_binary_vectors(self):
-        entities = [
-            {
-                "type": DataType.BINARY_VECTOR,
-                "values": [b"\x00\x01", b"\x02\x03"],
-            }
-        ]
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [b"\x00\x01", b"\x02\x03"]}]
         assert utils.check_invalid_binary_vector(entities) is True
 
     def test_empty_entities(self):
         assert utils.check_invalid_binary_vector([]) is True
 
     def test_non_binary_vector_entities(self):
-        entities = [
-            {
-                "type": DataType.FLOAT_VECTOR,
-                "values": [[0.1, 0.2], [0.3, 0.4]],
-            }
-        ]
+        entities = [{"type": DataType.FLOAT_VECTOR, "values": [[0.1, 0.2], [0.3, 0.4]]}]
         assert utils.check_invalid_binary_vector(entities) is True
 
     def test_inconsistent_dimensions(self):
-        entities = [
-            {
-                "type": DataType.BINARY_VECTOR,
-                "values": [b"\x00\x01", b"\x02\x03\x04"],  # Different lengths
-            }
-        ]
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [b"\x00\x01", b"\x02\x03\x04"]}]
         assert utils.check_invalid_binary_vector(entities) is False
 
     def test_non_bytes_values(self):
-        entities = [
-            {
-                "type": DataType.BINARY_VECTOR,
-                "values": [[0, 1], [2, 3]],  # Lists instead of bytes
-            }
-        ]
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [[0, 1], [2, 3]]}]
         assert utils.check_invalid_binary_vector(entities) is False
 
 
-class TestVectorTypeChecks:
-    def test_is_sparse_vector_type(self):
-        assert utils.is_sparse_vector_type(DataType.SPARSE_FLOAT_VECTOR) is True
-        assert utils.is_sparse_vector_type(DataType.FLOAT_VECTOR) is False
-        assert utils.is_sparse_vector_type(DataType.BINARY_VECTOR) is False
+# ── TestVectorTypeChecks (parametrized) ───────────────────────────────────────
 
-    def test_is_dense_float_vector_type(self):
-        assert utils.is_dense_float_vector_type(DataType.FLOAT_VECTOR) is True
-        assert utils.is_dense_float_vector_type(DataType.FLOAT16_VECTOR) is True
-        assert utils.is_dense_float_vector_type(DataType.BFLOAT16_VECTOR) is True
-        assert utils.is_dense_float_vector_type(DataType.SPARSE_FLOAT_VECTOR) is False
-        assert utils.is_dense_float_vector_type(DataType.BINARY_VECTOR) is False
-        assert utils.is_dense_float_vector_type(DataType.INT8_VECTOR) is False
 
-    def test_is_float_vector_type(self):
-        assert utils.is_float_vector_type(DataType.FLOAT_VECTOR) is True
-        assert utils.is_float_vector_type(DataType.FLOAT16_VECTOR) is True
-        assert utils.is_float_vector_type(DataType.BFLOAT16_VECTOR) is True
-        assert utils.is_float_vector_type(DataType.SPARSE_FLOAT_VECTOR) is True
-        assert utils.is_float_vector_type(DataType.BINARY_VECTOR) is False
-        assert utils.is_float_vector_type(DataType.INT8_VECTOR) is False
-
-    def test_is_binary_vector_type(self):
-        assert utils.is_binary_vector_type(DataType.BINARY_VECTOR) is True
-        assert utils.is_binary_vector_type(DataType.FLOAT_VECTOR) is False
-
-    def test_is_int_vector_type(self):
-        assert utils.is_int_vector_type(DataType.INT8_VECTOR) is True
-        assert utils.is_int_vector_type(DataType.FLOAT_VECTOR) is False
-
-    def test_is_vector_type(self):
-        assert utils.is_vector_type(DataType.FLOAT_VECTOR) is True
-        assert utils.is_vector_type(DataType.FLOAT16_VECTOR) is True
-        assert utils.is_vector_type(DataType.BFLOAT16_VECTOR) is True
-        assert utils.is_vector_type(DataType.SPARSE_FLOAT_VECTOR) is True
-        assert utils.is_vector_type(DataType.BINARY_VECTOR) is True
-        assert utils.is_vector_type(DataType.INT8_VECTOR) is True
-        assert utils.is_vector_type(DataType.INT64) is False
-        assert utils.is_vector_type(DataType.VARCHAR) is False
+@pytest.mark.parametrize(
+    "dtype,fn_name,expected",
+    [
+        # is_sparse_vector_type
+        (DataType.SPARSE_FLOAT_VECTOR, "is_sparse_vector_type", True),
+        (DataType.FLOAT_VECTOR, "is_sparse_vector_type", False),
+        (DataType.BINARY_VECTOR, "is_sparse_vector_type", False),
+        # is_dense_float_vector_type
+        (DataType.FLOAT_VECTOR, "is_dense_float_vector_type", True),
+        (DataType.FLOAT16_VECTOR, "is_dense_float_vector_type", True),
+        (DataType.BFLOAT16_VECTOR, "is_dense_float_vector_type", True),
+        (DataType.SPARSE_FLOAT_VECTOR, "is_dense_float_vector_type", False),
+        (DataType.BINARY_VECTOR, "is_dense_float_vector_type", False),
+        (DataType.INT8_VECTOR, "is_dense_float_vector_type", False),
+        # is_float_vector_type
+        (DataType.FLOAT_VECTOR, "is_float_vector_type", True),
+        (DataType.FLOAT16_VECTOR, "is_float_vector_type", True),
+        (DataType.BFLOAT16_VECTOR, "is_float_vector_type", True),
+        (DataType.SPARSE_FLOAT_VECTOR, "is_float_vector_type", True),
+        (DataType.BINARY_VECTOR, "is_float_vector_type", False),
+        (DataType.INT8_VECTOR, "is_float_vector_type", False),
+        # is_binary_vector_type
+        (DataType.BINARY_VECTOR, "is_binary_vector_type", True),
+        (DataType.FLOAT_VECTOR, "is_binary_vector_type", False),
+        # is_int_vector_type
+        (DataType.INT8_VECTOR, "is_int_vector_type", True),
+        (DataType.FLOAT_VECTOR, "is_int_vector_type", False),
+        # is_vector_type
+        (DataType.FLOAT_VECTOR, "is_vector_type", True),
+        (DataType.FLOAT16_VECTOR, "is_vector_type", True),
+        (DataType.BFLOAT16_VECTOR, "is_vector_type", True),
+        (DataType.SPARSE_FLOAT_VECTOR, "is_vector_type", True),
+        (DataType.BINARY_VECTOR, "is_vector_type", True),
+        (DataType.INT8_VECTOR, "is_vector_type", True),
+        (DataType.INT64, "is_vector_type", False),
+        (DataType.VARCHAR, "is_vector_type", False),
+    ],
+)
+def test_vector_type_checks(dtype, fn_name, expected):
+    assert getattr(utils, fn_name)(dtype) is expected
 
 
 class TestSparseParseSingleRow:
     def test_basic_parsing(self):
-        # Create sparse vector data: {0: 1.0, 1: 2.0}
         data = struct.pack("If", 0, 1.0) + struct.pack("If", 1, 2.0)
         result = utils.sparse_parse_single_row(data)
         assert result == {0: 1.0, 1: 2.0}
@@ -343,7 +310,6 @@ class TestSparseParseSingleRow:
         assert result == {}
 
     def test_invalid_length(self):
-        # Data length must be multiple of 8
         with pytest.raises(ParamError, match="length of data must be a multiple of 8"):
             utils.sparse_parse_single_row(b"\x00\x01\x02")
 
@@ -366,7 +332,6 @@ class TestTraverseInfo:
             {"name": "vector", "is_primary": False},
         ]
         location, primary_key_loc, auto_id_loc = utils.traverse_info(fields_info)
-        # Auto ID field should not be in location
         assert "id" not in location
         assert location == {"vector": 1}
         assert primary_key_loc == 0
@@ -384,7 +349,6 @@ class TestTraverseUpsertInfo:
         assert primary_key_loc == 0
 
     def test_with_auto_id(self):
-        # For upsert, auto_id field should still be in location
         fields_info = [
             {"name": "id", "is_primary": True, "auto_id": True},
             {"name": "vector", "is_primary": False},
@@ -416,7 +380,6 @@ class TestGetParams:
             utils.get_params(search_params)
 
     def test_same_value_no_error(self):
-        # If the value is the same, no error should be raised
         search_params = {"nprobe": 10, "params": {"nprobe": 10}}
         result = utils.get_params(search_params)
         assert result["nprobe"] == 10

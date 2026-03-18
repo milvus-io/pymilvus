@@ -9,6 +9,65 @@ from pymilvus.bulk_writer.validators import (
 )
 from pymilvus.exceptions import MilvusException
 
+# ---------------------------------------------------------------------------
+# Parametrized cross-validator tests: invalid_type, invalid_shape, invalid_length
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "validator_func,bad_value,dim,kwargs",
+    [
+        (float_vector_validator, "invalid", 3, {}),
+        (int8_vector_validator, "invalid", 3, {}),
+        (float16_vector_validator, "invalid", 3, {"is_bfloat": False}),
+        (binary_vector_validator, "invalid", 8, {}),
+    ],
+)
+def test_invalid_type(validator_func, bad_value, dim, kwargs):
+    """Validators should raise MilvusException for non-array/non-list input."""
+    with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray"):
+        validator_func(bad_value, dim, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "validator_func,arr,dim,kwargs",
+    [
+        (float_vector_validator, np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32), 4, {}),
+        (int8_vector_validator, np.array([[1, 2], [3, 4]], dtype=np.int8), 4, {}),
+        (
+            float16_vector_validator,
+            np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float16),
+            4,
+            {"is_bfloat": False},
+        ),
+        (binary_vector_validator, np.array([[0, 1], [2, 3]], dtype=np.uint8), 32, {}),
+    ],
+)
+def test_invalid_numpy_shape(validator_func, arr, dim, kwargs):
+    """Validators should raise MilvusException for 2D numpy arrays."""
+    with pytest.raises(MilvusException, match="shape must"):
+        validator_func(arr, dim, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "validator_func,arr,dim,kwargs",
+    [
+        (float_vector_validator, np.array([1.0, 2.0], dtype=np.float32), 3, {}),
+        (int8_vector_validator, np.array([1, 2], dtype=np.int8), 3, {}),
+        (float16_vector_validator, np.array([1.0, 2.0], dtype=np.float16), 3, {"is_bfloat": False}),
+        (binary_vector_validator, np.array([0, 1], dtype=np.uint8), 24, {}),
+    ],
+)
+def test_invalid_numpy_length(validator_func, arr, dim, kwargs):
+    """Validators should raise MilvusException for numpy arrays with wrong length."""
+    with pytest.raises(MilvusException, match="length must be equal"):
+        validator_func(arr, dim, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Float vector validator
+# ---------------------------------------------------------------------------
+
 
 class TestFloatVectorValidator:
     def test_valid_list(self):
@@ -46,22 +105,10 @@ class TestFloatVectorValidator:
         with pytest.raises(MilvusException, match='dtype must be "float32" or "float64"'):
             float_vector_validator(arr, 3)
 
-    def test_invalid_numpy_shape(self):
-        """Test numpy array with wrong shape"""
-        arr = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
-        with pytest.raises(MilvusException, match="shape must not be one dimension"):
-            float_vector_validator(arr, 4)
 
-    def test_invalid_numpy_length(self):
-        """Test numpy array with wrong dimension"""
-        arr = np.array([1.0, 2.0], dtype=np.float32)
-        with pytest.raises(MilvusException, match="length must be equal to vector dimension"):
-            float_vector_validator(arr, 3)
-
-    def test_invalid_type(self):
-        """Test with invalid input type"""
-        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
-            float_vector_validator("invalid", 3)
+# ---------------------------------------------------------------------------
+# Binary vector validator
+# ---------------------------------------------------------------------------
 
 
 class TestBinaryVectorValidator:
@@ -104,22 +151,15 @@ class TestBinaryVectorValidator:
         with pytest.raises(MilvusException, match='dtype must be "uint8"'):
             binary_vector_validator(arr, 24)
 
-    def test_invalid_numpy_shape(self):
-        """Test numpy array with wrong shape"""
-        arr = np.array([[0, 1], [2, 3]], dtype=np.uint8)
-        with pytest.raises(MilvusException, match="shape must be one dimension"):
-            binary_vector_validator(arr, 32)
-
-    def test_invalid_numpy_length(self):
-        """Test numpy array with wrong dimension"""
-        arr = np.array([0, 1], dtype=np.uint8)
-        with pytest.raises(MilvusException, match="length must be equal to 8x of vector dimension"):
-            binary_vector_validator(arr, 24)
-
     def test_invalid_type(self):
         """Test with invalid input type"""
         with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray, list, bytes"):
             binary_vector_validator("invalid", 8)
+
+
+# ---------------------------------------------------------------------------
+# Float16 vector validator
+# ---------------------------------------------------------------------------
 
 
 class TestFloat16VectorValidator:
@@ -176,22 +216,10 @@ class TestFloat16VectorValidator:
         with pytest.raises(MilvusException, match='dtype must be "bfloat16"'):
             float16_vector_validator(arr, 3, is_bfloat=True)
 
-    def test_invalid_numpy_shape(self):
-        """Test numpy array with wrong shape"""
-        arr = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float16)
-        with pytest.raises(MilvusException, match="shape must not be one dimension"):
-            float16_vector_validator(arr, 4, is_bfloat=False)
 
-    def test_invalid_numpy_length(self):
-        """Test numpy array with wrong dimension"""
-        arr = np.array([1.0, 2.0], dtype=np.float16)
-        with pytest.raises(MilvusException, match="length must be equal to vector dimension"):
-            float16_vector_validator(arr, 3, is_bfloat=False)
-
-    def test_invalid_type(self):
-        """Test with invalid input type"""
-        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
-            float16_vector_validator("invalid", 3, is_bfloat=False)
+# ---------------------------------------------------------------------------
+# Int8 vector validator
+# ---------------------------------------------------------------------------
 
 
 class TestInt8VectorValidator:
@@ -224,22 +252,10 @@ class TestInt8VectorValidator:
         with pytest.raises(MilvusException, match='dtype must be "int8"'):
             int8_vector_validator(arr, 3)
 
-    def test_invalid_numpy_shape(self):
-        """Test numpy array with wrong shape"""
-        arr = np.array([[1, 2], [3, 4]], dtype=np.int8)
-        with pytest.raises(MilvusException, match="shape must not be one dimension"):
-            int8_vector_validator(arr, 4)
 
-    def test_invalid_numpy_length(self):
-        """Test numpy array with wrong dimension"""
-        arr = np.array([1, 2], dtype=np.int8)
-        with pytest.raises(MilvusException, match="length must be equal to vector dimension"):
-            int8_vector_validator(arr, 3)
-
-    def test_invalid_type(self):
-        """Test with invalid input type"""
-        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray or list"):
-            int8_vector_validator("invalid", 3)
+# ---------------------------------------------------------------------------
+# Sparse vector validator
+# ---------------------------------------------------------------------------
 
 
 class TestSparseVectorValidator:

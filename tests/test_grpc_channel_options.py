@@ -8,6 +8,41 @@ from grpc._cython import cygrpc
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.grpc_handler import GrpcHandler
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+
+def _create_sync_handler(grpc_options=None, secure=False):
+    """Build a partially-initialised GrpcHandler ready for _setup_grpc_channel()."""
+    handler = GrpcHandler.__new__(GrpcHandler)
+    handler._channel = None
+    handler._secure = secure
+    handler._grpc_options = grpc_options or {}
+    handler._address = "localhost:19530"
+    handler._log_level = None
+    handler._authorization_interceptor = None
+    if secure:
+        handler._server_name = ""
+        handler._server_pem_path = ""
+        handler._client_pem_path = ""
+        handler._client_key_path = ""
+        handler._ca_pem_path = ""
+    return handler
+
+
+def _create_async_handler(grpc_options=None):
+    """Build a partially-initialised AsyncGrpcHandler ready for _setup_grpc_channel()."""
+    handler = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
+    handler._async_channel = None
+    handler._secure = False
+    handler._grpc_options = grpc_options or {}
+    handler._address = "localhost:19530"
+    handler._log_level = None
+    handler._async_authorization_interceptor = None
+    return handler
+
+
+# ── TestGrpcHandlerChannelOptions ─────────────────────────────────────────────
+
 
 class TestGrpcHandlerChannelOptions:
     """Tests for GrpcHandler gRPC channel options."""
@@ -27,20 +62,9 @@ class TestGrpcHandlerChannelOptions:
     def test_default_keepalive_values(self, mock_insecure_channel):
         """Default channel options include optimized keepalive settings."""
         mock_insecure_channel.return_value = MagicMock()
-
-        handler = GrpcHandler.__new__(GrpcHandler)
-        handler._channel = None
-        handler._secure = False
-        handler._grpc_options = {}
-        handler._address = "localhost:19530"
-        handler._log_level = None
-        handler._authorization_interceptor = None
-        handler._setup_grpc_channel()
-
-        mock_insecure_channel.assert_called_once()
+        _create_sync_handler()._setup_grpc_channel()
         _, call_kwargs = mock_insecure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.keepalive_time_ms"] == 10000
         assert opts["grpc.keepalive_timeout_ms"] == 5000
         assert opts["grpc.keepalive_permit_without_calls"] is True
@@ -52,70 +76,38 @@ class TestGrpcHandlerChannelOptions:
     def test_user_override_keepalive(self, mock_insecure_channel):
         """User-provided grpc_options override default keepalive values."""
         mock_insecure_channel.return_value = MagicMock()
-
-        handler = GrpcHandler.__new__(GrpcHandler)
-        handler._channel = None
-        handler._secure = False
-        handler._grpc_options = {"grpc.keepalive_time_ms": 3000, "grpc.keepalive_timeout_ms": 3000}
-        handler._address = "localhost:19530"
-        handler._log_level = None
-        handler._authorization_interceptor = None
-        handler._setup_grpc_channel()
-
+        _create_sync_handler(
+            {"grpc.keepalive_time_ms": 3000, "grpc.keepalive_timeout_ms": 3000}
+        )._setup_grpc_channel()
         _, call_kwargs = mock_insecure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.keepalive_time_ms"] == 3000
         assert opts["grpc.keepalive_timeout_ms"] == 3000
-        # Non-overridden defaults remain
         assert opts["grpc.keepalive_permit_without_calls"] is True
 
     @patch("pymilvus.client.grpc_handler.grpc.insecure_channel")
     def test_user_adds_new_option(self, mock_insecure_channel):
         """User can add new gRPC options not in the defaults."""
         mock_insecure_channel.return_value = MagicMock()
-
-        handler = GrpcHandler.__new__(GrpcHandler)
-        handler._channel = None
-        handler._secure = False
-        handler._grpc_options = {"grpc.http2.max_pings_without_data": 0}
-        handler._address = "localhost:19530"
-        handler._log_level = None
-        handler._authorization_interceptor = None
-        handler._setup_grpc_channel()
-
+        _create_sync_handler({"grpc.http2.max_pings_without_data": 0})._setup_grpc_channel()
         _, call_kwargs = mock_insecure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.http2.max_pings_without_data"] == 0
-        # Defaults still present
         assert opts["grpc.keepalive_time_ms"] == 10000
 
     @patch("pymilvus.client.grpc_handler.grpc.secure_channel")
     def test_secure_channel_has_keepalive(self, mock_secure_channel):
         """Secure channel also receives keepalive options."""
         mock_secure_channel.return_value = MagicMock()
-
-        handler = GrpcHandler.__new__(GrpcHandler)
-        handler._channel = None
-        handler._secure = True
-        handler._server_name = ""
-        handler._server_pem_path = ""
-        handler._client_pem_path = ""
-        handler._client_key_path = ""
-        handler._ca_pem_path = ""
-        handler._grpc_options = {}
-        handler._address = "localhost:19530"
-        handler._log_level = None
-        handler._authorization_interceptor = None
-        handler._setup_grpc_channel()
-
+        _create_sync_handler(secure=True)._setup_grpc_channel()
         _, call_kwargs = mock_secure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.keepalive_time_ms"] == 10000
         assert opts["grpc.keepalive_timeout_ms"] == 5000
         assert opts["grpc.keepalive_permit_without_calls"] is True
+
+
+# ── TestAsyncGrpcHandlerChannelOptions ────────────────────────────────────────
 
 
 class TestAsyncGrpcHandlerChannelOptions:
@@ -123,23 +115,16 @@ class TestAsyncGrpcHandlerChannelOptions:
 
     def test_async_default_grpc_options_empty(self):
         """grpc_options defaults to empty dict when not provided."""
-        handler = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
-        handler._async_channel = MagicMock()
-        handler._grpc_options = {}
+        handler = _create_async_handler()
         assert handler._grpc_options == {}
 
     @patch("pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel")
     def test_async_default_keepalive_values(self, mock_insecure_channel):
         """Async handler default channel options include optimized keepalive settings."""
         mock_insecure_channel.return_value = MagicMock()
-
-        handler = self._create_handler()
-        handler._grpc_options = {}
-        handler._setup_grpc_channel()
-
+        _create_async_handler()._setup_grpc_channel()
         _, call_kwargs = mock_insecure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.keepalive_time_ms"] == 10000
         assert opts["grpc.keepalive_timeout_ms"] == 5000
         assert opts["grpc.keepalive_permit_without_calls"] is True
@@ -148,23 +133,8 @@ class TestAsyncGrpcHandlerChannelOptions:
     def test_async_user_override(self, mock_insecure_channel):
         """User-provided grpc_options override defaults in async handler."""
         mock_insecure_channel.return_value = MagicMock()
-
-        handler = self._create_handler()
-        handler._grpc_options = {"grpc.keepalive_time_ms": 3000}
-        handler._setup_grpc_channel()
-
+        _create_async_handler({"grpc.keepalive_time_ms": 3000})._setup_grpc_channel()
         _, call_kwargs = mock_insecure_channel.call_args
         opts = dict(call_kwargs["options"])
-
         assert opts["grpc.keepalive_time_ms"] == 3000
         assert opts["grpc.keepalive_timeout_ms"] == 5000
-
-    def _create_handler(self):
-        handler = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
-        handler._async_channel = None
-        handler._secure = False
-        handler._grpc_options = {}
-        handler._address = "localhost:19530"
-        handler._log_level = None
-        handler._async_authorization_interceptor = None
-        return handler

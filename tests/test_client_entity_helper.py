@@ -559,64 +559,62 @@ class TestNullableVectorSupport:
         expected_bytes = vector.tobytes()
         assert field_data.vectors.int8_vector == expected_bytes
 
-    def test_pack_field_value_to_field_data_int8_vector_multiple(self):
-        """Test packing multiple int8 vectors to verify memory optimization"""
+    @pytest.mark.parametrize(
+        "dtype,field_name,dim,vector_attr",
+        [
+            (DataType.INT8_VECTOR, "int8_vector_field", 768, "int8_vector"),
+            (DataType.BINARY_VECTOR, "binary_vector_field", 128, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, "float16_vector_field", 128, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, "bfloat16_vector_field", 128, "bfloat16_vector"),
+        ],
+        ids=["int8", "binary", "float16", "bfloat16"],
+    )
+    def test_pack_field_value_to_field_data_vector_multiple(
+        self, dtype, field_name, dim, vector_attr
+    ):
+        """Test packing multiple vectors of various byte-based types"""
         field_data = schema_pb2.FieldData()
-        field_data.type = DataType.INT8_VECTOR
-        field_data.field_name = "int8_vector_field"
-        field_info = {"name": "int8_vector_field", "params": {"dim": 768}}
+        field_data.type = dtype
+        field_data.field_name = field_name
+        field_info = {"name": field_name, "params": {"dim": dim}}
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
-        # Pack multiple vectors (simulating batch insert)
         num_vectors = 1000
         vectors = []
         for i in range(num_vectors):
-            vector = np.array([(i + j) % 128 - 64 for j in range(768)], dtype=np.int8)
+            if dtype == DataType.INT8_VECTOR:
+                vector = np.array([(i + j) % 128 - 64 for j in range(dim)], dtype=np.int8)
+            elif dtype == DataType.BINARY_VECTOR:
+                vector = bytes([(i + j) % 256 for j in range(dim // 8)])
+            elif dtype == DataType.FLOAT16_VECTOR:
+                vector = np.array([float(i + j) for j in range(dim)], dtype=np.float16)
+            else:
+                vector = bytes([(i + j) % 256 for j in range(dim * 2)])
             vectors.append(vector)
             pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
 
-        # Flush to merge all collected bytes
         flush_vector_bytes(field_data, vector_bytes_cache)
+        assert field_data.vectors.dim == dim
 
-        # Verify final result
-        assert field_data.vectors.dim == 768
-        expected_total_size = num_vectors * 768
-        assert len(field_data.vectors.int8_vector) == expected_total_size
+        if dtype == DataType.INT8_VECTOR:
+            bytes_per = dim
+        elif dtype == DataType.BINARY_VECTOR:
+            bytes_per = dim // 8
+        else:
+            bytes_per = dim * 2
 
-        # Verify data correctness for sample vectors
+        vector_data = getattr(field_data.vectors, vector_attr)
+        assert len(vector_data) == num_vectors * bytes_per
+
         for idx in [0, 100, 500, 999]:
-            expected_bytes = vectors[idx].tobytes()
-            actual_bytes = field_data.vectors.int8_vector[idx * 768 : (idx + 1) * 768]
-            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
-
-    def test_flush_int8_vector_bytes(self):
-        """Test flush_vector_bytes function for int8 vectors"""
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.INT8_VECTOR
-        field_data.field_name = "int8_vector_field"
-        field_info = {"name": "int8_vector_field", "params": {"dim": 128}}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        # Pack some vectors
-        vectors = []
-        for i in range(10):
-            vector = np.array([i % 128 - 64 for _ in range(128)], dtype=np.int8)
-            vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
-
-        # Before flush, data might be in cache
-        # Flush to merge all bytes
-        flush_vector_bytes(field_data, vector_bytes_cache)
-
-        # Verify all data is merged
-        expected_size = 10 * 128
-        assert len(field_data.vectors.int8_vector) == expected_size
-
-        # Verify data correctness
-        for idx in range(10):
-            expected_bytes = vectors[idx].tobytes()
-            actual_bytes = field_data.vectors.int8_vector[idx * 128 : (idx + 1) * 128]
-            assert expected_bytes == actual_bytes
+            if dtype == DataType.FLOAT16_VECTOR:
+                expected = vectors[idx].view(np.uint8).tobytes()
+            elif dtype == DataType.INT8_VECTOR:
+                expected = vectors[idx].tobytes()
+            else:
+                expected = vectors[idx]
+            actual = vector_data[idx * bytes_per : (idx + 1) * bytes_per]
+            assert expected == actual, f"Vector {idx} data mismatch for {dtype}"
 
     def test_pack_field_value_to_field_data_int8_vector_large_batch(self):
         """Test packing large batch of int8 vectors to verify O(n) performance"""
@@ -683,97 +681,6 @@ class TestNullableVectorSupport:
 
         # Dimension should be set from params
         assert field_data.vectors.dim == 768
-
-    def test_pack_field_value_to_field_data_binary_vector_multiple(self):
-        """Test packing multiple binary vectors to verify memory optimization"""
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.BINARY_VECTOR
-        field_data.field_name = "binary_vector_field"
-        field_info = {"name": "binary_vector_field", "params": {"dim": 128}}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        # Pack multiple vectors
-        num_vectors = 1000
-        vectors = []
-        for i in range(num_vectors):
-            vector = bytes([(i + j) % 256 for j in range(16)])  # 128 bits = 16 bytes
-            vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
-
-        # Flush to merge all collected bytes
-        flush_vector_bytes(field_data, vector_bytes_cache)
-
-        # Verify final result
-        assert field_data.vectors.dim == 128
-        expected_total_size = num_vectors * 16
-        assert len(field_data.vectors.binary_vector) == expected_total_size
-
-        # Verify data correctness for sample vectors
-        for idx in [0, 100, 500, 999]:
-            expected_bytes = vectors[idx]
-            actual_bytes = field_data.vectors.binary_vector[idx * 16 : (idx + 1) * 16]
-            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
-
-    def test_pack_field_value_to_field_data_float16_vector_multiple(self):
-        """Test packing multiple float16 vectors to verify memory optimization"""
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.FLOAT16_VECTOR
-        field_data.field_name = "float16_vector_field"
-        field_info = {"name": "float16_vector_field", "params": {"dim": 128}}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        # Pack multiple vectors
-        num_vectors = 1000
-        vectors = []
-        for i in range(num_vectors):
-            vector = np.array([float(i + j) for j in range(128)], dtype=np.float16)
-            vectors.append(vector)
-            pack_field_value_to_field_data(vector, field_data, field_info, vector_bytes_cache)
-
-        # Flush to merge all collected bytes
-        flush_vector_bytes(field_data, vector_bytes_cache)
-
-        # Verify final result
-        assert field_data.vectors.dim == 128
-        expected_total_size = num_vectors * 128 * 2  # float16 = 2 bytes per element
-        assert len(field_data.vectors.float16_vector) == expected_total_size
-
-        # Verify data correctness for sample vectors
-        for idx in [0, 100, 500, 999]:
-            expected_bytes = vectors[idx].view(np.uint8).tobytes()
-            actual_bytes = field_data.vectors.float16_vector[idx * 128 * 2 : (idx + 1) * 128 * 2]
-            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
-
-    def test_pack_field_value_to_field_data_bfloat16_vector_multiple(self):
-        """Test packing multiple bfloat16 vectors to verify memory optimization"""
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.BFLOAT16_VECTOR
-        field_data.field_name = "bfloat16_vector_field"
-        field_info = {"name": "bfloat16_vector_field", "params": {"dim": 128}}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        # Pack multiple vectors using bytes format (since bfloat16 dtype may not be available)
-        num_vectors = 1000
-        vectors = []
-        for i in range(num_vectors):
-            # Create bytes directly for bfloat16 (2 bytes per element)
-            vector_bytes = bytes([(i + j) % 256 for j in range(128 * 2)])
-            vectors.append(vector_bytes)
-            pack_field_value_to_field_data(vector_bytes, field_data, field_info, vector_bytes_cache)
-
-        # Flush to merge all collected bytes
-        flush_vector_bytes(field_data, vector_bytes_cache)
-
-        # Verify final result
-        assert field_data.vectors.dim == 128
-        expected_total_size = num_vectors * 128 * 2  # bfloat16 = 2 bytes per element
-        assert len(field_data.vectors.bfloat16_vector) == expected_total_size
-
-        # Verify data correctness for sample vectors
-        for idx in [0, 100, 500, 999]:
-            expected_bytes = vectors[idx]
-            actual_bytes = field_data.vectors.bfloat16_vector[idx * 128 * 2 : (idx + 1) * 128 * 2]
-            assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
     def test_flush_vector_bytes_all_types(self):
         """Test flush_vector_bytes function for all bytes vector types"""
@@ -1154,109 +1061,48 @@ class TestExtractVectorArrayRowData:
         assert result == [b"\x01\x02"]
 
 
+class _NoBool:
+    def __bool__(self):
+        raise ValueError("no")
+
+
+class _Unserializable:
+    pass
+
+
+_PACK_ERROR_CASES = [
+    (DataType.BOOL, _NoBool(), {"name": "f"}, DataNotMatchException),
+    (DataType.INT64, "not int", {"name": "f"}, DataNotMatchException),
+    (DataType.FLOAT, "not float", {"name": "f"}, DataNotMatchException),
+    (DataType.FLOAT_VECTOR, ["not float"], {"name": "f"}, DataNotMatchException),
+    (DataType.BINARY_VECTOR, 123, {"name": "f"}, DataNotMatchException),
+    (DataType.FLOAT16_VECTOR, "bad", {"name": "f"}, ParamError),
+    (DataType.BFLOAT16_VECTOR, "bad", {"name": "f"}, ParamError),
+    (DataType.INT8_VECTOR, "bad", {"name": "f"}, ParamError),
+    (
+        DataType.VARCHAR,
+        123,
+        {"name": "f", "params": {Config.MaxVarCharLengthKey: 10}},
+        DataNotMatchException,
+    ),
+    (DataType.JSON, _Unserializable(), {"name": "f"}, DataNotMatchException),
+]
+
+
 class TestPackFieldValueErrors:
     """Test error handling in pack_field_value_to_field_data"""
 
-    def test_pack_bool_invalid(self):
+    @pytest.mark.parametrize(
+        "dtype,bad_value,field_info,expected_exc",
+        _PACK_ERROR_CASES,
+        ids=[str(c[0]).split(".")[-1] for c in _PACK_ERROR_CASES],
+    )
+    def test_pack_invalid_value(self, dtype, bad_value, field_info, expected_exc):
         field_data = schema_types.FieldData()
-        field_data.type = DataType.BOOL
+        field_data.type = dtype
         field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        class NoBool:
-            def __bool__(self):
-                raise ValueError("no")
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data(NoBool(), field_data, field_info, {})
-
-    def test_pack_int_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.INT64
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data("not int", field_data, field_info, {})
-
-    def test_pack_float_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data("not float", field_data, field_info, {})
-
-    def test_pack_float_vector_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT_VECTOR
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        # This raises TypeError (extend with list of strings) -> caught -> DataNotMatchException
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data(["not float"], field_data, field_info, {})
-
-    def test_pack_binary_vector_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.BINARY_VECTOR
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data(123, field_data, field_info, {})
-
-    def test_pack_float16_vector_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT16_VECTOR
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        # raises ParamError explicit check
-        with pytest.raises(ParamError):
-            entity_helper.pack_field_value_to_field_data("bad", field_data, field_info, {})
-
-    def test_pack_bfloat16_vector_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.BFLOAT16_VECTOR
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        with pytest.raises(ParamError):
-            entity_helper.pack_field_value_to_field_data("bad", field_data, field_info, {})
-
-    def test_pack_int8_vector_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.INT8_VECTOR
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        with pytest.raises(ParamError):
-            entity_helper.pack_field_value_to_field_data("bad", field_data, field_info, {})
-
-    def test_pack_varchar_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.VARCHAR
-        field_data.field_name = "f"
-        field_info = {"name": "f", "params": {Config.MaxVarCharLengthKey: 10}}
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data(123, field_data, field_info, {})
-
-    def test_pack_json_invalid(self):
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.JSON
-        field_data.field_name = "f"
-        field_info = {"name": "f"}
-
-        class Unserializable:
-            pass
-
-        with pytest.raises(DataNotMatchException):
-            entity_helper.pack_field_value_to_field_data(
-                Unserializable(), field_data, field_info, {}
-            )
+        with pytest.raises(expected_exc):
+            entity_helper.pack_field_value_to_field_data(bad_value, field_data, field_info, {})
 
 
 class TestExtractRowDataV1Extended:
