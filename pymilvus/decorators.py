@@ -482,8 +482,11 @@ def upgrade_reminder(func: Callable):
         except grpc.RpcError as e:
             if e.code() == grpc.StatusCode.UNIMPLEMENTED:
                 msg = (
-                    "Incorrect port or sdk is incompatible with server, "
-                    "please check your port or downgrade your sdk or upgrade your server"
+                    "Received UNIMPLEMENTED from server. "
+                    "Please first verify that your uri points to a Milvus gRPC port "
+                    "(default: 19530) instead of an HTTP/proxy port. "
+                    "If the port is correct, your SDK may be incompatible with the server; "
+                    "upgrade Milvus server or use a matching pymilvus version."
                 )
                 raise MilvusException(message=msg) from e
             raise e from e
