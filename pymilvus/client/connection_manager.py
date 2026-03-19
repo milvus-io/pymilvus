@@ -383,6 +383,7 @@ class _GlobalStrategyMixin:
             host = parsed.hostname or "localhost"
             port = parsed.port or DEFAULT_PORT
             return f"{host}:{port}"
+        logger.warning("Global strategy has no topology; reconnecting to current address")
         return None
 
     def _stop_refresher(self) -> None:
@@ -934,11 +935,11 @@ class AsyncConnectionManager:
         AsyncConnectionManager.handle_error() which returns True if the error
         was handled and the caller should retry.
 
-        The closure captures ``handler`` by reference. After recovery, the old
-        handler's closure still points to the old handler object, so
-        ``_get_managed(old_handler)`` returns None (the registry now holds the
-        new handler). This intentionally prevents double recovery when multiple
-        in-flight RPCs fail on the same old handler.
+        The closure captures ``handler`` by reference. Recovery reconnects the
+        handler in-place (same object, new channel), so the closure remains
+        valid and ``_get_managed(handler)`` continues to find the connection.
+        Double recovery is prevented by the ``recovery_gen`` counter checked
+        in ``handle_error()``.
         """
 
         async def _on_rpc_error(error: Exception) -> bool:
@@ -1093,15 +1094,16 @@ class AsyncConnectionManager:
             managed = self._get_managed(handler)
             if managed is None:
                 return False
-            saved_gen = managed.recovery_gen
 
             # Run sync on_unavailable in executor to avoid blocking the
             # event loop (GlobalStrategy.on_unavailable does network I/O).
+            # Unlike the sync path, the lock is held throughout, so no
+            # concurrent recovery can happen — no recovery_gen guard needed.
             loop = asyncio.get_running_loop()
             should_recover = await loop.run_in_executor(
                 None, managed.strategy.on_unavailable, managed
             )
-            if should_recover and managed.recovery_gen == saved_gen:
+            if should_recover:
                 await self._recover(managed)
 
         return should_recover

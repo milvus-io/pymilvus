@@ -1920,6 +1920,46 @@ class TestInPlaceRecovery:
             call_kwargs = handler.reconnect.call_args
             assert call_kwargs.kwargs.get("address") is None
 
+    def test_global_recovery_warns_when_no_topology(self):
+        """GlobalStrategy logs warning when get_recovery_address returns None.
+
+        This happens when on_unavailable fails to fetch topology (e.g., network
+        error during refresh) but still returns True to trigger recovery.
+        """
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+
+        mock_topology = _make_topology(1, "in01", "https://in01.zilliz.com")
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            handler = _make_sync_handler()
+            mock_handler_cls.return_value = handler
+
+            mgr.get_or_create(config)
+            managed = mgr._get_managed(handler)
+
+            # Clear topology AND make fetch_topology fail — simulates
+            # on_unavailable returning True despite no topology available
+            managed.strategy._topology = None
+
+            with patch(
+                "pymilvus.client.connection_manager.fetch_topology",
+                side_effect=RuntimeError("network error"),
+            ), patch("pymilvus.client.connection_manager.logger") as mock_logger:
+                mgr.handle_error(handler, _MockRpcError())
+
+                # Should warn about missing topology
+                mock_logger.warning.assert_any_call(
+                    "Global strategy has no topology; reconnecting to current address"
+                )
+                # reconnect still called (with address=None, falls back to current)
+                handler.reconnect.assert_called_once()
+                assert handler.reconnect.call_args.kwargs.get("address") is None
+
     @pytest.mark.asyncio
     async def test_async_recover_preserves_handler_identity(self):
         """Async: after recovery, managed.handler is the SAME object."""
