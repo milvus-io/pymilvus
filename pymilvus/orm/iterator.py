@@ -143,8 +143,8 @@ class QueryIterator:
                 res = self._conn.query(
                     collection_name=self._collection_name,
                     expr=expr,
-                    output_field=[],
-                    partition_name=self._partition_names,
+                    output_fields=[],
+                    partition_names=self._partition_names,
                     timeout=self._timeout,
                     **seek_params,
                 )
@@ -244,8 +244,8 @@ class QueryIterator:
         res = self._conn.query(
             collection_name=self._collection_name,
             expr=self._expr,
-            output_field=self._output_fields,
-            partition_name=self._partition_names,
+            output_fields=[],
+            partition_names=[],
             timeout=self._timeout,
             **init_ts_kwargs,
         )
