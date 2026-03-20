@@ -1306,7 +1306,11 @@ class Prepare:
 
     @classmethod
     def _prepare_placeholder_str(
-        cls, data: Any, is_embedding_list: bool = False, is_element_level: bool = False
+        cls,
+        data: Any,
+        is_embedding_list: bool = False,
+        is_element_level: bool = False,
+        vector_data_type: Optional[DataType] = None,
     ):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
@@ -1358,12 +1362,26 @@ class Prepare:
                 raise ParamError(message=err_msg)
 
         elif isinstance(data[0], bytes):
-            pl_type = (
-                PlaceholderType.BinaryVector
-                if not is_embedding_list
-                else PlaceholderType.EmbListBinaryVector
+            bytes_ph_map = {
+                DataType.FLOAT16_VECTOR: (
+                    PlaceholderType.FLOAT16_VECTOR,
+                    PlaceholderType.EmbListFloat16Vector,
+                ),
+                DataType.BFLOAT16_VECTOR: (
+                    PlaceholderType.BFLOAT16_VECTOR,
+                    PlaceholderType.EmbListBFloat16Vector,
+                ),
+                DataType.BINARY_VECTOR: (
+                    PlaceholderType.BinaryVector,
+                    PlaceholderType.EmbListBinaryVector,
+                ),
+            }
+            ph_regular, ph_emb = bytes_ph_map.get(
+                vector_data_type,
+                (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
             )
-            pl_values = data  # data is already a list of bytes
+            pl_type = ph_emb if is_embedding_list else ph_regular
+            pl_values = data
 
         elif isinstance(data[0], str):
             pl_type = PlaceholderType.VARCHAR
@@ -1379,6 +1397,23 @@ class Prepare:
         return common_types.PlaceholderGroup.SerializeToString(
             common_types.PlaceholderGroup(placeholders=[pl])
         )
+
+    @staticmethod
+    def _get_vector_type_from_schema(schema: dict, anns_field: str) -> Optional[DataType]:
+        # Parse struct field: "items[embedding]" -> struct_name="items", sub_field="embedding"
+        if "[" in anns_field and anns_field.endswith("]"):
+            struct_name, sub_field = anns_field.rstrip("]").split("[", 1)
+            for sf in schema.get("struct_array_fields", []):
+                if sf.get("name") == struct_name:
+                    for f in sf.get("fields", []):
+                        if f.get("name") == sub_field:
+                            return f.get("type")
+            return None
+        # Regular field
+        for f in schema.get("fields", []):
+            if f.get("name") == anns_field:
+                return f.get("type")
+        return None
 
     @classmethod
     def prepare_expression_template(cls, values: Dict) -> Any:
@@ -1621,11 +1656,17 @@ class Prepare:
         is_element_level = (
             not is_embedding_list and expr is not None and "element_filter(" in expr.lower()
         )
+
+        vector_data_type = None
+        schema = kwargs.get("schema")
+        if schema and anns_field:
+            vector_data_type = cls._get_vector_type_from_schema(schema, anns_field)
+
         if data is not None:
             request_kwargs.update(
                 nq=entity_helper.get_input_num_rows(data),
                 placeholder_group=cls._prepare_placeholder_str(
-                    data, is_embedding_list, is_element_level
+                    data, is_embedding_list, is_element_level, vector_data_type
                 ),
             )
         elif ids is not None:
