@@ -1362,22 +1362,25 @@ class Prepare:
                 raise ParamError(message=err_msg)
 
         elif isinstance(data[0], bytes):
-            if is_embedding_list:
-                emb_bytes_ph_map = {
-                    DataType.FLOAT16_VECTOR: PlaceholderType.EmbListFloat16Vector,
-                    DataType.BFLOAT16_VECTOR: PlaceholderType.EmbListBFloat16Vector,
-                    DataType.BINARY_VECTOR: PlaceholderType.EmbListBinaryVector,
-                }
-                pl_type = emb_bytes_ph_map.get(
-                    vector_data_type, PlaceholderType.EmbListBinaryVector
-                )
-            else:
-                bytes_ph_map = {
-                    DataType.FLOAT16_VECTOR: PlaceholderType.FLOAT16_VECTOR,
-                    DataType.BFLOAT16_VECTOR: PlaceholderType.BFLOAT16_VECTOR,
-                    DataType.BINARY_VECTOR: PlaceholderType.BinaryVector,
-                }
-                pl_type = bytes_ph_map.get(vector_data_type, PlaceholderType.BinaryVector)
+            bytes_ph_map = {
+                DataType.FLOAT16_VECTOR: (
+                    PlaceholderType.FLOAT16_VECTOR,
+                    PlaceholderType.EmbListFloat16Vector,
+                ),
+                DataType.BFLOAT16_VECTOR: (
+                    PlaceholderType.BFLOAT16_VECTOR,
+                    PlaceholderType.EmbListBFloat16Vector,
+                ),
+                DataType.BINARY_VECTOR: (
+                    PlaceholderType.BinaryVector,
+                    PlaceholderType.EmbListBinaryVector,
+                ),
+            }
+            ph_regular, ph_emb = bytes_ph_map.get(
+                vector_data_type,
+                (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
+            )
+            pl_type = ph_emb if is_embedding_list else ph_regular
             pl_values = data
 
         elif isinstance(data[0], str):
