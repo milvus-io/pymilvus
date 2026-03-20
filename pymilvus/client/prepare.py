@@ -1368,7 +1368,9 @@ class Prepare:
                     DataType.BFLOAT16_VECTOR: PlaceholderType.EmbListBFloat16Vector,
                     DataType.BINARY_VECTOR: PlaceholderType.EmbListBinaryVector,
                 }
-                pl_type = emb_bytes_ph_map.get(vector_data_type, PlaceholderType.EmbListBinaryVector)
+                pl_type = emb_bytes_ph_map.get(
+                    vector_data_type, PlaceholderType.EmbListBinaryVector
+                )
             else:
                 bytes_ph_map = {
                     DataType.FLOAT16_VECTOR: PlaceholderType.FLOAT16_VECTOR,

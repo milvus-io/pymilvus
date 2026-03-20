@@ -4,8 +4,9 @@ Covers the schema auto-fetch logic in GrpcHandler and AsyncGrpcHandler
 when search data contains bytes vectors (float16/bfloat16/binary).
 """
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from pymilvus import DataType
 from pymilvus.client.abstract import AnnSearchRequest
@@ -182,57 +183,54 @@ class TestGrpcHandlerHybridSearchBytesVector:
 class TestAsyncGrpcHandlerSearchBytesVector:
     """Test AsyncGrpcHandler.search auto-fetches schema for bytes vectors."""
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_search_bytes_data_fetches_schema(self, mock_ts_utils):
+    async def test_async_search_bytes_data_fetches_schema(self, mock_ts_utils):
         """When data[0] is bytes and no schema kwarg, _get_schema is called."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.search(
-                collection_name="test_col",
-                anns_field="vec",
-                param={"metric_type": "L2", "params": {"nprobe": 10}},
-                limit=10,
-                data=[b"\x01\x02\x03\x04"],
-            )
+        await handler.search(
+            collection_name="test_col",
+            anns_field="vec",
+            param={"metric_type": "L2", "params": {"nprobe": 10}},
+            limit=10,
+            data=[b"\x01\x02\x03\x04"],
         )
 
         handler._get_schema.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_search_with_existing_schema_skips_fetch(self, mock_ts_utils):
+    async def test_async_search_with_existing_schema_skips_fetch(self, mock_ts_utils):
         """When schema kwarg already present, _get_schema is NOT called."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.search(
-                collection_name="test_col",
-                anns_field="vec",
-                param={"metric_type": "L2", "params": {"nprobe": 10}},
-                limit=10,
-                data=[b"\x01\x02\x03\x04"],
-                schema=MOCK_SCHEMA,
-            )
+        await handler.search(
+            collection_name="test_col",
+            anns_field="vec",
+            param={"metric_type": "L2", "params": {"nprobe": 10}},
+            limit=10,
+            data=[b"\x01\x02\x03\x04"],
+            schema=MOCK_SCHEMA,
         )
 
         handler._get_schema.assert_not_called()
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_search_float_data_skips_schema_fetch(self, mock_ts_utils):
+    async def test_async_search_float_data_skips_schema_fetch(self, mock_ts_utils):
         """When data is float vectors, _get_schema is NOT called."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.search(
-                collection_name="test_col",
-                anns_field="vec",
-                param={"metric_type": "L2", "params": {"nprobe": 10}},
-                limit=10,
-                data=[[1.0, 2.0, 3.0]],
-            )
+        await handler.search(
+            collection_name="test_col",
+            anns_field="vec",
+            param={"metric_type": "L2", "params": {"nprobe": 10}},
+            limit=10,
+            data=[[1.0, 2.0, 3.0]],
         )
 
         handler._get_schema.assert_not_called()
@@ -241,8 +239,9 @@ class TestAsyncGrpcHandlerSearchBytesVector:
 class TestAsyncGrpcHandlerHybridSearchBytesVector:
     """Test AsyncGrpcHandler.hybrid_search auto-fetches schema for bytes vectors."""
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_hybrid_search_bytes_data_fetches_schema(self, mock_ts_utils):
+    async def test_async_hybrid_search_bytes_data_fetches_schema(self, mock_ts_utils):
         """When any req has bytes data, _get_schema is called once."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
@@ -254,19 +253,18 @@ class TestAsyncGrpcHandlerHybridSearchBytesVector:
             limit=10,
         )
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.hybrid_search(
-                collection_name="test_col",
-                reqs=[req],
-                rerank=None,
-                limit=10,
-            )
+        await handler.hybrid_search(
+            collection_name="test_col",
+            reqs=[req],
+            rerank=None,
+            limit=10,
         )
 
         handler._get_schema.assert_called_once()
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_hybrid_search_no_bytes_skips_fetch(self, mock_ts_utils):
+    async def test_async_hybrid_search_no_bytes_skips_fetch(self, mock_ts_utils):
         """When no req has bytes data, _get_schema is NOT called."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
@@ -278,19 +276,18 @@ class TestAsyncGrpcHandlerHybridSearchBytesVector:
             limit=10,
         )
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.hybrid_search(
-                collection_name="test_col",
-                reqs=[req],
-                rerank=None,
-                limit=10,
-            )
+        await handler.hybrid_search(
+            collection_name="test_col",
+            reqs=[req],
+            rerank=None,
+            limit=10,
         )
 
         handler._get_schema.assert_not_called()
 
+    @pytest.mark.asyncio
     @patch("pymilvus.client.async_grpc_handler.ts_utils")
-    def test_async_hybrid_search_with_schema_skips_fetch(self, mock_ts_utils):
+    async def test_async_hybrid_search_with_schema_skips_fetch(self, mock_ts_utils):
         """When schema kwarg present, _get_schema is NOT called."""
         mock_ts_utils.construct_guarantee_ts.return_value = True
         handler = _make_async_grpc_handler()
@@ -302,14 +299,12 @@ class TestAsyncGrpcHandlerHybridSearchBytesVector:
             limit=10,
         )
 
-        asyncio.get_event_loop().run_until_complete(
-            handler.hybrid_search(
-                collection_name="test_col",
-                reqs=[req],
-                rerank=None,
-                limit=10,
-                schema=MOCK_SCHEMA,
-            )
+        await handler.hybrid_search(
+            collection_name="test_col",
+            reqs=[req],
+            rerank=None,
+            limit=10,
+            schema=MOCK_SCHEMA,
         )
 
         handler._get_schema.assert_not_called()
