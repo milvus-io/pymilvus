@@ -2088,6 +2088,25 @@ class Prepare:
             common_types.KeyValuePair(key=REDUCE_STOP_FOR_BEST, value=str(stop_reduce_for_best))
         )
 
+        # parse order-by fields for query ORDER BY
+        order_by_fields = kwargs.get(ORDER_BY_FIELDS) or kwargs.get("order_by")
+        if order_by_fields is not None:
+            if isinstance(order_by_fields, list):
+                formatted = []
+                for item in order_by_fields:
+                    if isinstance(item, str):
+                        formatted.append(item)
+                    elif isinstance(item, dict):
+                        field_name = item.get("field", "")
+                        direction = item.get("order", "asc")
+                        formatted.append(f"{field_name}:{direction}")
+                formatted_str = ",".join(formatted)
+            else:
+                formatted_str = str(order_by_fields)
+            req.query_params.append(
+                common_types.KeyValuePair(key=ORDER_BY_FIELDS, value=formatted_str)
+            )
+
         # parse query group-by fields
         query_group_by_fields = kwargs.get(QUERY_GROUP_BY_FIELDS, [])
         if not isinstance(query_group_by_fields, list):
