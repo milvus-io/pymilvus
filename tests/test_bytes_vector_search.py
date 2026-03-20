@@ -7,7 +7,6 @@ when search data contains bytes vectors (float16/bfloat16/binary).
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from pymilvus import DataType
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
