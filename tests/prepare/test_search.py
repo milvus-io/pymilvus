@@ -629,6 +629,89 @@ class TestQueryRequest:
                 group_by_fields="category",  # Use the correct kwarg name
             )
 
+    def test_query_order_by_str_list(self):
+        """Test query ORDER BY with list of strings."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by=["price:asc", "rating:desc"],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:asc,rating:desc"
+
+    def test_query_order_by_dict_list(self):
+        """Test query ORDER BY with list of dicts."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by=[{"field": "price", "order": "asc"}, {"field": "rating", "order": "desc"}],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:asc,rating:desc"
+
+    def test_query_order_by_dict_default_direction(self):
+        """Test query ORDER BY dict defaults to asc."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by=[{"field": "price"}],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:asc"
+
+    def test_query_order_by_plain_string(self):
+        """Test query ORDER BY with a plain string."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by="price:asc,rating:desc",
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:asc,rating:desc"
+
+    def test_query_order_by_fields_key(self):
+        """Test query ORDER BY using the order_by_fields kwarg."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by_fields=["price:desc"],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:desc"
+
+    def test_query_order_by_mixed_list(self):
+        """Test query ORDER BY with mixed str and dict items."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            order_by=["price:asc", {"field": "rating", "order": "desc"}],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params["order_by_fields"] == "price:asc,rating:desc"
+
+    def test_query_no_order_by(self):
+        """Test query without order_by has no order_by_fields param."""
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert "order_by_fields" not in params
+
 
 class TestFunctionSchemas:
     """Tests for function score and highlighter schema conversion."""
