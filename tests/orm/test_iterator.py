@@ -1125,6 +1125,99 @@ class TestQueryIteratorSeekToOffset:
                 qi.close()
 
 
+class TestQueryIteratorConnQueryArgs:
+    """Verify arguments with business logic passed to conn.query() in each phase."""
+
+    def test_setup_ts_by_request_query_args(self):
+        """__setup_ts_by_request: only sets up mvccTs, output_fields/partition_names should be empty."""
+        conn = _make_mock_conn(session_ts=100)
+
+        QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr="pk > 0",
+            output_fields=["pk"],
+            partition_names=["part_b"],
+            schema=_SCHEMA_DICT,
+        )
+
+        kwargs = conn.query.call_args_list[0].kwargs
+        assert kwargs["output_fields"] == []
+        assert kwargs["partition_names"] == []
+        assert kwargs["limit"] == 1
+        assert kwargs["offset"] == 0
+        assert kwargs["iterator"] == "True"
+        assert kwargs["reduce_stop_for_best"] == "True"
+
+    def test_seek_to_offset_query_args(self):
+        """__seek_to_offset: should use user's partition_names, empty output_fields, iterator disabled."""
+        rows = [{"pk": 1}, {"pk": 2}]
+        conn = _make_mock_conn(session_ts=100)
+
+        seek_res = Mock()
+        seek_res.__len__ = Mock(return_value=2)
+        seek_res.__iter__ = Mock(return_value=iter(rows))
+        seek_res.__getitem__ = lambda self, key: rows[key]
+
+        init_res = Mock()
+        init_res.__len__ = Mock(return_value=0)
+        init_res.__getitem__ = lambda s, k: [][k]
+        init_res.extra = {ITERATOR_SESSION_TS_FIELD: 100}
+
+        conn.query.side_effect = [init_res, seek_res]
+
+        QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr="pk > 0",
+            output_fields=["pk"],
+            partition_names=["part_a"],
+            schema=_SCHEMA_DICT,
+            **{OFFSET: 2},
+        )
+
+        kwargs = conn.query.call_args_list[1].kwargs
+        assert kwargs["output_fields"] == []
+        assert kwargs["partition_names"] == ["part_a"]
+        assert kwargs["offset"] == 0
+        assert kwargs["limit"] == 2
+        assert kwargs["iterator"] == "False"
+        assert kwargs["reduce_stop_for_best"] == "False"
+        assert kwargs["guarantee_timestamp"] == 100
+
+    def test_next_query_args(self):
+        """next(): should use user's partition_names and output_fields, iterator enabled."""
+        conn = _make_mock_conn(session_ts=100)
+
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr="pk > 0",
+            output_fields=["pk"],
+            partition_names=["part_a"],
+            schema=_SCHEMA_DICT,
+        )
+
+        next_rows = [{"pk": 1}]
+        next_res = Mock()
+        next_res.__len__ = Mock(return_value=1)
+        next_res.__iter__ = Mock(return_value=iter(next_rows))
+        next_res.__getitem__ = lambda self, key: next_rows[key]
+        conn.query.return_value = next_res
+
+        qi.next()
+
+        kwargs = conn.query.call_args.kwargs
+        assert kwargs["output_fields"] == ["pk"]
+        assert kwargs["partition_names"] == ["part_a"]
+        assert kwargs["iterator"] == "True"
+        assert kwargs["reduce_stop_for_best"] == "True"
+        assert kwargs["guarantee_timestamp"] == 100
+
+
 class TestQueryIteratorCpFile:
     """Cover __set_up_ts_cp with cp file (lines 273-299)."""
 
