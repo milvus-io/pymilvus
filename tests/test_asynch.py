@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock, patch
 
+import grpc
 import pytest
 from pymilvus.client.asynch import (
     CreateFlatIndexFuture,
@@ -310,6 +311,60 @@ class TestSearchFutureOnResponse:
             result = f.on_response(mock_response)
             mock_check.assert_called_once_with(mock_response.status)
             assert result == "search_result"
+
+    def test_on_response_none_raises_milvus_exception(self, mock_future):
+        f = SearchFuture(mock_future)
+        with pytest.raises(
+            MilvusException, match="Received None response from server during search"
+        ):
+            f.on_response(None)
+
+    def test_result_returns_empty_search_result(self, mock_future):
+        """Empty SearchResult (0-hit, falsy list) must be returned as-is, not re-processed."""
+        empty_result = []  # falsy, simulates empty SearchResult
+        mock_future.result.return_value = MagicMock()
+        mock_future.exception.return_value = None
+
+        f = SearchFuture(mock_future)
+        f._results = empty_result  # pre-set to simulate already-processed empty result
+        f._future = None
+        result = f.result()
+        assert result is empty_result
+
+    def test_result_none_response_deadline_exceeded_raises_timeout(self, mock_future):
+        """result() with None gRPC response and DEADLINE_EXCEEDED code raises timeout error."""
+        mock_future.result.return_value = None
+        mock_future.exception.return_value = None
+        mock_future.code.return_value = grpc.StatusCode.DEADLINE_EXCEEDED
+        mock_future.details.return_value = "Deadline Exceeded"
+
+        f = SearchFuture(mock_future)
+        with pytest.raises(MilvusException, match="gRPC call timed out"):
+            f.result()
+
+    def test_result_none_response_other_code_includes_code_name(self, mock_future):
+        """result() with None gRPC response and non-timeout code includes code name in error."""
+        mock_future.result.return_value = None
+        mock_future.exception.return_value = None
+        mock_future.code.return_value = grpc.StatusCode.UNAVAILABLE
+        mock_future.details.return_value = "connection reset"
+
+        f = SearchFuture(mock_future)
+        with pytest.raises(MilvusException, match="UNAVAILABLE"):
+            f.result()
+
+    def test_done_none_response_deadline_exceeded_stores_timeout_exception(self, mock_future):
+        """done() with None gRPC response and DEADLINE_EXCEEDED stores a timeout MilvusException."""
+        mock_future.result.return_value = None
+        mock_future.code.return_value = grpc.StatusCode.DEADLINE_EXCEEDED
+        mock_future.details.return_value = "Deadline Exceeded"
+
+        f = SearchFuture(mock_future)
+        f.done()
+
+        assert f._exception is not None
+        assert isinstance(f._exception, MilvusException)
+        assert "timed out" in str(f._exception)
 
 
 class TestMutationFutureOnResponse:

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pymilvus import AnnSearchRequest, RRFRanker
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import MilvusException, ParamError
 
 from .conftest import make_mutation_response
 
@@ -125,6 +125,33 @@ class TestGrpcHandlerSearchOps:
         ):
             result = handler.hybrid_search("coll", [req], RRFRanker(), 10, _async=True)
             assert result is not None
+
+    def test_search_stub_returns_none_raises_milvus_exception(self, handler):
+        handler._stub.Search.return_value = None
+
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            with pytest.raises(
+                MilvusException, match="Received None response from server during search"
+            ):
+                handler.search(
+                    "coll", "vec", {"metric_type": "L2"}, 10, data=[[0.1, 0.2, 0.3, 0.4]]
+                )
+
+    def test_hybrid_search_stub_returns_none_raises_milvus_exception(self, handler):
+        handler._stub.HybridSearch.return_value = None
+
+        req = AnnSearchRequest(
+            data=[[0.1, 0.2, 0.3, 0.4]], anns_field="vec", param={"metric_type": "L2"}, limit=10
+        )
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            with pytest.raises(
+                MilvusException, match="Received None response from server during search"
+            ):
+                handler.hybrid_search("coll", [req], RRFRanker(), 10)
 
     def test_search_with_ids(self, handler):
         mock_resp = MagicMock()
