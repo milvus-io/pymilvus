@@ -612,6 +612,24 @@ class TestPreparePlaceholderStrBytesVectorType:
         pg.ParseFromString(result)
         assert pg.placeholders[0].type == expected_ph_type
 
+    @pytest.mark.parametrize(
+        "vector_data_type,expected_ph_type",
+        [
+            pytest.param(DataType.FLOAT16_VECTOR, 302, id="emb_float16"),
+            pytest.param(DataType.BFLOAT16_VECTOR, 303, id="emb_bfloat16"),
+            pytest.param(DataType.BINARY_VECTOR, 300, id="emb_binary"),
+        ],
+    )
+    def test_bytes_with_embedding_list(self, vector_data_type, expected_ph_type):
+        """Test bytes input with is_embedding_list=True maps to EmbList PlaceholderType."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(
+            data, is_embedding_list=True, vector_data_type=vector_data_type
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == expected_ph_type
+
     def test_bytes_with_none_vector_data_type(self):
         """Test bytes input with None vector_data_type falls back to BinaryVector."""
         data = [b"\x01\x02\x03\x04"]
@@ -619,6 +637,16 @@ class TestPreparePlaceholderStrBytesVectorType:
         pg = common_types.PlaceholderGroup()
         pg.ParseFromString(result)
         assert pg.placeholders[0].type == 100
+
+    def test_bytes_with_none_vector_data_type_embedding_list(self):
+        """Test bytes input with None vector_data_type and is_embedding_list falls back to EmbListBinaryVector."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(
+            data, is_embedding_list=True, vector_data_type=None
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == 300
 
     def test_bytes_without_vector_data_type(self):
         """Test bytes input without vector_data_type (backward compat)."""

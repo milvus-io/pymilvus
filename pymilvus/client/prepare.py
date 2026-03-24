@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
@@ -66,6 +67,20 @@ _JSON_TYPE_MAP = {
     DataType.VARCHAR: "VarChar",
     DataType.STRING: "VarChar",
 }
+
+
+_STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
+
+# Maps DataType to (regular PlaceholderType, EmbeddingList PlaceholderType) for bytes input
+_BYTES_PH_MAP = {
+    DataType.FLOAT16_VECTOR: (PlaceholderType.FLOAT16_VECTOR, PlaceholderType.EmbListFloat16Vector),
+    DataType.BFLOAT16_VECTOR: (
+        PlaceholderType.BFLOAT16_VECTOR,
+        PlaceholderType.EmbListBFloat16Vector,
+    ),
+    DataType.BINARY_VECTOR: (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
+}
+_BYTES_PH_DEFAULT = (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector)
 
 
 class Prepare:
@@ -1362,24 +1377,7 @@ class Prepare:
                 raise ParamError(message=err_msg)
 
         elif isinstance(data[0], bytes):
-            bytes_ph_map = {
-                DataType.FLOAT16_VECTOR: (
-                    PlaceholderType.FLOAT16_VECTOR,
-                    PlaceholderType.EmbListFloat16Vector,
-                ),
-                DataType.BFLOAT16_VECTOR: (
-                    PlaceholderType.BFLOAT16_VECTOR,
-                    PlaceholderType.EmbListBFloat16Vector,
-                ),
-                DataType.BINARY_VECTOR: (
-                    PlaceholderType.BinaryVector,
-                    PlaceholderType.EmbListBinaryVector,
-                ),
-            }
-            ph_regular, ph_emb = bytes_ph_map.get(
-                vector_data_type,
-                (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
-            )
+            ph_regular, ph_emb = _BYTES_PH_MAP.get(vector_data_type, _BYTES_PH_DEFAULT)
             pl_type = ph_emb if is_embedding_list else ph_regular
             pl_values = data
 
@@ -1401,8 +1399,9 @@ class Prepare:
     @staticmethod
     def _get_vector_type_from_schema(schema: dict, anns_field: str) -> Optional[DataType]:
         # Parse struct field: "items[embedding]" -> struct_name="items", sub_field="embedding"
-        if "[" in anns_field and anns_field.endswith("]"):
-            struct_name, sub_field = anns_field.rstrip("]").split("[", 1)
+        m = _STRUCT_FIELD_RE.match(anns_field)
+        if m:
+            struct_name, sub_field = m.groups()
             for sf in schema.get("struct_array_fields", []):
                 if sf.get("name") == struct_name:
                     for f in sf.get("fields", []):
