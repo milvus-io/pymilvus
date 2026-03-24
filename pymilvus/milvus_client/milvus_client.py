@@ -2174,8 +2174,9 @@ class MilvusClient(BaseMilvusClient):
 
     def update_replicate_configuration(
         self,
-        clusters: Optional[List[Dict]] = None,
+        clusters: List[Dict],
         cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -2183,7 +2184,7 @@ class MilvusClient(BaseMilvusClient):
         Update replication configuration across Milvus clusters.
 
         Args:
-            clusters (List[Dict], optional): List of cluster configurations.
+            clusters (List[Dict]): List of cluster configurations.
             Each dict should contain:
                 - cluster_id (str): Unique identifier for the cluster
                 - connection_param (Dict): Connection parameters with 'uri' and 'token'
@@ -2194,10 +2195,8 @@ class MilvusClient(BaseMilvusClient):
                 - source_cluster_id (str): ID of the source cluster
                 - target_cluster_id (str): ID of the target cluster
 
-            cross_cluster_topology (List[Dict], optional): List of replication relationships.
-            Each dict should contain:
-                - source_cluster_id (str): ID of the source cluster
-                - target_cluster_id (str): ID of the target cluster
+            force_promote (bool, optional): If true, force promote the current secondary cluster
+                to standalone primary. Used for disaster recovery when the primary is unavailable.
 
             timeout (float, optional): An optional duration of time in seconds to allow for the RPC
             **kwargs: Additional arguments
@@ -2206,7 +2205,7 @@ class MilvusClient(BaseMilvusClient):
             Status: The status of the operation
 
         Raises:
-            ParamError: If neither clusters nor cross_cluster_topology is provided
+            ParamError: If clusters is not provided
             MilvusException: If the operation fails
 
         Examples:
@@ -2241,6 +2240,7 @@ class MilvusClient(BaseMilvusClient):
         return self._get_connection().update_replicate_configuration(
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,

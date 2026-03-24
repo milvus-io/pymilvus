@@ -2505,10 +2505,10 @@ class Prepare:
         cls,
         clusters: Optional[List[Dict]] = None,
         cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
     ):
-        # Validate input parameters
-        if clusters is None and cross_cluster_topology is None:
-            msg = "Either 'clusters' or 'cross_cluster_topology' must be provided"
+        if clusters is None:
+            msg = "'clusters' must be provided"
             raise ParamError(message=msg)
 
         # Build ReplicateConfiguration from simplified parameters
@@ -2558,7 +2558,8 @@ class Prepare:
                 replicate_configuration.cross_cluster_topology.append(topology)
 
         return milvus_types.UpdateReplicateConfigurationRequest(
-            replicate_configuration=replicate_configuration
+            replicate_configuration=replicate_configuration,
+            force_promote=force_promote,
         )
 
     @staticmethod
