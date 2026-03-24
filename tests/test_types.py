@@ -112,7 +112,7 @@ class TestSegmentInfoRepr:
         assert "segment_id=123" in r
         assert "collection_name='test_col'" in r
 
-    def test_loaded_segment_info_repr_shows_state_and_level_names(self):
+    def test_loaded_segment_info_repr_shows_all_fields(self):
         info = LoadedSegmentInfo(
             segment_id=789,
             collection_id=456,
@@ -122,12 +122,20 @@ class TestSegmentInfoRepr:
             state=3,  # Sealed
             level=1,  # L0
             storage_version=1,
+            partition_id=100,
+            index_name="idx_vec",
+            index_id=200,
+            node_ids=[1, 2, 3],
             mem_size=4096,
         )
         r = repr(info)
         assert "LoadedSegmentInfo(" in r
         assert "state='Sealed'" in r
         assert "level='L0'" in r
+        assert "partition_id=100" in r
+        assert "index_name='idx_vec'" in r
+        assert "index_id=200" in r
+        assert "node_ids=[1, 2, 3]" in r
         assert "mem_size=4096" in r
 
     def test_segment_info_state_name_property(self):
