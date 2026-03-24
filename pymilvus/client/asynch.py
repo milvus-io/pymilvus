@@ -3,6 +3,8 @@ import inspect
 import threading
 from typing import Any, Callable, Optional
 
+import grpc
+
 from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import milvus_pb2
 
@@ -10,6 +12,27 @@ from .abstract import MutationResult
 from .search_result import SearchResult
 from .types import Status
 from .utils import check_status
+
+
+def _build_none_response_exception(future: Any) -> MilvusException:
+    """Build a MilvusException when a gRPC future returns None as the response message.
+
+    This is a gRPC Python edge-case (race condition between client-side cancellation
+    and the server response arriving) rather than a normal timeout flow.  Checking
+    ``future.code()`` lets us surface the real gRPC status — in particular
+    DEADLINE_EXCEEDED — so callers get an actionable error instead of an opaque
+    AttributeError on ``None.status``.
+    """
+    try:
+        code = future.code()
+        details = future.details() or ""
+        if code == grpc.StatusCode.DEADLINE_EXCEEDED:
+            return MilvusException(message=f"gRPC call timed out (DEADLINE_EXCEEDED): {details}")
+        return MilvusException(
+            message=f"Received None response from server (code={code.name}, details={details})"
+        )
+    except Exception:
+        return MilvusException(message="Received None response from server")
 
 
 # TODO: remove this to a common util
@@ -114,6 +137,8 @@ class Future(AbstractFuture):
                     self._response = self._future.result(timeout=to)
                 except Exception as e:
                     raise MilvusException(message=str(e)) from e
+                if self._response is None:
+                    raise _build_none_response_exception(self._future)
                 self._results = self.on_response(self._response)
 
                 self._callback()
@@ -127,7 +152,7 @@ class Future(AbstractFuture):
             # just return response object received from gRPC
             return self._response
 
-        if self._results:
+        if self._results is not None:
             return self._results
         return self.on_response(self._response)
 
@@ -145,8 +170,11 @@ class Future(AbstractFuture):
             if self._future and self._results is None:
                 try:
                     self._response = self._future.result()
-                    self._results = self.on_response(self._response)
-                    self._callback()  # https://github.com/milvus-io/milvus/issues/6160
+                    if self._response is None:
+                        self._exception = _build_none_response_exception(self._future)
+                    else:
+                        self._results = self.on_response(self._response)
+                        self._callback()  # https://github.com/milvus-io/milvus/issues/6160
                 except Exception as e:
                     self._exception = e
 
@@ -163,6 +191,8 @@ class Future(AbstractFuture):
 
 class SearchFuture(Future):
     def on_response(self, response: milvus_pb2.SearchResults):
+        if response is None:
+            raise MilvusException(message="Received None response from server during search")
         check_status(response.status)
         return SearchResult(response.results, status=response.status)
 

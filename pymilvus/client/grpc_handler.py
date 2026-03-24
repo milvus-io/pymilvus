@@ -1123,6 +1123,8 @@ class GrpcHandler:
                 return SearchFuture(future, func)
 
             response = self._stub.Search(request, timeout=timeout, metadata=_api_level_md(context))
+            if response is None:
+                raise MilvusException(message="Received None response from server during search")
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(
@@ -1156,6 +1158,8 @@ class GrpcHandler:
             response = self._stub.HybridSearch(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
+            if response is None:
+                raise MilvusException(message="Received None response from server during search")
             check_status(response.status)
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(response.results, round_decimal, status=response.status)
