@@ -16,7 +16,9 @@ from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
 from pymilvus.client.types import (
     ConsistencyLevel,
     Group,
+    LoadedSegmentInfo,
     Replica,
+    SegmentInfo,
     Shard,
     get_consistency_level,
 )
@@ -90,3 +92,102 @@ class TestReplica:
             1,
         }
         assert s.shard_leader == 1
+
+
+class TestSegmentInfoRepr:
+    def test_segment_info_repr_shows_state_and_level_names(self):
+        info = SegmentInfo(
+            segment_id=123,
+            collection_id=456,
+            collection_name="test_col",
+            num_rows=1000,
+            is_sorted=True,
+            state=4,  # Flushed
+            level=2,  # L1
+            storage_version=2,
+        )
+        r = repr(info)
+        assert "state='Flushed'" in r
+        assert "level='L1'" in r
+        assert "segment_id=123" in r
+        assert "collection_name='test_col'" in r
+
+    def test_loaded_segment_info_repr_shows_state_and_level_names(self):
+        info = LoadedSegmentInfo(
+            segment_id=789,
+            collection_id=456,
+            collection_name="test_col",
+            num_rows=5000,
+            is_sorted=False,
+            state=3,  # Sealed
+            level=1,  # L0
+            storage_version=1,
+            mem_size=4096,
+        )
+        r = repr(info)
+        assert "LoadedSegmentInfo(" in r
+        assert "state='Sealed'" in r
+        assert "level='L0'" in r
+        assert "mem_size=4096" in r
+
+    def test_segment_info_state_name_property(self):
+        info = SegmentInfo(
+            segment_id=1,
+            collection_id=2,
+            collection_name="c",
+            num_rows=0,
+            is_sorted=False,
+            state=2,  # Growing
+            level=0,  # Legacy
+            storage_version=1,
+        )
+        assert info.state_name == "Growing"
+        assert info.level_name == "Legacy"
+
+    @pytest.mark.parametrize(
+        "state_val,expected",
+        [
+            (0, "SegmentStateNone"),
+            (1, "NotExist"),
+            (2, "Growing"),
+            (3, "Sealed"),
+            (4, "Flushed"),
+            (5, "Flushing"),
+            (6, "Dropped"),
+            (7, "Importing"),
+        ],
+    )
+    def test_segment_info_all_states(self, state_val, expected):
+        info = SegmentInfo(
+            segment_id=1,
+            collection_id=2,
+            collection_name="c",
+            num_rows=0,
+            is_sorted=False,
+            state=state_val,
+            level=0,
+            storage_version=1,
+        )
+        assert info.state_name == expected
+
+    @pytest.mark.parametrize(
+        "level_val,expected",
+        [
+            (0, "Legacy"),
+            (1, "L0"),
+            (2, "L1"),
+            (3, "L2"),
+        ],
+    )
+    def test_segment_info_all_levels(self, level_val, expected):
+        info = SegmentInfo(
+            segment_id=1,
+            collection_id=2,
+            collection_name="c",
+            num_rows=0,
+            is_sorted=False,
+            state=0,
+            level=level_val,
+            storage_version=1,
+        )
+        assert info.level_name == expected

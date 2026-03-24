@@ -1460,10 +1460,43 @@ class SegmentInfo:
     level: common_pb2.SegmentLevel
     storage_version: int
 
+    @property
+    def state_name(self) -> str:
+        return common_pb2.SegmentState.Name(self.state)
+
+    @property
+    def level_name(self) -> str:
+        return common_pb2.SegmentLevel.Name(self.level)
+
+    def __repr__(self) -> str:
+        return (
+            f"SegmentInfo(segment_id={self.segment_id}, "
+            f"collection_id={self.collection_id}, "
+            f"collection_name='{self.collection_name}', "
+            f"num_rows={self.num_rows}, "
+            f"is_sorted={self.is_sorted}, "
+            f"state='{self.state_name}', "
+            f"level='{self.level_name}', "
+            f"storage_version={self.storage_version})"
+        )
+
 
 @dataclass
 class LoadedSegmentInfo(SegmentInfo):
     mem_size: int
+
+    def __repr__(self) -> str:
+        return (
+            f"LoadedSegmentInfo(segment_id={self.segment_id}, "
+            f"collection_id={self.collection_id}, "
+            f"collection_name='{self.collection_name}', "
+            f"num_rows={self.num_rows}, "
+            f"is_sorted={self.is_sorted}, "
+            f"state='{self.state_name}', "
+            f"level='{self.level_name}', "
+            f"storage_version={self.storage_version}, "
+            f"mem_size={self.mem_size})"
+        )
 
 
 @dataclass
