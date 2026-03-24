@@ -66,6 +66,17 @@ _JSON_TYPE_MAP = {
     DataType.STRING: "VarChar",
 }
 
+# Maps DataType to (regular PlaceholderType, EmbeddingList PlaceholderType) for bytes input
+_BYTES_PH_MAP = {
+    DataType.FLOAT16_VECTOR: (PlaceholderType.FLOAT16_VECTOR, PlaceholderType.EmbListFloat16Vector),
+    DataType.BFLOAT16_VECTOR: (
+        PlaceholderType.BFLOAT16_VECTOR,
+        PlaceholderType.EmbListBFloat16Vector,
+    ),
+    DataType.BINARY_VECTOR: (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
+}
+_BYTES_PH_DEFAULT = (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector)
+
 
 class Prepare:
     @classmethod
@@ -1304,7 +1315,12 @@ class Prepare:
         )
 
     @classmethod
-    def _prepare_placeholder_str(cls, data: Any, is_embedding_list: bool = False):
+    def _prepare_placeholder_str(
+        cls,
+        data: Any,
+        is_embedding_list: bool = False,
+        vector_data_type: Optional[DataType] = None,
+    ):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
             pl_type = PlaceholderType.SparseFloatVector
@@ -1355,12 +1371,9 @@ class Prepare:
                 raise ParamError(message=err_msg)
 
         elif isinstance(data[0], bytes):
-            pl_type = (
-                PlaceholderType.BinaryVector
-                if not is_embedding_list
-                else PlaceholderType.EmbListBinaryVector
-            )
-            pl_values = data  # data is already a list of bytes
+            ph_regular, ph_emb = _BYTES_PH_MAP.get(vector_data_type, _BYTES_PH_DEFAULT)
+            pl_type = ph_emb if is_embedding_list else ph_regular
+            pl_values = data
 
         elif isinstance(data[0], str):
             pl_type = PlaceholderType.VARCHAR
@@ -1374,6 +1387,13 @@ class Prepare:
         return common_types.PlaceholderGroup.SerializeToString(
             common_types.PlaceholderGroup(placeholders=[pl])
         )
+
+    @staticmethod
+    def _get_vector_type_from_schema(schema: dict, anns_field: str) -> Optional[DataType]:
+        for f in schema.get("fields", []):
+            if f.get("name") == anns_field:
+                return f.get("type")
+        return None
 
     @classmethod
     def prepare_expression_template(cls, values: Dict) -> Any:
@@ -1613,10 +1633,18 @@ class Prepare:
         }
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
+
+        vector_data_type = None
+        schema = kwargs.get("schema")
+        if schema and anns_field:
+            vector_data_type = cls._get_vector_type_from_schema(schema, anns_field)
+
         if data is not None:
             request_kwargs.update(
                 nq=entity_helper.get_input_num_rows(data),
-                placeholder_group=cls._prepare_placeholder_str(data, is_embedding_list),
+                placeholder_group=cls._prepare_placeholder_str(
+                    data, is_embedding_list, vector_data_type
+                ),
             )
         elif ids is not None:
             request_kwargs.update(
