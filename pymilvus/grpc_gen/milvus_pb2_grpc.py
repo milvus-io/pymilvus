@@ -596,6 +596,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
+        self.GetReplicateConfiguration = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetReplicateConfiguration',
+                request_serializer=milvus__pb2.GetReplicateConfigurationRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetReplicateConfigurationResponse.FromString,
+                _registered_method=True)
         self.GetReplicateInfo = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetReplicateInfo',
                 request_serializer=milvus__pb2.GetReplicateInfoRequest.SerializeToString,
@@ -655,6 +660,21 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/BatchUpdateManifest',
                 request_serializer=milvus__pb2.BatchUpdateManifestRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.RefreshExternalCollection = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/RefreshExternalCollection',
+                request_serializer=milvus__pb2.RefreshExternalCollectionRequest.SerializeToString,
+                response_deserializer=milvus__pb2.RefreshExternalCollectionResponse.FromString,
+                _registered_method=True)
+        self.GetRefreshExternalCollectionProgress = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetRefreshExternalCollectionProgress',
+                request_serializer=milvus__pb2.GetRefreshExternalCollectionProgressRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetRefreshExternalCollectionProgressResponse.FromString,
+                _registered_method=True)
+        self.ListRefreshExternalCollectionJobs = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListRefreshExternalCollectionJobs',
+                request_serializer=milvus__pb2.ListRefreshExternalCollectionJobsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListRefreshExternalCollectionJobsResponse.FromString,
                 _registered_method=True)
 
 
@@ -1353,6 +1373,15 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetReplicateConfiguration(self, request, context):
+        """
+        GetReplicateConfiguration retrieves the current cross-cluster replication topology.
+        Sensitive fields (like connection tokens) are redacted in the response.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetReplicateInfo(self, request, context):
         """
         GetReplicateInfo retrieves replication-related metadata of specified channel from a target Milvus cluster.
@@ -1431,6 +1460,25 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def BatchUpdateManifest(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def RefreshExternalCollection(self, request, context):
+        """External Collection APIs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetRefreshExternalCollectionProgress(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListRefreshExternalCollectionJobs(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1999,6 +2047,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.UpdateReplicateConfigurationRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
+            'GetReplicateConfiguration': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetReplicateConfiguration,
+                    request_deserializer=milvus__pb2.GetReplicateConfigurationRequest.FromString,
+                    response_serializer=milvus__pb2.GetReplicateConfigurationResponse.SerializeToString,
+            ),
             'GetReplicateInfo': grpc.unary_unary_rpc_method_handler(
                     servicer.GetReplicateInfo,
                     request_deserializer=milvus__pb2.GetReplicateInfoRequest.FromString,
@@ -2058,6 +2111,21 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.BatchUpdateManifest,
                     request_deserializer=milvus__pb2.BatchUpdateManifestRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'RefreshExternalCollection': grpc.unary_unary_rpc_method_handler(
+                    servicer.RefreshExternalCollection,
+                    request_deserializer=milvus__pb2.RefreshExternalCollectionRequest.FromString,
+                    response_serializer=milvus__pb2.RefreshExternalCollectionResponse.SerializeToString,
+            ),
+            'GetRefreshExternalCollectionProgress': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRefreshExternalCollectionProgress,
+                    request_deserializer=milvus__pb2.GetRefreshExternalCollectionProgressRequest.FromString,
+                    response_serializer=milvus__pb2.GetRefreshExternalCollectionProgressResponse.SerializeToString,
+            ),
+            'ListRefreshExternalCollectionJobs': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListRefreshExternalCollectionJobs,
+                    request_deserializer=milvus__pb2.ListRefreshExternalCollectionJobsRequest.FromString,
+                    response_serializer=milvus__pb2.ListRefreshExternalCollectionJobsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -5095,6 +5163,33 @@ class MilvusService(object):
             _registered_method=True)
 
     @staticmethod
+    def GetReplicateConfiguration(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetReplicateConfiguration',
+            milvus__pb2.GetReplicateConfigurationRequest.SerializeToString,
+            milvus__pb2.GetReplicateConfigurationResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def GetReplicateInfo(request,
             target,
             options=(),
@@ -5408,6 +5503,291 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/BatchUpdateManifest',
             milvus__pb2.BatchUpdateManifestRequest.SerializeToString,
             common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RefreshExternalCollection(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/RefreshExternalCollection',
+            milvus__pb2.RefreshExternalCollectionRequest.SerializeToString,
+            milvus__pb2.RefreshExternalCollectionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetRefreshExternalCollectionProgress(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetRefreshExternalCollectionProgress',
+            milvus__pb2.GetRefreshExternalCollectionProgressRequest.SerializeToString,
+            milvus__pb2.GetRefreshExternalCollectionProgressResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListRefreshExternalCollectionJobs(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListRefreshExternalCollectionJobs',
+            milvus__pb2.ListRefreshExternalCollectionJobsRequest.SerializeToString,
+            milvus__pb2.ListRefreshExternalCollectionJobsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+
+class ClientTelemetryServiceStub(object):
+    """Client Telemetry Service
+    """
+
+    def __init__(self, channel):
+        """Constructor.
+
+        Args:
+            channel: A grpc.Channel.
+        """
+        self.ClientHeartbeat = channel.unary_unary(
+                '/milvus.proto.milvus.ClientTelemetryService/ClientHeartbeat',
+                request_serializer=milvus__pb2.ClientHeartbeatRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ClientHeartbeatResponse.FromString,
+                _registered_method=True)
+        self.GetClientTelemetry = channel.unary_unary(
+                '/milvus.proto.milvus.ClientTelemetryService/GetClientTelemetry',
+                request_serializer=milvus__pb2.GetClientTelemetryRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetClientTelemetryResponse.FromString,
+                _registered_method=True)
+        self.PushClientCommand = channel.unary_unary(
+                '/milvus.proto.milvus.ClientTelemetryService/PushClientCommand',
+                request_serializer=milvus__pb2.PushClientCommandRequest.SerializeToString,
+                response_deserializer=milvus__pb2.PushClientCommandResponse.FromString,
+                _registered_method=True)
+        self.DeleteClientCommand = channel.unary_unary(
+                '/milvus.proto.milvus.ClientTelemetryService/DeleteClientCommand',
+                request_serializer=milvus__pb2.DeleteClientCommandRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DeleteClientCommandResponse.FromString,
+                _registered_method=True)
+
+
+class ClientTelemetryServiceServicer(object):
+    """Client Telemetry Service
+    """
+
+    def ClientHeartbeat(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetClientTelemetry(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PushClientCommand(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteClientCommand(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+
+def add_ClientTelemetryServiceServicer_to_server(servicer, server):
+    rpc_method_handlers = {
+            'ClientHeartbeat': grpc.unary_unary_rpc_method_handler(
+                    servicer.ClientHeartbeat,
+                    request_deserializer=milvus__pb2.ClientHeartbeatRequest.FromString,
+                    response_serializer=milvus__pb2.ClientHeartbeatResponse.SerializeToString,
+            ),
+            'GetClientTelemetry': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetClientTelemetry,
+                    request_deserializer=milvus__pb2.GetClientTelemetryRequest.FromString,
+                    response_serializer=milvus__pb2.GetClientTelemetryResponse.SerializeToString,
+            ),
+            'PushClientCommand': grpc.unary_unary_rpc_method_handler(
+                    servicer.PushClientCommand,
+                    request_deserializer=milvus__pb2.PushClientCommandRequest.FromString,
+                    response_serializer=milvus__pb2.PushClientCommandResponse.SerializeToString,
+            ),
+            'DeleteClientCommand': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteClientCommand,
+                    request_deserializer=milvus__pb2.DeleteClientCommandRequest.FromString,
+                    response_serializer=milvus__pb2.DeleteClientCommandResponse.SerializeToString,
+            ),
+    }
+    generic_handler = grpc.method_handlers_generic_handler(
+            'milvus.proto.milvus.ClientTelemetryService', rpc_method_handlers)
+    server.add_generic_rpc_handlers((generic_handler,))
+    server.add_registered_method_handlers('milvus.proto.milvus.ClientTelemetryService', rpc_method_handlers)
+
+
+ # This class is part of an EXPERIMENTAL API.
+class ClientTelemetryService(object):
+    """Client Telemetry Service
+    """
+
+    @staticmethod
+    def ClientHeartbeat(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.ClientTelemetryService/ClientHeartbeat',
+            milvus__pb2.ClientHeartbeatRequest.SerializeToString,
+            milvus__pb2.ClientHeartbeatResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetClientTelemetry(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.ClientTelemetryService/GetClientTelemetry',
+            milvus__pb2.GetClientTelemetryRequest.SerializeToString,
+            milvus__pb2.GetClientTelemetryResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def PushClientCommand(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.ClientTelemetryService/PushClientCommand',
+            milvus__pb2.PushClientCommandRequest.SerializeToString,
+            milvus__pb2.PushClientCommandResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteClientCommand(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.ClientTelemetryService/DeleteClientCommand',
+            milvus__pb2.DeleteClientCommandRequest.SerializeToString,
+            milvus__pb2.DeleteClientCommandResponse.FromString,
             options,
             channel_credentials,
             insecure,

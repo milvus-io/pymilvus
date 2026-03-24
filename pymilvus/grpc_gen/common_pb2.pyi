@@ -252,6 +252,9 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     GetRestoreSnapshotState: _ClassVar[MsgType]
     ListRestoreSnapshotJobs: _ClassVar[MsgType]
     AlterCollectionSchema: _ClassVar[MsgType]
+    RefreshExternalCollection: _ClassVar[MsgType]
+    GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
+    ListRefreshExternalCollectionJobs: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -372,6 +375,8 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeListSnapshots: _ClassVar[ObjectPrivilege]
     PrivilegeRestoreSnapshot: _ClassVar[ObjectPrivilege]
     PrivilegeAlterCollectionSchema: _ClassVar[ObjectPrivilege]
+    PrivilegeGetReplicateConfiguration: _ClassVar[ObjectPrivilege]
+    PrivilegeRefreshExternalCollection: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -634,6 +639,9 @@ RestoreSnapshot: MsgType
 GetRestoreSnapshotState: MsgType
 ListRestoreSnapshotJobs: MsgType
 AlterCollectionSchema: MsgType
+RefreshExternalCollection: MsgType
+GetRefreshExternalCollectionProgress: MsgType
+ListRefreshExternalCollectionJobs: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -736,6 +744,8 @@ PrivilegeDescribeSnapshot: ObjectPrivilege
 PrivilegeListSnapshots: ObjectPrivilege
 PrivilegeRestoreSnapshot: ObjectPrivilege
 PrivilegeAlterCollectionSchema: ObjectPrivilege
+PrivilegeGetReplicateConfiguration: ObjectPrivilege
+PrivilegeRefreshExternalCollection: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -921,6 +931,66 @@ class ClientInfo(_message.Message):
     reserved: _containers.ScalarMap[str, str]
     def __init__(self, sdk_type: _Optional[str] = ..., sdk_version: _Optional[str] = ..., local_time: _Optional[str] = ..., user: _Optional[str] = ..., host: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
+class Metrics(_message.Message):
+    __slots__ = ("request_count", "success_count", "error_count", "avg_latency_ms", "p99_latency_ms", "max_latency_ms")
+    REQUEST_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AVG_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    P99_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    MAX_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    request_count: int
+    success_count: int
+    error_count: int
+    avg_latency_ms: float
+    p99_latency_ms: float
+    max_latency_ms: float
+    def __init__(self, request_count: _Optional[int] = ..., success_count: _Optional[int] = ..., error_count: _Optional[int] = ..., avg_latency_ms: _Optional[float] = ..., p99_latency_ms: _Optional[float] = ..., max_latency_ms: _Optional[float] = ...) -> None: ...
+
+class OperationMetrics(_message.Message):
+    __slots__ = ("operation", "collection_metrics")
+    class CollectionMetricsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: Metrics
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[Metrics, _Mapping]] = ...) -> None: ...
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    GLOBAL_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_METRICS_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    collection_metrics: _containers.MessageMap[str, Metrics]
+    def __init__(self, operation: _Optional[str] = ..., collection_metrics: _Optional[_Mapping[str, Metrics]] = ..., **kwargs) -> None: ...
+
+class ClientCommand(_message.Message):
+    __slots__ = ("command_id", "command_type", "payload", "create_time", "persistent", "target_scope")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    CREATE_TIME_FIELD_NUMBER: _ClassVar[int]
+    PERSISTENT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    command_type: str
+    payload: bytes
+    create_time: int
+    persistent: bool
+    target_scope: str
+    def __init__(self, command_id: _Optional[str] = ..., command_type: _Optional[str] = ..., payload: _Optional[bytes] = ..., create_time: _Optional[int] = ..., persistent: bool = ..., target_scope: _Optional[str] = ...) -> None: ...
+
+class CommandReply(_message.Message):
+    __slots__ = ("command_id", "success", "error_message", "payload")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    success: bool
+    error_message: str
+    payload: bytes
+    def __init__(self, command_id: _Optional[str] = ..., success: bool = ..., error_message: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
+
 class ServerInfo(_message.Message):
     __slots__ = ("build_tags", "build_time", "git_commit", "go_version", "deploy_mode", "reserved")
     class ReservedEntry(_message.Message):
@@ -963,12 +1033,18 @@ class ReplicateConfiguration(_message.Message):
     def __init__(self, clusters: _Optional[_Iterable[_Union[MilvusCluster, _Mapping]]] = ..., cross_cluster_topology: _Optional[_Iterable[_Union[CrossClusterTopology, _Mapping]]] = ...) -> None: ...
 
 class ConnectionParam(_message.Message):
-    __slots__ = ("uri", "token")
+    __slots__ = ("uri", "token", "ca_pem_path", "client_pem_path", "client_key_path")
     URI_FIELD_NUMBER: _ClassVar[int]
     TOKEN_FIELD_NUMBER: _ClassVar[int]
+    CA_PEM_PATH_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_PEM_PATH_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_KEY_PATH_FIELD_NUMBER: _ClassVar[int]
     uri: str
     token: str
-    def __init__(self, uri: _Optional[str] = ..., token: _Optional[str] = ...) -> None: ...
+    ca_pem_path: str
+    client_pem_path: str
+    client_key_path: str
+    def __init__(self, uri: _Optional[str] = ..., token: _Optional[str] = ..., ca_pem_path: _Optional[str] = ..., client_pem_path: _Optional[str] = ..., client_key_path: _Optional[str] = ...) -> None: ...
 
 class MilvusCluster(_message.Message):
     __slots__ = ("cluster_id", "connection_param", "pchannels")

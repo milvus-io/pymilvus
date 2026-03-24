@@ -62,6 +62,13 @@ class RestoreSnapshotState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RestoreSnapshotExecuting: _ClassVar[RestoreSnapshotState]
     RestoreSnapshotCompleted: _ClassVar[RestoreSnapshotState]
     RestoreSnapshotFailed: _ClassVar[RestoreSnapshotState]
+
+class RefreshExternalCollectionState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    RefreshPending: _ClassVar[RefreshExternalCollectionState]
+    RefreshInProgress: _ClassVar[RefreshExternalCollectionState]
+    RefreshCompleted: _ClassVar[RefreshExternalCollectionState]
+    RefreshFailed: _ClassVar[RefreshExternalCollectionState]
 All: ShowType
 InMemory: ShowType
 AddPrivilegesToGroup: OperatePrivilegeGroupType
@@ -89,6 +96,10 @@ RestoreSnapshotPending: RestoreSnapshotState
 RestoreSnapshotExecuting: RestoreSnapshotState
 RestoreSnapshotCompleted: RestoreSnapshotState
 RestoreSnapshotFailed: RestoreSnapshotState
+RefreshPending: RefreshExternalCollectionState
+RefreshInProgress: RefreshExternalCollectionState
+RefreshCompleted: RefreshExternalCollectionState
+RefreshFailed: RefreshExternalCollectionState
 MILVUS_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 milvus_ext_obj: _descriptor.FieldDescriptor
 
@@ -2709,10 +2720,24 @@ class ListRowPoliciesResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., policies: _Optional[_Iterable[_Union[RowPolicy, _Mapping]]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class UpdateReplicateConfigurationRequest(_message.Message):
-    __slots__ = ("replicate_configuration",)
+    __slots__ = ("replicate_configuration", "force_promote")
     REPLICATE_CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    FORCE_PROMOTE_FIELD_NUMBER: _ClassVar[int]
     replicate_configuration: _common_pb2.ReplicateConfiguration
-    def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
+    force_promote: bool
+    def __init__(self, replicate_configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ..., force_promote: bool = ...) -> None: ...
+
+class GetReplicateConfigurationRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetReplicateConfigurationResponse(_message.Message):
+    __slots__ = ("status", "configuration")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    configuration: _common_pb2.ReplicateConfiguration
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., configuration: _Optional[_Union[_common_pb2.ReplicateConfiguration, _Mapping]] = ...) -> None: ...
 
 class GetReplicateInfoRequest(_message.Message):
     __slots__ = ("source_cluster_id", "target_pchannel")
@@ -3011,3 +3036,175 @@ class BatchUpdateManifestItem(_message.Message):
     segment_id: int
     manifest_version: int
     def __init__(self, segment_id: _Optional[int] = ..., manifest_version: _Optional[int] = ...) -> None: ...
+
+class ClientHeartbeatRequest(_message.Message):
+    __slots__ = ("client_info", "report_timestamp", "metrics", "command_replies", "config_hash", "last_command_timestamp")
+    CLIENT_INFO_FIELD_NUMBER: _ClassVar[int]
+    REPORT_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_REPLIES_FIELD_NUMBER: _ClassVar[int]
+    CONFIG_HASH_FIELD_NUMBER: _ClassVar[int]
+    LAST_COMMAND_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    client_info: _common_pb2.ClientInfo
+    report_timestamp: int
+    metrics: _containers.RepeatedCompositeFieldContainer[_common_pb2.OperationMetrics]
+    command_replies: _containers.RepeatedCompositeFieldContainer[_common_pb2.CommandReply]
+    config_hash: str
+    last_command_timestamp: int
+    def __init__(self, client_info: _Optional[_Union[_common_pb2.ClientInfo, _Mapping]] = ..., report_timestamp: _Optional[int] = ..., metrics: _Optional[_Iterable[_Union[_common_pb2.OperationMetrics, _Mapping]]] = ..., command_replies: _Optional[_Iterable[_Union[_common_pb2.CommandReply, _Mapping]]] = ..., config_hash: _Optional[str] = ..., last_command_timestamp: _Optional[int] = ...) -> None: ...
+
+class ClientHeartbeatResponse(_message.Message):
+    __slots__ = ("status", "server_timestamp", "commands")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SERVER_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    COMMANDS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    server_timestamp: int
+    commands: _containers.RepeatedCompositeFieldContainer[_common_pb2.ClientCommand]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., server_timestamp: _Optional[int] = ..., commands: _Optional[_Iterable[_Union[_common_pb2.ClientCommand, _Mapping]]] = ...) -> None: ...
+
+class GetClientTelemetryRequest(_message.Message):
+    __slots__ = ("database", "client_id", "include_metrics")
+    DATABASE_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_METRICS_FIELD_NUMBER: _ClassVar[int]
+    database: str
+    client_id: str
+    include_metrics: bool
+    def __init__(self, database: _Optional[str] = ..., client_id: _Optional[str] = ..., include_metrics: bool = ...) -> None: ...
+
+class ClientTelemetry(_message.Message):
+    __slots__ = ("client_info", "last_heartbeat_time", "status", "databases", "metrics")
+    CLIENT_INFO_FIELD_NUMBER: _ClassVar[int]
+    LAST_HEARTBEAT_TIME_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DATABASES_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    client_info: _common_pb2.ClientInfo
+    last_heartbeat_time: int
+    status: str
+    databases: _containers.RepeatedScalarFieldContainer[str]
+    metrics: _containers.RepeatedCompositeFieldContainer[_common_pb2.OperationMetrics]
+    def __init__(self, client_info: _Optional[_Union[_common_pb2.ClientInfo, _Mapping]] = ..., last_heartbeat_time: _Optional[int] = ..., status: _Optional[str] = ..., databases: _Optional[_Iterable[str]] = ..., metrics: _Optional[_Iterable[_Union[_common_pb2.OperationMetrics, _Mapping]]] = ...) -> None: ...
+
+class GetClientTelemetryResponse(_message.Message):
+    __slots__ = ("status", "clients", "aggregated")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CLIENTS_FIELD_NUMBER: _ClassVar[int]
+    AGGREGATED_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    clients: _containers.RepeatedCompositeFieldContainer[ClientTelemetry]
+    aggregated: _common_pb2.Metrics
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., clients: _Optional[_Iterable[_Union[ClientTelemetry, _Mapping]]] = ..., aggregated: _Optional[_Union[_common_pb2.Metrics, _Mapping]] = ...) -> None: ...
+
+class PushClientCommandRequest(_message.Message):
+    __slots__ = ("command_type", "payload", "target_client_id", "target_database", "ttl_seconds", "persistent")
+    COMMAND_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    TARGET_CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
+    TARGET_DATABASE_FIELD_NUMBER: _ClassVar[int]
+    TTL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PERSISTENT_FIELD_NUMBER: _ClassVar[int]
+    command_type: str
+    payload: bytes
+    target_client_id: str
+    target_database: str
+    ttl_seconds: int
+    persistent: bool
+    def __init__(self, command_type: _Optional[str] = ..., payload: _Optional[bytes] = ..., target_client_id: _Optional[str] = ..., target_database: _Optional[str] = ..., ttl_seconds: _Optional[int] = ..., persistent: bool = ...) -> None: ...
+
+class PushClientCommandResponse(_message.Message):
+    __slots__ = ("status", "command_id")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    command_id: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., command_id: _Optional[str] = ...) -> None: ...
+
+class DeleteClientCommandRequest(_message.Message):
+    __slots__ = ("command_id",)
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    def __init__(self, command_id: _Optional[str] = ...) -> None: ...
+
+class DeleteClientCommandResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ...) -> None: ...
+
+class RefreshExternalCollectionRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "external_source", "external_spec")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SPEC_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    external_source: str
+    external_spec: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ...) -> None: ...
+
+class RefreshExternalCollectionResponse(_message.Message):
+    __slots__ = ("status", "job_id")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    job_id: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., job_id: _Optional[int] = ...) -> None: ...
+
+class GetRefreshExternalCollectionProgressRequest(_message.Message):
+    __slots__ = ("base", "job_id")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    job_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., job_id: _Optional[int] = ...) -> None: ...
+
+class RefreshExternalCollectionJobInfo(_message.Message):
+    __slots__ = ("job_id", "collection_name", "state", "progress", "reason", "external_source", "start_time", "end_time")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
+    START_TIME_FIELD_NUMBER: _ClassVar[int]
+    END_TIME_FIELD_NUMBER: _ClassVar[int]
+    job_id: int
+    collection_name: str
+    state: RefreshExternalCollectionState
+    progress: int
+    reason: str
+    external_source: str
+    start_time: int
+    end_time: int
+    def __init__(self, job_id: _Optional[int] = ..., collection_name: _Optional[str] = ..., state: _Optional[_Union[RefreshExternalCollectionState, str]] = ..., progress: _Optional[int] = ..., reason: _Optional[str] = ..., external_source: _Optional[str] = ..., start_time: _Optional[int] = ..., end_time: _Optional[int] = ...) -> None: ...
+
+class GetRefreshExternalCollectionProgressResponse(_message.Message):
+    __slots__ = ("status", "job_info")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    JOB_INFO_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    job_info: RefreshExternalCollectionJobInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., job_info: _Optional[_Union[RefreshExternalCollectionJobInfo, _Mapping]] = ...) -> None: ...
+
+class ListRefreshExternalCollectionJobsRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+
+class ListRefreshExternalCollectionJobsResponse(_message.Message):
+    __slots__ = ("status", "jobs")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    JOBS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    jobs: _containers.RepeatedCompositeFieldContainer[RefreshExternalCollectionJobInfo]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., jobs: _Optional[_Iterable[_Union[RefreshExternalCollectionJobInfo, _Mapping]]] = ...) -> None: ...

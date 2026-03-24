@@ -25,6 +25,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Geometry: _ClassVar[DataType]
     Text: _ClassVar[DataType]
     Timestamptz: _ClassVar[DataType]
+    Mol: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -42,6 +43,7 @@ class FunctionType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TextEmbedding: _ClassVar[FunctionType]
     Rerank: _ClassVar[FunctionType]
     MinHash: _ClassVar[FunctionType]
+    MolFingerprint: _ClassVar[FunctionType]
 
 class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -64,6 +66,7 @@ JSON: DataType
 Geometry: DataType
 Text: DataType
 Timestamptz: DataType
+Mol: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
@@ -78,6 +81,7 @@ BM25: FunctionType
 TextEmbedding: FunctionType
 Rerank: FunctionType
 MinHash: FunctionType
+MolFingerprint: FunctionType
 FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
@@ -273,6 +277,18 @@ class GeometryWktArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, data: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class MolArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
+class MolSmilesArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, data: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class ValueField(_message.Message):
     __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "timestamptz_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -294,7 +310,7 @@ class ValueField(_message.Message):
     def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ..., timestamptz_data: _Optional[int] = ...) -> None: ...
 
 class ScalarField(_message.Message):
-    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geometry_data", "timestamptz_data", "geometry_wkt_data")
+    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geometry_data", "timestamptz_data", "geometry_wkt_data", "mol_data", "mol_smiles_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -307,6 +323,8 @@ class ScalarField(_message.Message):
     GEOMETRY_DATA_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMPTZ_DATA_FIELD_NUMBER: _ClassVar[int]
     GEOMETRY_WKT_DATA_FIELD_NUMBER: _ClassVar[int]
+    MOL_DATA_FIELD_NUMBER: _ClassVar[int]
+    MOL_SMILES_DATA_FIELD_NUMBER: _ClassVar[int]
     bool_data: BoolArray
     int_data: IntArray
     long_data: LongArray
@@ -319,7 +337,9 @@ class ScalarField(_message.Message):
     geometry_data: GeometryArray
     timestamptz_data: TimestamptzArray
     geometry_wkt_data: GeometryWktArray
-    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geometry_data: _Optional[_Union[GeometryArray, _Mapping]] = ..., timestamptz_data: _Optional[_Union[TimestamptzArray, _Mapping]] = ..., geometry_wkt_data: _Optional[_Union[GeometryWktArray, _Mapping]] = ...) -> None: ...
+    mol_data: MolArray
+    mol_smiles_data: MolSmilesArray
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geometry_data: _Optional[_Union[GeometryArray, _Mapping]] = ..., timestamptz_data: _Optional[_Union[TimestamptzArray, _Mapping]] = ..., geometry_wkt_data: _Optional[_Union[GeometryWktArray, _Mapping]] = ..., mol_data: _Optional[_Union[MolArray, _Mapping]] = ..., mol_smiles_data: _Optional[_Union[MolSmilesArray, _Mapping]] = ...) -> None: ...
 
 class SparseFloatArray(_message.Message):
     __slots__ = ("contents", "dim")
@@ -402,7 +422,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices", "order_by_field_values")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -418,6 +438,7 @@ class SearchResultData(_message.Message):
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHT_RESULTS_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
+    ORDER_BY_FIELD_VALUES_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -433,7 +454,8 @@ class SearchResultData(_message.Message):
     primary_field_name: str
     highlight_results: _containers.RepeatedCompositeFieldContainer[_common_pb2.HighlightResult]
     element_indices: LongArray
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ...) -> None: ...
+    order_by_field_values: _containers.RepeatedCompositeFieldContainer[FieldData]
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ..., order_by_field_values: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")
