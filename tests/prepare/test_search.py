@@ -6,6 +6,7 @@ from pymilvus import DataType, Function, FunctionType
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.orm.schema import FunctionScore, LexicalHighlighter
 
 
@@ -500,6 +501,236 @@ class TestPreparePlaceholderStr:
         data = [np.array([1, 2], dtype=np.complex64)]
         with pytest.raises(ParamError, match="unsupported data type"):
             Prepare._prepare_placeholder_str(data)
+
+
+class TestSearchRequestsWithSchemaKwarg:
+    """Tests for search_requests_with_expr with schema kwarg to resolve vector type."""
+
+    @pytest.fixture
+    def basic_search_params(self):
+        return {"metric_type": "L2", "params": {"nprobe": 10}}
+
+    def test_bytes_data_with_schema_resolves_vector_type(self, basic_search_params):
+        """Test that bytes data + schema kwarg resolves vector_data_type correctly."""
+        schema = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "vec", "type": DataType.FLOAT16_VECTOR},
+            ]
+        }
+        data = [b"\x01\x02\x03\x04"]
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=data,
+            anns_field="vec",
+            param=basic_search_params,
+            limit=10,
+            schema=schema,
+        )
+        # Verify the placeholder group uses FLOAT16_VECTOR type (102)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(req.placeholder_group)
+        assert pg.placeholders[0].type == 102
+
+    def test_bytes_data_with_schema_bfloat16(self, basic_search_params):
+        """Test bytes data with schema resolves to BFLOAT16_VECTOR."""
+        schema = {
+            "fields": [
+                {"name": "vec", "type": DataType.BFLOAT16_VECTOR},
+            ]
+        }
+        data = [b"\x01\x02\x03\x04"]
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=data,
+            anns_field="vec",
+            param=basic_search_params,
+            limit=10,
+            schema=schema,
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(req.placeholder_group)
+        assert pg.placeholders[0].type == 103  # BFLOAT16_VECTOR
+
+    def test_bytes_data_without_schema_falls_back_to_binary(self, basic_search_params):
+        """Test bytes data without schema defaults to BinaryVector."""
+        data = [b"\x01\x02\x03\x04"]
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=data,
+            anns_field="vec",
+            param=basic_search_params,
+            limit=10,
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(req.placeholder_group)
+        assert pg.placeholders[0].type == 100  # BinaryVector
+
+    def test_bytes_data_with_schema_struct_field(self, basic_search_params):
+        """Test bytes data with schema resolves struct array field."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "items",
+                    "fields": [
+                        {"name": "embedding", "type": DataType.FLOAT16_VECTOR},
+                    ],
+                }
+            ],
+        }
+        data = [b"\x01\x02\x03\x04"]
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=data,
+            anns_field="items[embedding]",
+            param=basic_search_params,
+            limit=10,
+            schema=schema,
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(req.placeholder_group)
+        assert pg.placeholders[0].type == 102  # FLOAT16_VECTOR
+
+
+class TestPreparePlaceholderStrBytesVectorType:
+    """Tests for _prepare_placeholder_str with bytes data and vector_data_type."""
+
+    @pytest.mark.parametrize(
+        "vector_data_type,expected_ph_type",
+        [
+            pytest.param(DataType.FLOAT16_VECTOR, 102, id="float16"),
+            pytest.param(DataType.BFLOAT16_VECTOR, 103, id="bfloat16"),
+            pytest.param(DataType.BINARY_VECTOR, 100, id="binary"),
+        ],
+    )
+    def test_bytes_with_vector_data_type(self, vector_data_type, expected_ph_type):
+        """Test bytes input correctly maps to the right PlaceholderType."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(data, vector_data_type=vector_data_type)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == expected_ph_type
+
+    @pytest.mark.parametrize(
+        "vector_data_type,expected_ph_type",
+        [
+            pytest.param(DataType.FLOAT16_VECTOR, 302, id="emb_float16"),
+            pytest.param(DataType.BFLOAT16_VECTOR, 303, id="emb_bfloat16"),
+            pytest.param(DataType.BINARY_VECTOR, 300, id="emb_binary"),
+        ],
+    )
+    def test_bytes_with_embedding_list(self, vector_data_type, expected_ph_type):
+        """Test bytes input with is_embedding_list=True maps to EmbList PlaceholderType."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(
+            data, is_embedding_list=True, vector_data_type=vector_data_type
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == expected_ph_type
+
+    def test_bytes_with_none_vector_data_type(self):
+        """Test bytes input with None vector_data_type falls back to BinaryVector."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(data, vector_data_type=None)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == 100
+
+    def test_bytes_with_none_vector_data_type_embedding_list(self):
+        """Test bytes input with None vector_data_type and is_embedding_list falls back to EmbListBinaryVector."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(
+            data, is_embedding_list=True, vector_data_type=None
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == 300
+
+    def test_bytes_without_vector_data_type(self):
+        """Test bytes input without vector_data_type (backward compat)."""
+        data = [b"\x01\x02\x03\x04"]
+        result = Prepare._prepare_placeholder_str(data)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == 100
+
+
+class TestGetVectorTypeFromSchema:
+    """Tests for _get_vector_type_from_schema helper."""
+
+    def test_regular_field(self):
+        """Test extracting vector type from a regular field."""
+        schema = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "vec", "type": DataType.FLOAT16_VECTOR},
+            ]
+        }
+        result = Prepare._get_vector_type_from_schema(schema, "vec")
+        assert result == DataType.FLOAT16_VECTOR
+
+    def test_regular_field_not_found(self):
+        """Test returns None when field not found."""
+        schema = {"fields": [{"name": "id", "type": DataType.INT64}]}
+        result = Prepare._get_vector_type_from_schema(schema, "vec")
+        assert result is None
+
+    def test_struct_field(self):
+        """Test extracting vector type from a struct array field."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "items",
+                    "fields": [
+                        {"name": "embedding", "type": DataType.FLOAT16_VECTOR},
+                    ],
+                }
+            ],
+        }
+        result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
+        assert result == DataType.FLOAT16_VECTOR
+
+    def test_struct_field_not_found(self):
+        """Test struct field returns None when sub-field not found."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "items",
+                    "fields": [{"name": "other", "type": DataType.FLOAT_VECTOR}],
+                }
+            ],
+        }
+        result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
+        assert result is None
+
+    def test_struct_name_not_found(self):
+        """Test struct field returns None when struct name not found."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "other_struct",
+                    "fields": [{"name": "embedding", "type": DataType.FLOAT_VECTOR}],
+                }
+            ],
+        }
+        result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
+        assert result is None
+
+    def test_empty_schema(self):
+        """Test with empty schema."""
+        result = Prepare._get_vector_type_from_schema({}, "vec")
+        assert result is None
+
+    def test_no_struct_array_fields(self):
+        """Test struct field lookup when no struct_array_fields key."""
+        schema = {"fields": []}
+        result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
+        assert result is None
 
 
 class TestHybridSearchRequest:
