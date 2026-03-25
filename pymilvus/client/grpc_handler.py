@@ -3136,6 +3136,7 @@ class GrpcHandler:
         self,
         clusters: Optional[List[Dict]] = None,
         cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -3144,8 +3145,9 @@ class GrpcHandler:
         Update replication configuration across Milvus clusters.
 
         Args:
-            clusters: The replication configuration to apply
-            cross_cluster_topology: The replication configuration to apply
+            clusters: List of cluster configurations to apply
+            cross_cluster_topology: List of cross-cluster topology relationships to apply
+            force_promote: If true, force promote the current cluster to primary
             timeout: An optional duration of time in seconds to allow for the RPC
             **kwargs: Additional arguments
 
@@ -3155,6 +3157,7 @@ class GrpcHandler:
         request = Prepare.update_replicate_configuration_request(
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
         )
 
         status = self._stub.UpdateReplicateConfiguration(
