@@ -250,6 +250,7 @@ class TestAsyncMilvusClientNewFeatures:
         mock_handler.update_replicate_configuration.assert_called_once_with(
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
+            force_promote=False,
             timeout=10,
             context=ANY,
         )

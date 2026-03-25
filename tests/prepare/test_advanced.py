@@ -168,10 +168,15 @@ class TestRunAnalyzer:
 class TestUpdateReplicateConfiguration:
     """Tests for update_replicate_configuration_request."""
 
-    def test_replicate_config_neither_provided(self):
-        """Test replicate config without clusters or topology."""
+    def test_replicate_config_clusters_required(self):
+        """Test replicate config always requires clusters."""
         with pytest.raises(ParamError, match="must be provided"):
             Prepare.update_replicate_configuration_request()
+
+    def test_replicate_config_clusters_required_even_with_force_promote(self):
+        """Test that clusters is required even when force_promote=True."""
+        with pytest.raises(ParamError, match="must be provided"):
+            Prepare.update_replicate_configuration_request(force_promote=True)
 
     @pytest.mark.parametrize(
         "cluster,error_match",
@@ -268,13 +273,19 @@ class TestUpdateReplicateConfiguration:
     )
     def test_replicate_config_topology_validation(self, topology, error_match):
         """Test replicate config topology validation errors."""
+        clusters = [{"cluster_id": "c1", "connection_param": {"uri": "localhost:19530"}}]
         with pytest.raises(ParamError, match=error_match):
-            Prepare.update_replicate_configuration_request(cross_cluster_topology=[topology])
+            Prepare.update_replicate_configuration_request(
+                clusters=clusters, cross_cluster_topology=[topology]
+            )
 
     def test_replicate_config_with_topology(self):
         """Test replicate config with cross cluster topology."""
+        clusters = [{"cluster_id": "cluster1", "connection_param": {"uri": "localhost:19530"}}]
         topology = [{"source_cluster_id": "cluster1", "target_cluster_id": "cluster2"}]
-        req = Prepare.update_replicate_configuration_request(cross_cluster_topology=topology)
+        req = Prepare.update_replicate_configuration_request(
+            clusters=clusters, cross_cluster_topology=topology
+        )
         assert len(req.replicate_configuration.cross_cluster_topology) == 1
 
     def test_replicate_config_with_both(self):
@@ -290,6 +301,23 @@ class TestUpdateReplicateConfiguration:
         )
         assert len(req.replicate_configuration.clusters) == 2
         assert len(req.replicate_configuration.cross_cluster_topology) == 1
+
+    def test_force_promote_without_clusters_or_topology(self):
+        """Test force promote still requires clusters."""
+        with pytest.raises(ParamError, match="must be provided"):
+            Prepare.update_replicate_configuration_request(force_promote=True)
+
+    def test_force_promote_sets_flag(self):
+        """Test that force_promote=True sets the flag in the request."""
+        clusters = [{"cluster_id": "c1", "connection_param": {"uri": "localhost:19530"}}]
+        req = Prepare.update_replicate_configuration_request(clusters=clusters, force_promote=True)
+        assert req.force_promote is True
+
+    def test_force_promote_default_false(self):
+        """Test that force_promote defaults to False."""
+        clusters = [{"cluster_id": "c1", "connection_param": {"uri": "localhost:19530"}}]
+        req = Prepare.update_replicate_configuration_request(clusters=clusters)
+        assert req.force_promote is False
 
 
 class TestConvertFunctionToFunctionSchema:
