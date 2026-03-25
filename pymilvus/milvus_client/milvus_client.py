@@ -2299,15 +2299,19 @@ class MilvusClient(BaseMilvusClient):
         )
         return [
             LoadedSegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
-                info.mem_size,
+                segment_id=info.segmentID,
+                collection_id=info.collectionID,
+                collection_name=collection_name,
+                num_rows=info.num_rows,
+                is_sorted=info.is_sorted,
+                state=info.state,
+                level=info.level,
+                storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                index_name=info.index_name,
+                index_id=info.indexID,
+                node_ids=list(info.nodeIds),
+                mem_size=info.mem_size,
             )
             for info in infos
         ]
