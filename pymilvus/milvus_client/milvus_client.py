@@ -254,17 +254,14 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         # Insert into the collection.
-        try:
-            res = conn.insert_rows(
-                collection_name,
-                data,
-                partition_name=partition_name,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.insert_rows(
+            collection_name,
+            data,
+            partition_name=partition_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
         return OmitZeroDict(
             {
                 "insert_count": res.insert_count,
@@ -318,17 +315,14 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         # Upsert into the collection.
-        try:
-            res = conn.upsert_rows(
-                collection_name,
-                data,
-                partition_name=partition_name,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.upsert_rows(
+            collection_name,
+            data,
+            partition_name=partition_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
         return OmitZeroDict(
             {
@@ -1013,16 +1007,13 @@ class MilvusClient(BaseMilvusClient):
         partition_names = None
         if partition_name:
             partition_names = [partition_name]
-        try:
-            state = conn.get_load_state(
-                collection_name,
-                partition_names,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        state = conn.get_load_state(
+            collection_name,
+            partition_names,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
         ret = {"state": state}
         if state == LoadState.Loading:
@@ -1451,16 +1442,13 @@ class MilvusClient(BaseMilvusClient):
 
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        try:
-            res = conn.select_one_user(
-                user_name,
-                True,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_one_user(
+            user_name,
+            True,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
         if res.groups:
             item = res.groups[0]
             return {"user_name": user_name, "roles": item.roles}
@@ -1509,16 +1497,13 @@ class MilvusClient(BaseMilvusClient):
     def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
-        try:
-            res = conn.select_grant_for_one_role(
-                role_name,
-                db_name,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_grant_for_one_role(
+            role_name,
+            db_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
         ret = {}
         ret["role"] = role_name
         ret["privileges"] = [dict(i) for i in res.groups]
@@ -1526,12 +1511,9 @@ class MilvusClient(BaseMilvusClient):
 
     def list_roles(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
-        try:
-            res = conn.select_all_role(
-                False, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = conn.select_all_role(
+            False, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
 
         groups = res.groups
         return [g.role_name for g in groups]

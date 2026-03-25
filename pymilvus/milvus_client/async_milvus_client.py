@@ -500,17 +500,14 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         conn = await self._get_connection()
         # Upsert into the collection.
-        try:
-            res = await conn.upsert_rows(
-                collection_name,
-                data,
-                partition_name=partition_name,
-                timeout=timeout,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
-            )
-        except Exception as ex:
-            raise ex from ex
+        res = await conn.upsert_rows(
+            collection_name,
+            data,
+            partition_name=partition_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
         return OmitZeroDict(
             {
