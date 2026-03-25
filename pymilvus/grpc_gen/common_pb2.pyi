@@ -244,6 +244,19 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeDatabase: _ClassVar[MsgType]
     AddCollectionField: _ClassVar[MsgType]
     AlterWAL: _ClassVar[MsgType]
+    CreateSnapshot: _ClassVar[MsgType]
+    DropSnapshot: _ClassVar[MsgType]
+    ListSnapshots: _ClassVar[MsgType]
+    DescribeSnapshot: _ClassVar[MsgType]
+    RestoreSnapshot: _ClassVar[MsgType]
+    GetRestoreSnapshotState: _ClassVar[MsgType]
+    ListRestoreSnapshotJobs: _ClassVar[MsgType]
+    PinSnapshotData: _ClassVar[MsgType]
+    UnpinSnapshotData: _ClassVar[MsgType]
+    AlterCollectionSchema: _ClassVar[MsgType]
+    RefreshExternalCollection: _ClassVar[MsgType]
+    GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
+    ListRefreshExternalCollectionJobs: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -358,7 +371,16 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeRemoveFileResource: _ClassVar[ObjectPrivilege]
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
+    PrivilegeCreateSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeDropSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeDescribeSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeListSnapshots: _ClassVar[ObjectPrivilege]
+    PrivilegeRestoreSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeAlterCollectionSchema: _ClassVar[ObjectPrivilege]
     PrivilegeGetReplicateConfiguration: _ClassVar[ObjectPrivilege]
+    PrivilegeRefreshExternalCollection: _ClassVar[ObjectPrivilege]
+    PrivilegePinSnapshotData: _ClassVar[ObjectPrivilege]
+    PrivilegeUnpinSnapshotData: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -613,6 +635,19 @@ AlterDatabase: MsgType
 DescribeDatabase: MsgType
 AddCollectionField: MsgType
 AlterWAL: MsgType
+CreateSnapshot: MsgType
+DropSnapshot: MsgType
+ListSnapshots: MsgType
+DescribeSnapshot: MsgType
+RestoreSnapshot: MsgType
+GetRestoreSnapshotState: MsgType
+ListRestoreSnapshotJobs: MsgType
+PinSnapshotData: MsgType
+UnpinSnapshotData: MsgType
+AlterCollectionSchema: MsgType
+RefreshExternalCollection: MsgType
+GetRefreshExternalCollectionProgress: MsgType
+ListRefreshExternalCollectionJobs: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -709,7 +744,16 @@ PrivilegeAddFileResource: ObjectPrivilege
 PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
 PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
+PrivilegeCreateSnapshot: ObjectPrivilege
+PrivilegeDropSnapshot: ObjectPrivilege
+PrivilegeDescribeSnapshot: ObjectPrivilege
+PrivilegeListSnapshots: ObjectPrivilege
+PrivilegeRestoreSnapshot: ObjectPrivilege
+PrivilegeAlterCollectionSchema: ObjectPrivilege
 PrivilegeGetReplicateConfiguration: ObjectPrivilege
+PrivilegeRefreshExternalCollection: ObjectPrivilege
+PrivilegePinSnapshotData: ObjectPrivilege
+PrivilegeUnpinSnapshotData: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -778,14 +822,16 @@ class Blob(_message.Message):
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
 class PlaceholderValue(_message.Message):
-    __slots__ = ("tag", "type", "values")
+    __slots__ = ("tag", "type", "values", "element_level")
     TAG_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
     tag: str
     type: PlaceholderType
     values: _containers.RepeatedScalarFieldContainer[bytes]
-    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ...) -> None: ...
+    element_level: bool
+    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ..., element_level: bool = ...) -> None: ...
 
 class PlaceholderGroup(_message.Message):
     __slots__ = ("placeholders",)
@@ -892,6 +938,66 @@ class ClientInfo(_message.Message):
     host: str
     reserved: _containers.ScalarMap[str, str]
     def __init__(self, sdk_type: _Optional[str] = ..., sdk_version: _Optional[str] = ..., local_time: _Optional[str] = ..., user: _Optional[str] = ..., host: _Optional[str] = ..., reserved: _Optional[_Mapping[str, str]] = ...) -> None: ...
+
+class Metrics(_message.Message):
+    __slots__ = ("request_count", "success_count", "error_count", "avg_latency_ms", "p99_latency_ms", "max_latency_ms")
+    REQUEST_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ERROR_COUNT_FIELD_NUMBER: _ClassVar[int]
+    AVG_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    P99_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    MAX_LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
+    request_count: int
+    success_count: int
+    error_count: int
+    avg_latency_ms: float
+    p99_latency_ms: float
+    max_latency_ms: float
+    def __init__(self, request_count: _Optional[int] = ..., success_count: _Optional[int] = ..., error_count: _Optional[int] = ..., avg_latency_ms: _Optional[float] = ..., p99_latency_ms: _Optional[float] = ..., max_latency_ms: _Optional[float] = ...) -> None: ...
+
+class OperationMetrics(_message.Message):
+    __slots__ = ("operation", "collection_metrics")
+    class CollectionMetricsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: Metrics
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[Metrics, _Mapping]] = ...) -> None: ...
+    OPERATION_FIELD_NUMBER: _ClassVar[int]
+    GLOBAL_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_METRICS_FIELD_NUMBER: _ClassVar[int]
+    operation: str
+    collection_metrics: _containers.MessageMap[str, Metrics]
+    def __init__(self, operation: _Optional[str] = ..., collection_metrics: _Optional[_Mapping[str, Metrics]] = ..., **kwargs) -> None: ...
+
+class ClientCommand(_message.Message):
+    __slots__ = ("command_id", "command_type", "payload", "create_time", "persistent", "target_scope")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    COMMAND_TYPE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    CREATE_TIME_FIELD_NUMBER: _ClassVar[int]
+    PERSISTENT_FIELD_NUMBER: _ClassVar[int]
+    TARGET_SCOPE_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    command_type: str
+    payload: bytes
+    create_time: int
+    persistent: bool
+    target_scope: str
+    def __init__(self, command_id: _Optional[str] = ..., command_type: _Optional[str] = ..., payload: _Optional[bytes] = ..., create_time: _Optional[int] = ..., persistent: bool = ..., target_scope: _Optional[str] = ...) -> None: ...
+
+class CommandReply(_message.Message):
+    __slots__ = ("command_id", "success", "error_message", "payload")
+    COMMAND_ID_FIELD_NUMBER: _ClassVar[int]
+    SUCCESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+    command_id: str
+    success: bool
+    error_message: str
+    payload: bytes
+    def __init__(self, command_id: _Optional[str] = ..., success: bool = ..., error_message: _Optional[str] = ..., payload: _Optional[bytes] = ...) -> None: ...
 
 class ServerInfo(_message.Message):
     __slots__ = ("build_tags", "build_time", "git_commit", "go_version", "deploy_mode", "reserved")

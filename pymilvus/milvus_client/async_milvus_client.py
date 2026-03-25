@@ -1685,6 +1685,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         clusters: Optional[List[Dict]] = None,
         cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1703,6 +1704,9 @@ class AsyncMilvusClient(BaseMilvusClient):
                 - source_cluster_id (str): ID of the source cluster
                 - target_cluster_id (str): ID of the target cluster
 
+            force_promote (bool, optional): If true, force promote the current secondary cluster
+                to standalone primary. Used for disaster recovery when the primary is unavailable.
+
             timeout (float, optional): An optional duration of time in seconds to allow for the RPC
             **kwargs: Additional arguments
 
@@ -1717,6 +1721,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         return await conn.update_replicate_configuration(
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
