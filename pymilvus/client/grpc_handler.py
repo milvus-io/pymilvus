@@ -3145,8 +3145,8 @@ class GrpcHandler:
         Update replication configuration across Milvus clusters.
 
         Args:
-            clusters: The replication configuration to apply
-            cross_cluster_topology: The replication configuration to apply
+            clusters: List of cluster configurations to apply
+            cross_cluster_topology: List of cross-cluster topology relationships to apply
             force_promote: If true, force promote the current cluster to primary
             timeout: An optional duration of time in seconds to allow for the RPC
             **kwargs: Additional arguments

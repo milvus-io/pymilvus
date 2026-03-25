@@ -251,6 +251,8 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RestoreSnapshot: _ClassVar[MsgType]
     GetRestoreSnapshotState: _ClassVar[MsgType]
     ListRestoreSnapshotJobs: _ClassVar[MsgType]
+    PinSnapshotData: _ClassVar[MsgType]
+    UnpinSnapshotData: _ClassVar[MsgType]
     AlterCollectionSchema: _ClassVar[MsgType]
     RefreshExternalCollection: _ClassVar[MsgType]
     GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
@@ -377,6 +379,8 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeAlterCollectionSchema: _ClassVar[ObjectPrivilege]
     PrivilegeGetReplicateConfiguration: _ClassVar[ObjectPrivilege]
     PrivilegeRefreshExternalCollection: _ClassVar[ObjectPrivilege]
+    PrivilegePinSnapshotData: _ClassVar[ObjectPrivilege]
+    PrivilegeUnpinSnapshotData: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -638,6 +642,8 @@ DescribeSnapshot: MsgType
 RestoreSnapshot: MsgType
 GetRestoreSnapshotState: MsgType
 ListRestoreSnapshotJobs: MsgType
+PinSnapshotData: MsgType
+UnpinSnapshotData: MsgType
 AlterCollectionSchema: MsgType
 RefreshExternalCollection: MsgType
 GetRefreshExternalCollectionProgress: MsgType
@@ -746,6 +752,8 @@ PrivilegeRestoreSnapshot: ObjectPrivilege
 PrivilegeAlterCollectionSchema: ObjectPrivilege
 PrivilegeGetReplicateConfiguration: ObjectPrivilege
 PrivilegeRefreshExternalCollection: ObjectPrivilege
+PrivilegePinSnapshotData: ObjectPrivilege
+PrivilegeUnpinSnapshotData: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode
@@ -1033,18 +1041,12 @@ class ReplicateConfiguration(_message.Message):
     def __init__(self, clusters: _Optional[_Iterable[_Union[MilvusCluster, _Mapping]]] = ..., cross_cluster_topology: _Optional[_Iterable[_Union[CrossClusterTopology, _Mapping]]] = ...) -> None: ...
 
 class ConnectionParam(_message.Message):
-    __slots__ = ("uri", "token", "ca_pem_path", "client_pem_path", "client_key_path")
+    __slots__ = ("uri", "token")
     URI_FIELD_NUMBER: _ClassVar[int]
     TOKEN_FIELD_NUMBER: _ClassVar[int]
-    CA_PEM_PATH_FIELD_NUMBER: _ClassVar[int]
-    CLIENT_PEM_PATH_FIELD_NUMBER: _ClassVar[int]
-    CLIENT_KEY_PATH_FIELD_NUMBER: _ClassVar[int]
     uri: str
     token: str
-    ca_pem_path: str
-    client_pem_path: str
-    client_key_path: str
-    def __init__(self, uri: _Optional[str] = ..., token: _Optional[str] = ..., ca_pem_path: _Optional[str] = ..., client_pem_path: _Optional[str] = ..., client_key_path: _Optional[str] = ...) -> None: ...
+    def __init__(self, uri: _Optional[str] = ..., token: _Optional[str] = ...) -> None: ...
 
 class MilvusCluster(_message.Message):
     __slots__ = ("cluster_id", "connection_param", "pchannels")

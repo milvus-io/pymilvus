@@ -1164,21 +1164,29 @@ class QueryRequest(_message.Message):
     namespace: str
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ...) -> None: ...
 
+class ElementIndices(_message.Message):
+    __slots__ = ("indices",)
+    INDICES_FIELD_NUMBER: _ClassVar[int]
+    indices: _schema_pb2.LongArray
+    def __init__(self, indices: _Optional[_Union[_schema_pb2.LongArray, _Mapping]] = ...) -> None: ...
+
 class QueryResults(_message.Message):
-    __slots__ = ("status", "fields_data", "collection_name", "output_fields", "session_ts", "primary_field_name")
+    __slots__ = ("status", "fields_data", "collection_name", "output_fields", "session_ts", "primary_field_name", "element_indices")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_FIELDS_FIELD_NUMBER: _ClassVar[int]
     SESSION_TS_FIELD_NUMBER: _ClassVar[int]
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
     collection_name: str
     output_fields: _containers.RepeatedScalarFieldContainer[str]
     session_ts: int
     primary_field_name: str
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ..., primary_field_name: _Optional[str] = ...) -> None: ...
+    element_indices: _containers.RepeatedCompositeFieldContainer[ElementIndices]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ..., primary_field_name: _Optional[str] = ..., element_indices: _Optional[_Iterable[_Union[ElementIndices, _Mapping]]] = ...) -> None: ...
 
 class QueryCursor(_message.Message):
     __slots__ = ("session_ts", "str_pk", "int_pk")
@@ -2748,10 +2756,12 @@ class GetReplicateInfoRequest(_message.Message):
     def __init__(self, source_cluster_id: _Optional[str] = ..., target_pchannel: _Optional[str] = ...) -> None: ...
 
 class GetReplicateInfoResponse(_message.Message):
-    __slots__ = ("checkpoint",)
+    __slots__ = ("checkpoint", "salvage_checkpoint")
     CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
+    SALVAGE_CHECKPOINT_FIELD_NUMBER: _ClassVar[int]
     checkpoint: _common_pb2.ReplicateCheckpoint
-    def __init__(self, checkpoint: _Optional[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]] = ...) -> None: ...
+    salvage_checkpoint: _common_pb2.ReplicateCheckpoint
+    def __init__(self, checkpoint: _Optional[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]] = ..., salvage_checkpoint: _Optional[_Union[_common_pb2.ReplicateCheckpoint, _Mapping]] = ...) -> None: ...
 
 class ReplicateMessage(_message.Message):
     __slots__ = ("source_cluster_id", "message")
@@ -2778,6 +2788,26 @@ class ReplicateResponse(_message.Message):
     REPLICATE_CONFIRMED_MESSAGE_INFO_FIELD_NUMBER: _ClassVar[int]
     replicate_confirmed_message_info: ReplicateConfirmedMessageInfo
     def __init__(self, replicate_confirmed_message_info: _Optional[_Union[ReplicateConfirmedMessageInfo, _Mapping]] = ...) -> None: ...
+
+class DumpMessagesRequest(_message.Message):
+    __slots__ = ("pchannel", "start_message_id", "start_timetick", "end_timetick")
+    PCHANNEL_FIELD_NUMBER: _ClassVar[int]
+    START_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
+    START_TIMETICK_FIELD_NUMBER: _ClassVar[int]
+    END_TIMETICK_FIELD_NUMBER: _ClassVar[int]
+    pchannel: str
+    start_message_id: _common_pb2.MessageID
+    start_timetick: int
+    end_timetick: int
+    def __init__(self, pchannel: _Optional[str] = ..., start_message_id: _Optional[_Union[_common_pb2.MessageID, _Mapping]] = ..., start_timetick: _Optional[int] = ..., end_timetick: _Optional[int] = ...) -> None: ...
+
+class DumpMessagesResponse(_message.Message):
+    __slots__ = ("status", "message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    message: _common_pb2.ImmutableMessage
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., message: _Optional[_Union[_common_pb2.ImmutableMessage, _Mapping]] = ...) -> None: ...
 
 class TruncateCollectionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name")
@@ -2818,26 +2848,32 @@ class ComputePhraseMatchSlopResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., is_match: _Optional[_Iterable[bool]] = ..., slops: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class CreateSnapshotRequest(_message.Message):
-    __slots__ = ("base", "name", "description", "db_name", "collection_name")
+    __slots__ = ("base", "name", "description", "db_name", "collection_name", "compaction_protection_seconds")
     BASE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_PROTECTION_SECONDS_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     name: str
     description: str
     db_name: str
     collection_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    compaction_protection_seconds: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., compaction_protection_seconds: _Optional[int] = ...) -> None: ...
 
 class DropSnapshotRequest(_message.Message):
-    __slots__ = ("base", "name")
+    __slots__ = ("base", "name", "db_name", "collection_name")
     BASE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ...) -> None: ...
+    db_name: str
+    collection_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class ListSnapshotsRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name")
@@ -2858,12 +2894,16 @@ class ListSnapshotsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., snapshots: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class DescribeSnapshotRequest(_message.Message):
-    __slots__ = ("base", "name")
+    __slots__ = ("base", "name", "db_name", "collection_name")
     BASE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ...) -> None: ...
+    db_name: str
+    collection_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class DescribeSnapshotResponse(_message.Message):
     __slots__ = ("status", "name", "description", "collection_name", "partition_names", "create_ts", "s3_location")
@@ -2884,18 +2924,22 @@ class DescribeSnapshotResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., create_ts: _Optional[int] = ..., s3_location: _Optional[str] = ...) -> None: ...
 
 class RestoreSnapshotRequest(_message.Message):
-    __slots__ = ("base", "name", "db_name", "collection_name", "rewrite_data")
+    __slots__ = ("base", "name", "db_name", "collection_name", "rewrite_data", "target_db_name", "target_collection_name")
     BASE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     REWRITE_DATA_FIELD_NUMBER: _ClassVar[int]
+    TARGET_DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    TARGET_COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     name: str
     db_name: str
     collection_name: str
     rewrite_data: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., rewrite_data: bool = ...) -> None: ...
+    target_db_name: str
+    target_collection_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., rewrite_data: bool = ..., target_db_name: _Optional[str] = ..., target_collection_name: _Optional[str] = ...) -> None: ...
 
 class RestoreSnapshotResponse(_message.Message):
     __slots__ = ("status", "job_id")
@@ -2960,6 +3004,36 @@ class ListRestoreSnapshotJobsResponse(_message.Message):
     status: _common_pb2.Status
     jobs: _containers.RepeatedCompositeFieldContainer[RestoreSnapshotInfo]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., jobs: _Optional[_Iterable[_Union[RestoreSnapshotInfo, _Mapping]]] = ...) -> None: ...
+
+class PinSnapshotDataRequest(_message.Message):
+    __slots__ = ("base", "name", "db_name", "collection_name", "ttl_seconds")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    TTL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    name: str
+    db_name: str
+    collection_name: str
+    ttl_seconds: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., ttl_seconds: _Optional[int] = ...) -> None: ...
+
+class PinSnapshotDataResponse(_message.Message):
+    __slots__ = ("status", "pin_id")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    PIN_ID_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    pin_id: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., pin_id: _Optional[int] = ...) -> None: ...
+
+class UnpinSnapshotDataRequest(_message.Message):
+    __slots__ = ("base", "pin_id")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    PIN_ID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    pin_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., pin_id: _Optional[int] = ...) -> None: ...
 
 class AlterCollectionSchemaRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "action")

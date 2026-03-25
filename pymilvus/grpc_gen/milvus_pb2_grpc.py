@@ -611,6 +611,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ReplicateRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ReplicateResponse.FromString,
                 _registered_method=True)
+        self.DumpMessages = channel.unary_stream(
+                '/milvus.proto.milvus.MilvusService/DumpMessages',
+                request_serializer=milvus__pb2.DumpMessagesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DumpMessagesResponse.FromString,
+                _registered_method=True)
         self.ComputePhraseMatchSlop = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ComputePhraseMatchSlop',
                 request_serializer=milvus__pb2.ComputePhraseMatchSlopRequest.SerializeToString,
@@ -650,6 +655,16 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/ListRestoreSnapshotJobs',
                 request_serializer=milvus__pb2.ListRestoreSnapshotJobsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListRestoreSnapshotJobsResponse.FromString,
+                _registered_method=True)
+        self.PinSnapshotData = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/PinSnapshotData',
+                request_serializer=milvus__pb2.PinSnapshotDataRequest.SerializeToString,
+                response_deserializer=milvus__pb2.PinSnapshotDataResponse.FromString,
+                _registered_method=True)
+        self.UnpinSnapshotData = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/UnpinSnapshotData',
+                request_serializer=milvus__pb2.UnpinSnapshotDataRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
         self.AlterCollectionSchema = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/AlterCollectionSchema',
@@ -1404,6 +1419,22 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DumpMessages(self, request, context):
+        """
+        DumpMessages streams messages from a WAL range for data salvage.
+
+        Semantics:
+        - Reads messages starting from start_message_id position (inclusive).
+        - Use start_timetick/end_timetick to filter messages by timetick range.
+        - Only returns non-system messages (filters out TimeTick, CreateSegment, Flush, RollbackTxn).
+        - Streams messages until end_timetick is reached or context is cancelled.
+        - Typically used after force failover to recover unsynchronized messages
+        from the old primary cluster using the salvage checkpoint.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ComputePhraseMatchSlop(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -1448,6 +1479,18 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ListRestoreSnapshotJobs(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def PinSnapshotData(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UnpinSnapshotData(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -2062,6 +2105,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.ReplicateRequest.FromString,
                     response_serializer=milvus__pb2.ReplicateResponse.SerializeToString,
             ),
+            'DumpMessages': grpc.unary_stream_rpc_method_handler(
+                    servicer.DumpMessages,
+                    request_deserializer=milvus__pb2.DumpMessagesRequest.FromString,
+                    response_serializer=milvus__pb2.DumpMessagesResponse.SerializeToString,
+            ),
             'ComputePhraseMatchSlop': grpc.unary_unary_rpc_method_handler(
                     servicer.ComputePhraseMatchSlop,
                     request_deserializer=milvus__pb2.ComputePhraseMatchSlopRequest.FromString,
@@ -2101,6 +2149,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ListRestoreSnapshotJobs,
                     request_deserializer=milvus__pb2.ListRestoreSnapshotJobsRequest.FromString,
                     response_serializer=milvus__pb2.ListRestoreSnapshotJobsResponse.SerializeToString,
+            ),
+            'PinSnapshotData': grpc.unary_unary_rpc_method_handler(
+                    servicer.PinSnapshotData,
+                    request_deserializer=milvus__pb2.PinSnapshotDataRequest.FromString,
+                    response_serializer=milvus__pb2.PinSnapshotDataResponse.SerializeToString,
+            ),
+            'UnpinSnapshotData': grpc.unary_unary_rpc_method_handler(
+                    servicer.UnpinSnapshotData,
+                    request_deserializer=milvus__pb2.UnpinSnapshotDataRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
             ),
             'AlterCollectionSchema': grpc.unary_unary_rpc_method_handler(
                     servicer.AlterCollectionSchema,
@@ -5244,6 +5302,33 @@ class MilvusService(object):
             _registered_method=True)
 
     @staticmethod
+    def DumpMessages(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DumpMessages',
+            milvus__pb2.DumpMessagesRequest.SerializeToString,
+            milvus__pb2.DumpMessagesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def ComputePhraseMatchSlop(request,
             target,
             options=(),
@@ -5449,6 +5534,60 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ListRestoreSnapshotJobs',
             milvus__pb2.ListRestoreSnapshotJobsRequest.SerializeToString,
             milvus__pb2.ListRestoreSnapshotJobsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def PinSnapshotData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/PinSnapshotData',
+            milvus__pb2.PinSnapshotDataRequest.SerializeToString,
+            milvus__pb2.PinSnapshotDataResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UnpinSnapshotData(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/UnpinSnapshotData',
+            milvus__pb2.UnpinSnapshotDataRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options,
             channel_credentials,
             insecure,

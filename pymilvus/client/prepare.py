@@ -1501,7 +1501,6 @@ class Prepare:
         use_default_consistency: bool = True,
         **kwargs,
     ) -> milvus_types.SearchRequest:
-
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
         if not isinstance(params, dict):
