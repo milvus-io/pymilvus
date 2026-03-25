@@ -970,6 +970,8 @@ class MilvusClient(BaseMilvusClient):
 
     def _get_connection(self):
         """Return the handler for this client."""
+        if self._handler is None:
+            raise MilvusException(message="should create connection first")
         return self._handler
 
     def close(self):
