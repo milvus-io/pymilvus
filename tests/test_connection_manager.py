@@ -1856,6 +1856,17 @@ class TestMilvusClientChangedCode:
             assert client._get_connection() is mock_handler
             client.close()
 
+    def test_get_connection_raises_when_closed(self):
+        """Test _get_connection raises MilvusException after close()."""
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            mock_handler = _make_sync_handler(get_server_type=Mock(return_value="milvus"))
+            mock_handler_cls.return_value = mock_handler
+            client = MilvusClient(uri="http://localhost:19530")
+            client.close()
+
+            with pytest.raises(MilvusException, match="should create connection first"):
+                client._get_connection()
+
     def test_use_database_updates_config(self):
         """Test use_database updates _config.db_name."""
         with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
