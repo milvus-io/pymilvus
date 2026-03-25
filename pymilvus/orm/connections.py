@@ -404,7 +404,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
         )
 
         # Make sure passed in None doesnt break
-        user, password, token = str(user) or "", str(password) or "", str(token) or ""
+        user = "" if user is None else str(user)
+        password = "" if password is None else str(password)
+        token = "" if token is None else str(token)
 
         # 1st Priority: connection from params
         if with_config(config):
