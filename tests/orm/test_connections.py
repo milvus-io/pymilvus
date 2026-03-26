@@ -139,6 +139,39 @@ class TestConnect:
         assert addr1 == addr2
 
 
+class TestConnectNoneCredentials:
+    """Passing None for user/password/token should not produce 'None' string."""
+
+    def test_connect_with_none_user(self, mock_grpc_connect, mock_grpc_close):
+        alias = "none_user_test"
+        connections.remove_connection(alias)
+        connections.connect(
+            alias,
+            uri="http://localhost:19530",
+            user=None,
+            password="testpass",
+            keep_alive=False,
+        )
+        addr = connections.get_connection_addr(alias)
+        assert addr.get("user", "") != "None"
+        assert addr.get("user", "") == ""
+
+    def test_connect_with_none_token(self, mock_grpc_connect, mock_grpc_close):
+        alias = "none_token_test"
+        connections.remove_connection(alias)
+        connections.connect(
+            alias,
+            uri="http://localhost:19530",
+            user="testuser",
+            password="testpass",
+            token=None,
+            keep_alive=False,
+        )
+        # Verify user is correct and not "None"
+        addr = connections.get_connection_addr(alias)
+        assert addr.get("user", "") == "testuser"
+
+
 class TestAddConnection:
     @pytest.mark.parametrize(
         "host_port",
