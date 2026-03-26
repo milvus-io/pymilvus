@@ -53,7 +53,7 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
-        python -m pip install "setuptools_scm[toml]>=6.2,<9" --user
+        python -m pip install setuptools_scm --user
         VERSION=$(python -c "import _version_helper; print(_version_helper.version)")
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
