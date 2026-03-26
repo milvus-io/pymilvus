@@ -1223,7 +1223,12 @@ class GrpcHandler:
             collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
         )
 
-        if not kwargs.get("schema") and data and isinstance(data[0], bytes):
+        if (
+            not kwargs.get("schema")
+            and data is not None
+            and len(data) > 0
+            and isinstance(data[0], bytes)
+        ):
             schema_dict, _ = self._get_schema(
                 collection_name, timeout=timeout, context=context, **kwargs
             )
@@ -1279,7 +1284,7 @@ class GrpcHandler:
         _cached_schema = kwargs.get("schema")
         if not _cached_schema:
             for req in reqs:
-                if req.data and isinstance(req.data[0], bytes):
+                if req.data is not None and len(req.data) > 0 and isinstance(req.data[0], bytes):
                     _cached_schema, _ = self._get_schema(
                         collection_name, timeout=timeout, context=context, **kwargs
                     )
