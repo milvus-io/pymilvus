@@ -243,6 +243,26 @@ class GrpcHandler:
             self._channel.close()
         self._channel = None
 
+    def reconnect(self, address: Optional[str] = None, timeout: float = 10):
+        """Reset the gRPC channel, reconnecting to the same or a new address.
+
+        Preserves the handler object identity so that all existing references
+        (MilvusClient._handler, in-flight retry loops) continue to work.
+
+        Args:
+            address: Optional new address to connect to.
+            timeout: Connection timeout in seconds.
+        """
+        try:
+            self.close()
+        except Exception:
+            # Ensure channel is cleared even if close() fails
+            self._channel = None
+        if address:
+            self._address = address
+        self._setup_grpc_channel()
+        self._wait_for_channel_ready(timeout=timeout)
+
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
 
