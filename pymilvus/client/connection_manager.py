@@ -189,6 +189,7 @@ class ManagedConnection:
     created_at: float = field(default_factory=time.time)
     last_used_at: float = field(default_factory=time.time)
     clients: weakref.WeakSet = field(default_factory=weakref.WeakSet)
+    recovery_gen: int = 0
 
     def touch(self) -> None:
         """Update last_used_at to current time."""
@@ -248,6 +249,20 @@ class ConnectionStrategy(ABC):
         Args:
             managed: The managed connection to close
         """
+
+    def get_recovery_address(self, managed: ManagedConnection) -> Optional[str]:
+        """Get address for in-place reconnection during recovery.
+
+        Returns None to keep the current address (default for regular connections).
+        Global strategies override this to return the new primary's address.
+
+        Args:
+            managed: The managed connection being recovered
+
+        Returns:
+            New address string, or None to keep current address
+        """
+        return None
 
     async def close_async(self, managed: ManagedConnection) -> None:
         """Close resources for a managed connection (async).
@@ -359,6 +374,17 @@ class _GlobalStrategyMixin:
         """Get current topology (thread-safe)."""
         with self._lock:
             return self._topology
+
+    def get_recovery_address(self, managed: ManagedConnection) -> Optional[str]:
+        """Return the current primary's address for in-place reconnection."""
+        topology = self.get_topology()
+        if topology and topology.primary:
+            parsed = urlparse(topology.primary.endpoint)
+            host = parsed.hostname or "localhost"
+            port = parsed.port or DEFAULT_PORT
+            return f"{host}:{port}"
+        logger.warning("Global strategy has no topology; reconnecting to current address")
+        return None
 
     def _stop_refresher(self) -> None:
         """Stop the background topology refresher."""
@@ -627,35 +653,20 @@ class ConnectionManager:
             return True
 
     def _recover(self, managed: ManagedConnection) -> None:
-        """Recover a connection by creating new handler.
+        """Recover a connection by resetting the channel in-place.
 
-        Uses strategy.close() instead of handler.close() so that strategy-owned
-        resources (e.g. GlobalStrategy's TopologyRefresher) are also cleaned up.
+        Reuses the existing handler object (closing and recreating its gRPC
+        channel) so that all existing references — MilvusClient._handler and
+        in-flight retry loops — continue to work with the new channel.
 
         Args:
             managed: Connection to recover
         """
         try:
-            old_handler_id = id(managed.handler)
-
-            # Close old handler and strategy resources (e.g. TopologyRefresher)
-            with contextlib.suppress(Exception):
-                managed.strategy.close(managed)
-
-            # Create new handler via strategy
-            new_handler = managed.strategy.create_handler(managed.config)
-            self._register_error_callback(new_handler)
-            new_handler._wait_for_channel_ready()
-
-            # Update managed connection
-            managed.handler = new_handler
+            new_address = managed.strategy.get_recovery_address(managed)
+            managed.handler.reconnect(address=new_address)
+            managed.recovery_gen += 1
             managed.touch()
-
-            # Update dedicated registry key if this is a dedicated connection
-            if old_handler_id in self._dedicated:
-                self._dedicated.pop(old_handler_id)
-                self._dedicated[id(new_handler)] = managed
-
         except Exception:
             logger.warning("Connection recovery failed", exc_info=True)
             raise
@@ -696,15 +707,16 @@ class ConnectionManager:
             managed = self._get_managed(handler)
             if managed is None:
                 return False
+            saved_gen = managed.recovery_gen
 
         # Run strategy decision outside lock (may do network I/O)
         should_recover = managed.strategy.on_unavailable(managed)
 
         if should_recover:
             with self._lock:
-                # Re-verify the handler is still the current one; another
-                # thread may have already recovered this connection.
-                if managed.handler is not handler:
+                # Re-verify no other thread has already recovered this
+                # connection while we were outside the lock.
+                if managed.recovery_gen != saved_gen:
                     return True
                 self._recover(managed)
 
@@ -923,11 +935,11 @@ class AsyncConnectionManager:
         AsyncConnectionManager.handle_error() which returns True if the error
         was handled and the caller should retry.
 
-        The closure captures ``handler`` by reference. After recovery, the old
-        handler's closure still points to the old handler object, so
-        ``_get_managed(old_handler)`` returns None (the registry now holds the
-        new handler). This intentionally prevents double recovery when multiple
-        in-flight RPCs fail on the same old handler.
+        The closure captures ``handler`` by reference. Recovery reconnects the
+        handler in-place (same object, new channel), so the closure remains
+        valid and ``_get_managed(handler)`` continues to find the connection.
+        Double recovery is prevented by the ``recovery_gen`` counter checked
+        in ``handle_error()``.
         """
 
         async def _on_rpc_error(error: Exception) -> bool:
@@ -1085,6 +1097,8 @@ class AsyncConnectionManager:
 
             # Run sync on_unavailable in executor to avoid blocking the
             # event loop (GlobalStrategy.on_unavailable does network I/O).
+            # Unlike the sync path, the lock is held throughout, so no
+            # concurrent recovery can happen — no recovery_gen guard needed.
             loop = asyncio.get_running_loop()
             should_recover = await loop.run_in_executor(
                 None, managed.strategy.on_unavailable, managed
@@ -1095,36 +1109,20 @@ class AsyncConnectionManager:
         return should_recover
 
     async def _recover(self, managed: ManagedConnection) -> None:
-        """Recover an async connection by creating new handler.
+        """Recover an async connection by resetting the channel in-place.
 
-        Uses strategy.close_async() to properly clean up old handler and strategy
-        resources (e.g. TopologyRefresher). Awaits ensure_channel_ready() on the
-        new handler so it's fully ready before being stored.
+        Reuses the existing handler object (closing and recreating its gRPC
+        channel) so that all existing references — AsyncMilvusClient._handler
+        and in-flight retry loops — continue to work with the new channel.
 
         Args:
             managed: Connection to recover
         """
         try:
-            old_handler_id = id(managed.handler)
-
-            # Close old handler and strategy resources (e.g. TopologyRefresher)
-            with contextlib.suppress(Exception):
-                await managed.strategy.close_async(managed)
-
-            # Create new handler via strategy (sync - creates handler object)
-            new_handler = managed.strategy.create_handler(managed.config)
-            self._register_error_callback(new_handler)
-            await new_handler.ensure_channel_ready()
-
-            # Update managed connection
-            managed.handler = new_handler
+            new_address = managed.strategy.get_recovery_address(managed)
+            await managed.handler.reconnect(address=new_address)
+            managed.recovery_gen += 1
             managed.touch()
-
-            # Update dedicated registry key if this is a dedicated connection
-            if old_handler_id in self._dedicated:
-                self._dedicated.pop(old_handler_id)
-                self._dedicated[id(new_handler)] = managed
-
         except Exception:
             logger.warning("Async connection recovery failed", exc_info=True)
             raise
