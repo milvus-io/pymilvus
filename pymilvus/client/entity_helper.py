@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 CHECK_STR_ARRAY = True
 
 
+def _get_dim(field_info: Dict) -> int:
+    """Extract vector dimension from field info, handling both int and str values."""
+    dim = field_info.get("params", {}).get("dim", 0)
+    return int(dim) if isinstance(dim, str) else dim
+
+
 def _is_type_in_str(v: Any, t: Any):
     if not isinstance(v, str):
         return False
@@ -331,10 +337,7 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     field_data = schema_types.VectorField()
     element_type = field_info.get("element_type", None)
 
-    dim_value = field_info.get("params", {}).get("dim", 0)
-    if isinstance(dim_value, str):
-        dim_value = int(dim_value)
-    field_data.dim = dim_value
+    field_data.dim = _get_dim(field_info)
 
     if element_type == DataType.FLOAT_VECTOR:
         if not obj:
@@ -473,7 +476,7 @@ def pack_field_value_to_field_data(
         try:
             if field_value is None:
                 if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                    field_data.vectors.dim = _get_dim(field_info)
             else:
                 f_value = field_value
                 if isinstance(field_value, np.ndarray):
@@ -495,7 +498,7 @@ def pack_field_value_to_field_data(
         try:
             if field_value is None:
                 if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                    field_data.vectors.dim = _get_dim(field_info)
             else:
                 field_data.vectors.dim = len(field_value) * 8
                 b_bytes = bytes(field_value)
@@ -514,7 +517,7 @@ def pack_field_value_to_field_data(
         try:
             if field_value is None:
                 if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                    field_data.vectors.dim = _get_dim(field_info)
             else:
                 if isinstance(field_value, bytes):
                     v_bytes = field_value
@@ -545,7 +548,7 @@ def pack_field_value_to_field_data(
         try:
             if field_value is None:
                 if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                    field_data.vectors.dim = _get_dim(field_info)
             else:
                 if isinstance(field_value, bytes):
                     v_bytes = field_value
@@ -597,7 +600,7 @@ def pack_field_value_to_field_data(
         try:
             if field_value is None:
                 if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                    field_data.vectors.dim = _get_dim(field_info)
             else:
                 if isinstance(field_value, np.ndarray):
                     if field_value.dtype != "int8":
@@ -713,26 +716,26 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0])
             else:
-                field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                field_data.vectors.dim = _get_dim(field_info)
             all_floats = [f for vector in entity_values for f in vector]
             field_data.vectors.float_vector.data.extend(all_floats)
         elif entity_type == DataType.BINARY_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0]) * 8
             else:
-                field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                field_data.vectors.dim = _get_dim(field_info)
             field_data.vectors.binary_vector = b"".join(entity_values)
         elif entity_type == DataType.FLOAT16_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0]) // 2
             else:
-                field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                field_data.vectors.dim = _get_dim(field_info)
             field_data.vectors.float16_vector = b"".join(entity_values)
         elif entity_type == DataType.BFLOAT16_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0]) // 2
             else:
-                field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                field_data.vectors.dim = _get_dim(field_info)
             field_data.vectors.bfloat16_vector = b"".join(entity_values)
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
             entity_len = (
@@ -746,7 +749,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0])
             else:
-                field_data.vectors.dim = field_info.get("params", {}).get("dim", 0)
+                field_data.vectors.dim = _get_dim(field_info)
             field_data.vectors.int8_vector = b"".join(entity_values)
 
         elif entity_type in (DataType.VARCHAR, DataType.TIMESTAMPTZ):
