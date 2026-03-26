@@ -4,7 +4,7 @@ requires = [
   "setuptools <= 75.3.2; python_version == '3.8'",
   "wheel",
   "gitpython",
-  "setuptools_scm[toml]>=6.2,<9",
+  "setuptools_scm[toml]>=6.2",
 ]
 build-backend = "setuptools.build_meta"
 
