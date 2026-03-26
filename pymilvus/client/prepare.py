@@ -8,7 +8,6 @@ import numpy as np
 import orjson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
-from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
@@ -2593,12 +2592,12 @@ class Prepare:
             raise ParamError(message=msg)
 
         # Build ReplicateConfiguration from simplified parameters
-        replicate_configuration = common_pb2.ReplicateConfiguration()
+        replicate_configuration = common_types.ReplicateConfiguration()
 
         # Add clusters
         if clusters is not None:
             for cluster_config in clusters:
-                cluster = common_pb2.MilvusCluster()
+                cluster = common_types.MilvusCluster()
 
                 if "cluster_id" not in cluster_config:
                     msg = "cluster_id is required for each cluster"
@@ -2624,7 +2623,7 @@ class Prepare:
         # Add cross-cluster topology
         if cross_cluster_topology is not None:
             for topology_config in cross_cluster_topology:
-                topology = common_pb2.CrossClusterTopology()
+                topology = common_types.CrossClusterTopology()
 
                 if "source_cluster_id" not in topology_config:
                     msg = "source_cluster_id is required for each topology"
