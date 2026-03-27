@@ -263,8 +263,6 @@ class AsyncGrpcHandler:
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
-        except Exception as e:
-            raise e from e
 
     @retry_on_rpc_failure()
     async def create_collection(
@@ -615,7 +613,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        schema = kwargs.get("schema")
         schema, schema_timestamp = await self._get_schema(
             collection_name, timeout=timeout, context=context, **kwargs
         )
@@ -764,30 +761,26 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        try:
-            req = Prepare.delete_request(
-                collection_name=collection_name,
-                filter=expression,
-                partition_name=partition_name,
-                consistency_level=kwargs.pop("consistency_level", 0),
-                **kwargs,
-            )
+        req = Prepare.delete_request(
+            collection_name=collection_name,
+            filter=expression,
+            partition_name=partition_name,
+            consistency_level=kwargs.pop("consistency_level", 0),
+            **kwargs,
+        )
 
-            response = await self._async_stub.Delete(
-                req, timeout=timeout, metadata=_api_level_md(context)
-            )
+        response = await self._async_stub.Delete(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
 
-            m = MutationResult(response)
-            ts_utils.update_collection_ts(
-                collection_name,
-                m.timestamp,
-                self.server_address,
-                (context.get_db_name() if context else ""),
-            )
-        except Exception as err:
-            raise err from err
-        else:
-            return m
+        m = MutationResult(response)
+        ts_utils.update_collection_ts(
+            collection_name,
+            m.timestamp,
+            self.server_address,
+            (context.get_db_name() if context else ""),
+        )
+        return m
 
     async def _prepare_batch_upsert_request(
         self,
