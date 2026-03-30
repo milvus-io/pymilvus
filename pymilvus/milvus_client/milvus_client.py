@@ -340,6 +340,7 @@ class MilvusClient(BaseMilvusClient):
         reqs: List[AnnSearchRequest],
         ranker: Union[BaseRanker, Function],
         limit: int = 10,
+        filter: str = "",
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
@@ -352,6 +353,8 @@ class MilvusClient(BaseMilvusClient):
             reqs (``List[AnnSearchRequest]``): The vector search requests.
             ranker (``Union[BaseRanker, Function]``): The ranker.
             limit (``int``): The max number of returned record, also known as `topk`.
+            filter (``str``, optional): A scalar filtering expression to apply to all
+                sub-requests that do not have their own expr set.
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
             output_fields (``List[str]``, optional):
@@ -382,6 +385,8 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
+        if filter:
+            kwargs["filter"] = filter
 
         conn = self._get_connection()
         return conn.hybrid_search(

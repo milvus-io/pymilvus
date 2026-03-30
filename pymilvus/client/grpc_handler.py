@@ -1293,6 +1293,8 @@ class GrpcHandler:
                     )
                     break
 
+        top_level_filter = kwargs.pop("filter", None)
+
         requests = []
         for req in reqs:
             # Convert EmbeddingList to flat array if present in the request data
@@ -1305,13 +1307,16 @@ class GrpcHandler:
             if _cached_schema and not req_kwargs.get("schema"):
                 req_kwargs["schema"] = _cached_schema
 
+            # Use top-level filter when the sub-request has no expr
+            expr = req.expr if req.expr else top_level_filter
+
             search_request = Prepare.search_requests_with_expr(
                 collection_name=collection_name,
                 data=data,
                 anns_field=req.anns_field,
                 param=req.param,
                 limit=req.limit,
-                expr=req.expr,
+                expr=expr,
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,

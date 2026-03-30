@@ -120,6 +120,66 @@ class TestGrpcHandlerSearchOps:
             handler.hybrid_search("coll", [req], RRFRanker(), 10)
             handler._stub.HybridSearch.assert_called_once()
 
+    def test_hybrid_search_top_level_filter(self, handler):
+        """Test that a top-level filter kwarg is propagated to sub-requests without their own expr."""
+        mock_resp = MagicMock()
+        mock_resp.status.code = 0
+        mock_resp.status.error_code = 0
+        mock_resp.status.reason = ""
+        mock_resp.results = MagicMock()
+        mock_resp.results.top_k = 10
+        mock_resp.results.scores = []
+        mock_resp.results.ids.WhichOneof.return_value = "int_id"
+        mock_resp.results.ids.int_id.data = []
+        mock_resp.results.output_fields = []
+        mock_resp.results.fields_data = []
+        handler._stub.HybridSearch.return_value = mock_resp
+
+        req = AnnSearchRequest(
+            data=[[0.1, 0.2, 0.3, 0.4]], anns_field="vec", param={"metric_type": "L2"}, limit=10
+        )
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            handler.hybrid_search("coll", [req], RRFRanker(), 10, filter="age > 18")
+            handler._stub.HybridSearch.assert_called_once()
+            # Verify the filter was set as dsl on the sub-request
+            call_args = handler._stub.HybridSearch.call_args
+            hybrid_req = call_args[0][0]
+            assert hybrid_req.requests[0].dsl == "age > 18"
+
+    def test_hybrid_search_top_level_filter_no_override(self, handler):
+        """Test that a top-level filter does NOT override a sub-request's own expr."""
+        mock_resp = MagicMock()
+        mock_resp.status.code = 0
+        mock_resp.status.error_code = 0
+        mock_resp.status.reason = ""
+        mock_resp.results = MagicMock()
+        mock_resp.results.top_k = 10
+        mock_resp.results.scores = []
+        mock_resp.results.ids.WhichOneof.return_value = "int_id"
+        mock_resp.results.ids.int_id.data = []
+        mock_resp.results.output_fields = []
+        mock_resp.results.fields_data = []
+        handler._stub.HybridSearch.return_value = mock_resp
+
+        req = AnnSearchRequest(
+            data=[[0.1, 0.2, 0.3, 0.4]],
+            anns_field="vec",
+            param={"metric_type": "L2"},
+            limit=10,
+            expr="status == 'active'",
+        )
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            handler.hybrid_search("coll", [req], RRFRanker(), 10, filter="age > 18")
+            handler._stub.HybridSearch.assert_called_once()
+            # Sub-request's own expr should take precedence
+            call_args = handler._stub.HybridSearch.call_args
+            hybrid_req = call_args[0][0]
+            assert hybrid_req.requests[0].dsl == "status == 'active'"
+
     def test_hybrid_search_async(self, handler):
         mock_future = MagicMock()
         handler._stub.HybridSearch.future.return_value = mock_future

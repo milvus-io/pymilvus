@@ -523,11 +523,15 @@ class AsyncMilvusClient(BaseMilvusClient):
         reqs: List[AnnSearchRequest],
         ranker: Union[BaseRanker, Function],
         limit: int = 10,
+        filter: str = "",
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
         **kwargs,
     ) -> List[List[dict]]:
+        if filter:
+            kwargs["filter"] = filter
+
         conn = await self._get_connection()
         return await conn.hybrid_search(
             collection_name,
