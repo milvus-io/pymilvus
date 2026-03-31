@@ -116,7 +116,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
             msg = f"port number {port} out of range, valid range [0, 65535)"
             raise ConnectionConfigException(message=msg)
 
-    def __parse_address_from_uri(self, uri: str) -> (str, parse.ParseResult):
+    def __parse_address_from_uri(self, uri: str) -> Tuple[str, parse.ParseResult]:
         illegal_uri_msg = (
             "Illegal uri: [{}], expected form 'http[s]://[user:password@]example.com[:12345]'"
         )
@@ -200,7 +200,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         uri: str = "",
         host: str = "",
         port: str = "",
-    ) -> (str, parse.ParseResult):
+    ) -> Tuple[str, parse.ParseResult]:
         if address != "":
             if not is_legal_address(address):
                 raise ConnectionConfigException(
@@ -386,9 +386,9 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
                     if kwargs.pop("keep_alive", False):
                         gh.register_reconnect_handler(ReconnectHandler(self, alias, kwargs_copy))
-                except Exception as e:
+                except Exception:
                     self.remove_connection(alias)
-                    raise e from e
+                    raise
 
         def with_config(config: Tuple) -> bool:
             return any(c != "" for c in config)
