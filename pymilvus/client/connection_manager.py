@@ -133,9 +133,10 @@ class ConnectionConfig:
                 f"or a local file endswith [.db]"
             )
 
-        # Extract host:port
+        # Extract host:port (default port depends on scheme)
         host = parsed.hostname or "localhost"
-        port = parsed.port or DEFAULT_PORT
+        default_port = 443 if parsed.scheme == "https" else DEFAULT_PORT
+        port = parsed.port or default_port
         address = f"{host}:{port}"
 
         # Extract token from credentials if present

@@ -154,12 +154,26 @@ class TestConnectionConfig:
                 None,
                 {"address": "host:19530", "token": "user:pass", "db_name": "mydb"},
             ),
-            # Default port
+            # Default port — http → 19530
             (
                 "http://localhost",
                 None,
                 None,
                 {"address": "localhost:19530", "token": "", "db_name": ""},
+            ),
+            # Default port — https → 443
+            (
+                "https://host.example.com",
+                None,
+                None,
+                {"address": "host.example.com:443", "token": "", "db_name": ""},
+            ),
+            # Explicit port preserved on https
+            (
+                "https://host.example.com:8443",
+                None,
+                None,
+                {"address": "host.example.com:8443", "token": "", "db_name": ""},
             ),
             # Explicit params override URI
             (
