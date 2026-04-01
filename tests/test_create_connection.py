@@ -39,9 +39,12 @@ class TestCreateConnectionSyncAlias:
     def test_user_included_in_alias(self):
         with patch("pymilvus.milvus_client._utils.connections") as mock_conns:
             mock_conns.has_connection.return_value = True
-            result = create_connection("http://localhost:19530", user="alice")
-            assert "alice" in result
+            result = create_connection("http://localhost:19530", user="alice", password="pass")
             assert "http://localhost:19530" in result
+            # alias now contains md5 hash of "alice:pass", not raw username
+            md5 = hashlib.new("md5", usedforsecurity=False)
+            md5.update(b"alice:pass")
+            assert md5.hexdigest() in result
 
     def test_token_md5_included_in_alias(self):
         with patch("pymilvus.milvus_client._utils.connections") as mock_conns:
@@ -56,8 +59,18 @@ class TestCreateConnectionSyncAlias:
     def test_user_takes_priority_over_token(self):
         with patch("pymilvus.milvus_client._utils.connections") as mock_conns:
             mock_conns.has_connection.return_value = True
-            result = create_connection("http://localhost:19530", user="bob", token="tok")
-            assert "bob" in result
+            result = create_connection("http://localhost:19530", user="bob", password="pw", token="tok")
+            # Should use md5 of "bob:pw", not token hash
+            md5 = hashlib.new("md5", usedforsecurity=False)
+            md5.update(b"bob:pw")
+            assert md5.hexdigest() in result
+
+    def test_different_passwords_produce_different_aliases(self):
+        with patch("pymilvus.milvus_client._utils.connections") as mock_conns:
+            mock_conns.has_connection.return_value = True
+            result1 = create_connection("http://localhost:19530", user="alice", password="pass1")
+            result2 = create_connection("http://localhost:19530", user="alice", password="pass2")
+            assert result1 != result2
 
     def test_no_async_prefix_in_sync_mode(self):
         with patch("pymilvus.milvus_client._utils.connections") as mock_conns:

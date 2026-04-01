@@ -29,7 +29,9 @@ def create_connection(
 
         auth_fmt = ""
         if user:
-            auth_fmt = f"{user}"
+            md5 = hashlib.new("md5", usedforsecurity=False)
+            md5.update(f"{user}:{password}".encode())
+            auth_fmt = md5.hexdigest()
         elif token:
             md5 = hashlib.new("md5", usedforsecurity=False)
             md5.update(token.encode())
