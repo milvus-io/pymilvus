@@ -134,3 +134,10 @@ class TestGrpcHandlerConnectionMgmt:
         handler._channel = None
         with pytest.raises(MilvusException):
             handler._wait_for_channel_ready()
+
+    def test_wait_for_channel_ready_generic_exception(self):
+        handler = GrpcHandler(channel=MagicMock())
+        with patch("pymilvus.client.grpc_handler.grpc.channel_ready_future") as mock_ready:
+            mock_ready.return_value.result.side_effect = RuntimeError("unexpected error")
+            with pytest.raises(RuntimeError, match="unexpected error"):
+                handler._wait_for_channel_ready(timeout=1.0)
