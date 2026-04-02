@@ -85,8 +85,6 @@ class Future(AbstractFuture):
         **kwargs,
     ) -> None:
         self._future = future
-        # keep compatible (such as Future(future, done_callback)), deprecated later
-        self._done_cb = done_callback
         self._done_cb_list = []
         self.add_callback(done_callback)
         self._condition = threading.Condition()
@@ -217,7 +215,6 @@ class CreateFlatIndexFuture(AbstractFuture):
         pre_exception: Optional[Callable] = None,
     ) -> None:
         self._results = res
-        self._done_cb = done_callback
         self._done_cb_list = []
         self.add_callback(done_callback)
         self._condition = threading.Condition()
@@ -265,15 +262,5 @@ class CreateFlatIndexFuture(AbstractFuture):
 
 
 class FlushFuture(Future):
-    def on_response(self, response: Any):
-        check_status(response.status)
-
-
-class LoadCollectionFuture(Future):
-    def on_response(self, response: Any):
-        check_status(response.status)
-
-
-class LoadPartitionsFuture(Future):
     def on_response(self, response: Any):
         check_status(response.status)
