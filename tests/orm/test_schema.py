@@ -1871,3 +1871,122 @@ class TestMarkOutputFields:
         # vec should NOT be marked as output
         vec_field = next(f for f in schema.fields if f.name == "vec")
         assert vec_field.is_function_output is False
+
+
+class TestExternalCollectionSchema:
+    """Tests for external collection schema fields."""
+
+    def test_collection_schema_external_fields(self):
+        schema = CollectionSchema(
+            [FieldSchema("pk", DataType.INT64, is_primary=True)],
+            external_source="s3://bucket/path",
+            external_spec='{"format": "iceberg"}',
+        )
+        assert schema.external_source == "s3://bucket/path"
+        assert schema.external_spec == '{"format": "iceberg"}'
+
+    def test_collection_schema_external_defaults(self):
+        schema = CollectionSchema(
+            [FieldSchema("pk", DataType.INT64, is_primary=True)],
+        )
+        assert schema.external_source == ""
+        assert schema.external_spec == ""
+
+    def test_collection_schema_external_setters(self):
+        schema = CollectionSchema(
+            [FieldSchema("pk", DataType.INT64, is_primary=True)],
+        )
+        schema.external_source = "s3://new"
+        schema.external_spec = '{"x": 1}'
+        assert schema.external_source == "s3://new"
+        assert schema.external_spec == '{"x": 1}'
+
+    def test_collection_schema_to_dict_with_external(self):
+        schema = CollectionSchema(
+            [FieldSchema("pk", DataType.INT64, is_primary=True)],
+            external_source="s3://bucket",
+            external_spec='{"format": "iceberg"}',
+        )
+        d = schema.to_dict()
+        assert d["external_source"] == "s3://bucket"
+        assert d["external_spec"] == '{"format": "iceberg"}'
+
+    def test_collection_schema_to_dict_without_external(self):
+        schema = CollectionSchema(
+            [FieldSchema("pk", DataType.INT64, is_primary=True)],
+        )
+        d = schema.to_dict()
+        assert "external_source" not in d
+        assert "external_spec" not in d
+
+    def test_collection_schema_construct_from_dict_with_external(self):
+        raw = {
+            "fields": [{"name": "pk", "type": DataType.INT64, "is_primary": True}],
+            "external_source": "s3://bucket",
+            "external_spec": '{"format": "iceberg"}',
+            "enable_dynamic_field": False,
+        }
+        schema = CollectionSchema.construct_from_dict(raw)
+        assert schema.external_source == "s3://bucket"
+        assert schema.external_spec == '{"format": "iceberg"}'
+
+    def test_collection_schema_construct_from_dict_without_external(self):
+        raw = {
+            "fields": [{"name": "pk", "type": DataType.INT64, "is_primary": True}],
+            "enable_dynamic_field": False,
+        }
+        schema = CollectionSchema.construct_from_dict(raw)
+        assert schema.external_source == ""
+        assert schema.external_spec == ""
+
+    def test_field_schema_external_field(self):
+        f = FieldSchema("col", DataType.VARCHAR, max_length=512, external_field="ext_col")
+        assert f.external_field == "ext_col"
+
+    def test_field_schema_external_field_default(self):
+        f = FieldSchema("col", DataType.VARCHAR, max_length=512)
+        assert f.external_field == ""
+
+    def test_field_schema_to_dict_with_external_field(self):
+        f = FieldSchema("col", DataType.VARCHAR, max_length=512, external_field="ext_col")
+        d = f.to_dict()
+        assert d["external_field"] == "ext_col"
+
+    def test_field_schema_to_dict_without_external_field(self):
+        f = FieldSchema("col", DataType.VARCHAR, max_length=512)
+        d = f.to_dict()
+        assert "external_field" not in d
+
+    def test_field_schema_construct_from_dict_with_external(self):
+        raw = {
+            "name": "col",
+            "type": DataType.VARCHAR,
+            "params": {"max_length": 512},
+            "external_field": "ext_col",
+        }
+        f = FieldSchema.construct_from_dict(raw)
+        assert f.external_field == "ext_col"
+
+    def test_field_schema_construct_from_dict_without_external(self):
+        raw = {"name": "col", "type": DataType.VARCHAR, "params": {"max_length": 512}}
+        f = FieldSchema.construct_from_dict(raw)
+        assert f.external_field == ""
+
+    def test_collection_schema_roundtrip(self):
+        """Full round-trip: create → to_dict → construct_from_dict → verify."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True, external_field="row_id"),
+                FieldSchema("text", DataType.VARCHAR, max_length=512, external_field="content"),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=768),
+            ],
+            external_source="s3://bucket/path",
+            external_spec='{"format": "iceberg"}',
+        )
+        d = schema.to_dict()
+        restored = CollectionSchema.construct_from_dict(d)
+        assert restored.external_source == "s3://bucket/path"
+        assert restored.external_spec == '{"format": "iceberg"}'
+        assert restored.fields[0].external_field == "row_id"
+        assert restored.fields[1].external_field == "content"
+        assert restored.fields[2].external_field == ""

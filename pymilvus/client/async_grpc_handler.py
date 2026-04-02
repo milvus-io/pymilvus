@@ -52,6 +52,7 @@ from .types import (
     HybridExtraList,
     IndexState,
     LoadState,
+    RefreshExternalCollectionJobInfo,
     ReplicaInfo,
     RestoreSnapshotJobInfo,
     Shard,
@@ -59,6 +60,7 @@ from .types import (
     State,
     Status,
     get_extra_info,
+    parse_refresh_job_info,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -2657,3 +2659,59 @@ class AsyncGrpcHandler:
         )
         check_status(resp.status)
         return [FileResourceInfo(info) for info in resp.resources]
+
+    @retry_on_rpc_failure()
+    async def refresh_external_collection(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> int:
+        await self.ensure_channel_ready()
+        request = Prepare.refresh_external_collection_request(
+            collection_name=collection_name,
+            db_name=kwargs.get("db_name", ""),
+            external_source=kwargs.get("external_source", ""),
+            external_spec=kwargs.get("external_spec", ""),
+        )
+        response = await self._async_stub.RefreshExternalCollection(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.job_id
+
+    @retry_on_rpc_failure()
+    async def get_refresh_external_collection_progress(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> RefreshExternalCollectionJobInfo:
+        await self.ensure_channel_ready()
+        request = Prepare.get_refresh_external_collection_progress_request(job_id)
+        response = await self._async_stub.GetRefreshExternalCollectionProgress(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_refresh_job_info(response.job_info)
+
+    @retry_on_rpc_failure()
+    async def list_refresh_external_collection_jobs(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[RefreshExternalCollectionJobInfo]:
+        await self.ensure_channel_ready()
+        request = Prepare.list_refresh_external_collection_jobs_request(
+            db_name=kwargs.get("db_name", ""),
+            collection_name=collection_name,
+        )
+        response = await self._async_stub.ListRefreshExternalCollectionJobs(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return [parse_refresh_job_info(job) for job in response.jobs]

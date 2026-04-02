@@ -10,6 +10,7 @@ from pymilvus.client.types import (
     ExceptionsMessage,
     LoadState,
     OmitZeroDict,
+    RefreshExternalCollectionJobInfo,
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     RoleInfo,
@@ -2182,6 +2183,81 @@ class AsyncMilvusClient(BaseMilvusClient):
     ):
         conn = await self._get_connection()
         return await conn.list_file_resources(
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def refresh_external_collection(
+        self,
+        collection_name: str,
+        external_source: str = "",
+        external_spec: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> int:
+        """Trigger a data refresh for an external collection (async).
+
+        Args:
+            collection_name: The external collection to refresh.
+            external_source: Optional new external data source path.
+            external_spec: Optional new external spec configuration.
+            timeout: RPC timeout in seconds.
+
+        Returns:
+            int: A job_id for tracking the refresh progress.
+        """
+        conn = await self._get_connection()
+        return await conn.refresh_external_collection(
+            collection_name=collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            external_source=external_source,
+            external_spec=external_spec,
+            **kwargs,
+        )
+
+    async def get_refresh_external_collection_progress(
+        self,
+        job_id: int,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> RefreshExternalCollectionJobInfo:
+        """Get the progress of an external collection refresh job (async).
+
+        Args:
+            job_id: The job ID returned by refresh_external_collection().
+            timeout: RPC timeout in seconds.
+
+        Returns:
+            RefreshExternalCollectionJobInfo with job details.
+        """
+        conn = await self._get_connection()
+        return await conn.get_refresh_external_collection_progress(
+            job_id=job_id,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def list_refresh_external_collection_jobs(
+        self,
+        collection_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List:
+        """List external collection refresh jobs (async).
+
+        Args:
+            collection_name: Optional filter by collection name. Empty lists all.
+            timeout: RPC timeout in seconds.
+
+        Returns:
+            List of RefreshExternalCollectionJobInfo.
+        """
+        conn = await self._get_connection()
+        return await conn.list_refresh_external_collection_jobs(
+            collection_name=collection_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,

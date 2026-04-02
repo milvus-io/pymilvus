@@ -105,6 +105,8 @@ class CollectionSchema:
         # if "enable_dynamic_field" is not in kwargs, we keep None here
         self._enable_dynamic_field = self._kwargs.get("enable_dynamic_field", None)
         self._enable_namespace = self._kwargs.get("enable_namespace", None)
+        self._external_source = self._kwargs.get("external_source", "")
+        self._external_spec = self._kwargs.get("external_spec", "")
         self._primary_field = None
         self._partition_key_field = None
         self._clustering_key_field = None
@@ -290,6 +292,8 @@ class CollectionSchema:
             functions=functions,
             enable_dynamic_field=enable_dynamic_field,
             enable_namespace=enable_namespace,
+            external_source=raw.get("external_source", ""),
+            external_spec=raw.get("external_spec", ""),
         )
 
     @property
@@ -389,6 +393,22 @@ class CollectionSchema:
     def enable_namespace(self, value: bool):
         self._enable_namespace = bool(value)
 
+    @property
+    def external_source(self) -> str:
+        return self._external_source
+
+    @external_source.setter
+    def external_source(self, value: str):
+        self._external_source = str(value)
+
+    @property
+    def external_spec(self) -> str:
+        return self._external_spec
+
+    @external_spec.setter
+    def external_spec(self, value: str):
+        self._external_spec = str(value)
+
     def to_dict(self):
         res = {
             "auto_id": self.auto_id,
@@ -397,6 +417,10 @@ class CollectionSchema:
             "enable_dynamic_field": self.enable_dynamic_field,
             "enable_namespace": self.enable_namespace,
         }
+        if self._external_source:
+            res["external_source"] = self._external_source
+        if self._external_spec:
+            res["external_spec"] = self._external_spec
         if self._functions is not None and len(self._functions) > 0:
             res["functions"] = [s.to_dict() for s in self._functions]
         if self._struct_fields is not None and len(self._struct_fields) > 0:
@@ -501,6 +525,7 @@ class FieldSchema:
 
         self._parse_type_params()
         self.is_function_output = False
+        self.external_field = kwargs.get("external_field", "")
 
     def __repr__(self) -> str:
         return str(self.to_dict())
@@ -554,6 +579,8 @@ class FieldSchema:
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["nullable"] = raw.get("nullable", False)
         kwargs["element_type"] = raw.get("element_type")
+        if raw.get("external_field"):
+            kwargs["external_field"] = raw["external_field"]
         is_function_output = raw.get("is_function_output", False)
         fs = FieldSchema(raw["name"], raw["type"], raw.get("description", ""), **kwargs)
         fs.is_function_output = is_function_output
@@ -588,6 +615,8 @@ class FieldSchema:
             _dict["is_clustering_key"] = True
         if self.is_function_output:
             _dict["is_function_output"] = True
+        if self.external_field:
+            _dict["external_field"] = self.external_field
         return _dict
 
     def __getattr__(self, item: str):

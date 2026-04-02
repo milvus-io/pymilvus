@@ -171,6 +171,8 @@ class Prepare:
             description=coll_description,
             enable_dynamic_field=fields.enable_dynamic_field,
             enable_namespace=fields.enable_namespace,
+            external_source=fields.external_source,
+            external_spec=fields.external_spec,
         )
         for f in fields.fields:
             field_schema = schema_types.FieldSchema(
@@ -186,6 +188,7 @@ class Prepare:
                 element_type=f.element_type,
                 is_clustering_key=f.is_clustering_key,
                 is_function_output=f.is_function_output,
+                external_field=f.external_field,
             )
             for k, v in f.params.items():
                 kv_pair = common_types.KeyValuePair(
@@ -2737,3 +2740,38 @@ class Prepare:
     @classmethod
     def list_file_resources(cls):
         return milvus_types.ListFileResourcesRequest()
+
+    @classmethod
+    def refresh_external_collection_request(
+        cls,
+        collection_name: str,
+        db_name: str = "",
+        external_source: str = "",
+        external_spec: str = "",
+    ) -> milvus_types.RefreshExternalCollectionRequest:
+        return milvus_types.RefreshExternalCollectionRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            external_source=external_source,
+            external_spec=external_spec,
+        )
+
+    @classmethod
+    def get_refresh_external_collection_progress_request(
+        cls,
+        job_id: int,
+    ) -> milvus_types.GetRefreshExternalCollectionProgressRequest:
+        return milvus_types.GetRefreshExternalCollectionProgressRequest(
+            job_id=job_id,
+        )
+
+    @classmethod
+    def list_refresh_external_collection_jobs_request(
+        cls,
+        db_name: str = "",
+        collection_name: str = "",
+    ) -> milvus_types.ListRefreshExternalCollectionJobsRequest:
+        return milvus_types.ListRefreshExternalCollectionJobsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
