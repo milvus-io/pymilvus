@@ -855,3 +855,53 @@ class TestAsyncMilvusClientSnapshot:
         getattr(mock_handler, method_name).assert_called_once_with(**expected_handler_kwargs)
         if return_value is not None:
             assert result == return_value
+
+
+class TestAsyncFileResourceMethods:
+    """Tests for async file_resource API methods with context passing."""
+
+    @pytest.mark.asyncio
+    async def test_add_file_resource(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.add_file_resource = AsyncMock(return_value=None)
+
+        await client.add_file_resource(name="test_file", path="/data/test.csv")
+
+        mock_handler.add_file_resource.assert_called_once()
+        call_kwargs = mock_handler.add_file_resource.call_args.kwargs
+        assert call_kwargs["name"] == "test_file"
+        assert call_kwargs["path"] == "/data/test.csv"
+        assert "context" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_add_file_resource_with_timeout(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.add_file_resource = AsyncMock(return_value=None)
+
+        await client.add_file_resource(name="f", path="/p", timeout=30)
+
+        call_kwargs = mock_handler.add_file_resource.call_args.kwargs
+        assert call_kwargs["timeout"] == 30
+
+    @pytest.mark.asyncio
+    async def test_remove_file_resource(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.remove_file_resource = AsyncMock(return_value=None)
+
+        await client.remove_file_resource(name="test_file")
+
+        mock_handler.remove_file_resource.assert_called_once()
+        call_kwargs = mock_handler.remove_file_resource.call_args.kwargs
+        assert call_kwargs["name"] == "test_file"
+        assert "context" in call_kwargs
+
+    @pytest.mark.asyncio
+    async def test_list_file_resources(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.list_file_resources = AsyncMock(return_value=["file1", "file2"])
+
+        result = await client.list_file_resources()
+
+        mock_handler.list_file_resources.assert_called_once()
+        assert result == ["file1", "file2"]
+        assert "context" in mock_handler.list_file_resources.call_args.kwargs

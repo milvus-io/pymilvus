@@ -1444,3 +1444,61 @@ class TestMilvusClientInternalOps:
                 task._target_size = None
                 result = client._execute_optimize(task, "col", None, None)
                 assert result.collection_name == "col"
+
+
+class TestFileResourceMethods(TestMilvusClient):
+    """Tests for file_resource API methods with context passing."""
+
+    def test_add_file_resource(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.add_file_resource.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            client.add_file_resource(name="test_file", path="/data/test.csv")
+            mock_handler.add_file_resource.assert_called_once()
+            call_kwargs = mock_handler.add_file_resource.call_args
+            assert call_kwargs.kwargs["name"] == "test_file"
+            assert call_kwargs.kwargs["path"] == "/data/test.csv"
+            assert "context" in call_kwargs.kwargs
+
+    def test_add_file_resource_with_timeout(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.add_file_resource.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            client.add_file_resource(name="f", path="/p", timeout=30)
+            call_kwargs = mock_handler.add_file_resource.call_args
+            assert call_kwargs.kwargs["timeout"] == 30
+
+    def test_remove_file_resource(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.remove_file_resource.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            client.remove_file_resource(name="test_file")
+            mock_handler.remove_file_resource.assert_called_once()
+            call_kwargs = mock_handler.remove_file_resource.call_args
+            assert call_kwargs.kwargs["name"] == "test_file"
+            assert "context" in call_kwargs.kwargs
+
+    def test_list_file_resources(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.list_file_resources.return_value = ["file1", "file2"]
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_file_resources()
+            mock_handler.list_file_resources.assert_called_once()
+            assert result == ["file1", "file2"]
+            assert "context" in mock_handler.list_file_resources.call_args.kwargs

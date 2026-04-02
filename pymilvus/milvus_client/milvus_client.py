@@ -2867,18 +2867,36 @@ class MilvusClient(BaseMilvusClient):
         name: str,
         path: str,
         timeout: Optional[float] = None,
+        **kwargs,
     ):
-        return self._get_connection().add_file_resource(name=name, path=path, timeout=timeout)
+        return self._get_connection().add_file_resource(
+            name=name,
+            path=path,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def remove_file_resource(
         self,
         name: str,
         timeout: Optional[float] = None,
+        **kwargs,
     ):
-        return self._get_connection().remove_file_resource(name=name, timeout=timeout)
+        return self._get_connection().remove_file_resource(
+            name=name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def list_file_resources(
         self,
         timeout: Optional[float] = None,
+        **kwargs,
     ):
-        return self._get_connection().list_file_resources(timeout=timeout)
+        return self._get_connection().list_file_resources(
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )

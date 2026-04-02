@@ -2144,3 +2144,45 @@ class AsyncMilvusClient(BaseMilvusClient):
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
+
+    async def add_file_resource(
+        self,
+        name: str,
+        path: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = await self._get_connection()
+        return await conn.add_file_resource(
+            name=name,
+            path=path,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def remove_file_resource(
+        self,
+        name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = await self._get_connection()
+        return await conn.remove_file_resource(
+            name=name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def list_file_resources(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = await self._get_connection()
+        return await conn.list_file_resources(
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
