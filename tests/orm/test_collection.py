@@ -690,9 +690,7 @@ class TestConstructFromDataframe:
             Collection.construct_from_dataframe("test", df, primary_field="pk", auto_id="yes")
         connections.disconnect("default")
 
-    def test_construct_from_dataframe_timeout_kwarg(
-        self, mock_grpc_connect, mock_grpc_close
-    ):
+    def test_construct_from_dataframe_timeout_kwarg(self, mock_grpc_connect, mock_grpc_close):
         """construct_from_dataframe(timeout=...) should not raise TypeError for duplicate kwarg."""
         connections.connect(keep_alive=False)
         schema = CollectionSchema(
@@ -708,7 +706,7 @@ class TestConstructFromDataframe:
         with mock.patch(f"{GRPC_PREFIX}.has_collection", return_value=True), mock.patch(
             f"{GRPC_PREFIX}.describe_collection", return_value=schema.to_dict()
         ), mock.patch(f"{GRPC_PREFIX}.batch_insert", return_value=fake_res):
-            coll, res = Collection.construct_from_dataframe(
+            coll, _res = Collection.construct_from_dataframe(
                 "ut_cdf_timeout", df, primary_field="pk", timeout=5.0
             )
 
