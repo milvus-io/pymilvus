@@ -118,14 +118,11 @@ class Collection:
         self._kwargs = kwargs
         self._num_shards = None
         conn, context = self._get_connection(**kwargs)
+        timeout = kwargs.pop("timeout", None)
 
-        has = conn.has_collection(
-            self._name, timeout=kwargs.get("timeout"), context=context, **kwargs
-        )
+        has = conn.has_collection(self._name, timeout=timeout, context=context, **kwargs)
         if has:
-            resp = conn.describe_collection(
-                self._name, timeout=kwargs.get("timeout"), context=context, **kwargs
-            )
+            resp = conn.describe_collection(self._name, timeout=timeout, context=context, **kwargs)
             s_consistency_level = resp.get("consistency_level", DEFAULT_CONSISTENCY_LEVEL)
             arg_consistency_level = kwargs.get("consistency_level", s_consistency_level)
             if not cmp_consistency_level(s_consistency_level, arg_consistency_level):
@@ -219,10 +216,9 @@ class Collection:
         using = kwargs.get("using", Config.MILVUS_CONN_ALIAS)
         conn = _get_connection(using)
         context = connections._generate_call_context(using, **kwargs)
-        if conn.has_collection(name, timeout=kwargs.get("timeout"), context=context, **kwargs):
-            resp = conn.describe_collection(
-                name, timeout=kwargs.get("timeout"), context=context, **kwargs
-            )
+        timeout = kwargs.pop("timeout", None)
+        if conn.has_collection(name, timeout=timeout, context=context, **kwargs):
+            resp = conn.describe_collection(name, timeout=timeout, context=context, **kwargs)
             server_schema = CollectionSchema.construct_from_dict(resp)
             schema = server_schema
         else:
