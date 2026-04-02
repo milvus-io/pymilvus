@@ -59,6 +59,36 @@ class TestCollectionLifecycle:
 
         connections.disconnect("default")
 
+    def test_init_with_timeout_kwarg(self, mock_grpc_connect, mock_grpc_close, collection_schema):
+        """Collection(timeout=...) should not raise TypeError for duplicate kwarg."""
+        connections.connect(keep_alive=False)
+
+        with mock.patch(f"{GRPC_PREFIX}.create_collection", return_value=None), mock.patch(
+            f"{GRPC_PREFIX}.has_collection", return_value=False
+        ):
+            # Before the fix, this raised:
+            # TypeError: has_collection() got multiple values for keyword argument 'timeout'
+            collection = Collection(name="ut_timeout_kwarg", schema=collection_schema, timeout=10.0)
+
+        assert collection.name == "ut_timeout_kwarg"
+
+        connections.disconnect("default")
+
+    def test_init_with_timeout_kwarg_existing_collection(
+        self, mock_grpc_connect, mock_grpc_close, collection_schema
+    ):
+        """Loading an existing Collection with timeout kwarg should not raise TypeError."""
+        connections.connect(keep_alive=False)
+
+        with mock.patch(f"{GRPC_PREFIX}.has_collection", return_value=True), mock.patch(
+            f"{GRPC_PREFIX}.describe_collection", return_value=collection_schema.to_dict()
+        ):
+            collection = Collection(name="ut_timeout_existing", timeout=5.0)
+
+        assert collection.name == "ut_timeout_existing"
+
+        connections.disconnect("default")
+
 
 # ---------------------------------------------------------------------------
 # Shared fixture: a connected Collection ready for method-level tests
@@ -658,6 +688,29 @@ class TestConstructFromDataframe:
         df = pd.DataFrame({"pk": [1, 2], "vec": [[1.0] * 4, [2.0] * 4]})
         with pytest.raises(AutoIDException):
             Collection.construct_from_dataframe("test", df, primary_field="pk", auto_id="yes")
+        connections.disconnect("default")
+
+    def test_construct_from_dataframe_timeout_kwarg(self, mock_grpc_connect, mock_grpc_close):
+        """construct_from_dataframe(timeout=...) should not raise TypeError for duplicate kwarg."""
+        connections.connect(keep_alive=False)
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        df = pd.DataFrame({"pk": [1, 2], "vec": [[1.0] * 4, [2.0] * 4]})
+        fake_res = MagicMock()
+        fake_res.insert_count = 2
+
+        with mock.patch(f"{GRPC_PREFIX}.has_collection", return_value=True), mock.patch(
+            f"{GRPC_PREFIX}.describe_collection", return_value=schema.to_dict()
+        ), mock.patch(f"{GRPC_PREFIX}.batch_insert", return_value=fake_res):
+            coll, _res = Collection.construct_from_dataframe(
+                "ut_cdf_timeout", df, primary_field="pk", timeout=5.0
+            )
+
+        assert coll.name == "ut_cdf_timeout"
         connections.disconnect("default")
 
 
