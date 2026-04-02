@@ -1486,6 +1486,7 @@ class Prepare:
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
+        param["params"] = params  # ensure modifications are visible to get_params()
 
         if PAGE_RETAIN_ORDER_FIELD in kwargs and PAGE_RETAIN_ORDER_FIELD in param:
             raise ParamError(
