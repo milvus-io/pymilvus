@@ -1,6 +1,7 @@
 """Tests for search and query Prepare methods."""
 
 import numpy as np
+import orjson
 import pytest
 from pymilvus import DataType, Function, FunctionType
 from pymilvus.client.abstract import BaseRanker
@@ -88,6 +89,34 @@ class TestSearchRequestsWithExpr:
                 limit=10,
                 page_retain_order="true",
             )
+
+    def test_search_page_retain_order_kwargs_without_nested_params(self):
+        """Test page_retain_order via kwargs when param has no 'params' key.
+
+        Regression test for #2804: page_retain_order was silently dropped
+        when param dict didn't contain a nested "params" key, because the
+        local variable was written to a temporary dict not stored back in param.
+        """
+        param = {"metric_type": "L2"}
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=[[1.0, 2.0]],
+            anns_field="vector",
+            param=param,
+            limit=10,
+            page_retain_order=True,
+        )
+        # Extract the "params" value from the protobuf search_params
+        params_dict = None
+        for kv in req.search_params:
+            if kv.key == "params":
+                params_dict = orjson.loads(kv.value)
+                break
+        assert params_dict is not None, "params key missing from search_params"
+        assert (
+            "page_retain_order" in params_dict
+        ), "page_retain_order was lost when param has no nested 'params' key"
+        assert params_dict["page_retain_order"] is True
 
     def test_search_offset_both_kwargs_and_param(self, basic_search_params):
         """Test offset in both kwargs and param raises error."""
