@@ -1359,3 +1359,61 @@ class TestAsyncMilvusClientSnapshot:
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
                 collection_name="test_collection", timeout=None, context=ANY
             )
+
+
+class TestAsyncMilvusClientFileResource:
+    @pytest.mark.asyncio
+    async def test_add_file_resource(self):
+        """Test add_file_resource passes context."""
+        mock_handler = MagicMock()
+        mock_handler.ensure_channel_ready = AsyncMock()
+        with patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=mock_handler
+        ):
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.add_file_resource = AsyncMock(return_value=None)
+
+            client = AsyncMilvusClient()
+            await client._connect()
+            await client.add_file_resource("res1", "/path/to/file")
+
+            mock_handler.add_file_resource.assert_called_once_with(
+                name="res1", path="/path/to/file", timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_remove_file_resource(self):
+        """Test remove_file_resource passes context."""
+        mock_handler = MagicMock()
+        mock_handler.ensure_channel_ready = AsyncMock()
+        with patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=mock_handler
+        ):
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.remove_file_resource = AsyncMock(return_value=None)
+
+            client = AsyncMilvusClient()
+            await client._connect()
+            await client.remove_file_resource("res1")
+
+            mock_handler.remove_file_resource.assert_called_once_with(
+                name="res1", timeout=None, context=ANY
+            )
+
+    @pytest.mark.asyncio
+    async def test_list_file_resources(self):
+        """Test list_file_resources passes context."""
+        mock_handler = MagicMock()
+        mock_handler.ensure_channel_ready = AsyncMock()
+        with patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=mock_handler
+        ):
+            mock_handler.get_server_type.return_value = "milvus"
+            mock_handler.list_file_resources = AsyncMock(return_value=[])
+
+            client = AsyncMilvusClient()
+            await client._connect()
+            result = await client.list_file_resources()
+
+            assert result == []
+            mock_handler.list_file_resources.assert_called_once_with(timeout=None, context=ANY)

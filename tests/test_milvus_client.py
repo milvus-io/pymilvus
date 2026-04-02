@@ -1154,3 +1154,51 @@ class TestMilvusClientUtilityOps:
             with patch.object(manager, "release") as mock_release:
                 client.close()
                 mock_release.assert_called_once_with(mock_handler, client=client)
+
+
+class TestMilvusClientFileResource:
+    """Tests for MilvusClient file resource operations."""
+
+    def test_add_file_resource_passes_context(self):
+        """Test add_file_resource forwards kwargs as context."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.add_file_resource.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            client.add_file_resource("res1", "/path/to/file")
+
+            mock_handler.add_file_resource.assert_called_once_with(
+                name="res1", path="/path/to/file", timeout=None, context=ANY
+            )
+
+    def test_remove_file_resource_passes_context(self):
+        """Test remove_file_resource forwards kwargs as context."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.remove_file_resource.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            client.remove_file_resource("res1")
+
+            mock_handler.remove_file_resource.assert_called_once_with(
+                name="res1", timeout=None, context=ANY
+            )
+
+    def test_list_file_resources_passes_context(self):
+        """Test list_file_resources forwards kwargs as context."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.list_file_resources.return_value = []
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_file_resources()
+
+            assert result == []
+            mock_handler.list_file_resources.assert_called_once_with(timeout=None, context=ANY)
