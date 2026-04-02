@@ -40,6 +40,23 @@ class TestGrpcHandlerDataOps:
             result = handler.upsert_rows("coll", [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4]}])
             assert result.insert_count == 1
 
+    def test_batch_insert_sync_raises_on_exception(self, handler):
+        handler._stub.Insert.future.return_value.result.side_effect = RuntimeError("rpc error")
+        with patch.object(handler, "_prepare_batch_insert_request", return_value=MagicMock()):
+            with pytest.raises(MilvusException):
+                handler.batch_insert("coll", [])
+
+    def test_delete_sync_raises_on_exception(self, handler):
+        handler._stub.Delete.future.return_value.result.side_effect = RuntimeError("rpc error")
+        with pytest.raises(MilvusException):
+            handler.delete("coll", "id > 0")
+
+    def test_upsert_sync_raises_on_exception(self, handler):
+        handler._stub.Upsert.future.return_value.result.side_effect = RuntimeError("rpc error")
+        with patch.object(handler, "_prepare_batch_upsert_request", return_value=MagicMock()):
+            with pytest.raises(MilvusException):
+                handler.upsert("coll", [])
+
     def test_delete_sync(self, handler):
         mock_resp = MagicMock()
         mock_resp.status.code = 0
