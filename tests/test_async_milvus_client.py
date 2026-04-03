@@ -7,7 +7,13 @@ import pytest_asyncio
 from pymilvus import AsyncMilvusClient, DataType
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.connection_manager import AsyncConnectionManager
-from pymilvus.client.types import CompactionPlans, LoadState, RestoreSnapshotJobInfo, SnapshotInfo
+from pymilvus.client.types import (
+    CompactionPlans,
+    LoadState,
+    RefreshExternalCollectionJobInfo,
+    RestoreSnapshotJobInfo,
+    SnapshotInfo,
+)
 from pymilvus.orm.collection import Function
 from pymilvus.orm.schema import StructFieldSchema
 
@@ -905,3 +911,68 @@ class TestAsyncFileResourceMethods:
         mock_handler.list_file_resources.assert_called_once()
         assert result == ["file1", "file2"]
         assert "context" in mock_handler.list_file_resources.call_args.kwargs
+
+
+class TestAsyncMilvusClientExternalCollection:
+    """Test external collection refresh APIs in AsyncMilvusClient."""
+
+    @pytest.mark.asyncio
+    async def test_refresh_external_collection(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.refresh_external_collection = AsyncMock(return_value=42)
+
+        result = await client.refresh_external_collection(collection_name="ext_coll")
+
+        assert result == 42
+        mock_handler.refresh_external_collection.assert_called_once_with(
+            collection_name="ext_coll",
+            timeout=None,
+            context=ANY,
+            external_source="",
+            external_spec="",
+        )
+
+    @pytest.mark.asyncio
+    async def test_refresh_with_new_source(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.refresh_external_collection = AsyncMock(return_value=43)
+
+        result = await client.refresh_external_collection(
+            collection_name="ext_coll",
+            external_source="s3://new-path",
+            external_spec='{"format": "iceberg"}',
+        )
+
+        assert result == 43
+
+    @pytest.mark.asyncio
+    async def test_get_refresh_progress(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        job_info = RefreshExternalCollectionJobInfo(
+            job_id=42,
+            collection_name="ext_coll",
+            state="RefreshCompleted",
+            progress=100,
+            reason="",
+            external_source="s3://bucket",
+            start_time=1000,
+            end_time=2000,
+        )
+        mock_handler.get_refresh_external_collection_progress = AsyncMock(return_value=job_info)
+
+        result = await client.get_refresh_external_collection_progress(job_id=42)
+
+        assert result.job_id == 42
+        assert result.state == "RefreshCompleted"
+
+    @pytest.mark.asyncio
+    async def test_list_refresh_jobs(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.list_refresh_external_collection_jobs = AsyncMock(return_value=[])
+
+        result = await client.list_refresh_external_collection_jobs(collection_name="ext_coll")
+
+        assert result == []
+        mock_handler.list_refresh_external_collection_jobs.assert_called_once_with(
+            collection_name="ext_coll", timeout=None, context=ANY
+        )

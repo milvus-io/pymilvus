@@ -1558,3 +1558,44 @@ class RestoreSnapshotJobInfo:
     reason: str
     start_time: int
     time_cost: int
+
+
+@dataclass
+class RefreshExternalCollectionJobInfo:
+    """Information about an external collection refresh job.
+
+    Attributes:
+        job_id: The refresh job ID.
+        collection_name: The collection being refreshed.
+        state: Current state (proto enum name, e.g. RefreshPending, RefreshCompleted).
+        progress: Progress percentage (0-100).
+        reason: Error message if failed.
+        external_source: External source used for this job.
+        start_time: Job start timestamp in milliseconds.
+        end_time: Job end timestamp in milliseconds (0 if not completed).
+    """
+
+    job_id: int
+    collection_name: str
+    state: str
+    progress: int
+    reason: str
+    external_source: str
+    start_time: int
+    end_time: int
+
+
+def parse_refresh_job_info(
+    info: "milvus_types.RefreshExternalCollectionJobInfo",
+) -> RefreshExternalCollectionJobInfo:
+    """Parse a protobuf RefreshExternalCollectionJobInfo into a dataclass."""
+    return RefreshExternalCollectionJobInfo(
+        job_id=info.job_id,
+        collection_name=info.collection_name,
+        state=milvus_types.RefreshExternalCollectionState.Name(info.state),
+        progress=info.progress,
+        reason=info.reason,
+        external_source=info.external_source,
+        start_time=info.start_time,
+        end_time=info.end_time,
+    )

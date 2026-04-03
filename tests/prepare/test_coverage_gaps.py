@@ -377,6 +377,46 @@ class TestSnapshotRequests:
         assert req.collection_name == "test_coll"
 
 
+class TestExternalCollectionRequests:
+    """Tests for external collection refresh requests."""
+
+    def test_refresh_external_collection(self):
+        req = Prepare.refresh_external_collection_request(
+            collection_name="ext_coll",
+            db_name="default",
+            external_source="s3://bucket/path",
+            external_spec='{"format": "iceberg"}',
+        )
+        assert req.collection_name == "ext_coll"
+        assert req.db_name == "default"
+        assert req.external_source == "s3://bucket/path"
+        assert req.external_spec == '{"format": "iceberg"}'
+
+    def test_refresh_external_collection_minimal(self):
+        req = Prepare.refresh_external_collection_request(collection_name="ext_coll")
+        assert req.collection_name == "ext_coll"
+        assert req.db_name == ""
+        assert req.external_source == ""
+        assert req.external_spec == ""
+
+    def test_get_refresh_progress(self):
+        req = Prepare.get_refresh_external_collection_progress_request(job_id=42)
+        assert req.job_id == 42
+
+    def test_list_refresh_jobs(self):
+        req = Prepare.list_refresh_external_collection_jobs_request(
+            db_name="default",
+            collection_name="ext_coll",
+        )
+        assert req.db_name == "default"
+        assert req.collection_name == "ext_coll"
+
+    def test_list_refresh_jobs_all(self):
+        req = Prepare.list_refresh_external_collection_jobs_request()
+        assert req.db_name == ""
+        assert req.collection_name == ""
+
+
 class TestReleaseRequests:
     """Tests for release requests."""
 

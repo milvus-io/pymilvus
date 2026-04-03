@@ -4,7 +4,12 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from pymilvus import DataType
 from pymilvus.client.connection_manager import ConnectionManager
-from pymilvus.client.types import LoadState, RestoreSnapshotJobInfo, SnapshotInfo
+from pymilvus.client.types import (
+    LoadState,
+    RefreshExternalCollectionJobInfo,
+    RestoreSnapshotJobInfo,
+    SnapshotInfo,
+)
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
@@ -1502,3 +1507,114 @@ class TestFileResourceMethods(TestMilvusClient):
             mock_handler.list_file_resources.assert_called_once()
             assert result == ["file1", "file2"]
             assert "context" in mock_handler.list_file_resources.call_args.kwargs
+
+
+class TestMilvusClientExternalCollection:
+    """Test external collection refresh APIs in MilvusClient."""
+
+    def test_refresh_external_collection(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.refresh_external_collection.return_value = 42
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.refresh_external_collection(collection_name="ext_coll")
+
+            assert result == 42
+            mock_handler.refresh_external_collection.assert_called_once_with(
+                collection_name="ext_coll",
+                timeout=None,
+                context=ANY,
+                external_source="",
+                external_spec="",
+            )
+
+    def test_refresh_with_new_source(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.refresh_external_collection.return_value = 43
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.refresh_external_collection(
+                collection_name="ext_coll",
+                external_source="s3://new-path",
+                external_spec='{"format": "iceberg"}',
+            )
+
+            assert result == 43
+            call_kwargs = mock_handler.refresh_external_collection.call_args[1]
+            assert call_kwargs["external_source"] == "s3://new-path"
+            assert call_kwargs["external_spec"] == '{"format": "iceberg"}'
+
+    def test_get_refresh_progress(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.get_refresh_external_collection_progress.return_value = (
+            RefreshExternalCollectionJobInfo(
+                job_id=42,
+                collection_name="ext_coll",
+                state="RefreshCompleted",
+                progress=100,
+                reason="",
+                external_source="s3://bucket",
+                start_time=1000,
+                end_time=2000,
+            )
+        )
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.get_refresh_external_collection_progress(job_id=42)
+
+            assert result.job_id == 42
+            assert result.state == "RefreshCompleted"
+            assert result.progress == 100
+            mock_handler.get_refresh_external_collection_progress.assert_called_once_with(
+                job_id=42, timeout=None, context=ANY
+            )
+
+    def test_list_refresh_jobs(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.list_refresh_external_collection_jobs.return_value = [
+            RefreshExternalCollectionJobInfo(
+                job_id=1,
+                collection_name="ext_coll",
+                state="RefreshCompleted",
+                progress=100,
+                reason="",
+                external_source="s3://a",
+                start_time=1000,
+                end_time=2000,
+            ),
+        ]
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_refresh_external_collection_jobs(collection_name="ext_coll")
+
+            assert len(result) == 1
+            assert result[0].job_id == 1
+            mock_handler.list_refresh_external_collection_jobs.assert_called_once_with(
+                collection_name="ext_coll", timeout=None, context=ANY
+            )
+
+    def test_list_refresh_jobs_all(self):
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.list_refresh_external_collection_jobs.return_value = []
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            result = client.list_refresh_external_collection_jobs()
+
+            assert result == []
+            call_kwargs = mock_handler.list_refresh_external_collection_jobs.call_args[1]
+            assert call_kwargs["collection_name"] == ""
