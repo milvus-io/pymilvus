@@ -832,6 +832,8 @@ def extract_dynamic_field_from_result(raw: Any):
 
 
 def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    if row_count == 0:
+        return
     field_name = field_data.field_name
     array_data = field_data.scalars.array_data
     data = array_data.data
@@ -890,6 +892,8 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
 
 
 def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+    if row_count == 0:
+        return
     field_name = field_data.field_name
     array_data = field_data.scalars.array_data
     data = array_data.data

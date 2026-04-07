@@ -13,6 +13,8 @@ from pymilvus.client.entity_helper import (
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
+    extract_array_row_data_no_validity,
+    extract_array_row_data_with_validity,
     extract_dynamic_field_from_result,
     extract_row_data_from_fields_data,
     extract_row_data_from_fields_data_v2,
@@ -1277,3 +1279,46 @@ class TestExtractRowDataV1Validity:
         fd.valid_data.append(False)
         row0 = extract_row_data_from_fields_data([fd], 0)
         assert row0["f16"] is None
+
+
+class TestEmptyResultArrayField:
+    """Tests for issue #3386: empty query result with ARRAY field crashes with
+    'Unsupported data type: 0' because element_type is NONE (0) on empty results."""
+
+    def test_extract_row_data_v2_empty_result_array_field(self):
+        """extract_row_data_from_fields_data_v2 must not crash on empty result with ARRAY field.
+
+        When the server returns an empty result, the array_data.element_type is 0 (NONE).
+        The function should return without error since there are no rows to populate.
+        """
+        fd = schema_types.FieldData()
+        fd.type = DataType.ARRAY
+        fd.field_name = "arr_field"
+        # element_type left at default 0 (NONE) — as the server sends for empty results
+        # No data entries, no valid_data entries (empty result)
+
+        entity_rows: List[Dict] = []
+        # Must not raise MilvusException("Unsupported data type: 0")
+        extract_row_data_from_fields_data_v2(fd, entity_rows)
+
+    def test_extract_array_no_validity_empty_result(self):
+        """extract_array_row_data_no_validity must not crash when row_count is 0."""
+        fd = schema_types.FieldData()
+        fd.type = DataType.ARRAY
+        fd.field_name = "arr_field"
+        # element_type = 0 (NONE), no data
+
+        entity_rows: List[Dict] = []
+        # Must not raise MilvusException("Unsupported data type: 0")
+        extract_array_row_data_no_validity(fd, entity_rows, 0)
+
+    def test_extract_array_with_validity_empty_result(self):
+        """extract_array_row_data_with_validity must not crash when row_count is 0."""
+        fd = schema_types.FieldData()
+        fd.type = DataType.ARRAY
+        fd.field_name = "arr_field"
+        # element_type = 0 (NONE), no data, no valid_data
+
+        entity_rows: List[Dict] = []
+        # Must not raise MilvusException("Unsupported data type: 0")
+        extract_array_row_data_with_validity(fd, entity_rows, 0)
