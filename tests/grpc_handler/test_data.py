@@ -213,6 +213,7 @@ class TestGrpcHandlerQueryOps:
         mock_resp.status.reason = ""
         mock_resp.fields_data = [mock_field]
         mock_resp.session_ts = 123
+        mock_resp.element_indices = []
         handler._stub.Query.return_value = mock_resp
 
         with patch(
@@ -228,6 +229,79 @@ class TestGrpcHandlerQueryOps:
                 ):
                     with patch("pymilvus.client.grpc_handler.len_of", return_value=3):
                         handler.query("coll", "id > 0", ["id"])
+
+    def test_query_with_element_indices(self, handler):
+        """Test that element_indices are parsed and rows are expanded correctly."""
+        mock_field = MagicMock()
+        mock_field.field_name = "id"
+        mock_field.type = DataType.INT64
+        mock_field.scalars.long_data.data = [1, 2]
+
+        ei_0 = MagicMock()
+        ei_0.indices.data = [0, 2]
+        ei_1 = MagicMock()
+        ei_1.indices.data = [1]
+
+        mock_resp = MagicMock()
+        mock_resp.status.code = 0
+        mock_resp.status.error_code = 0
+        mock_resp.status.reason = ""
+        mock_resp.fields_data = [mock_field]
+        mock_resp.session_ts = 123
+        mock_resp.element_indices = [ei_0, ei_1]
+        handler._stub.Query.return_value = mock_resp
+
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ), patch(
+            "pymilvus.client.grpc_handler.entity_helper.extract_dynamic_field_from_result",
+            return_value=([], []),
+        ), patch(
+            "pymilvus.client.grpc_handler.entity_helper.extract_row_data_from_fields_data_v2",
+            return_value=False,
+        ), patch(
+            "pymilvus.client.grpc_handler.len_of", return_value=2
+        ):
+            result = handler.query("coll", "id > 0", ["id"])
+
+        # 2 entities expanded to 3 rows: entity 0 -> offsets [0, 2], entity 1 -> offset [1]
+        assert len(result) == 3
+        assert result[0]["offset"] == 0
+        assert result[1]["offset"] == 2
+        assert result[2]["offset"] == 1
+
+    def test_query_element_indices_length_mismatch(self, handler):
+        """Test that mismatched element_indices length raises MilvusException."""
+        mock_field = MagicMock()
+        mock_field.field_name = "id"
+        mock_field.type = DataType.INT64
+        mock_field.scalars.long_data.data = [1, 2, 3]
+
+        ei_0 = MagicMock()
+        ei_0.indices.data = [0]
+
+        mock_resp = MagicMock()
+        mock_resp.status.code = 0
+        mock_resp.status.error_code = 0
+        mock_resp.status.reason = ""
+        mock_resp.fields_data = [mock_field]
+        mock_resp.session_ts = 123
+        mock_resp.element_indices = [ei_0]  # length 1 != num_entities 3
+        handler._stub.Query.return_value = mock_resp
+
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ), patch(
+            "pymilvus.client.grpc_handler.entity_helper.extract_dynamic_field_from_result",
+            return_value=([], []),
+        ), patch(
+            "pymilvus.client.grpc_handler.entity_helper.extract_row_data_from_fields_data_v2",
+            return_value=False,
+        ), patch(
+            "pymilvus.client.grpc_handler.len_of", return_value=3
+        ):
+            with pytest.raises(MilvusException, match="element_indices length"):
+                handler.query("coll", "id > 0", ["id"])
 
     def test_query_invalid_output_fields(self, handler):
         with pytest.raises(ParamError):

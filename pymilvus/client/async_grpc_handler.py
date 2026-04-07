@@ -1426,15 +1426,37 @@ class AsyncGrpcHandler:
             raise MilvusException(message="The length of fields data is inconsistent")
 
         _, dynamic_fields = entity_helper.extract_dynamic_field_from_result(response)
+
+        element_indices = None
+        if response.element_indices:
+            element_indices = [list(ei.indices.data) for ei in response.element_indices]
+            if len(element_indices) != num_entities:
+                raise MilvusException(
+                    message=f"element_indices length ({len(element_indices)}) != num_entities ({num_entities})"
+                )
+
         keys = [field_data.field_name for field_data in response.fields_data]
         filtered_keys = [k for k in keys if k != "$meta"]
+        if element_indices is not None:
+            filtered_keys.insert(1, "offset")
         template = dict.fromkeys(filtered_keys)
         results = [template.copy() for _ in range(num_entities)]
+
         lazy_field_data = []
         for field_data in response.fields_data:
             lazy_extracted = entity_helper.extract_row_data_from_fields_data_v2(field_data, results)
             if lazy_extracted:
                 lazy_field_data.append(field_data)
+
+        if element_indices is not None:
+            expanded = []
+            for i, indices in enumerate(element_indices):
+                for offset in indices:
+                    row = results[i].copy()
+                    row["offset"] = offset
+                    row["_original_idx"] = i
+                    expanded.append(row)
+            results = expanded
 
         extra_dict = get_extra_info(response.status)
         extra_dict[ITERATOR_SESSION_TS_FIELD] = response.session_ts

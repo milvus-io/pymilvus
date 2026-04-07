@@ -1072,7 +1072,6 @@ class HybridExtraList(list):
         extra: Optional[Dict] = None,
         dynamic_fields: Optional[List] = None,
         strict_float32: bool = False,
-        element_indices: Optional[List[List[int]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -1083,7 +1082,6 @@ class HybridExtraList(list):
         self._has_materialized_float_vector = False
         self._strict_float32 = strict_float32
         self._materialized_bitmap = [False] * len(self)
-        self._element_indices = element_indices
 
     def _get_physical_index(self, field_data: Any, logical_index: int) -> int:
         """Calculate physical index for nullable vectors with sparse storage.
@@ -1260,12 +1258,9 @@ class HybridExtraList(list):
             index = len(self) + index
 
         row = super().__getitem__(index)
+        lazy_index = row.pop("_original_idx", index)
         for field_data in self._lazy_field_data:
-            self._extract_lazy_fields(index, field_data, row)
-
-        # Add element_indices (offset) if available
-        if self._element_indices is not None and index < len(self._element_indices):
-            row["offset"] = self._element_indices[index]
+            self._extract_lazy_fields(lazy_index, field_data, row)
 
         self._materialized_bitmap[index] = True
         return row

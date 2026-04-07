@@ -9,6 +9,7 @@ import pytest
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import schema_pb2
 
 
@@ -186,6 +187,7 @@ class TestAsyncGrpcHandlerQuery:
         mock_response.fields_data = [mock_field]
         mock_response.collection_name = "test_coll"
         mock_response.session_ts = 0
+        mock_response.element_indices = []
         mock_stub.Query = AsyncMock(return_value=mock_response)
         handler._async_stub = mock_stub
 
@@ -210,6 +212,106 @@ class TestAsyncGrpcHandlerQuery:
             mock_prepare.query_request.return_value = MagicMock()
             await handler.query("test_coll", expr="id > 0", output_fields=["id"])
             mock_stub.Query.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_query_with_element_indices(self) -> None:
+        """Test that element_indices are parsed and rows are expanded correctly."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_field = MagicMock()
+        mock_field.field_name = "id"
+        mock_field.scalars = MagicMock()
+        mock_field.scalars.long_data = MagicMock()
+        mock_field.scalars.long_data.data = [1, 2]
+
+        ei_0 = MagicMock()
+        ei_0.indices.data = [0, 2]
+        ei_1 = MagicMock()
+        ei_1.indices.data = [1]
+
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.fields_data = [mock_field]
+        mock_response.collection_name = "test_coll"
+        mock_response.session_ts = 0
+        mock_response.element_indices = [ei_0, ei_1]
+        mock_stub.Query = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ), patch(
+            "pymilvus.client.async_grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ), patch(
+            "pymilvus.client.async_grpc_handler.len_of", return_value=2
+        ), patch(
+            "pymilvus.client.async_grpc_handler.entity_helper.extract_dynamic_field_from_result",
+            return_value=([], []),
+        ), patch(
+            "pymilvus.client.async_grpc_handler.entity_helper.extract_row_data_from_fields_data_v2",
+            return_value=False,
+        ), patch(
+            "pymilvus.client.async_grpc_handler.get_extra_info", return_value={}
+        ):
+            mock_prepare.query_request.return_value = MagicMock()
+            result = await handler.query("test_coll", expr="id > 0", output_fields=["id"])
+
+        assert len(result) == 3
+        assert result[0]["offset"] == 0
+        assert result[1]["offset"] == 2
+        assert result[2]["offset"] == 1
+
+    @pytest.mark.asyncio
+    async def test_query_element_indices_length_mismatch(self) -> None:
+        """Test that mismatched element_indices length raises MilvusException."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_field = MagicMock()
+        mock_field.field_name = "id"
+        mock_field.scalars = MagicMock()
+        mock_field.scalars.long_data = MagicMock()
+        mock_field.scalars.long_data.data = [1, 2, 3]
+
+        ei_0 = MagicMock()
+        ei_0.indices.data = [0]
+
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.fields_data = [mock_field]
+        mock_response.collection_name = "test_coll"
+        mock_response.session_ts = 0
+        mock_response.element_indices = [ei_0]  # length 1 != num_entities 3
+        mock_stub.Query = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ), patch(
+            "pymilvus.client.async_grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ), patch(
+            "pymilvus.client.async_grpc_handler.len_of", return_value=3
+        ), patch(
+            "pymilvus.client.async_grpc_handler.entity_helper.extract_dynamic_field_from_result",
+            return_value=([], []),
+        ), patch(
+            "pymilvus.client.async_grpc_handler.entity_helper.extract_row_data_from_fields_data_v2",
+            return_value=False,
+        ), patch(
+            "pymilvus.client.async_grpc_handler.get_extra_info", return_value={}
+        ):
+            mock_prepare.query_request.return_value = MagicMock()
+            with pytest.raises(MilvusException, match="element_indices length"):
+                await handler.query("test_coll", expr="id > 0", output_fields=["id"])
 
 
 class TestAsyncGrpcHandlerSearch:
