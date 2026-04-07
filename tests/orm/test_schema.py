@@ -1976,7 +1976,7 @@ class TestExternalCollectionSchema:
         """Full round-trip: create → to_dict → construct_from_dict → verify."""
         schema = CollectionSchema(
             [
-                FieldSchema("pk", DataType.INT64, is_primary=True, external_field="row_id"),
+                FieldSchema("pk", DataType.INT64, external_field="row_id"),
                 FieldSchema("text", DataType.VARCHAR, max_length=512, external_field="content"),
                 FieldSchema("vec", DataType.FLOAT_VECTOR, dim=768),
             ],
@@ -1990,3 +1990,65 @@ class TestExternalCollectionSchema:
         assert restored.fields[0].external_field == "row_id"
         assert restored.fields[1].external_field == "content"
         assert restored.fields[2].external_field == ""
+
+    def test_external_schema_no_primary_key_required(self):
+        """External collection should not require a primary key field."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, external_field="row_id"),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ],
+            external_source="s3://bucket/data",
+        )
+        assert schema.primary_field is None
+
+    def test_non_external_schema_still_requires_primary_key(self):
+        """Non-external collection must still have a primary key."""
+        with pytest.raises(PrimaryKeyException):
+            CollectionSchema(
+                [
+                    FieldSchema("id", DataType.INT64),
+                    FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+                ],
+            )
+
+    def test_external_schema_skips_auto_id(self):
+        """auto_id should be ignored when external_source is set."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, external_field="row_id"),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ],
+            external_source="s3://bucket/data",
+            auto_id=True,
+        )
+        # No primary field, so auto_id has no effect
+        assert schema.primary_field is None
+
+    def test_external_schema_clustering_key_still_validated(self):
+        """validate_clustering_key should still run for external collections."""
+        with pytest.raises(ClusteringKeyException):
+            CollectionSchema(
+                [
+                    FieldSchema("a", DataType.INT64, is_clustering_key=True, external_field="a"),
+                    FieldSchema("b", DataType.INT64, is_clustering_key=True, external_field="b"),
+                    FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+                ],
+                external_source="s3://bucket/data",
+            )
+
+    def test_external_schema_partition_key_still_validated(self):
+        """validate_partition_key should still run for external collections."""
+        with pytest.raises(PartitionKeyException):
+            CollectionSchema(
+                [
+                    FieldSchema(
+                        "bad_pk",
+                        DataType.FLOAT,
+                        is_partition_key=True,
+                        external_field="x",
+                    ),
+                    FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+                ],
+                external_source="s3://bucket/data",
+            )

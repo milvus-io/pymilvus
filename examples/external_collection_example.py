@@ -44,7 +44,6 @@ def demo_create_external_collection(client: MilvusClient):
     schema.add_field(
         field_name="id",
         datatype=DataType.INT64,
-        is_primary=True,
         external_field="row_id",  # Maps to "row_id" column in external table
     )
     schema.add_field(
@@ -174,7 +173,7 @@ async def async_demo():
 
     schema = CollectionSchema(
         fields=[
-            FieldSchema("id", DataType.INT64, is_primary=True, external_field="row_id"),
+            FieldSchema("id", DataType.INT64, external_field="row_id"),
             FieldSchema("text", DataType.VARCHAR, max_length=1024, external_field="content"),
             FieldSchema("embedding", DataType.FLOAT_VECTOR, dim=768),
         ],

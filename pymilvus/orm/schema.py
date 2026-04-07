@@ -196,15 +196,20 @@ class CollectionSchema:
                 self._clustering_key_field = field
                 clustering_key_field_name = field.name
 
-        validate_primary_key(self._primary_field)
-        validate_partition_key(
-            partition_key_field_name, self._partition_key_field, self._primary_field.name
-        )
-        validate_clustering_key(clustering_key_field_name, self._clustering_key_field)
+        if self._external_source:
+            # External collections use a server-injected virtual PK,
+            # so user-defined primary key is not required.
+            pass
+        else:
+            validate_primary_key(self._primary_field)
 
-        auto_id = self._kwargs.get("auto_id", False)
-        if auto_id:
-            self._primary_field.auto_id = auto_id
+            auto_id = self._kwargs.get("auto_id", False)
+            if auto_id:
+                self._primary_field.auto_id = auto_id
+
+        primary_name = self._primary_field.name if self._primary_field else None
+        validate_partition_key(partition_key_field_name, self._partition_key_field, primary_name)
+        validate_clustering_key(clustering_key_field_name, self._clustering_key_field)
 
     def _check_functions(self):
         for function in self._functions:
