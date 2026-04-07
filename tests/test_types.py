@@ -33,9 +33,9 @@ class TestTypes:
         "data,expect",
         [
             ([1], DataType.FLOAT_VECTOR),
-            ([True], DataType.UNKNOWN),
+            ([True], DataType.ARRAY),
             ([1.0, 2.0], DataType.FLOAT_VECTOR),
-            (["abc"], DataType.UNKNOWN),
+            (["abc"], DataType.ARRAY),
             (bytes("abc", encoding="ascii"), DataType.BINARY_VECTOR),
             (1, DataType.INT64),
             (True, DataType.BOOL),
