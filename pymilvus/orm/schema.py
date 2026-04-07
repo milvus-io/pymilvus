@@ -196,15 +196,19 @@ class CollectionSchema:
                 self._clustering_key_field = field
                 clustering_key_field_name = field.name
 
-        validate_primary_key(self._primary_field)
-        validate_partition_key(
-            partition_key_field_name, self._partition_key_field, self._primary_field.name
-        )
-        validate_clustering_key(clustering_key_field_name, self._clustering_key_field)
+        # External collections do not require primary key, partition key, or clustering key
+        if not self._external_source:
+            validate_primary_key(self._primary_field)
+            validate_partition_key(
+                partition_key_field_name, self._partition_key_field, self._primary_field.name
+            )
+            validate_clustering_key(clustering_key_field_name, self._clustering_key_field)
 
-        auto_id = self._kwargs.get("auto_id", False)
-        if auto_id:
-            self._primary_field.auto_id = auto_id
+            auto_id = self._kwargs.get("auto_id", False)
+            if auto_id:
+                self._primary_field.auto_id = auto_id
+        elif self._kwargs.get("auto_id", False):
+            raise ParamError(message="External collections do not support auto_id")
 
     def _check_functions(self):
         for function in self._functions:

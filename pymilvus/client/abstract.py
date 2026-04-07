@@ -35,6 +35,7 @@ class FieldSchema:
         self.nullable = False
         self.default_value = None
         self.is_function_output = False
+        self.external_field = ""
         # For array field
         self.element_type = None
         self.is_clustering_key = False
@@ -56,6 +57,7 @@ class FieldSchema:
         self.is_dynamic = raw.is_dynamic
         self.nullable = raw.nullable
         self.is_function_output = raw.is_function_output
+        self.external_field = raw.external_field
 
         for type_param in raw.type_params:
             if type_param.key == "params":
@@ -135,6 +137,8 @@ class FieldSchema:
             _dict["is_clustering_key"] = True
         if self.is_function_output:
             _dict["is_function_output"] = True
+        if self.external_field:
+            _dict["external_field"] = self.external_field
         return _dict
 
 
@@ -240,6 +244,8 @@ class CollectionSchema:
         self.num_partitions = 0
         self.enable_dynamic_field = False
         self.enable_namespace = False
+        self.external_source = ""
+        self.external_spec = ""
         self.created_timestamp = 0
         self.update_timestamp = 0
         if self._raw:
@@ -269,6 +275,16 @@ class CollectionSchema:
             self.enable_namespace = raw.schema.enable_namespace
         except Exception:
             self.enable_namespace = False
+
+        try:
+            self.external_source = raw.schema.external_source
+        except Exception:
+            self.external_source = ""
+
+        try:
+            self.external_spec = raw.schema.external_spec
+        except Exception:
+            self.external_spec = ""
 
         # TODO: extra_params here
         # for kv in raw.extra_params:
@@ -318,6 +334,10 @@ class CollectionSchema:
             "enable_namespace": self.enable_namespace,
         }
 
+        if self.external_source:
+            _dict["external_source"] = self.external_source
+        if self.external_spec:
+            _dict["external_spec"] = self.external_spec
         if self.created_timestamp != 0:
             _dict["created_timestamp"] = self.created_timestamp
         if self.update_timestamp != 0:

@@ -49,6 +49,7 @@ class TestFieldSchema:
         is_dynamic=False,
         nullable=False,
         is_function_output=False,
+        external_field="",
         type_params=None,
         index_params=None,
     ):
@@ -67,6 +68,7 @@ class TestFieldSchema:
         mock.is_dynamic = is_dynamic
         mock.nullable = nullable
         mock.is_function_output = is_function_output
+        mock.external_field = external_field
         mock.type_params = type_params or []
         mock.index_params = index_params or []
         return mock
@@ -935,3 +937,114 @@ class TestLoopBase:
 
         with pytest.raises(NotImplementedError):
             base.get__item(0)
+
+
+class TestExternalCollectionFields:
+    """Tests for external collection field parsing in abstract.py."""
+
+    def _create_mock_raw_field(self, name="f", data_type=DataType.INT64, external_field=""):
+        mock = MagicMock()
+        mock.fieldID = 1
+        mock.name = name
+        mock.is_primary_key = False
+        mock.description = ""
+        mock.autoID = False
+        mock.data_type = data_type
+        mock.is_partition_key = False
+        mock.element_type = DataType.NONE
+        mock.is_clustering_key = False
+        mock.default_value = None
+        mock.is_dynamic = False
+        mock.nullable = False
+        mock.is_function_output = False
+        mock.external_field = external_field
+        mock.type_params = []
+        mock.index_params = []
+        return mock
+
+    def _create_mock_describe_response(
+        self,
+        external_source="",
+        external_spec="",
+        fields=None,
+    ):
+        mock = MagicMock()
+        mock.schema.name = "ext_coll"
+        mock.schema.description = ""
+        mock.schema.enable_dynamic_field = False
+        mock.schema.enable_namespace = False
+        mock.schema.external_source = external_source
+        mock.schema.external_spec = external_spec
+        mock.schema.fields = fields or []
+        mock.schema.struct_array_fields = []
+        mock.schema.functions = []
+        mock.aliases = []
+        mock.collectionID = 1
+        mock.shards_num = 1
+        mock.num_partitions = 1
+        mock.created_timestamp = 0
+        mock.update_timestamp = 0
+        mock.consistency_level = 0
+        mock.properties = []
+        return mock
+
+    def test_field_schema_external_field(self):
+        raw = self._create_mock_raw_field(name="col", external_field="ext_col")
+        field = FieldSchema(raw)
+        assert field.external_field == "ext_col"
+
+    def test_field_schema_external_field_default(self):
+        raw = self._create_mock_raw_field(name="col", external_field="")
+        field = FieldSchema(raw)
+        assert field.external_field == ""
+
+    def test_field_schema_dict_with_external_field(self):
+        raw = self._create_mock_raw_field(name="col", external_field="ext_col")
+        field = FieldSchema(raw)
+        d = field.dict()
+        assert d["external_field"] == "ext_col"
+
+    def test_field_schema_dict_without_external_field(self):
+        raw = self._create_mock_raw_field(name="col", external_field="")
+        field = FieldSchema(raw)
+        d = field.dict()
+        assert "external_field" not in d
+
+    def test_collection_schema_external_source(self):
+        fields = [self._create_mock_raw_field(name="id", external_field="row_id")]
+        raw = self._create_mock_describe_response(
+            external_source="s3://bucket/path",
+            external_spec='{"format": "parquet"}',
+            fields=fields,
+        )
+        schema = CollectionSchema(raw)
+        assert schema.external_source == "s3://bucket/path"
+        assert schema.external_spec == '{"format": "parquet"}'
+
+    def test_collection_schema_external_default(self):
+        raw = self._create_mock_describe_response()
+        schema = CollectionSchema(raw)
+        assert schema.external_source == ""
+        assert schema.external_spec == ""
+
+    def test_collection_schema_dict_with_external(self):
+        fields = [self._create_mock_raw_field(name="id", external_field="row_id")]
+        raw = self._create_mock_describe_response(
+            external_source="s3://bucket/path",
+            external_spec='{"format": "parquet"}',
+            fields=fields,
+        )
+        schema = CollectionSchema(raw)
+        d = schema.dict()
+        assert d["external_source"] == "s3://bucket/path"
+        assert d["external_spec"] == '{"format": "parquet"}'
+        assert d["fields"][0]["external_field"] == "row_id"
+
+    def test_collection_schema_dict_without_external(self):
+        fields = [self._create_mock_raw_field(name="id")]
+        raw = self._create_mock_describe_response(fields=fields)
+        schema = CollectionSchema(raw)
+        d = schema.dict()
+        assert "external_source" not in d
+        assert "external_spec" not in d
+        assert "external_field" not in d["fields"][0]
