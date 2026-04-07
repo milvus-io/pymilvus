@@ -1326,7 +1326,6 @@ class Prepare:
         cls,
         data: Any,
         is_embedding_list: bool = False,
-        is_element_level: bool = False,
         vector_data_type: Optional[DataType] = None,
     ):
         # sparse vector
@@ -1391,9 +1390,7 @@ class Prepare:
             pl_type = PlaceholderType.FloatVector
             pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
 
-        pl = common_types.PlaceholderValue(
-            tag="$0", type=pl_type, values=pl_values, element_level=is_element_level
-        )
+        pl = common_types.PlaceholderValue(tag="$0", type=pl_type, values=pl_values)
         return common_types.PlaceholderGroup.SerializeToString(
             common_types.PlaceholderGroup(placeholders=[pl])
         )
@@ -1654,9 +1651,6 @@ class Prepare:
         }
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
-        is_element_level = (
-            not is_embedding_list and expr is not None and "element_filter(" in expr.lower()
-        )
 
         vector_data_type = None
         schema = kwargs.get("schema")
@@ -1667,7 +1661,7 @@ class Prepare:
             request_kwargs.update(
                 nq=entity_helper.get_input_num_rows(data),
                 placeholder_group=cls._prepare_placeholder_str(
-                    data, is_embedding_list, is_element_level, vector_data_type
+                    data, is_embedding_list, vector_data_type
                 ),
             )
         elif ids is not None:

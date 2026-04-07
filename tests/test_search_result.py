@@ -360,39 +360,61 @@ class TestSearchResult:
 
 
 class TestHybridExtraList:
-    @pytest.mark.parametrize(
-        "element_indices,expected_offsets",
-        [
-            ([[0, 1, 2], [5, 10], [100]], [[0, 1, 2], [5, 10], [100]]),  # with indices
-            (None, None),  # without indices
-        ],
-        ids=["with_element_indices", "without_element_indices"],
-    )
-    def test_query_result_element_indices(self, element_indices, expected_offsets):
-        """Test element_indices are properly handled (present and absent) for Query results."""
+    def test_query_result_with_element_indices(self):
+        """Test that pre-expanded rows with _original_idx are handled correctly."""
+        # Simulate handler-level expansion: entity 0 has 2 matches, entity 1 has 1 match
         results = [
-            {"pk": i + 1, "name": f"entity{i + 1}"} for i in range(3 if element_indices else 2)
+            {"pk": 1, "name": "entity1", "offset": 0, "_original_idx": 0},
+            {"pk": 1, "name": "entity1", "offset": 2, "_original_idx": 0},
+            {"pk": 2, "name": "entity2", "offset": 5, "_original_idx": 1},
         ]
-        kwargs = {"extra": {"session_ts": 12345}}
-        if element_indices is not None:
-            kwargs["element_indices"] = element_indices
+        hybrid_list = HybridExtraList([], results, extra={"session_ts": 12345})
 
-        hybrid_list = HybridExtraList([], results, **kwargs)
+        assert len(hybrid_list) == 3
+        row0 = hybrid_list[0]
+        assert row0["pk"] == 1
+        assert row0["offset"] == 0
+        assert "_original_idx" not in row0
 
-        assert len(hybrid_list) == len(results)
-        entity1 = hybrid_list[0]
-        assert entity1["pk"] == 1
+        row1 = hybrid_list[1]
+        assert row1["pk"] == 1
+        assert row1["offset"] == 2
 
-        if expected_offsets is not None:
-            assert "offset" in entity1
-            assert entity1["offset"] == expected_offsets[0]
-            assert hybrid_list[1]["offset"] == expected_offsets[1]
-            assert hybrid_list[2]["offset"] == expected_offsets[2]
-        else:
-            assert "offset" not in entity1
-            assert "offset" not in hybrid_list[1]
+        row2 = hybrid_list[2]
+        assert row2["pk"] == 2
+        assert row2["offset"] == 5
 
-        LOGGER.info(f"Entity: {entity1}")
+    def test_query_result_without_element_indices(self):
+        """Test normal rows without element_indices expansion."""
+        results = [
+            {"pk": 1, "name": "entity1"},
+            {"pk": 2, "name": "entity2"},
+        ]
+        hybrid_list = HybridExtraList([], results, extra={"session_ts": 12345})
+
+        assert len(hybrid_list) == 2
+        row0 = hybrid_list[0]
+        assert row0["pk"] == 1
+        assert "offset" not in row0
+        assert "_original_idx" not in row0
+
+    def test_original_idx_used_for_lazy_field_extraction(self):
+        """Test that _original_idx is used (not the list index) for lazy field extraction."""
+        # Simulate: 2 physical entities, expanded to 3 rows
+        # Row 0 and 1 come from entity 0, row 2 comes from entity 1
+        mock_field_data = MagicMock()
+        results = [
+            {"pk": None, "offset": 0, "_original_idx": 0},
+            {"pk": None, "offset": 2, "_original_idx": 0},
+            {"pk": None, "offset": 5, "_original_idx": 1},
+        ]
+        hybrid_list = HybridExtraList([mock_field_data], results, extra={})
+
+        # Access row at index 2; lazy extraction should use _original_idx=1, not index=2
+        _ = hybrid_list[2]
+        assert hybrid_list._materialized_bitmap[2] is True
+        assert hybrid_list[2]["offset"] == 5
+        assert "_original_idx" not in hybrid_list[2]
 
 
 class TestSearchResultExtended:
