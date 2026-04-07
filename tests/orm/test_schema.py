@@ -1990,3 +1990,57 @@ class TestExternalCollectionSchema:
         assert restored.fields[0].external_field == "row_id"
         assert restored.fields[1].external_field == "content"
         assert restored.fields[2].external_field == ""
+
+    def test_external_schema_no_pk_succeeds(self):
+        """External collection schema without primary key should pass verify()."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("product_id", DataType.INT64, external_field="id"),
+                FieldSchema("name", DataType.VARCHAR, max_length=256, external_field="name"),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128, external_field="vector"),
+            ],
+            external_source="data/embeddings/",
+            external_spec='{"format": "parquet"}',
+        )
+        # Should NOT raise PrimaryKeyException
+        schema.verify()
+        assert schema.primary_field is None
+
+    def test_normal_schema_no_pk_fails(self):
+        """Normal collection schema without primary key should fail verify()."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("col", DataType.INT64),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ],
+            check_fields=False,
+        )
+        with pytest.raises(PrimaryKeyException):
+            schema.verify()
+
+    def test_normal_schema_auto_id_propagates(self):
+        """Normal collection with auto_id=True should set it on the primary field."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ],
+            auto_id=True,
+        )
+        schema.verify()
+        assert schema.primary_field.auto_id is True
+
+    def test_external_schema_auto_id_raises(self):
+        """auto_id=True on external collection should raise ParamError."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("col", DataType.INT64, external_field="id"),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128, external_field="vector"),
+            ],
+            external_source="data/",
+            external_spec='{"format": "parquet"}',
+            auto_id=True,
+            check_fields=False,
+        )
+        with pytest.raises(ParamError, match="External collections do not support auto_id"):
+            schema.verify()
