@@ -2119,17 +2119,6 @@ class GrpcHandler:
         request = Prepare.dummy_request(request_type)
         return self._stub.Dummy(request, timeout=timeout, metadata=_api_level_md(context))
 
-    # TODO seems not in use
-    @retry_on_rpc_failure()
-    def fake_register_link(
-        self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
-    ):
-        request = Prepare.register_link_request()
-        response = self._stub.RegisterLink(
-            request, timeout=timeout, metadata=_api_level_md(context)
-        )
-        return response.status
-
     @retry_on_rpc_failure()
     def get(
         self,
