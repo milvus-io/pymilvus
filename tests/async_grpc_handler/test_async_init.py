@@ -20,6 +20,18 @@ class TestAsyncGrpcHandlerInit:
         handler = AsyncGrpcHandler(channel=mock_channel)
         assert handler._async_channel == mock_channel
 
+    def test_init_stores_connect_reserved_from_option(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel, option={"cluster_id": "c1"})
+        assert handler._connect_reserved == {"cluster_id": "c1"}
+
+    def test_init_connect_reserved_defaults_empty(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        assert handler._connect_reserved == {}
+
     def test_init_with_host_port(self) -> None:
         """Test AsyncGrpcHandler initialization with host and port"""
         with patch("pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel") as mock_ch:
@@ -110,6 +122,30 @@ class TestAsyncGrpcHandlerInit:
             mock_prepare.register_request.return_value = MagicMock()
             await handler.ensure_channel_ready()
             assert handler._is_channel_ready is True
+
+    @pytest.mark.asyncio
+    async def test_ensure_channel_ready_forwards_connect_reserved(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        mock_channel.channel_ready = AsyncMock()
+        handler = AsyncGrpcHandler(channel=mock_channel, option={"cluster_id": "c1"})
+        handler._is_channel_ready = False
+
+        mock_stub = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.identifier = 1
+        mock_stub.Connect = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ), patch("pymilvus.client.async_grpc_handler.milvus_pb2_grpc.MilvusServiceStub"):
+            mock_prepare.register_request.return_value = MagicMock()
+            await handler.ensure_channel_ready()
+            mock_prepare.register_request.assert_called_once()
+            _, kwargs = mock_prepare.register_request.call_args
+            assert kwargs.get("cluster_id") == "c1"
 
     @pytest.mark.asyncio
     async def test_ensure_channel_ready_already_ready(self) -> None:

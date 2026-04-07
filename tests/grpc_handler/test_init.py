@@ -45,6 +45,14 @@ class TestGrpcHandlerInit:
         handler = GrpcHandler(channel=mock_channel)
         assert handler._channel == mock_channel
 
+    def test_init_stores_connect_reserved_from_option(self):
+        handler = GrpcHandler(channel=MagicMock(), option={"cluster_id": "c1"})
+        assert handler._connect_reserved == {"cluster_id": "c1"}
+
+    def test_init_connect_reserved_defaults_empty(self):
+        handler = GrpcHandler(channel=MagicMock())
+        assert handler._connect_reserved == {}
+
     def test_init_with_uri(self):
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel") as mock_ch:
             with patch("pymilvus.client.grpc_handler.milvus_pb2_grpc.MilvusServiceStub"):
@@ -141,3 +149,17 @@ class TestGrpcHandlerConnectionMgmt:
             mock_ready.return_value.result.side_effect = RuntimeError("unexpected error")
             with pytest.raises(RuntimeError, match="unexpected error"):
                 handler._wait_for_channel_ready(timeout=1.0)
+
+    def test_internal_register_forwards_connect_reserved(self):
+        handler = GrpcHandler(channel=MagicMock(), option={"cluster_id": "c1"})
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.identifier = 42
+        handler._stub = MagicMock()
+        handler._stub.Connect.return_value = mock_response
+        with patch("pymilvus.client.grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.grpc_handler.check_status"
+        ):
+            mock_prepare.register_request.return_value = MagicMock()
+            handler._GrpcHandler__internal_register("user", "host")
+            mock_prepare.register_request.assert_called_once_with("user", "host", cluster_id="c1")

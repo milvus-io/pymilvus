@@ -164,6 +164,7 @@ class GrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._user = kwargs.get("user")
+        self._connect_reserved = kwargs.get("option", {})
         self._server_info_cache = None
         self._grpc_options = kwargs.get("grpc_options", {})
         self._set_authorization(**kwargs)
@@ -3017,7 +3018,7 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     @upgrade_reminder
     def __internal_register(self, user: str, host: str, **kwargs) -> int:
-        req = Prepare.register_request(user, host)
+        req = Prepare.register_request(user, host, **self._connect_reserved)
         response = self._stub.Connect(request=req)
         check_status(response.status)
         return response.identifier

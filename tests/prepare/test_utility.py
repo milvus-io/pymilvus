@@ -461,3 +461,14 @@ class TestRegisterRequest:
         """Test register request with reserved parameters."""
         req = Prepare.register_request(user=None, host=None, custom_key="custom_value")
         assert "custom_key" in req.client_info.reserved
+
+    def test_register_reserved_values_match(self):
+        """Test register request reserved values are correctly set."""
+        req = Prepare.register_request(user="u", host="h", cluster_id="c1", session_id="s1")
+        assert req.client_info.reserved["cluster_id"] == "c1"
+        assert req.client_info.reserved["session_id"] == "s1"
+
+    def test_register_empty_reserved_when_no_kwargs(self):
+        """Test register request has empty reserved when no extra kwargs."""
+        req = Prepare.register_request(user="u", host="h")
+        assert len(req.client_info.reserved) == 0

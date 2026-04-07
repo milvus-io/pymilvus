@@ -87,6 +87,7 @@ class AsyncGrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._user = kwargs.get("user")
+        self._connect_reserved = kwargs.get("option", {})
         self._grpc_options = kwargs.get("grpc_options", {})
         self._set_authorization(**kwargs)
         self._setup_grpc_channel(**kwargs)
@@ -250,7 +251,7 @@ class AsyncGrpcHandler:
                 await asyncio.wait_for(self._async_channel.channel_ready(), timeout=wait_timeout)
                 # set identifier interceptor
                 host = socket.gethostname()
-                req = Prepare.register_request(self._user, host)
+                req = Prepare.register_request(self._user, host, **self._connect_reserved)
                 response = await self._async_stub.Connect(request=req)
                 check_status(response.status)
                 _async_identifier_interceptor = async_header_adder_interceptor(
