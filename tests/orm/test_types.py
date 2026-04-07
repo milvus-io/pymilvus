@@ -135,9 +135,9 @@ class TestInferDtypeBydata:
     def test_list_of_floats_returns_float_vector(self):
         assert infer_dtype_bydata([1.0, 2.0, 3.0]) == DataType.FLOAT_VECTOR
 
-    def test_list_of_strings_returns_unknown(self):
-        # infer_dtype on ["a", "b"] gives "string" -> VARCHAR -> not numeric -> UNKNOWN
-        assert infer_dtype_bydata(["a", "b"]) == DataType.UNKNOWN
+    def test_list_of_strings_returns_array(self):
+        # infer_dtype on ["a", "b"] gives "string" -> VARCHAR -> not numeric, not UNKNOWN -> ARRAY
+        assert infer_dtype_bydata(["a", "b"]) == DataType.ARRAY
 
     def test_numpy_int_array(self):
         arr = np.array([1, 2, 3], dtype=np.int64)
