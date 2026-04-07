@@ -2018,6 +2018,18 @@ class TestExternalCollectionSchema:
         with pytest.raises(PrimaryKeyException):
             schema.verify()
 
+    def test_normal_schema_auto_id_propagates(self):
+        """Normal collection with auto_id=True should set it on the primary field."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ],
+            auto_id=True,
+        )
+        schema.verify()
+        assert schema.primary_field.auto_id is True
+
     def test_external_schema_auto_id_raises(self):
         """auto_id=True on external collection should raise ParamError."""
         schema = CollectionSchema(
