@@ -1048,3 +1048,14 @@ class TestExternalCollectionFields:
         assert "external_source" not in d
         assert "external_spec" not in d
         assert "external_field" not in d["fields"][0]
+
+    def test_collection_schema_old_server_no_external_fields(self):
+        """Simulate old Milvus server that doesn't have external_source/external_spec."""
+        fields = [self._create_mock_raw_field(name="id")]
+        raw = self._create_mock_describe_response(fields=fields)
+        # Remove external attributes to simulate old server proto response
+        del raw.schema.external_source
+        del raw.schema.external_spec
+        schema = CollectionSchema(raw)
+        assert schema.external_source == ""
+        assert schema.external_spec == ""
