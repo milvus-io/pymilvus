@@ -831,112 +831,39 @@ def extract_dynamic_field_from_result(raw: Any):
     return dynamic_field_name, dynamic_fields
 
 
-def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
+def extract_array_rows(field_data: Any, entity_rows: List[Dict], row_count: int, has_valid: bool):
+    """Populate *entity_rows* with array-element data from *field_data*.
+
+    When *has_valid* is ``True``, rows whose ``valid_data`` flag is false are
+    set to ``None``.
+    """
     if row_count == 0:
         return
     field_name = field_data.field_name
     array_data = field_data.scalars.array_data
     data = array_data.data
     element_type = array_data.element_type
-    if element_type == DataType.INT64:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].long_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    elif element_type == DataType.BOOL:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].bool_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    elif element_type in (
-        DataType.INT8,
-        DataType.INT16,
-        DataType.INT32,
-    ):
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].int_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    elif element_type == DataType.FLOAT:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].float_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    elif element_type == DataType.DOUBLE:
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].double_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    elif element_type in (
-        DataType.STRING,
-        DataType.VARCHAR,
-    ):
-        [
-            entity_rows[i].__setitem__(
-                field_name, data[i].string_data.data if field_data.valid_data[i] else None
-            )
-            for i in range(row_count)
-        ]
-    else:
+
+    attr = _ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
+    if attr is None:
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
-
-def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict], row_count: int):
-    if row_count == 0:
-        return
-    field_name = field_data.field_name
-    array_data = field_data.scalars.array_data
-    data = array_data.data
-    element_type = array_data.element_type
-    if element_type == DataType.INT64:
-        [entity_rows[i].__setitem__(field_name, data[i].long_data.data) for i in range(row_count)]
-    elif element_type == DataType.BOOL:
-        [entity_rows[i].__setitem__(field_name, data[i].bool_data.data) for i in range(row_count)]
-    elif element_type in (
-        DataType.INT8,
-        DataType.INT16,
-        DataType.INT32,
-    ):
-        [entity_rows[i].__setitem__(field_name, data[i].int_data.data) for i in range(row_count)]
-    elif element_type == DataType.FLOAT:
-        [entity_rows[i].__setitem__(field_name, data[i].float_data.data) for i in range(row_count)]
-    elif element_type == DataType.DOUBLE:
-        [entity_rows[i].__setitem__(field_name, data[i].double_data.data) for i in range(row_count)]
-    elif element_type in (
-        DataType.STRING,
-        DataType.VARCHAR,
-    ):
-        [entity_rows[i].__setitem__(field_name, data[i].string_data.data) for i in range(row_count)]
+    valid_data = field_data.valid_data
+    if has_valid:
+        for i in range(row_count):
+            entity_rows[i][field_name] = getattr(data[i], attr).data if valid_data[i] else None
     else:
-        raise MilvusException(message=f"Unsupported data type: {element_type}")
+        for i in range(row_count):
+            entity_rows[i][field_name] = getattr(data[i], attr).data
 
 
 def extract_array_row_data(field_data: Any, index: int):
     array_data = field_data.scalars.array_data
     array = array_data.data[index]
     element_type = array_data.element_type
-    if element_type == DataType.INT64:
-        return array.long_data.data
-    if element_type == DataType.BOOL:
-        return array.bool_data.data
-    if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        return array.int_data.data
-    if element_type == DataType.FLOAT:
-        return array.float_data.data
-    if element_type == DataType.DOUBLE:
-        return array.double_data.data
-    if element_type in (DataType.STRING, DataType.VARCHAR):
-        return array.string_data.data
+    attr = _ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
+    if attr is not None:
+        return getattr(array, attr).data
     return None
 
 
@@ -1002,10 +929,7 @@ def extract_row_data_from_fields_data_v2(
         return True
 
     if field_data.type == DataType.ARRAY:
-        if has_valid:
-            extract_array_row_data_with_validity(field_data, entity_rows, row_count)
-        else:
-            extract_array_row_data_no_validity(field_data, entity_rows, row_count)
+        extract_array_rows(field_data, entity_rows, row_count, has_valid)
         return False
     if field_data.type in (
         DataType.FLOAT_VECTOR,
@@ -1253,6 +1177,20 @@ _ARRAY_DATA_ATTRS = (
     "double_data",
     "bool_data",
 )
+
+# Canonical mapping from array element DataType to protobuf scalar attribute name.
+# Used by all array-element extraction helpers so the mapping lives in one place.
+_ARRAY_ELEMENT_TYPE_TO_ATTR: Dict[DataType, str] = {
+    DataType.INT64: "long_data",
+    DataType.BOOL: "bool_data",
+    DataType.INT8: "int_data",
+    DataType.INT16: "int_data",
+    DataType.INT32: "int_data",
+    DataType.FLOAT: "float_data",
+    DataType.DOUBLE: "double_data",
+    DataType.STRING: "string_data",
+    DataType.VARCHAR: "string_data",
+}
 
 
 def get_array_length(array_item: Any) -> int:

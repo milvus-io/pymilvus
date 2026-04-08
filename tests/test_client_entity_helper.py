@@ -13,8 +13,7 @@ from pymilvus.client.entity_helper import (
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
-    extract_array_row_data_no_validity,
-    extract_array_row_data_with_validity,
+    extract_array_rows,
     extract_dynamic_field_from_result,
     extract_row_data_from_fields_data,
     extract_row_data_from_fields_data_v2,
@@ -1302,7 +1301,7 @@ class TestEmptyResultArrayField:
         extract_row_data_from_fields_data_v2(fd, entity_rows)
 
     def test_extract_array_no_validity_empty_result(self):
-        """extract_array_row_data_no_validity must not crash when row_count is 0."""
+        """extract_array_rows must not crash when row_count is 0."""
         fd = schema_types.FieldData()
         fd.type = DataType.ARRAY
         fd.field_name = "arr_field"
@@ -1310,10 +1309,10 @@ class TestEmptyResultArrayField:
 
         entity_rows: List[Dict] = []
         # Must not raise MilvusException("Unsupported data type: 0")
-        extract_array_row_data_no_validity(fd, entity_rows, 0)
+        extract_array_rows(fd, entity_rows, 0, False)
 
     def test_extract_array_with_validity_empty_result(self):
-        """extract_array_row_data_with_validity must not crash when row_count is 0."""
+        """extract_array_rows must not crash when row_count is 0 (with validity)."""
         fd = schema_types.FieldData()
         fd.type = DataType.ARRAY
         fd.field_name = "arr_field"
@@ -1321,4 +1320,4 @@ class TestEmptyResultArrayField:
 
         entity_rows: List[Dict] = []
         # Must not raise MilvusException("Unsupported data type: 0")
-        extract_array_row_data_with_validity(fd, entity_rows, 0)
+        extract_array_rows(fd, entity_rows, 0, True)
