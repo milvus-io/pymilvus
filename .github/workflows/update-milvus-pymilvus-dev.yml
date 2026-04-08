@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false  # Continue with other branches even if one fails
       matrix:
-        branch: [master, '2.5', '2.6']
+        branch: [master, '2.6']
     steps:
     - name: Setup Python
       uses: actions/setup-python@v5
