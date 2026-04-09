@@ -561,6 +561,27 @@ class TestSearchResultExtended:
         assert hits[0].entity["geom"] == "POINT(1 1)"
         assert hits[1].entity["geom"] == "POINT(2 2)"
 
+    def test_mol(self):
+        fields_data = [
+            schema_pb2.FieldData(
+                type=DataType.MOL,
+                field_name="mol",
+                field_id=105,
+                scalars=schema_pb2.ScalarField(
+                    mol_smiles_data=schema_pb2.MolSmilesArray(
+                        data=["CCO", "c1ccccc1", "CC(=O)O"]
+                    )
+                ),
+            )
+        ]
+
+        res_data = self._create_base_result(fields_data)
+        sr = SearchResult(res_data)
+        hits = sr[0]
+
+        assert hits[0].entity["mol"] == "CCO"
+        assert hits[1].entity["mol"] == "c1ccccc1"
+
     def test_get_field_data_with_mol(self):
         field_data = _make_scalar_field(DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=200)
         assert get_field_data(field_data) == ["CCO", "c1ccccc1"]
@@ -642,6 +663,15 @@ class TestSearchResultExtended:
                     json_data=schema_pb2.JSONArray(data=[b'{"a":1}', b"", b'{"c":3}'])
                 ),
             ),
+            # MOL
+            schema_pb2.FieldData(
+                type=DataType.MOL,
+                field_name="mol_field",
+                valid_data=valid_data,
+                scalars=schema_pb2.ScalarField(
+                    mol_smiles_data=schema_pb2.MolSmilesArray(data=["CCO", "", "CCN"])
+                ),
+            ),
         ]
 
         res_data = self._create_base_result(fields_data)
@@ -653,15 +683,18 @@ class TestSearchResultExtended:
         assert hits[0].entity["float_field"] == pytest.approx(1.1)
         assert hits[0].entity["str_field"] == "a"
         assert hits[0].entity["json_field"] == {"a": 1}
+        assert hits[0].entity["mol_field"] == "CCO"
 
         # Row 2 (null)
         assert hits[1].entity["int_field"] is None
         assert hits[1].entity["float_field"] is None
         assert hits[1].entity["str_field"] is None
         assert hits[1].entity["json_field"] is None
+        assert hits[1].entity["mol_field"] is None
 
         # Row 3 (valid)
         assert hits[2].entity["int_field"] == 30
+        assert hits[2].entity["mol_field"] == "CCN"
 
     def test_json_error_handling(self):
         # Test malformed JSON
