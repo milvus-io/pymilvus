@@ -568,9 +568,7 @@ class TestSearchResultExtended:
                 field_name="mol",
                 field_id=105,
                 scalars=schema_pb2.ScalarField(
-                    mol_smiles_data=schema_pb2.MolSmilesArray(
-                        data=["CCO", "c1ccccc1", "CC(=O)O"]
-                    )
+                    mol_smiles_data=schema_pb2.MolSmilesArray(data=["CCO", "c1ccccc1", "CC(=O)O"])
                 ),
             )
         ]
@@ -583,11 +581,15 @@ class TestSearchResultExtended:
         assert hits[1].entity["mol"] == "c1ccccc1"
 
     def test_get_field_data_with_mol(self):
-        field_data = _make_scalar_field(DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=200)
+        field_data = _make_scalar_field(
+            DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=200
+        )
         assert get_field_data(field_data) == ["CCO", "c1ccccc1"]
 
     def test_extract_struct_field_value_with_mol(self):
-        field_data = _make_scalar_field(DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=201)
+        field_data = _make_scalar_field(
+            DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=201
+        )
         assert extract_struct_field_value(field_data, 0) == "CCO"
         assert extract_struct_field_value(field_data, 1) == "c1ccccc1"
 

@@ -969,10 +969,7 @@ class Function:
                 raise ParamError(
                     message=f"MOL_FINGERPRINT function input field must be MOL type, got {field.dtype}"
                 )
-            if (
-                field.name == self._output_field_names[0]
-                and field.dtype != DataType.BINARY_VECTOR
-            ):
+            if field.name == self._output_field_names[0] and field.dtype != DataType.BINARY_VECTOR:
                 raise ParamError(
                     message=f"MOL_FINGERPRINT function output field must be BINARY_VECTOR type, got {field.dtype}"
                 )
