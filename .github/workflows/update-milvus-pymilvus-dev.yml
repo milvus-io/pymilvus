@@ -18,7 +18,7 @@ jobs:
         branch: [master, '2.6']
     steps:
     - name: Setup Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.11"
 
@@ -31,7 +31,7 @@ jobs:
         git config --global user.email "${{ secrets.GIT_AUTHOR_EMAIL }}"
 
     - name: Checkout pymilvus (repo root for workflow)
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         ref: ${{ matrix.branch }}
         persist-credentials: false
@@ -42,7 +42,7 @@ jobs:
         git fetch --depth=1 origin +refs/tags/*:refs/tags/*
 
     - name: Checkout Milvus (upstream)
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         repository: milvus-io/milvus
         ref: ${{ matrix.branch }}
