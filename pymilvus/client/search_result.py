@@ -21,6 +21,7 @@ _SCALAR_TYPES = frozenset(
         DataType.VARCHAR,
         DataType.GEOMETRY,
         DataType.TIMESTAMPTZ,
+        DataType.MOL,
     }
 )
 
@@ -52,6 +53,7 @@ _SCALAR_DATA_ATTR = {
     DataType.VARCHAR: "string_data",
     DataType.TIMESTAMPTZ: "string_data",
     DataType.GEOMETRY: "geometry_wkt_data",
+    DataType.MOL: "mol_smiles_data",
     DataType.JSON: "json_data",
     DataType.ARRAY: "array_data",
 }
@@ -539,6 +541,16 @@ class SearchResult(list):
                 )
                 continue
 
+            if dtype == DataType.MOL:
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.mol_smiles_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
+                    ),
+                    field_meta,
+                )
+                continue
+
             if dtype == DataType.JSON:
                 res = apply_valid_data(
                     scalars.json_data.data[start:end],
@@ -912,6 +924,9 @@ def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> 
     elif field_data.type == DataType.VARCHAR:
         if index < len(field_data.scalars.string_data.data):
             return field_data.scalars.string_data.data[index]
+    elif field_data.type == DataType.MOL:
+        if index < len(field_data.scalars.mol_smiles_data.data):
+            return field_data.scalars.mol_smiles_data.data[index]
     elif field_data.type == DataType.JSON:
         if index < len(field_data.scalars.json_data.data):
             return orjson.loads(field_data.scalars.json_data.data[index])

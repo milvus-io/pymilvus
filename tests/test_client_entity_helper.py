@@ -199,6 +199,30 @@ class TestEntityHelperExtended:
         assert field_data.type == DataType.INT64
         assert field_data.scalars.long_data.data[0] == 42
 
+    def test_pack_field_value_to_field_data_mol(self):
+        """Test packing MOL scalar field values"""
+        field_data = schema_pb2.FieldData()
+        field_data.type = DataType.MOL
+        field_data.field_name = "mol_field"
+        field_info = {"name": "mol_field", "params": {Config.MaxVarCharLengthKey: 256}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        pack_field_value_to_field_data("CCO", field_data, field_info, vector_bytes_cache)
+
+        assert field_data.type == DataType.MOL
+        assert list(field_data.scalars.mol_smiles_data.data) == ["CCO"]
+
+    def test_pack_field_value_to_field_data_mol_invalid_input(self):
+        """Test MOL packing rejects non-string input"""
+        field_data = schema_pb2.FieldData()
+        field_data.type = DataType.MOL
+        field_data.field_name = "mol_field"
+        field_info = {"name": "mol_field", "params": {Config.MaxVarCharLengthKey: 256}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        with pytest.raises(DataNotMatchException, match="mol"):
+            pack_field_value_to_field_data(123, field_data, field_info, vector_bytes_cache)
+
     def test_extract_field_info(self):
         """Test extracting primary field from schema"""
         # Create schema with primary field
@@ -334,6 +358,88 @@ class TestEntityHelperExtended:
         assert result.field_name == "test_field"
         assert result.type == DataType.INT64
         assert list(result.scalars.long_data.data) == [1, 2, 3, 4, 5]
+
+    def test_entity_to_field_data_mol(self):
+        """Test converting MOL entity to field data"""
+        entity = {"name": "mol_field", "type": DataType.MOL, "values": ["CCO", "c1ccccc1"]}
+        field_info = {"name": "mol_field", "params": {Config.MaxVarCharLengthKey: 256}}
+
+        result = entity_to_field_data(entity, field_info, 2)
+
+        assert result.field_name == "mol_field"
+        assert result.type == DataType.MOL
+        assert list(result.scalars.mol_smiles_data.data) == ["CCO", "c1ccccc1"]
+
+    def test_entity_to_field_data_mol_invalid_input(self):
+        """Test MOL entity conversion rejects non-string input"""
+        entity = {"name": "mol_field", "type": DataType.MOL, "values": ["CCO", 123]}
+        field_info = {"name": "mol_field", "params": {Config.MaxVarCharLengthKey: 256}}
+
+        with pytest.raises(ParamError, match="expects string input"):
+            entity_to_field_data(entity, field_info, 2)
+
+    def test_extract_row_data_from_fields_data_v2_mol(self):
+        """Test extracting MOL scalar values via extract_row_data_from_fields_data_v2"""
+        field_data = schema_pb2.FieldData()
+        field_data.field_name = "mol"
+        field_data.type = DataType.MOL
+        field_data.scalars.mol_smiles_data.CopyFrom(
+            schema_pb2.MolSmilesArray(data=["CCO", "c1ccccc1"])
+        )
+
+        entity_rows = [{}, {}]
+        is_vector = extract_row_data_from_fields_data_v2(field_data, entity_rows)
+
+        assert is_vector is False
+        assert entity_rows == [{"mol": "CCO"}, {"mol": "c1ccccc1"}]
+
+    def test_extract_row_data_from_fields_data_mol(self):
+        """Test extracting a single MOL scalar value via extract_row_data_from_fields_data"""
+        field_data = schema_pb2.FieldData()
+        field_data.field_name = "mol"
+        field_data.type = DataType.MOL
+        field_data.scalars.mol_smiles_data.CopyFrom(
+            schema_pb2.MolSmilesArray(data=["CCO", "c1ccccc1"])
+        )
+
+        row = extract_row_data_from_fields_data([field_data], 1)
+        assert row == {"mol": "c1ccccc1"}
+
+    def test_entity_to_field_data_nullable_mol(self):
+        """Test entity_to_field_data with nullable MOL values"""
+        entity = {
+            "name": "nullable_mol",
+            "type": DataType.MOL,
+            "values": ["CCO", None, "CCN"],
+        }
+        field_info = {
+            "name": "nullable_mol",
+            "nullable": True,
+            "params": {Config.MaxVarCharLengthKey: 256},
+        }
+
+        result = entity_to_field_data(entity, field_info, 3)
+
+        assert result.field_name == "nullable_mol"
+        assert result.type == DataType.MOL
+        assert list(result.valid_data) == [True, False, True]
+        assert list(result.scalars.mol_smiles_data.data) == ["CCO", "CCN"]
+
+    def test_pack_field_value_nullable_mol_none(self):
+        """Test pack_field_value_to_field_data with None MOL value"""
+        field_data = schema_pb2.FieldData()
+        field_data.type = DataType.MOL
+        field_data.field_name = "nullable_mol"
+        field_info = {
+            "name": "nullable_mol",
+            "nullable": True,
+            "params": {Config.MaxVarCharLengthKey: 256},
+        }
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
+
+        assert len(field_data.scalars.mol_smiles_data.data) == 0
 
 
 class TestNullableVectorSupport:

@@ -53,6 +53,64 @@ from pymilvus.orm.schema import (
 # ============================================================
 
 
+class TestMolFunction:
+    def test_mol_fingerprint_function_verify_success(self):
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("mol", DataType.MOL),
+                FieldSchema("fp", DataType.BINARY_VECTOR, dim=2048),
+            ]
+        )
+        function = Function(
+            "mol_fp",
+            FunctionType.MOL_FINGERPRINT,
+            ["mol"],
+            ["fp"],
+            params={"fingerprint_type": "morgan", "fingerprint_size": "2048"},
+        )
+
+        function.verify(schema)
+
+    def test_mol_fingerprint_function_rejects_non_mol_input(self):
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("text", DataType.VARCHAR, max_length=128),
+                FieldSchema("fp", DataType.BINARY_VECTOR, dim=2048),
+            ]
+        )
+        function = Function(
+            "mol_fp",
+            FunctionType.MOL_FINGERPRINT,
+            ["text"],
+            ["fp"],
+            params={"fingerprint_type": "morgan", "fingerprint_size": "2048"},
+        )
+
+        with pytest.raises(ParamError, match="input field must be MOL type"):
+            function.verify(schema)
+
+    def test_mol_fingerprint_function_rejects_non_binary_vector_output(self):
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("mol", DataType.MOL),
+                FieldSchema("fp", DataType.FLOAT_VECTOR, dim=128),
+            ]
+        )
+        function = Function(
+            "mol_fp",
+            FunctionType.MOL_FINGERPRINT,
+            ["mol"],
+            ["fp"],
+            params={"fingerprint_type": "morgan", "fingerprint_size": "2048"},
+        )
+
+        with pytest.raises(ParamError, match="output field must be BINARY_VECTOR type"):
+            function.verify(schema)
+
+
 class TestFieldSchemaCreation:
     """Tests for FieldSchema creation with various data types."""
 
