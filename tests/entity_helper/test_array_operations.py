@@ -3,8 +3,7 @@ import pytest
 from pymilvus.client.entity_helper import (
     convert_to_array,
     convert_to_array_of_vector,
-    extract_array_row_data_no_validity,
-    extract_array_row_data_with_validity,
+    extract_array_rows,
     get_array_length,
     get_array_value_at_index,
 )
@@ -14,7 +13,7 @@ from pymilvus.grpc_gen import schema_pb2 as schema_types
 
 
 class TestExtractArrayRowDataFunctions:
-    """Test extract_array_row_data_with_validity and extract_array_row_data_no_validity"""
+    """Test extract_array_rows with and without validity"""
 
     def test_extract_array_row_data_int8_no_validity(self):
         """Test extracting INT8 array data without validity"""
@@ -33,7 +32,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr2)
 
         entity_rows = [{}, {}]
-        extract_array_row_data_no_validity(field_data, entity_rows, 2)
+        extract_array_rows(field_data, entity_rows, 2, False)
 
         assert entity_rows[0]["arr_field"] == [1, 2, 3]
         assert entity_rows[1]["arr_field"] == [4, 5]
@@ -50,7 +49,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr1)
 
         entity_rows = [{}]
-        extract_array_row_data_no_validity(field_data, entity_rows, 1)
+        extract_array_rows(field_data, entity_rows, 1, False)
 
         assert entity_rows[0]["arr_field"] == [100, 200]
 
@@ -66,7 +65,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr1)
 
         entity_rows = [{}]
-        extract_array_row_data_no_validity(field_data, entity_rows, 1)
+        extract_array_rows(field_data, entity_rows, 1, False)
 
         assert entity_rows[0]["arr_field"] == [1000, 2000, 3000]
 
@@ -90,7 +89,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr3)
 
         entity_rows = [{}, {}, {}]
-        extract_array_row_data_with_validity(field_data, entity_rows, 3)
+        extract_array_rows(field_data, entity_rows, 3, True)
 
         assert entity_rows[0]["arr_field"] == [1, 2, 3]
         assert entity_rows[1]["arr_field"] is None
@@ -113,7 +112,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr2)
 
         entity_rows = [{}, {}]
-        extract_array_row_data_with_validity(field_data, entity_rows, 2)
+        extract_array_rows(field_data, entity_rows, 2, True)
 
         assert entity_rows[0]["bool_arr"] == [True, False]
         assert entity_rows[1]["bool_arr"] == [False, True, False]
@@ -134,7 +133,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr2)
 
         entity_rows = [{}, {}]
-        extract_array_row_data_with_validity(field_data, entity_rows, 2)
+        extract_array_rows(field_data, entity_rows, 2, True)
 
         assert entity_rows[0]["str_arr"] == ["hello", "world"]
         assert entity_rows[1]["str_arr"] is None
@@ -152,7 +151,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr1)
 
         entity_rows = [{}]
-        extract_array_row_data_with_validity(field_data, entity_rows, 1)
+        extract_array_rows(field_data, entity_rows, 1, True)
 
         assert entity_rows[0]["float_arr"][0] == pytest.approx(1.5)
 
@@ -169,7 +168,7 @@ class TestExtractArrayRowDataFunctions:
         field_data.scalars.array_data.data.append(arr1)
 
         entity_rows = [{}]
-        extract_array_row_data_with_validity(field_data, entity_rows, 1)
+        extract_array_rows(field_data, entity_rows, 1, True)
 
         assert entity_rows[0]["double_arr"][0] == pytest.approx(1.111)
 
