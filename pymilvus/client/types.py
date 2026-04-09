@@ -117,6 +117,7 @@ class DataType(IntEnum):
     JSON = schema_pb2.JSON
     GEOMETRY = schema_pb2.Geometry
     TIMESTAMPTZ = schema_pb2.Timestamptz
+    MOL = schema_pb2.Mol
 
     BINARY_VECTOR = schema_pb2.BinaryVector
     FLOAT_VECTOR = schema_pb2.FloatVector
@@ -143,6 +144,7 @@ class FunctionType(IntEnum):
     TEXTEMBEDDING = 2
     RERANK = 3
     MINHASH = 4
+    MOL_FINGERPRINT = 5
 
 
 class HighlightType(IntEnum):

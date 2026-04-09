@@ -710,6 +710,20 @@ def pack_field_value_to_field_data(
                 % (field_name, "array", type(field_value))
                 + f" Detail: {e!s}"
             ) from e
+    elif field_type == DataType.MOL:
+        try:
+            if field_value is None:
+                field_data.scalars.mol_smiles_data.data.extend([])
+            else:
+                field_data.scalars.mol_smiles_data.data.append(
+                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
+                )
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "mol", type(field_value))
+                + f" Detail: {e!s}"
+            ) from e
     else:
         raise ParamError(message=f"Unsupported data type: {field_type}")
 
@@ -799,6 +813,10 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             )
         elif entity_type == DataType.GEOMETRY:
             field_data.scalars.geometry_wkt_data.data.extend(
+                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
+            )
+        elif entity_type == DataType.MOL:
+            field_data.scalars.mol_smiles_data.data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
         else:
@@ -998,6 +1016,11 @@ def extract_row_data_from_fields_data_v2(
         assign_scalar(data)
         return False
 
+    if field_data.type == DataType.MOL:
+        data = field_data.scalars.mol_smiles_data.data
+        assign_scalar(data)
+        return False
+
     if field_data.type == DataType.JSON:
         return True
 
@@ -1137,6 +1160,12 @@ def extract_row_data_from_fields_data(
             scalar_data = field_data.scalars.geometry_wkt_data.data
             if len(scalar_data) >= index:
                 entity_row_data[field_name] = None if is_null else scalar_data[index]
+                return
+
+        if field_data.type == DataType.MOL:
+            scalar_data = field_data.scalars.mol_smiles_data.data
+            if len(scalar_data) >= index:
+                row_data[field_name] = None if is_null else scalar_data[index]
                 return
 
         if field_data.type == DataType.JSON:

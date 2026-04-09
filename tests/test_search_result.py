@@ -54,6 +54,9 @@ def _make_scalar_field(dtype, name, data, field_id=0, is_dynamic=False, valid_da
         DataType.GEOMETRY: lambda d: schema_pb2.ScalarField(
             geometry_wkt_data=schema_pb2.GeometryWktArray(data=d)
         ),
+        DataType.MOL: lambda d: schema_pb2.ScalarField(
+            mol_smiles_data=schema_pb2.MolSmilesArray(data=d)
+        ),
     }
     kwargs["scalars"] = scalar_map[dtype](data)
     return schema_pb2.FieldData(**kwargs)
@@ -557,6 +560,15 @@ class TestSearchResultExtended:
 
         assert hits[0].entity["geom"] == "POINT(1 1)"
         assert hits[1].entity["geom"] == "POINT(2 2)"
+
+    def test_get_field_data_with_mol(self):
+        field_data = _make_scalar_field(DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=200)
+        assert get_field_data(field_data) == ["CCO", "c1ccccc1"]
+
+    def test_extract_struct_field_value_with_mol(self):
+        field_data = _make_scalar_field(DataType.MOL, "mol_field", ["CCO", "c1ccccc1"], field_id=201)
+        assert extract_struct_field_value(field_data, 0) == "CCO"
+        assert extract_struct_field_value(field_data, 1) == "c1ccccc1"
 
     def test_search_result_extra_and_status(self):
         res_data = self._create_base_result()
