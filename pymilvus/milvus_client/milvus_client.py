@@ -36,6 +36,7 @@ from pymilvus.exceptions import (
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
+from pymilvus.orm.schema import FieldSchema
 from pymilvus.orm.types import DataType
 
 from .base import BaseMilvusClient
@@ -1293,6 +1294,175 @@ class MilvusClient(BaseMilvusClient):
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
+
+    def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        func: Optional[Function] = None,
+        index_param: Optional[IndexParam] = None,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ):
+        """Alter collection schema supporting both Add and Drop operations.
+
+        For Add operation: provide field_schema, func, and index_param
+        For Drop operation: provide either drop_field_name or drop_field_id
+
+        Args:
+            collection_name(``str``): The name of the collection.
+            field_schema(``FieldSchema``, optional): Field schema to add.
+            func(``Function``, optional): Function to add.
+            index_param(``IndexParam``, optional): Index parameters for the field.
+            do_physical_backfill(``bool``): Whether to perform physical backfill.
+            timeout(``float``, optional): Timeout for the operation.
+            drop_field_name(``str``, optional): Field name to drop.
+            drop_field_id(``int``, optional): Field ID to drop.
+            **kwargs(``dict``): Additional keyword arguments.
+
+        Raises:
+            ParamError: If operation parameters are invalid.
+            MilvusException: If the operation fails.
+        """
+        validate_param("collection_name", collection_name, str)
+        conn = self._get_connection()
+
+        is_drop = drop_field_name is not None or drop_field_id is not None
+        is_add = field_schema is not None or func is not None
+
+        if is_drop and is_add:
+            raise ParamError(
+                message="Cannot perform both Add and Drop operations in a single request"
+            )
+        if not is_drop and not is_add:
+            raise ParamError(
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+            )
+
+        if is_add:
+            if field_schema is None:
+                raise ParamError(message="field_schema is required for Add operation")
+            if func is None:
+                raise ParamError(message="func is required for Add operation")
+
+            conn.alter_collection_schema(
+                collection_name=collection_name,
+                field_schema=field_schema,
+                index_name=index_param.index_name if index_param is not None else "",
+                extra_params=index_param.get_index_configs() if index_param is not None else [],
+                func=func,
+                do_physical_backfill=do_physical_backfill,
+                timeout=timeout,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
+        else:
+            conn.alter_collection_schema(
+                collection_name=collection_name,
+                drop_field_name=drop_field_name,
+                drop_field_id=drop_field_id,
+                timeout=timeout,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
+
+    def add_function_field(
+        self,
+        collection_name: str,
+        field_schema: FieldSchema,
+        func: Function,
+        index_param: IndexParam,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Add a function-backed field (e.g. BM25 sparse vector) to an existing collection.
+
+        This is a high-level convenience wrapper that performs two steps atomically
+        from the caller's perspective:
+
+        1. ``alter_collection_schema`` — commits the schema change (new output field +
+           function definition) and, when ``do_physical_backfill=True``, triggers a
+           backfill compaction to generate the missing function output for pre-existing
+           flushed segments.
+
+        2. ``create_index`` — registers the index on the newly-added output field so
+           that the collection can be loaded for search.
+
+        Both steps must succeed; if ``create_index`` fails after the schema change has
+        already been committed, the collection is left with the new field but without an
+        index.  In that case the caller should call ``create_index`` manually to recover.
+
+        Args:
+            collection_name(``str``): Name of the collection to modify.
+            field_schema(``FieldSchema``): Schema of the new output field produced by
+                the function (e.g. a ``SPARSE_FLOAT_VECTOR`` field for BM25).
+            func(``Function``): Function definition that generates the output field
+                (e.g. a ``FunctionType.BM25`` function).
+            index_param(``IndexParam``): Index configuration for the new output field.
+            do_physical_backfill(``bool``): When ``True``, the server triggers a
+                backfill compaction to write function outputs into pre-existing flushed
+                segments. Defaults to ``False``.
+            timeout(``float``, optional): Timeout in seconds for the schema-change RPC.
+            **kwargs: Additional keyword arguments forwarded to the underlying calls.
+
+        Raises:
+            ParamError: If any required parameter is missing or invalid.
+            MilvusException: If the schema change or index creation fails.
+        """
+        validate_param("collection_name", collection_name, str)
+        validate_param("field_schema", field_schema, FieldSchema)
+        validate_param("func", func, Function)
+        validate_param("index_param", index_param, IndexParam)
+
+        # Only BM25 + SPARSE_FLOAT_VECTOR is currently supported on the server side.
+        # The Proxy and RootCoord both enforce this; reject early here for a clearer
+        # error message before any RPC is sent.
+        from pymilvus.client.types import FunctionType, DataType as _DataType
+
+        if func.type != FunctionType.BM25:
+            raise ParamError(
+                message=f"add_function_field only supports FunctionType.BM25 for now, got {func.type}"
+            )
+        if field_schema.dtype != _DataType.SPARSE_FLOAT_VECTOR:
+            raise ParamError(
+                message=f"add_function_field only supports SPARSE_FLOAT_VECTOR output field for now, got {field_schema.dtype}"
+            )
+
+        # Step 1: commit schema change (new field + function, optional physical backfill).
+        self.alter_collection_schema(
+            collection_name=collection_name,
+            field_schema=field_schema,
+            func=func,
+            do_physical_backfill=do_physical_backfill,
+            timeout=timeout,
+            **kwargs,
+        )
+
+        # Step 2: create the index on the new output field.
+        # Schema change is already committed at this point.  If create_index fails,
+        # the collection is left with the new field but no index — the caller must
+        # call create_index manually to recover.
+        # gRPC-level retries are handled inside _create_index via @retry_on_rpc_failure.
+        from pymilvus.milvus_client.index import IndexParams as _IndexParams
+
+        try:
+            self.create_index(
+                collection_name,
+                _IndexParams([index_param]),
+                timeout=timeout,
+                **kwargs,
+            )
+        except Exception as e:
+            raise type(e)(
+                f"add_function_field: schema change succeeded but create_index failed "
+                f"for field '{field_schema.name}' (index '{index_param.index_name}'). "
+                f"The field is now in the schema without an index. "
+                f"Call create_index manually to recover. Original error: {e}"
+            ) from e
 
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs

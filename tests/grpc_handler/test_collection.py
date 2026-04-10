@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus import FieldSchema
+from pymilvus import FieldSchema, Function, FunctionType
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import DescribeCollectionException
@@ -211,3 +211,47 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.DropCollectionFunction.return_value = make_status()
         handler.drop_collection_function("coll", "func")
         handler._stub.DropCollectionFunction.assert_called_once()
+
+    def test_alter_collection_schema_add(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        resp.index_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        field = FieldSchema(name="new_field", dtype=DataType.FLOAT_VECTOR, dim=128)
+        func = Function(
+            name="bm25",
+            function_type=FunctionType.BM25,
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+        )
+        handler.alter_collection_schema(
+            collection_name="coll",
+            field_schema=field,
+            index_name="idx",
+            extra_params={"metric_type": "L2"},
+            func=func,
+            do_physical_backfill=True,
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
+
+    def test_alter_collection_schema_drop_by_name(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        resp.index_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        handler.alter_collection_schema(
+            collection_name="coll",
+            drop_field_name="old_field",
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
+
+    def test_alter_collection_schema_drop_by_id(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        resp.index_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        handler.alter_collection_schema(
+            collection_name="coll",
+            drop_field_id=42,
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
