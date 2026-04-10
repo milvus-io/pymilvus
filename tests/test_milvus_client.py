@@ -1,8 +1,17 @@
+import inspect
 import logging
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from pymilvus import DataType, SearchAggregation, StructFieldSchema, TopHits
+from pymilvus import (
+    DataType,
+    FieldSchema,
+    Function,
+    FunctionType,
+    SearchAggregation,
+    StructFieldSchema,
+    TopHits,
+)
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.types import (
     LoadState,
@@ -34,6 +43,17 @@ def reset_connection_manager():
 
 
 class TestMilvusClient:
+    def test_schema_extension_signatures_exclude_physical_backfill(self):
+        assert not hasattr(MilvusClient, "alter_collection_schema")
+        assert (
+            "do_physical_backfill"
+            not in inspect.signature(MilvusClient._alter_collection_schema).parameters
+        )
+        assert (
+            "do_physical_backfill"
+            not in inspect.signature(MilvusClient.add_function_field).parameters
+        )
+
     @pytest.mark.parametrize("index_params", [None, {}, "str", MilvusClient.prepare_index_params()])
     def test_create_index_invalid_params(self, index_params):
         mock_handler = MagicMock()
@@ -1547,6 +1567,98 @@ class TestMilvusClientCollectionMgmt:
             client = MilvusClient()
             client.drop_collection_function("col", "fn")
             handler.drop_collection_function.assert_called_once()
+
+    def test_drop_collection_field_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.drop_collection_field("col", field_name="f")
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_private_alter_collection_schema_add_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            field = MagicMock()
+            func = MagicMock()
+            client._alter_collection_schema("col", field_schema=field, func=func)
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_private_alter_collection_schema_drop_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client._alter_collection_schema("col", drop_field_name="old")
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_private_alter_collection_schema_rejects_both_add_and_drop(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="Cannot perform both"):
+                client._alter_collection_schema(
+                    "col", field_schema=MagicMock(), drop_field_name="old"
+                )
+
+    def test_private_alter_collection_schema_rejects_neither_add_nor_drop(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="Must specify"):
+                client._alter_collection_schema("col")
+
+    def test_private_alter_collection_schema_add_requires_field_and_func(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="func is required"):
+                client._alter_collection_schema("col", field_schema=MagicMock())
+            with pytest.raises(ParamError, match="field_schema is required"):
+                client._alter_collection_schema("col", func=MagicMock())
+
+    def test_add_function_field_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+            func = Function(
+                name="bm25",
+                function_type=FunctionType.BM25,
+                input_field_names=["text"],
+                output_field_names=["sparse"],
+            )
+            client.add_function_field("col", field, func)
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_add_function_field_rejects_unsupported_function_type(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+            func = Function(
+                name="embed",
+                function_type=FunctionType.TEXTEMBEDDING,
+                input_field_names=["text"],
+                output_field_names=["sparse"],
+            )
+            with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
+                client.add_function_field("col", field, func)
+            handler.alter_collection_schema.assert_not_called()
+
+    def test_add_function_field_rejects_non_sparse_output(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
+            func = Function(
+                name="bm25",
+                function_type=FunctionType.BM25,
+                input_field_names=["text"],
+                output_field_names=["dense"],
+            )
+            with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
+                client.add_function_field("col", field, func)
+            handler.alter_collection_schema.assert_not_called()
 
 
 class TestMilvusClientMiscOps:

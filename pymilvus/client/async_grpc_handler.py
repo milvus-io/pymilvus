@@ -1618,6 +1618,49 @@ class AsyncGrpcHandler:
         check_status(status)
         self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
+    async def _alter_collection_schema_drop(
+        self,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        function_name: str = "",
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            drop_field_name=field_name,
+            drop_field_id=field_id,
+        )
+        response = await self._async_stub.AlterCollectionSchema(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.alter_status)
+
+    @retry_on_rpc_failure()
+    async def drop_collection_field(
+        self,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self._alter_collection_schema_drop(
+            collection_name,
+            field_name=field_name,
+            field_id=field_id,
+            timeout=timeout,
+            context=context,
+            **kwargs,
+        )
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+
     @retry_on_rpc_failure()
     async def drop_collection_function(
         self,
@@ -1671,6 +1714,32 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
+
+    @retry_on_rpc_failure()
+    async def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        func: Optional[Function] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
+            func=func,
+            drop_field_name=drop_field_name,
+            drop_field_id=drop_field_id,
+        )
+        response = await self._async_stub.AlterCollectionSchema(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.alter_status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     async def list_indexes(
