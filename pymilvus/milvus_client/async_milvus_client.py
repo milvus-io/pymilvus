@@ -925,6 +925,37 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def drop_collection_field(
+        self,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Drop a field from the collection.
+
+        Args:
+            collection_name(``string``): The name of collection.
+            field_name (str, optional): The name of the field to drop.
+            field_id (int, optional): The ID of the field to drop.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+
+        Raises:
+            MilvusException: If anything goes wrong
+        """
+        conn = await self._get_connection()
+        await conn.drop_collection_field(
+            collection_name,
+            field_name=field_name,
+            field_id=field_id,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     async def add_collection_field(
         self,
         collection_name: str,
@@ -1024,7 +1055,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         await conn.drop_collection_function(
             collection_name,
-            function_name,
+            function_name=function_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,

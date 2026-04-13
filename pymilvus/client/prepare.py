@@ -439,6 +439,32 @@ class Prepare:
         )
 
     @classmethod
+    def alter_collection_schema_drop_request(
+        cls,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        function_name: str = "",
+        db_name: str = "",
+    ) -> milvus_types.AlterCollectionSchemaRequest:
+        drop_req = milvus_types.AlterCollectionSchemaRequest.DropRequest()
+        if function_name:
+            drop_req.function_name = function_name
+        elif field_name:
+            drop_req.field_name = field_name
+        elif field_id > 0:
+            drop_req.field_id = field_id
+
+        action = milvus_types.AlterCollectionSchemaRequest.Action(
+            drop_request=drop_req,
+        )
+        return milvus_types.AlterCollectionSchemaRequest(
+            collection_name=collection_name,
+            db_name=db_name,
+            action=action,
+        )
+
+    @classmethod
     def describe_collection_request(
         cls,
         collection_name: str,
