@@ -430,6 +430,7 @@ class TestCollectionSchema:
         mock_schema.fields = []
         mock_schema.struct_array_fields = []
         mock_schema.functions = []
+        mock_schema.version = 0
 
         raw = MagicMock()
         raw.schema = mock_schema
@@ -480,6 +481,16 @@ class TestCollectionSchema:
         assert schema.enable_namespace is False
         assert schema.created_timestamp == 1704067200
         assert schema.update_timestamp == 1704153600
+        assert schema.schema_version == 0
+
+    def test_collection_schema_version(self):
+        """Test CollectionSchema schema_version field."""
+        raw = self._create_mock_collection_raw()
+        raw.schema.version = 5
+        schema = CollectionSchema(raw)
+        assert schema.schema_version == 5
+        d = schema.dict()
+        assert d["schema_version"] == 5
 
     def test_collection_schema_with_properties(self):
         """Test CollectionSchema with properties."""
