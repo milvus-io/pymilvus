@@ -836,6 +836,30 @@ class TestAnnSearchRequest:
 
         assert request.expr_params == {"min_id": 100}
 
+    def test_ann_search_request_with_filter(self):
+        """filter= is accepted as an alias for expr= (issue #2664)."""
+        request = AnnSearchRequest(
+            data=[[0.1, 0.2, 0.3, 0.4]],
+            anns_field="vector_field",
+            param={"metric_type": "L2"},
+            limit=10,
+            filter="age > 30",
+        )
+        assert request.expr == "age > 30"
+        assert request.filter == "age > 30"
+
+    def test_ann_search_request_filter_and_expr_raises(self):
+        """Providing both filter= and expr= must raise ValueError."""
+        with pytest.raises(ValueError, match="either 'expr' or 'filter'"):
+            AnnSearchRequest(
+                data=[[0.1, 0.2]],
+                anns_field="vector_field",
+                param={},
+                limit=10,
+                expr="age > 1",
+                filter="age > 1",
+            )
+
     def test_ann_search_request_invalid_expr_type(self):
         """Test AnnSearchRequest raises error for invalid expr type."""
         with pytest.raises(DataTypeNotMatchException):
@@ -845,6 +869,17 @@ class TestAnnSearchRequest:
                 param={},
                 limit=10,
                 expr=123,  # Invalid type
+            )
+
+    def test_ann_search_request_invalid_filter_type(self):
+        """filter= with a non-str value must also raise DataTypeNotMatchException."""
+        with pytest.raises(DataTypeNotMatchException):
+            AnnSearchRequest(
+                data=[[0.1, 0.2]],
+                anns_field="vector_field",
+                param={},
+                limit=10,
+                filter=123,
             )
 
     def test_ann_search_request_str(self):
