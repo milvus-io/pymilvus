@@ -51,6 +51,8 @@ class TestAsyncGrpcHandlerSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="test_collection",
                 description="test description",
+                db_name="",
+                compaction_protection_seconds=0,
             )
 
     @pytest.mark.asyncio
@@ -79,9 +81,17 @@ class TestAsyncGrpcHandlerSnapshot:
             mock_request = MagicMock()
             mock_prepare.drop_snapshot_req.return_value = mock_request
 
-            await handler.drop_snapshot(snapshot_name="test_snapshot", timeout=30)
+            await handler.drop_snapshot(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                timeout=30,
+            )
 
-            mock_prepare.drop_snapshot_req.assert_called_once_with("test_snapshot")
+            mock_prepare.drop_snapshot_req.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+            )
 
     @pytest.mark.asyncio
     async def test_list_snapshots(self) -> None:
@@ -118,7 +128,7 @@ class TestAsyncGrpcHandlerSnapshot:
             result = await handler.list_snapshots(collection_name="test_collection", timeout=30)
 
             mock_prepare.list_snapshots_req.assert_called_once_with(
-                collection_name="test_collection"
+                collection_name="test_collection", db_name=""
             )
             assert len(result) == 2
 
@@ -156,9 +166,17 @@ class TestAsyncGrpcHandlerSnapshot:
             mock_request = MagicMock()
             mock_prepare.describe_snapshot_req.return_value = mock_request
 
-            result = await handler.describe_snapshot(snapshot_name="test_snapshot", timeout=30)
+            result = await handler.describe_snapshot(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                timeout=30,
+            )
 
-            mock_prepare.describe_snapshot_req.assert_called_once_with("test_snapshot")
+            mock_prepare.describe_snapshot_req.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+            )
             assert result.name == "test_snapshot"
             assert result.description == "test description"
             assert result.collection_name == "test_collection"
@@ -194,13 +212,19 @@ class TestAsyncGrpcHandlerSnapshot:
 
             job_id = await handler.restore_snapshot(
                 snapshot_name="test_snapshot",
-                collection_name="new_collection",
+                target_collection_name="new_collection",
+                source_collection_name="source_collection",
                 rewrite_data=False,
                 timeout=30,
             )
 
             mock_prepare.restore_snapshot_req.assert_called_once_with(
-                snapshot_name="test_snapshot", collection_name="new_collection", rewrite_data=False
+                snapshot_name="test_snapshot",
+                target_collection_name="new_collection",
+                source_collection_name="source_collection",
+                target_db_name="",
+                source_db_name="",
+                rewrite_data=False,
             )
             assert job_id == 12345
 
@@ -314,8 +338,80 @@ class TestAsyncGrpcHandlerSnapshot:
             )
 
             mock_prepare.list_restore_snapshot_jobs_req.assert_called_once_with(
-                collection_name="test_collection"
+                collection_name="test_collection", db_name=""
             )
             assert len(result) == 2
             assert result[0].job_id == 1
             assert result[1].job_id == 2
+
+    @pytest.mark.asyncio
+    async def test_pin_snapshot_data(self) -> None:
+        """Test pin_snapshot_data async API"""
+        mock_channel = MagicMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel.close = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        mock_response = MagicMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_response.status = mock_status
+        mock_response.pin_id = 42
+        mock_stub.PinSnapshotData = AsyncMock(return_value=mock_response)
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            mock_prepare.pin_snapshot_data_req.return_value = MagicMock()
+
+            pin_id = await handler.pin_snapshot_data(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                ttl_seconds=60,
+                timeout=30,
+            )
+
+            mock_prepare.pin_snapshot_data_req.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+                ttl_seconds=60,
+            )
+            assert pin_id == 42
+
+    @pytest.mark.asyncio
+    async def test_unpin_snapshot_data(self) -> None:
+        """Test unpin_snapshot_data async API"""
+        mock_channel = MagicMock()
+        mock_channel.channel_ready = AsyncMock()
+        mock_channel.close = AsyncMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        handler._async_stub = mock_stub
+
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.UnpinSnapshotData = AsyncMock(return_value=mock_status)
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            mock_prepare.unpin_snapshot_data_req.return_value = MagicMock()
+
+            await handler.unpin_snapshot_data(pin_id=42, timeout=30)
+
+            mock_prepare.unpin_snapshot_data_req.assert_called_once_with(pin_id=42)

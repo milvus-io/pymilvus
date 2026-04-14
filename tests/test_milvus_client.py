@@ -226,6 +226,8 @@ class TestMilvusClientSnapshot:
                 snapshot_name="test_snapshot",
                 collection_name="test_collection",
                 description="Test description",
+                db_name="",
+                compaction_protection_seconds=0,
                 timeout=None,
                 context=ANY,
             )
@@ -258,10 +260,14 @@ class TestMilvusClientSnapshot:
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
-            client.drop_snapshot(snapshot_name="test_snapshot")
+            client.drop_snapshot(snapshot_name="test_snapshot", collection_name="test_collection")
 
             mock_handler.drop_snapshot.assert_called_once_with(
-                snapshot_name="test_snapshot", timeout=None, context=ANY
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+                timeout=None,
+                context=ANY,
             )
 
     def test_list_snapshots(self):
@@ -278,7 +284,7 @@ class TestMilvusClientSnapshot:
 
             assert snapshots == ["snapshot1", "snapshot2"]
             mock_handler.list_snapshots.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
 
     def test_list_snapshots_all(self):
@@ -315,7 +321,9 @@ class TestMilvusClientSnapshot:
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
-            info = client.describe_snapshot(snapshot_name="test_snapshot")
+            info = client.describe_snapshot(
+                snapshot_name="test_snapshot", collection_name="test_collection"
+            )
 
             assert info.name == "test_snapshot"
             assert info.description == "Test description"
@@ -325,7 +333,11 @@ class TestMilvusClientSnapshot:
             assert info.s3_location == "s3://bucket/path"
 
             mock_handler.describe_snapshot.assert_called_once_with(
-                snapshot_name="test_snapshot", timeout=None, context=ANY
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+                timeout=None,
+                context=ANY,
             )
 
     def test_restore_snapshot(self):
@@ -339,13 +351,18 @@ class TestMilvusClientSnapshot:
             client = MilvusClient()
 
             job_id = client.restore_snapshot(
-                snapshot_name="test_snapshot", collection_name="restored_collection"
+                snapshot_name="test_snapshot",
+                target_collection_name="restored_collection",
+                source_collection_name="test_collection",
             )
 
             assert job_id == 12345
             mock_handler.restore_snapshot.assert_called_once_with(
                 snapshot_name="test_snapshot",
-                collection_name="restored_collection",
+                target_collection_name="restored_collection",
+                source_collection_name="test_collection",
+                target_db_name="",
+                source_db_name="",
                 rewrite_data=False,
                 timeout=None,
                 context=ANY,
@@ -426,7 +443,7 @@ class TestMilvusClientSnapshot:
             assert jobs[1].progress == 50
 
             mock_handler.list_restore_snapshot_jobs.assert_called_once_with(
-                collection_name="test_collection", timeout=None, context=ANY
+                collection_name="test_collection", db_name="", timeout=None, context=ANY
             )
 
     def test_list_restore_snapshot_jobs_all(self):

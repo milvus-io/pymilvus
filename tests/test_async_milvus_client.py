@@ -684,6 +684,8 @@ _SNAPSHOT_CASES = [
             "snapshot_name": "test_snapshot",
             "collection_name": "test_collection",
             "description": "Test description",
+            "db_name": "",
+            "compaction_protection_seconds": 0,
             "timeout": None,
             "context": ANY,
         },
@@ -692,24 +694,42 @@ _SNAPSHOT_CASES = [
     ),
     (
         "drop_snapshot",
-        {"snapshot_name": "test_snapshot"},
-        {"snapshot_name": "test_snapshot", "timeout": None, "context": ANY},
+        {"snapshot_name": "test_snapshot", "collection_name": "test_collection"},
+        {
+            "snapshot_name": "test_snapshot",
+            "collection_name": "test_collection",
+            "db_name": "",
+            "timeout": None,
+            "context": ANY,
+        },
         None,
         None,
     ),
     (
         "list_snapshots",
         {"collection_name": "test_collection"},
-        {"collection_name": "test_collection", "timeout": None, "context": ANY},
+        {
+            "collection_name": "test_collection",
+            "db_name": "",
+            "timeout": None,
+            "context": ANY,
+        },
         ["snapshot1", "snapshot2"],
         None,
     ),
     (
         "restore_snapshot",
-        {"snapshot_name": "test_snapshot", "collection_name": "restored_collection"},
         {
             "snapshot_name": "test_snapshot",
-            "collection_name": "restored_collection",
+            "target_collection_name": "restored_collection",
+            "source_collection_name": "test_collection",
+        },
+        {
+            "snapshot_name": "test_snapshot",
+            "target_collection_name": "restored_collection",
+            "source_collection_name": "test_collection",
+            "target_db_name": "",
+            "source_db_name": "",
             "rewrite_data": False,
             "timeout": None,
             "context": ANY,
@@ -727,7 +747,12 @@ _SNAPSHOT_CASES = [
     (
         "list_restore_snapshot_jobs",
         {"collection_name": "test_collection"},
-        {"collection_name": "test_collection", "timeout": None, "context": ANY},
+        {
+            "collection_name": "test_collection",
+            "db_name": "",
+            "timeout": None,
+            "context": ANY,
+        },
         [],
         None,
     ),
@@ -752,11 +777,17 @@ class TestAsyncMilvusClientSnapshot:
         mock_handler.get_server_type.return_value = "milvus"
         mock_handler.describe_snapshot = AsyncMock(return_value=mock_info)
 
-        info = await client.describe_snapshot(snapshot_name="test_snapshot")
+        info = await client.describe_snapshot(
+            snapshot_name="test_snapshot", collection_name="test_collection"
+        )
 
         assert info.name == "test_snapshot"
         mock_handler.describe_snapshot.assert_called_once_with(
-            snapshot_name="test_snapshot", timeout=None, context=ANY
+            snapshot_name="test_snapshot",
+            collection_name="test_collection",
+            db_name="",
+            timeout=None,
+            context=ANY,
         )
 
     @pytest.mark.asyncio
@@ -799,6 +830,8 @@ class TestAsyncMilvusClientSnapshot:
                     "snapshot_name": "test_snapshot",
                     "collection_name": "test_collection",
                     "description": "Test description",
+                    "db_name": "",
+                    "compaction_protection_seconds": 0,
                     "timeout": None,
                     "context": ANY,
                 },
@@ -806,22 +839,40 @@ class TestAsyncMilvusClientSnapshot:
             ),
             (
                 "drop_snapshot",
-                {"snapshot_name": "test_snapshot"},
-                {"snapshot_name": "test_snapshot", "timeout": None, "context": ANY},
+                {"snapshot_name": "test_snapshot", "collection_name": "test_collection"},
+                {
+                    "snapshot_name": "test_snapshot",
+                    "collection_name": "test_collection",
+                    "db_name": "",
+                    "timeout": None,
+                    "context": ANY,
+                },
                 None,
             ),
             (
                 "list_snapshots",
                 {"collection_name": "test_collection"},
-                {"collection_name": "test_collection", "timeout": None, "context": ANY},
+                {
+                    "collection_name": "test_collection",
+                    "db_name": "",
+                    "timeout": None,
+                    "context": ANY,
+                },
                 ["snapshot1", "snapshot2"],
             ),
             (
                 "restore_snapshot",
-                {"snapshot_name": "test_snapshot", "collection_name": "restored_collection"},
                 {
                     "snapshot_name": "test_snapshot",
-                    "collection_name": "restored_collection",
+                    "target_collection_name": "restored_collection",
+                    "source_collection_name": "test_collection",
+                },
+                {
+                    "snapshot_name": "test_snapshot",
+                    "target_collection_name": "restored_collection",
+                    "source_collection_name": "test_collection",
+                    "target_db_name": "",
+                    "source_db_name": "",
                     "rewrite_data": False,
                     "timeout": None,
                     "context": ANY,
@@ -831,7 +882,12 @@ class TestAsyncMilvusClientSnapshot:
             (
                 "list_restore_snapshot_jobs",
                 {"collection_name": "test_collection"},
-                {"collection_name": "test_collection", "timeout": None, "context": ANY},
+                {
+                    "collection_name": "test_collection",
+                    "db_name": "",
+                    "timeout": None,
+                    "context": ANY,
+                },
                 [],
             ),
         ],

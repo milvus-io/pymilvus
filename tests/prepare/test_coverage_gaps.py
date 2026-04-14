@@ -304,10 +304,13 @@ class TestSnapshotRequests:
 
     def test_create_snapshot(self):
         """Test create snapshot request."""
-        req = Prepare.create_snapshot_req("snap1", "test_coll", "description")
+        req = Prepare.create_snapshot_req(
+            "snap1", "test_coll", "description", compaction_protection_seconds=3600
+        )
         assert req.name == "snap1"
         assert req.collection_name == "test_coll"
         assert req.description == "description"
+        assert req.compaction_protection_seconds == 3600
 
     def test_create_snapshot_invalid_name(self):
         """Test create snapshot with invalid name."""
@@ -319,15 +322,26 @@ class TestSnapshotRequests:
         with pytest.raises(ParamError):
             Prepare.create_snapshot_req("snap1", "")
 
+    def test_create_snapshot_invalid_compaction_seconds(self):
+        """Test create snapshot with negative compaction_protection_seconds."""
+        with pytest.raises(ParamError):
+            Prepare.create_snapshot_req("snap1", "test_coll", compaction_protection_seconds=-1)
+
     def test_drop_snapshot(self):
         """Test drop snapshot request."""
-        req = Prepare.drop_snapshot_req("snap1")
+        req = Prepare.drop_snapshot_req("snap1", collection_name="test_coll")
         assert req.name == "snap1"
+        assert req.collection_name == "test_coll"
 
     def test_drop_snapshot_invalid_name(self):
         """Test drop snapshot with invalid name."""
         with pytest.raises(ParamError):
-            Prepare.drop_snapshot_req("")
+            Prepare.drop_snapshot_req("", collection_name="test_coll")
+
+    def test_drop_snapshot_invalid_collection(self):
+        """Test drop snapshot with missing collection."""
+        with pytest.raises(ParamError):
+            Prepare.drop_snapshot_req("snap1", collection_name="")
 
     def test_list_snapshots(self):
         """Test list snapshots request."""
@@ -336,30 +350,46 @@ class TestSnapshotRequests:
 
     def test_describe_snapshot(self):
         """Test describe snapshot request."""
-        req = Prepare.describe_snapshot_req("snap1")
+        req = Prepare.describe_snapshot_req("snap1", collection_name="test_coll")
         assert req.name == "snap1"
+        assert req.collection_name == "test_coll"
 
     def test_describe_snapshot_invalid_name(self):
         """Test describe snapshot with invalid name."""
         with pytest.raises(ParamError):
-            Prepare.describe_snapshot_req("")
+            Prepare.describe_snapshot_req("", collection_name="test_coll")
+
+    def test_describe_snapshot_invalid_collection(self):
+        """Test describe snapshot with missing collection."""
+        with pytest.raises(ParamError):
+            Prepare.describe_snapshot_req("snap1", collection_name="")
 
     def test_restore_snapshot(self):
-        """Test restore snapshot request."""
-        req = Prepare.restore_snapshot_req("snap1", "test_coll", rewrite_data=True)
+        """Test restore snapshot request with full cross-collection parameters."""
+        req = Prepare.restore_snapshot_req(
+            snapshot_name="snap1",
+            target_collection_name="new_coll",
+            source_collection_name="src_coll",
+            target_db_name="tgt_db",
+            source_db_name="src_db",
+            rewrite_data=True,
+        )
         assert req.name == "snap1"
-        assert req.collection_name == "test_coll"
+        assert req.target_collection_name == "new_coll"
+        assert req.collection_name == "src_coll"
+        assert req.target_db_name == "tgt_db"
+        assert req.db_name == "src_db"
         assert req.rewrite_data is True
 
     def test_restore_snapshot_invalid_name(self):
         """Test restore snapshot with invalid name."""
         with pytest.raises(ParamError):
-            Prepare.restore_snapshot_req("", "test_coll")
+            Prepare.restore_snapshot_req("", target_collection_name="test_coll")
 
-    def test_restore_snapshot_invalid_collection(self):
-        """Test restore snapshot with invalid collection."""
+    def test_restore_snapshot_invalid_target_collection(self):
+        """Test restore snapshot with missing target collection."""
         with pytest.raises(ParamError):
-            Prepare.restore_snapshot_req("snap1", "")
+            Prepare.restore_snapshot_req("snap1", target_collection_name="")
 
     def test_get_restore_snapshot_state(self):
         """Test get restore snapshot state."""
@@ -375,6 +405,37 @@ class TestSnapshotRequests:
         """Test list restore snapshot jobs."""
         req = Prepare.list_restore_snapshot_jobs_req("test_coll")
         assert req.collection_name == "test_coll"
+
+    def test_pin_snapshot_data(self):
+        """Test pin snapshot data request."""
+        req = Prepare.pin_snapshot_data_req(
+            snapshot_name="snap1",
+            collection_name="test_coll",
+            ttl_seconds=60,
+        )
+        assert req.name == "snap1"
+        assert req.collection_name == "test_coll"
+        assert req.ttl_seconds == 60
+
+    def test_pin_snapshot_data_invalid_ttl(self):
+        """Test pin snapshot data with negative ttl."""
+        with pytest.raises(ParamError):
+            Prepare.pin_snapshot_data_req(snapshot_name="snap1", ttl_seconds=-1)
+
+    def test_unpin_snapshot_data(self):
+        """Test unpin snapshot data request."""
+        req = Prepare.unpin_snapshot_data_req(pin_id=42)
+        assert req.pin_id == 42
+
+    def test_unpin_snapshot_data_zero(self):
+        """pin_id=0 is a valid integer; server decides semantics."""
+        req = Prepare.unpin_snapshot_data_req(pin_id=0)
+        assert req.pin_id == 0
+
+    def test_unpin_snapshot_data_invalid(self):
+        """Test unpin snapshot data with non-int pin_id."""
+        with pytest.raises(ParamError):
+            Prepare.unpin_snapshot_data_req(pin_id="42")
 
 
 class TestExternalCollectionRequests:

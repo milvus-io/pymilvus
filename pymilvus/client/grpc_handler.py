@@ -3211,6 +3211,8 @@ class GrpcHandler:
         collection_name: str,
         snapshot_name: str,
         description: str = "",
+        db_name: str = "",
+        compaction_protection_seconds: int = 0,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -3219,6 +3221,8 @@ class GrpcHandler:
             snapshot_name=snapshot_name,
             collection_name=collection_name,
             description=description,
+            db_name=db_name,
+            compaction_protection_seconds=compaction_protection_seconds,
         )
         status = self._stub.CreateSnapshot(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -3229,11 +3233,17 @@ class GrpcHandler:
     def drop_snapshot(
         self,
         snapshot_name: str,
+        collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> None:
-        request = Prepare.drop_snapshot_req(snapshot_name)
+        request = Prepare.drop_snapshot_req(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            db_name=db_name,
+        )
         status = self._stub.DropSnapshot(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
 
@@ -3241,11 +3251,12 @@ class GrpcHandler:
     def list_snapshots(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[str]:
-        request = Prepare.list_snapshots_req(collection_name=collection_name)
+        request = Prepare.list_snapshots_req(collection_name=collection_name, db_name=db_name)
         response = self._stub.ListSnapshots(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -3258,11 +3269,17 @@ class GrpcHandler:
     def describe_snapshot(
         self,
         snapshot_name: str,
+        collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> SnapshotInfo:
-        request = Prepare.describe_snapshot_req(snapshot_name)
+        request = Prepare.describe_snapshot_req(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            db_name=db_name,
+        )
         response = self._stub.DescribeSnapshot(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -3280,8 +3297,11 @@ class GrpcHandler:
     @retry_on_rpc_failure()
     def restore_snapshot(
         self,
-        collection_name: str,
         snapshot_name: str,
+        target_collection_name: str,
+        source_collection_name: str = "",
+        target_db_name: str = "",
+        source_db_name: str = "",
         rewrite_data: bool = False,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
@@ -3289,7 +3309,10 @@ class GrpcHandler:
     ) -> int:
         request = Prepare.restore_snapshot_req(
             snapshot_name=snapshot_name,
-            collection_name=collection_name,
+            target_collection_name=target_collection_name,
+            source_collection_name=source_collection_name,
+            target_db_name=target_db_name,
+            source_db_name=source_db_name,
             rewrite_data=rewrite_data,
         )
         response = self._stub.RestoreSnapshot(
@@ -3331,11 +3354,14 @@ class GrpcHandler:
     def list_restore_snapshot_jobs(
         self,
         collection_name: str = "",
+        db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[RestoreSnapshotJobInfo]:
-        request = Prepare.list_restore_snapshot_jobs_req(collection_name=collection_name)
+        request = Prepare.list_restore_snapshot_jobs_req(
+            collection_name=collection_name, db_name=db_name
+        )
         response = self._stub.ListRestoreSnapshotJobs(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -3355,6 +3381,45 @@ class GrpcHandler:
             )
             for info in response.jobs
         ]
+
+    @retry_on_rpc_failure()
+    def pin_snapshot_data(
+        self,
+        snapshot_name: str,
+        collection_name: str = "",
+        db_name: str = "",
+        ttl_seconds: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> int:
+        """Pin snapshot-referenced data to prevent GC. Returns a pin_id for later unpin."""
+        request = Prepare.pin_snapshot_data_req(
+            snapshot_name=snapshot_name,
+            collection_name=collection_name,
+            db_name=db_name,
+            ttl_seconds=ttl_seconds,
+        )
+        response = self._stub.PinSnapshotData(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.pin_id
+
+    @retry_on_rpc_failure()
+    def unpin_snapshot_data(
+        self,
+        pin_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> None:
+        """Release a pin created by ``pin_snapshot_data``."""
+        request = Prepare.unpin_snapshot_data_req(pin_id=pin_id)
+        status = self._stub.UnpinSnapshotData(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(status)
 
     @retry_on_rpc_failure()
     def add_file_resource(
