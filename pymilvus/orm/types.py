@@ -10,6 +10,8 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import os
+import uuid
 from typing import Any
 
 import numpy as np
@@ -92,6 +94,8 @@ def infer_dtype_by_scalar_data(data: Any, dtype: DataType = None):
         return DataType.VARCHAR
     if isinstance(data, bytes):
         return DataType.BINARY_VECTOR
+    if isinstance(data, (uuid.UUID, os.PathLike)):
+        return DataType.VARCHAR
 
     return DataType.UNKNOWN
 
@@ -100,6 +104,9 @@ def infer_dtype_bydata(data: Any):
     d_type = DataType.UNKNOWN
     if is_scalar(data):
         return infer_dtype_by_scalar_data(data)
+
+    if isinstance(data, (uuid.UUID, os.PathLike)):
+        return DataType.VARCHAR
 
     if isinstance(data, dict):
         return DataType.JSON
@@ -121,7 +128,7 @@ def infer_dtype_bydata(data: Any):
     if d_type == DataType.UNKNOWN:
         try:
             elem = data[0]
-        except IndexError:
+        except (IndexError, TypeError):
             elem = None
 
         if elem is not None and is_scalar(elem):
