@@ -958,11 +958,29 @@ class Function:
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectOutputFieldType
                 )
 
+    def _check_mol_fingerprint_function(self, schema: CollectionSchema):
+        if len(self._input_field_names) != 1 or len(self._output_field_names) != 1:
+            raise ParamError(
+                message="MOL_FINGERPRINT function must have exactly one input field and one output field"
+            )
+
+        for field in schema.fields:
+            if field.name == self._input_field_names[0] and field.dtype != DataType.MOL:
+                raise ParamError(
+                    message=f"MOL_FINGERPRINT function input field must be MOL type, got {field.dtype}"
+                )
+            if field.name == self._output_field_names[0] and field.dtype != DataType.BINARY_VECTOR:
+                raise ParamError(
+                    message=f"MOL_FINGERPRINT function output field must be BINARY_VECTOR type, got {field.dtype}"
+                )
+
     def verify(self, schema: CollectionSchema):
         if self._type == FunctionType.BM25:
             self._check_bm25_function(schema)
         elif self._type == FunctionType.TEXTEMBEDDING:
             self._check_text_embedding_function(schema)
+        elif self._type == FunctionType.MOL_FINGERPRINT:
+            self._check_mol_fingerprint_function(schema)
         elif self._type == FunctionType.MINHASH:
             # MinHash validation is handled by the proxy
             pass
