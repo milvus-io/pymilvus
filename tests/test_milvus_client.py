@@ -463,6 +463,48 @@ class TestMilvusClientSnapshot:
             call_kwargs = mock_handler.list_restore_snapshot_jobs.call_args[1]
             assert call_kwargs["collection_name"] == ""
 
+    def test_pin_snapshot_data(self):
+        """Test pin_snapshot_data method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.pin_snapshot_data.return_value = 42
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+
+            pin_id = client.pin_snapshot_data(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                ttl_seconds=60,
+            )
+
+            assert pin_id == 42
+            mock_handler.pin_snapshot_data.assert_called_once_with(
+                snapshot_name="test_snapshot",
+                collection_name="test_collection",
+                db_name="",
+                ttl_seconds=60,
+                timeout=None,
+                context=ANY,
+            )
+
+    def test_unpin_snapshot_data(self):
+        """Test unpin_snapshot_data method."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_handler.unpin_snapshot_data.return_value = None
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+
+            client.unpin_snapshot_data(pin_id=42)
+
+            mock_handler.unpin_snapshot_data.assert_called_once_with(
+                pin_id=42, timeout=None, context=ANY
+            )
+
     def test_client_db_isolation(self):
         """
         Test that two clients sharing the same connection but using different databases

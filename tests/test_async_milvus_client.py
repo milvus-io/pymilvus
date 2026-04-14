@@ -918,6 +918,42 @@ class TestAsyncMilvusClientSnapshot:
         if return_value is not None:
             assert result == return_value
 
+    @pytest.mark.asyncio
+    async def test_pin_snapshot_data(self, client_and_handler):
+        """Test async pin_snapshot_data passes context."""
+        client, mock_handler = client_and_handler
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.pin_snapshot_data = AsyncMock(return_value=42)
+
+        pin_id = await client.pin_snapshot_data(
+            snapshot_name="test_snapshot",
+            collection_name="test_collection",
+            ttl_seconds=60,
+        )
+
+        assert pin_id == 42
+        mock_handler.pin_snapshot_data.assert_called_once_with(
+            snapshot_name="test_snapshot",
+            collection_name="test_collection",
+            db_name="",
+            ttl_seconds=60,
+            timeout=None,
+            context=ANY,
+        )
+
+    @pytest.mark.asyncio
+    async def test_unpin_snapshot_data(self, client_and_handler):
+        """Test async unpin_snapshot_data passes context."""
+        client, mock_handler = client_and_handler
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler.unpin_snapshot_data = AsyncMock(return_value=None)
+
+        await client.unpin_snapshot_data(pin_id=42)
+
+        mock_handler.unpin_snapshot_data.assert_called_once_with(
+            pin_id=42, timeout=None, context=ANY
+        )
+
 
 class TestAsyncFileResourceMethods:
     """Tests for async file_resource API methods with context passing."""
