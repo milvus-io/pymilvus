@@ -334,3 +334,70 @@ class TestAddCollectionFieldRequest:
         field = FieldSchema("new_field", DataType.VARCHAR, max_length=100)
         req = Prepare.add_collection_field_request("test_coll", field)
         assert req.collection_name == "test_coll"
+
+
+class TestAlterCollectionSchemaRequest:
+    """Tests for alter_collection_schema_request."""
+
+    def test_add_with_field_and_function(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        func = Function(
+            name="bm25",
+            function_type=FunctionType.BM25,
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+        )
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            field_schema=field,
+            index_name="idx",
+            extra_params={"metric_type": "L2"},
+            func=func,
+            do_physical_backfill=True,
+        )
+        assert req.collection_name == "coll"
+        assert req.action.HasField("add_request")
+        assert req.action.add_request.do_physical_backfill is True
+        assert len(req.action.add_request.field_infos) == 1
+        assert req.action.add_request.field_infos[0].index_name == "idx"
+        assert len(req.action.add_request.func_schema) == 1
+
+    def test_add_with_field_only(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            field_schema=field,
+        )
+        assert req.action.HasField("add_request")
+        assert len(req.action.add_request.field_infos) == 1
+        assert len(req.action.add_request.func_schema) == 0
+
+    def test_drop_by_field_name(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_field_name="old_field",
+        )
+        assert req.collection_name == "coll"
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.field_name == "old_field"
+
+    def test_drop_by_field_id(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_field_id=42,
+        )
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.field_id == 42
+
+    def test_error_on_both_add_and_drop(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        with pytest.raises(ParamError, match="Cannot perform both"):
+            Prepare.alter_collection_schema_request(
+                collection_name="coll",
+                field_schema=field,
+                drop_field_name="old",
+            )
+
+    def test_error_on_neither_add_nor_drop(self):
+        with pytest.raises(ParamError, match="Must specify"):
+            Prepare.alter_collection_schema_request(collection_name="coll")

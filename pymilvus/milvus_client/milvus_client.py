@@ -36,6 +36,7 @@ from pymilvus.exceptions import (
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
+from pymilvus.orm.schema import FieldSchema
 from pymilvus.orm.types import DataType
 
 from .base import BaseMilvusClient
@@ -1293,6 +1294,82 @@ class MilvusClient(BaseMilvusClient):
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
+
+    def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        func: Optional[Function] = None,
+        index_param: Optional[IndexParam] = None,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ):
+        """Alter collection schema supporting both Add and Drop operations.
+
+        For Add operation: provide field_schema, func, and index_param
+        For Drop operation: provide either drop_field_name or drop_field_id
+
+        Args:
+            collection_name(``str``): The name of the collection.
+            field_schema(``FieldSchema``, optional): Field schema to add.
+            func(``Function``, optional): Function to add.
+            index_param(``IndexParam``, optional): Index parameters for the field.
+            do_physical_backfill(``bool``): Whether to perform physical backfill.
+            timeout(``float``, optional): Timeout for the operation.
+            drop_field_name(``str``, optional): Field name to drop.
+            drop_field_id(``int``, optional): Field ID to drop.
+            **kwargs(``dict``): Additional keyword arguments.
+
+        Raises:
+            ParamError: If operation parameters are invalid.
+            MilvusException: If the operation fails.
+        """
+        validate_param("collection_name", collection_name, str)
+        conn = self._get_connection()
+
+        is_drop = drop_field_name is not None or drop_field_id is not None
+        is_add = field_schema is not None or func is not None
+
+        if is_drop and is_add:
+            raise ParamError(
+                message="Cannot perform both Add and Drop operations in a single request"
+            )
+        if not is_drop and not is_add:
+            raise ParamError(
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+            )
+
+        if is_add:
+            if field_schema is None:
+                raise ParamError(message="field_schema is required for Add operation")
+            if func is None:
+                raise ParamError(message="func is required for Add operation")
+            if index_param is None:
+                raise ParamError(message="index_param is required for Add operation")
+
+            conn.alter_collection_schema(
+                collection_name=collection_name,
+                field_schema=field_schema,
+                index_name=index_param.index_name,
+                extra_params=index_param.get_index_configs(),
+                func=func,
+                do_physical_backfill=do_physical_backfill,
+                timeout=timeout,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
+        else:
+            conn.alter_collection_schema(
+                collection_name=collection_name,
+                drop_field_name=drop_field_name,
+                drop_field_id=drop_field_id,
+                timeout=timeout,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
 
     def create_partition(
         self, collection_name: str, partition_name: str, timeout: Optional[float] = None, **kwargs
