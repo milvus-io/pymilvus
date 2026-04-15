@@ -13,6 +13,7 @@ from pymilvus.bulk_writer.volume_restful import (
     apply_volume,
     create_volume,
     delete_volume,
+    describe_volume,
     list_volumes,
 )
 from pymilvus.client.types import DataType
@@ -129,6 +130,95 @@ class TestVolumeRestful:
         mock_delete.assert_called_once()
 
     @patch("pymilvus.bulk_writer.volume_restful.requests.post")
+    def test_create_external_volume_success(
+        self, mock_post: Mock, mock_response: Mock, api_params: Dict[str, str]
+    ) -> None:
+        mock_post.return_value = mock_response
+        mock_response.json.return_value = {
+            "code": 0,
+            "message": "success",
+            "data": {"volumeName": "ext-volume"},
+        }
+        response = create_volume(
+            **api_params,
+            project_id="test_project",
+            region_id="aws-us-west-2",
+            volume_name="ext-volume",
+            volume_type="EXTERNAL",
+            storage_integration_id="si-xxxx",
+            path="s3://my-bucket/data/",
+        )
+        assert response.status_code == 200
+        call_kwargs = mock_post.call_args
+        body = call_kwargs.kwargs["json"]
+        assert body["type"] == "EXTERNAL"
+        assert body["storageIntegrationId"] == "si-xxxx"
+        assert body["path"] == "s3://my-bucket/data/"
+
+    @patch("pymilvus.bulk_writer.volume_restful.requests.post")
+    def test_create_managed_volume_no_extra_params(
+        self, mock_post: Mock, mock_response: Mock, api_params: Dict[str, str]
+    ) -> None:
+        """Verify that creating a MANAGED volume does not send type/storageIntegrationId/path."""
+        mock_post.return_value = mock_response
+        mock_response.json.return_value = {
+            "code": 0,
+            "message": "success",
+            "data": {"volumeName": "my-volume"},
+        }
+        response = create_volume(
+            **api_params,
+            project_id="test_project",
+            region_id="aws-us-west-2",
+            volume_name="my-volume",
+        )
+        assert response.status_code == 200
+        call_kwargs = mock_post.call_args
+        body = call_kwargs.kwargs["json"]
+        assert "type" not in body
+        assert "storageIntegrationId" not in body
+        assert "path" not in body
+
+    @patch("pymilvus.bulk_writer.volume_restful.requests.get")
+    def test_describe_volume_success(
+        self, mock_get: Mock, mock_response: Mock, api_params: Dict[str, str]
+    ) -> None:
+        mock_get.return_value = mock_response
+        mock_response.json.return_value = {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "volumeName": "ext-volume",
+                "type": "EXTERNAL",
+                "regionId": "aws-us-west-2",
+                "storageIntegrationId": "si-xxxx",
+                "path": "s3://my-bucket/data/",
+                "status": "RUNNING",
+                "createTime": "2024-04-15T12:00:00Z",
+            },
+        }
+        response = describe_volume(**api_params, volume_name="ext-volume")
+        assert response.status_code == 200
+        data = response.json()["data"]
+        assert data["volumeName"] == "ext-volume"
+        assert data["type"] == "EXTERNAL"
+        assert data["status"] == "RUNNING"
+        mock_get.assert_called_once()
+
+    @patch("pymilvus.bulk_writer.volume_restful.requests.get")
+    def test_describe_volume_failure(
+        self, mock_get: Mock, mock_response: Mock, api_params: Dict[str, str]
+    ) -> None:
+        mock_response.json.return_value = {
+            "code": 63242,
+            "message": "The volume is not available in this region.",
+            "data": {},
+        }
+        mock_get.return_value = mock_response
+        with pytest.raises(MilvusException, match="The volume is not available"):
+            describe_volume(**api_params, volume_name="nonexistent")
+
+    @patch("pymilvus.bulk_writer.volume_restful.requests.post")
     def test_apply_volume_success(
         self, mock_post: Mock, mock_response: Mock, api_params: Dict[str, str]
     ) -> None:
@@ -158,6 +248,27 @@ class TestVolumeRestful:
         assert data["volumeName"] == "test_volume"
         assert data["endpoint"] == "s3.amazonaws.com"
         mock_post.assert_called_once()
+
+    @patch("pymilvus.bulk_writer.volume_restful.requests.get")
+    def test_list_volumes_with_type_filter(
+        self, mock_get: Mock, mock_response: Mock, api_params: Dict[str, str]
+    ) -> None:
+        mock_get.return_value = mock_response
+        mock_response.json.return_value = {
+            "code": 0,
+            "message": "success",
+            "data": {
+                "volumes": [{"volumeName": "ext-vol", "type": "EXTERNAL"}],
+                "count": 1,
+                "currentPage": 1,
+                "pageSize": 10,
+            },
+        }
+        response = list_volumes(**api_params, project_id="test_project", volume_type="EXTERNAL")
+        assert response.status_code == 200
+        # Verify type param was passed in the request
+        call_kwargs = mock_get.call_args
+        assert call_kwargs.kwargs["params"]["type"] == "EXTERNAL"
 
     @patch("pymilvus.bulk_writer.volume_restful.requests.get")
     def test_http_error_handling(self, mock_get: Mock, api_params: Dict[str, str]) -> None:
@@ -196,6 +307,9 @@ class TestVolumeManager:
             "test_project",
             "us-west-2",
             "test_volume",
+            None,
+            None,
+            None,
         )
 
     @patch("pymilvus.bulk_writer.volume_manager.delete_volume")
@@ -222,6 +336,70 @@ class TestVolumeManager:
             "test_project",
             1,
             10,
+            None,
+        )
+
+    @patch("pymilvus.bulk_writer.volume_manager.describe_volume")
+    def test_describe_volume(self, mock_describe: Mock, volume_manager: VolumeManager) -> None:
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": {
+                "volumeName": "ext-volume",
+                "type": "EXTERNAL",
+                "regionId": "aws-us-west-2",
+                "storageIntegrationId": "si-xxxx",
+                "path": "s3://my-bucket/data/",
+                "status": "RUNNING",
+                "createTime": "2024-04-15T12:00:00Z",
+            }
+        }
+        mock_describe.return_value = mock_response
+        result = volume_manager.describe_volume(volume_name="ext-volume")
+        assert result.json()["data"]["volumeName"] == "ext-volume"
+        assert result.json()["data"]["type"] == "EXTERNAL"
+        mock_describe.assert_called_once_with(
+            volume_manager.cloud_endpoint,
+            volume_manager.api_key,
+            "ext-volume",
+        )
+
+    @patch("pymilvus.bulk_writer.volume_manager.list_volumes")
+    def test_list_volumes_with_type(self, mock_list: Mock, volume_manager: VolumeManager) -> None:
+        mock_response = Mock()
+        mock_response.json.return_value = {
+            "data": {"volumes": [{"volumeName": "ext-vol", "type": "EXTERNAL"}]}
+        }
+        mock_list.return_value = mock_response
+        result = volume_manager.list_volumes(project_id="test_project", volume_type="EXTERNAL")
+        assert result.json()["data"]["volumes"][0]["type"] == "EXTERNAL"
+        mock_list.assert_called_once_with(
+            volume_manager.cloud_endpoint,
+            volume_manager.api_key,
+            "test_project",
+            1,
+            10,
+            "EXTERNAL",
+        )
+
+    @patch("pymilvus.bulk_writer.volume_manager.create_volume")
+    def test_create_external_volume(self, mock_create: Mock, volume_manager: VolumeManager) -> None:
+        volume_manager.create_volume(
+            project_id="test_project",
+            region_id="aws-us-west-2",
+            volume_name="ext-volume",
+            volume_type="EXTERNAL",
+            storage_integration_id="si-xxxx",
+            path="s3://my-bucket/data/",
+        )
+        mock_create.assert_called_once_with(
+            volume_manager.cloud_endpoint,
+            volume_manager.api_key,
+            "test_project",
+            "aws-us-west-2",
+            "ext-volume",
+            "EXTERNAL",
+            "si-xxxx",
+            "s3://my-bucket/data/",
         )
 
 
@@ -536,3 +714,28 @@ class TestIntegration:
         )
         file_manager._refresh_volume_and_client("data/")
         assert file_manager.volume_info["volumeName"] == "test_volume"
+
+
+# ── TestVolumeExports ────────────────────────────────────────────────────────
+
+
+class TestVolumeExports:
+    """Test that volume classes are properly exported from bulk_writer package."""
+
+    def test_volume_manager_exportable(self) -> None:
+        import pymilvus.bulk_writer as bw
+
+        assert hasattr(bw, "VolumeManager")
+        assert bw.VolumeManager is VolumeManager
+
+    def test_volume_bulk_writer_exportable(self) -> None:
+        import pymilvus.bulk_writer as bw
+
+        assert hasattr(bw, "VolumeBulkWriter")
+        assert bw.VolumeBulkWriter is VolumeBulkWriter
+
+    def test_volume_file_manager_exportable(self) -> None:
+        import pymilvus.bulk_writer as bw
+
+        assert hasattr(bw, "VolumeFileManager")
+        assert bw.VolumeFileManager is VolumeFileManager

@@ -17,11 +17,17 @@ from .bulk_import import (
 from .constants import BulkFileType
 from .local_bulk_writer import LocalBulkWriter
 from .remote_bulk_writer import RemoteBulkWriter
+from .volume_bulk_writer import VolumeBulkWriter
+from .volume_file_manager import VolumeFileManager
+from .volume_manager import VolumeManager
 
 __all__ = [
     "BulkFileType",
     "LocalBulkWriter",
     "RemoteBulkWriter",
+    "VolumeBulkWriter",
+    "VolumeFileManager",
+    "VolumeManager",
     "bulk_import",
     "get_import_progress",
     "list_import_jobs",
