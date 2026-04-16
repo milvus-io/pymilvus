@@ -19,7 +19,9 @@ class TestGrpcHandlerSnapshotOps:
 
     def test_create_snapshot_with_compaction_protection(self, handler):
         handler._stub.CreateSnapshot.return_value = make_status()
-        handler.create_snapshot("snap", "coll", description="desc", compaction_protection_seconds=3600)
+        handler.create_snapshot(
+            "snap", "coll", description="desc", compaction_protection_seconds=3600
+        )
         req = handler._stub.CreateSnapshot.call_args[0][0]
         assert req.compaction_protection_seconds == 3600
 
