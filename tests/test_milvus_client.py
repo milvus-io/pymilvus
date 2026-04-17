@@ -68,6 +68,61 @@ class TestMilvusClient:
         for index in index_params:
             log.info(index)
 
+    def test_add_index_params_none_is_normalized(self):
+        """Regression for #2789: passing params=None should not crash."""
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(
+            field_name="vector",
+            metric_type="IP",
+            index_type="HNSW",
+            params=None,
+        )
+        assert len(index_params) == 1
+        configs = index_params[0].get_index_configs()
+        assert configs["index_type"] == "HNSW"
+        assert configs["metric_type"] == "IP"
+
+    def test_add_index_params_empty_dict(self):
+        """params={} keeps working (no inner params to flatten)."""
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(
+            field_name="vector",
+            metric_type="L2",
+            index_type="FLAT",
+            params={},
+        )
+        assert len(index_params) == 1
+        configs = index_params[0].get_index_configs()
+        assert configs["index_type"] == "FLAT"
+        assert configs["metric_type"] == "L2"
+
+    def test_add_index_params_dict_is_flattened(self):
+        """params={"nlist": 128} is flattened into the index configs."""
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(
+            field_name="vector",
+            metric_type="L2",
+            index_type="IVF_FLAT",
+            params={"nlist": 128},
+        )
+        assert len(index_params) == 1
+        configs = index_params[0].get_index_configs()
+        assert configs["nlist"] == 128
+        assert configs["index_type"] == "IVF_FLAT"
+        assert configs["metric_type"] == "L2"
+
+    @pytest.mark.parametrize("bad_params", ["nlist=128", 123, [("nlist", 128)], 0.5])
+    def test_add_index_params_invalid_type_raises(self, bad_params):
+        """Non-dict, non-None params should raise ParamError with a clear message."""
+        index_params = MilvusClient.prepare_index_params()
+        with pytest.raises(ParamError, match=r"params must be a dict or None"):
+            index_params.add_index(
+                field_name="vector",
+                metric_type="L2",
+                index_type="HNSW",
+                params=bad_params,
+            )
+
     def test_connection_reuse(self):
         """Test that connections with same config share handler, different configs get different handlers."""
         mock_handler1 = MagicMock()
