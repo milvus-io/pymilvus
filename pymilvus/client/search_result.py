@@ -853,35 +853,13 @@ class Hit(dict):
 def extract_array_row_data(
     scalars: List[schema_pb2.ScalarField], element_type: DataType
 ) -> List[List[Any]]:
+    attr = entity_helper._ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
     row = []
     for ith_array in scalars:
         if ith_array is None:
             row.append(None)
-            continue
-
-        if element_type == DataType.INT64:
-            row.append(ith_array.long_data.data)
-            continue
-
-        if element_type == DataType.BOOL:
-            row.append(ith_array.bool_data.data)
-            continue
-
-        if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-            row.append(ith_array.int_data.data)
-            continue
-
-        if element_type == DataType.FLOAT:
-            row.append(ith_array.float_data.data)
-            continue
-
-        if element_type == DataType.DOUBLE:
-            row.append(ith_array.double_data.data)
-            continue
-
-        if element_type in (DataType.STRING, DataType.VARCHAR):
-            row.append(ith_array.string_data.data)
-            continue
+        elif attr is not None:
+            row.append(getattr(ith_array, attr).data)
     return row
 
 
