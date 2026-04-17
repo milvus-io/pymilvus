@@ -13,7 +13,7 @@ from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_W
 # ruff: noqa: F401
 # TODO: This is a patch for older version
 from .search_result import Hit, Hits, SearchResult
-from .types import DataType, FunctionType
+from .types import ConsistencyLevel, DataType, FunctionType
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +327,7 @@ class CollectionSchema:
             "functions": [f.dict() for f in self.functions],
             "aliases": self.aliases,
             "collection_id": self.collection_id,
-            "consistency_level": self.consistency_level,
+            "consistency_level": ConsistencyLevel.Name(self.consistency_level),
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
@@ -505,15 +505,19 @@ class AnnSearchRequest:
         limit: int,
         expr: Optional[str] = None,
         expr_params: Optional[dict] = None,
+        filter: Optional[str] = None,
     ):
         self._data = data
         self._anns_field = anns_field
         self._param = param
         self._limit = limit
 
-        if expr is not None and not isinstance(expr, str):
-            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
-        self._expr = expr
+        if expr is not None and filter is not None:
+            raise ValueError("Provide either 'expr' or 'filter', not both.")
+        resolved = filter if expr is None else expr
+        if resolved is not None and not isinstance(resolved, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(resolved))
+        self._expr = resolved
         self._expr_params = expr_params
 
     @property
@@ -534,6 +538,10 @@ class AnnSearchRequest:
 
     @property
     def expr(self):
+        return self._expr
+
+    @property
+    def filter(self):
         return self._expr
 
     @property

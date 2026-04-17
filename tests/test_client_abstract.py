@@ -516,6 +516,24 @@ class TestCollectionSchema:
         assert "created_timestamp" not in d
         assert "update_timestamp" not in d
 
+    def test_collection_schema_dict_consistency_level_is_string(self):
+        """dict() must return consistency_level as a human-readable name, not an int (issue #2985)."""
+        from pymilvus.client.types import ConsistencyLevel
+
+        expected = {
+            ConsistencyLevel.Strong: "Strong",
+            ConsistencyLevel.Session: "Session",
+            ConsistencyLevel.Bounded: "Bounded",
+            ConsistencyLevel.Eventually: "Eventually",
+            ConsistencyLevel.Customized: "Customized",
+        }
+        for int_val, name in expected.items():
+            raw = self._create_mock_collection_raw(consistency_level=int_val)
+            d = CollectionSchema(raw).dict()
+            assert d["consistency_level"] == name, (
+                f"Expected '{name}' for level {int_val}, got {d['consistency_level']!r}"
+            )
+
     def test_collection_schema_rewrite_schema_dict(self):
         """Test CollectionSchema._rewrite_schema_dict method."""
         schema_dict = {
@@ -818,6 +836,30 @@ class TestAnnSearchRequest:
 
         assert request.expr_params == {"min_id": 100}
 
+    def test_ann_search_request_with_filter(self):
+        """filter= is accepted as an alias for expr= (issue #2664)."""
+        request = AnnSearchRequest(
+            data=[[0.1, 0.2, 0.3, 0.4]],
+            anns_field="vector_field",
+            param={"metric_type": "L2"},
+            limit=10,
+            filter="age > 30",
+        )
+        assert request.expr == "age > 30"
+        assert request.filter == "age > 30"
+
+    def test_ann_search_request_filter_and_expr_raises(self):
+        """Providing both filter= and expr= must raise ValueError."""
+        with pytest.raises(ValueError, match="either 'expr' or 'filter'"):
+            AnnSearchRequest(
+                data=[[0.1, 0.2]],
+                anns_field="vector_field",
+                param={},
+                limit=10,
+                expr="age > 1",
+                filter="age > 1",
+            )
+
     def test_ann_search_request_invalid_expr_type(self):
         """Test AnnSearchRequest raises error for invalid expr type."""
         with pytest.raises(DataTypeNotMatchException):
@@ -827,6 +869,17 @@ class TestAnnSearchRequest:
                 param={},
                 limit=10,
                 expr=123,  # Invalid type
+            )
+
+    def test_ann_search_request_invalid_filter_type(self):
+        """filter= with a non-str value must also raise DataTypeNotMatchException."""
+        with pytest.raises(DataTypeNotMatchException):
+            AnnSearchRequest(
+                data=[[0.1, 0.2]],
+                anns_field="vector_field",
+                param={},
+                limit=10,
+                filter=123,
             )
 
     def test_ann_search_request_str(self):
