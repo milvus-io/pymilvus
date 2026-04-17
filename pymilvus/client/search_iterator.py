@@ -90,8 +90,21 @@ class SearchIteratorV2:
         dummy_batch_size = 1
         dummy_params["limit"] = dummy_batch_size
         dummy_params[ITER_SEARCH_BATCH_SIZE_KEY] = dummy_batch_size
-        iter_info = self._conn.search(**dummy_params).get_search_iterator_v2_results_info()
+        probe_result = self._conn.search(**dummy_params)
+        iter_info = probe_result.get_search_iterator_v2_results_info()
         self._check_token_exists(iter_info.token)
+        # Pin GUARANTEE_TIMESTAMP from probe call's session_ts so that all subsequent
+        # next() calls (including the very first) see a consistent MVCC snapshot.
+        # Without this, the first next() runs with GUARANTEE_TIMESTAMP=0 (latest available),
+        # which means a segment reload triggered by add_collection_field can shift distances
+        # by 1 ULP, causing last_bound items to pass the dist > last_bound filter again
+        # and produce duplicate PKs. See: https://github.com/milvus-io/pymilvus/issues/3421
+        session_ts = probe_result.get_session_ts()
+        if session_ts > 0:
+            params[GUARANTEE_TIMESTAMP] = session_ts
+        else:
+            logger.warning("failed to set up mvccTs from probe call, use client-side ts instead")
+            params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
 
     # internal next function, do not use this outside of this class
     def _next(self):
