@@ -1,5 +1,7 @@
 from typing import Dict
 
+from pymilvus.exceptions import ParamError
+
 
 class IndexParam:
     def __init__(self, field_name: str, index_type: str, index_name: str, **kwargs):
@@ -21,9 +23,15 @@ class IndexParam:
 
         # index configs are unique to each index,
         # if params={} is passed in, it will be flattened and merged
-        # with other configs.
+        # with other configs. None is treated as an empty dict so callers
+        # can omit the value explicitly.
+        params = kwargs.pop("params", None) or {}
+        if not isinstance(params, dict):
+            msg = f"params must be a dict or None, got {type(params).__name__}: {params!r}"
+            raise ParamError(message=msg)
+
         self._configs = {}
-        self._configs.update(kwargs.pop("params", {}))
+        self._configs.update(params)
         self._configs.update(kwargs)
 
     @property
