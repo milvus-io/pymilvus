@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Optional
 
 import requests
 
@@ -14,6 +15,7 @@ def list_volumes(
     project_id: str,
     current_page: int = 1,
     page_size: int = 10,
+    volume_type: Optional[str] = None,
     **kwargs,
 ) -> requests.Response:
     """call listVolumes restful interface to list volumes of project
@@ -24,6 +26,7 @@ def list_volumes(
         project_id (str): the id of project
         current_page (int): the current page
         page_size (int): the size of each page
+        volume_type (str): filter by volume type: MANAGED or EXTERNAL
 
     Returns:
         response of the restful interface
@@ -31,6 +34,8 @@ def list_volumes(
     request_url = url + "/v2/volumes"
 
     params = {"projectId": project_id, "currentPage": current_page, "pageSize": page_size}
+    if volume_type is not None:
+        params["type"] = volume_type
 
     resp = _get_request(url=request_url, api_key=api_key, params=params, **kwargs)
     _handle_response(request_url, resp.json())
@@ -43,6 +48,9 @@ def create_volume(
     project_id: str,
     region_id: str,
     volume_name: str,
+    volume_type: Optional[str] = None,
+    storage_integration_id: Optional[str] = None,
+    path: Optional[str] = None,
     **kwargs,
 ) -> requests.Response:
     """call createVolume restful interface to create new volume
@@ -53,6 +61,9 @@ def create_volume(
         project_id (str): id of the project
         region_id (str): id of the region
         volume_name (str): name of the volume
+        volume_type (str): volume type: MANAGED (default) or EXTERNAL
+        storage_integration_id (str): Storage Integration ID, required for EXTERNAL type
+        path (str): storage path, required for EXTERNAL type
 
     Returns:
         response of the restful interface
@@ -64,6 +75,12 @@ def create_volume(
         "regionId": region_id,
         "volumeName": volume_name,
     }
+    if volume_type is not None:
+        params["type"] = volume_type
+    if storage_integration_id is not None:
+        params["storageIntegrationId"] = storage_integration_id
+    if path is not None:
+        params["path"] = path
 
     resp = _post_request(url=request_url, api_key=api_key, params=params, **kwargs)
     _handle_response(request_url, resp.json())
@@ -89,6 +106,29 @@ def delete_volume(
     request_url = url + "/v2/volumes/" + volume_name
 
     resp = _delete_request(url=request_url, api_key=api_key, **kwargs)
+    _handle_response(request_url, resp.json())
+    return resp
+
+
+def describe_volume(
+    url: str,
+    api_key: str,
+    volume_name: str,
+    **kwargs,
+) -> requests.Response:
+    """call describeVolume restful interface to get volume details
+
+    Args:
+        url (str): url of the server
+        api_key (str): API key to authenticate your requests.
+        volume_name (str): name of the volume
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/volumes/" + volume_name
+
+    resp = _get_request(url=request_url, api_key=api_key, params={}, **kwargs)
     _handle_response(request_url, resp.json())
     return resp
 
