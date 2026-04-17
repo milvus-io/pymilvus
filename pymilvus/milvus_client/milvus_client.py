@@ -2887,7 +2887,7 @@ class MilvusClient(BaseMilvusClient):
             >>> for job in jobs:
             ...     print(f"Job {job.job_id}: {job.snapshot_name} - {job.progress}%")
             >>>
-            >>> # List restore jobs involving a specific collection (as source or target)
+            >>> # List restore jobs for a specific target collection
             >>> jobs = client.list_restore_snapshot_jobs(collection_name="my_collection")
         """
         conn = self._get_connection()

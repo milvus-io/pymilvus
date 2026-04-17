@@ -440,7 +440,7 @@ class TestSnapshotRequests:
 
     def test_pin_snapshot_data_missing_collection(self):
         """Test pin snapshot data without collection_name raises TypeError."""
-        with pytest.raises((ParamError, TypeError)):
+        with pytest.raises(TypeError):
             Prepare.pin_snapshot_data_req(snapshot_name="snap1")
 
     def test_unpin_snapshot_data(self):
