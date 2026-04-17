@@ -214,7 +214,6 @@ class TestAsyncGrpcHandlerSnapshot:
                 snapshot_name="test_snapshot",
                 target_collection_name="new_collection",
                 source_collection_name="source_collection",
-                rewrite_data=False,
                 timeout=30,
             )
 
@@ -224,7 +223,6 @@ class TestAsyncGrpcHandlerSnapshot:
                 source_collection_name="source_collection",
                 target_db_name="",
                 source_db_name="",
-                rewrite_data=False,
             )
             assert job_id == 12345
 

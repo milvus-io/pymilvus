@@ -10,7 +10,7 @@ class TestGrpcHandlerSnapshotOps:
 
     def test_create_snapshot(self, handler):
         handler._stub.CreateSnapshot.return_value = make_status()
-        handler.create_snapshot("coll", "snap", "desc")
+        handler.create_snapshot("snap", "coll", description="desc")
         handler._stub.CreateSnapshot.assert_called_once()
         req = handler._stub.CreateSnapshot.call_args[0][0]
         assert req.collection_name == "coll"
@@ -19,7 +19,9 @@ class TestGrpcHandlerSnapshotOps:
 
     def test_create_snapshot_with_compaction_protection(self, handler):
         handler._stub.CreateSnapshot.return_value = make_status()
-        handler.create_snapshot("coll", "snap", "desc", compaction_protection_seconds=3600)
+        handler.create_snapshot(
+            "snap", "coll", description="desc", compaction_protection_seconds=3600
+        )
         req = handler._stub.CreateSnapshot.call_args[0][0]
         assert req.compaction_protection_seconds == 3600
 
@@ -114,5 +116,5 @@ class TestGrpcHandlerSnapshotOps:
 
     def test_create_snapshot_with_partitions(self, handler):
         handler._stub.CreateSnapshot.return_value = make_status()
-        handler.create_snapshot("coll", "snap", "desc", partition_names=["p1", "p2"])
+        handler.create_snapshot("snap", "coll", description="desc", partition_names=["p1", "p2"])
         handler._stub.CreateSnapshot.assert_called_once()

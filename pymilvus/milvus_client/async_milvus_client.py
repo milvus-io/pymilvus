@@ -1967,10 +1967,10 @@ class AsyncMilvusClient(BaseMilvusClient):
 
     async def create_snapshot(
         self,
-        collection_name: str,
         snapshot_name: str,
-        description: str = "",
+        collection_name: str,
         db_name: str = "",
+        description: str = "",
         compaction_protection_seconds: int = 0,
         timeout: Optional[float] = None,
         **kwargs,
@@ -1978,13 +1978,13 @@ class AsyncMilvusClient(BaseMilvusClient):
         """Create a snapshot for a collection (async).
 
         Args:
-            collection_name (str): The name of the collection to snapshot.
             snapshot_name (str): The name of the snapshot. Must be unique.
+            collection_name (str): The name of the collection to snapshot.
             description (str): Optional description for the snapshot.
             db_name (str): Optional database name (defaults to active db).
             compaction_protection_seconds (int): Duration in seconds during which the
                 snapshot-referenced segments are protected from compaction.
-                0 = no protection (default). Max 7 days (604800).
+                0 = no protection (default).
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -1992,8 +1992,8 @@ class AsyncMilvusClient(BaseMilvusClient):
             >>> client = AsyncMilvusClient(uri="http://localhost:19530")
             >>> await client.flush(collection_name="my_collection")
             >>> await client.create_snapshot(
-            ...     collection_name="my_collection",
             ...     snapshot_name="backup_20240101",
+            ...     collection_name="my_collection",
             ...     description="Daily backup",
             ...     compaction_protection_seconds=3600,
             ... )
@@ -2099,11 +2099,10 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def restore_snapshot(
         self,
         snapshot_name: str,
+        source_collection_name: str,
         target_collection_name: str,
-        source_collection_name: str = "",
-        target_db_name: str = "",
         source_db_name: str = "",
-        rewrite_data: bool = False,
+        target_db_name: str = "",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
@@ -2114,10 +2113,10 @@ class AsyncMilvusClient(BaseMilvusClient):
             target_collection_name (str): The collection the snapshot will be restored into.
                 Validated server-side; an existing collection causes the restore job to fail.
             source_collection_name (str): The collection the snapshot belongs to.
-                If empty, resolved from snapshot metadata server-side.
+                Required to uniquely identify the snapshot, since snapshot names are only
+                unique within a collection and multiple collections may share the same name.
             target_db_name (str): Target database name (defaults to active db).
             source_db_name (str): Source database name (defaults to active db).
-            rewrite_data (bool): If True, use import to rewrite data to the target collection.
             timeout (Optional[float]): Optional RPC timeout in seconds.
             **kwargs: Additional arguments.
 
@@ -2131,7 +2130,6 @@ class AsyncMilvusClient(BaseMilvusClient):
             source_collection_name=source_collection_name,
             target_db_name=target_db_name,
             source_db_name=source_db_name,
-            rewrite_data=rewrite_data,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -2171,7 +2169,9 @@ class AsyncMilvusClient(BaseMilvusClient):
         """List all restore snapshot jobs (async).
 
         Args:
-            collection_name (str): Optional collection name to filter jobs.
+            collection_name (str): Optional target collection name to filter jobs.
+                Pass the name of the collection that was restored into (the target collection).
+                If empty, lists all restore jobs.
             db_name (str): Optional database name (defaults to active db).
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
@@ -2191,7 +2191,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def pin_snapshot_data(
         self,
         snapshot_name: str,
-        collection_name: str = "",
+        collection_name: str,
         db_name: str = "",
         ttl_seconds: int = 0,
         timeout: Optional[float] = None,

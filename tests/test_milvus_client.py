@@ -217,8 +217,8 @@ class TestMilvusClientSnapshot:
             client = MilvusClient()
 
             client.create_snapshot(
-                collection_name="test_collection",
                 snapshot_name="test_snapshot",
+                collection_name="test_collection",
                 description="Test description",
             )
 
@@ -242,7 +242,7 @@ class TestMilvusClientSnapshot:
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
             client = MilvusClient()
 
-            client.create_snapshot(collection_name="test_collection", snapshot_name="test_snapshot")
+            client.create_snapshot(snapshot_name="test_snapshot", collection_name="test_collection")
 
             mock_handler.create_snapshot.assert_called_once()
             call_kwargs = mock_handler.create_snapshot.call_args[1]
@@ -363,7 +363,6 @@ class TestMilvusClientSnapshot:
                 source_collection_name="test_collection",
                 target_db_name="",
                 source_db_name="",
-                rewrite_data=False,
                 timeout=None,
                 context=ANY,
             )

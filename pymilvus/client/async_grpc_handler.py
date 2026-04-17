@@ -2495,10 +2495,10 @@ class AsyncGrpcHandler:
     @retry_on_rpc_failure()
     async def create_snapshot(
         self,
-        collection_name: str,
         snapshot_name: str,
-        description: str = "",
+        collection_name: str,
         db_name: str = "",
+        description: str = "",
         compaction_protection_seconds: int = 0,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
@@ -2520,7 +2520,7 @@ class AsyncGrpcHandler:
     async def drop_snapshot(
         self,
         snapshot_name: str,
-        collection_name: str = "",
+        collection_name: str,
         db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
@@ -2552,13 +2552,13 @@ class AsyncGrpcHandler:
         check_status(response.status)
 
         # Return list of snapshot names
-        return response.snapshots
+        return list(response.snapshots)
 
     @retry_on_rpc_failure()
     async def describe_snapshot(
         self,
         snapshot_name: str,
-        collection_name: str = "",
+        collection_name: str,
         db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
@@ -2587,11 +2587,10 @@ class AsyncGrpcHandler:
     async def restore_snapshot(
         self,
         snapshot_name: str,
+        source_collection_name: str,
         target_collection_name: str,
-        source_collection_name: str = "",
-        target_db_name: str = "",
         source_db_name: str = "",
-        rewrite_data: bool = False,
+        target_db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -2602,7 +2601,6 @@ class AsyncGrpcHandler:
             source_collection_name=source_collection_name,
             target_db_name=target_db_name,
             source_db_name=source_db_name,
-            rewrite_data=rewrite_data,
         )
         response = await self._async_stub.RestoreSnapshot(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2673,7 +2671,7 @@ class AsyncGrpcHandler:
     async def pin_snapshot_data(
         self,
         snapshot_name: str,
-        collection_name: str = "",
+        collection_name: str,
         db_name: str = "",
         ttl_seconds: int = 0,
         timeout: Optional[float] = None,

@@ -676,8 +676,8 @@ _SNAPSHOT_CASES = [
     (
         "create_snapshot",
         {
-            "collection_name": "test_collection",
             "snapshot_name": "test_snapshot",
+            "collection_name": "test_collection",
             "description": "Test description",
         },
         {
@@ -730,7 +730,6 @@ _SNAPSHOT_CASES = [
             "source_collection_name": "test_collection",
             "target_db_name": "",
             "source_db_name": "",
-            "rewrite_data": False,
             "timeout": None,
             "context": ANY,
         },
@@ -822,8 +821,8 @@ class TestAsyncMilvusClientSnapshot:
             (
                 "create_snapshot",
                 {
-                    "collection_name": "test_collection",
                     "snapshot_name": "test_snapshot",
+                    "collection_name": "test_collection",
                     "description": "Test description",
                 },
                 {
@@ -873,7 +872,6 @@ class TestAsyncMilvusClientSnapshot:
                     "source_collection_name": "test_collection",
                     "target_db_name": "",
                     "source_db_name": "",
-                    "rewrite_data": False,
                     "timeout": None,
                     "context": ANY,
                 },
