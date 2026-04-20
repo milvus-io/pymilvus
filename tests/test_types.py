@@ -9,6 +9,9 @@
 # is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 
+import uuid
+from pathlib import PurePosixPath, PureWindowsPath
+
 import numpy as np
 import pytest
 from pymilvus import DataType
@@ -47,6 +50,19 @@ class TestTypes:
     def test_infer_dtype_bydata(self, data, expect):
         got = infer_dtype_bydata(data)
         assert got == expect
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            uuid.UUID("12345678-1234-5678-1234-567812345678"),
+            uuid.uuid4(),
+            PurePosixPath("/foo/bar"),
+            PureWindowsPath("C:/Users/foo"),
+        ],
+    )
+    def test_infer_dtype_bydata_uuid_and_pathlike(self, data):
+        """uuid.UUID and os.PathLike objects should infer as VARCHAR (issue #2917)."""
+        assert infer_dtype_bydata(data) == DataType.VARCHAR
 
     def test_str_of_data_type(self):
         for v in DataType:
