@@ -27,7 +27,7 @@ from pymilvus.client.abstract import (
     WeightedRanker,
 )
 from pymilvus.client.constants import RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
-from pymilvus.client.types import DataType, FunctionType
+from pymilvus.client.types import ConsistencyLevel, DataType, FunctionType
 from pymilvus.exceptions import DataTypeNotMatchException
 
 
@@ -515,6 +515,22 @@ class TestCollectionSchema:
 
         assert "created_timestamp" not in d
         assert "update_timestamp" not in d
+
+    def test_collection_schema_dict_consistency_level_is_string(self):
+        """dict() must return consistency_level as a human-readable name, not an int (issue #2985)."""
+        expected = {
+            ConsistencyLevel.Strong: "Strong",
+            ConsistencyLevel.Session: "Session",
+            ConsistencyLevel.Bounded: "Bounded",
+            ConsistencyLevel.Eventually: "Eventually",
+            ConsistencyLevel.Customized: "Customized",
+        }
+        for int_val, name in expected.items():
+            raw = self._create_mock_collection_raw(consistency_level=int_val)
+            d = CollectionSchema(raw).dict()
+            assert (
+                d["consistency_level"] == name
+            ), f"Expected '{name}' for level {int_val}, got {d['consistency_level']!r}"
 
     def test_collection_schema_rewrite_schema_dict(self):
         """Test CollectionSchema._rewrite_schema_dict method."""
