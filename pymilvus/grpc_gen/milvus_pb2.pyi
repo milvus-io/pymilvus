@@ -3056,12 +3056,14 @@ class AlterCollectionSchemaRequest(_message.Message):
         do_physical_backfill: bool
         def __init__(self, field_infos: _Optional[_Iterable[_Union[AlterCollectionSchemaRequest.FieldInfo, _Mapping]]] = ..., func_schema: _Optional[_Iterable[_Union[_schema_pb2.FunctionSchema, _Mapping]]] = ..., do_physical_backfill: bool = ...) -> None: ...
     class DropRequest(_message.Message):
-        __slots__ = ("field_name", "field_id")
+        __slots__ = ("field_name", "field_id", "function_name")
         FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
         FIELD_ID_FIELD_NUMBER: _ClassVar[int]
+        FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
         field_name: str
         field_id: int
-        def __init__(self, field_name: _Optional[str] = ..., field_id: _Optional[int] = ...) -> None: ...
+        function_name: str
+        def __init__(self, field_name: _Optional[str] = ..., field_id: _Optional[int] = ..., function_name: _Optional[str] = ...) -> None: ...
     class Action(_message.Message):
         __slots__ = ("add_request", "drop_request")
         ADD_REQUEST_FIELD_NUMBER: _ClassVar[int]
