@@ -13,7 +13,7 @@ from .constants import DEFAULT_CONSISTENCY_LEVEL, RANKER_TYPE_RRF, RANKER_TYPE_W
 # ruff: noqa: F401
 # TODO: This is a patch for older version
 from .search_result import Hit, Hits, SearchResult
-from .types import DataType, FunctionType
+from .types import ConsistencyLevel, DataType, FunctionType
 
 logger = logging.getLogger(__name__)
 
@@ -311,7 +311,7 @@ class CollectionSchema:
             "functions": [f.dict() for f in self.functions],
             "aliases": self.aliases,
             "collection_id": self.collection_id,
-            "consistency_level": self.consistency_level,
+            "consistency_level": ConsistencyLevel.Name(self.consistency_level),
             "properties": self.properties,
             "num_partitions": self.num_partitions,
             "enable_dynamic_field": self.enable_dynamic_field,
