@@ -214,16 +214,21 @@ class GrpcHandler:
     def __exit__(self: object, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
-    def _wait_for_channel_ready(self, timeout: float = 10):
+    def _wait_for_channel_ready(self, timeout: Optional[float] = 10):
         if self._channel is None:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message="No channel in handler, please setup grpc channel first",
             )
 
+        # grpc.Future.result(timeout=None) blocks indefinitely.  Normalise None
+        # to the default 10 s so that an unreachable URI raises MilvusException
+        # instead of hanging forever (mirrors async ensure_channel_ready behaviour).
+        effective_timeout = timeout if timeout is not None else 10
+
         try:
-            grpc.channel_ready_future(self._channel).result(timeout=timeout)
-            self._setup_identifier_interceptor(self._user, timeout=timeout)
+            grpc.channel_ready_future(self._channel).result(timeout=effective_timeout)
+            self._setup_identifier_interceptor(self._user, timeout=effective_timeout)
         except grpc.FutureTimeoutError as e:
             self.close()
             raise MilvusException(
