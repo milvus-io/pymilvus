@@ -150,6 +150,29 @@ class TestGrpcHandlerConnectionMgmt:
             with pytest.raises(RuntimeError, match="unexpected error"):
                 handler._wait_for_channel_ready(timeout=1.0)
 
+    def test_wait_for_channel_ready_none_timeout_uses_default(self):
+        """_wait_for_channel_ready(timeout=None) must use a finite default, not block forever.
+
+        When MilvusClient is constructed with the default timeout=None and the URI is
+        unreachable, the call should raise MilvusException instead of hanging indefinitely.
+        The root cause is that grpc.Future.result(timeout=None) blocks forever; this test
+        ensures the implementation substitutes a finite timeout before calling .result().
+        """
+        handler = GrpcHandler(channel=MagicMock())
+        with patch("pymilvus.client.grpc_handler.grpc.channel_ready_future") as mock_ready:
+            mock_ready.return_value.result.side_effect = grpc.FutureTimeoutError()
+            with pytest.raises(MilvusException, match="Fail connecting"):
+                handler._wait_for_channel_ready(timeout=None)
+            # The key assertion: result() must have been called with a finite timeout, not None.
+            call_kwargs = mock_ready.return_value.result.call_args
+            passed_timeout = call_kwargs.kwargs.get("timeout") or (
+                call_kwargs.args[0] if call_kwargs.args else None
+            )
+            assert passed_timeout is not None, (
+                "_wait_for_channel_ready(timeout=None) passed timeout=None to grpc Future.result(), "
+                "which blocks indefinitely on unreachable URIs"
+            )
+
     def test_internal_register_forwards_connect_reserved(self):
         handler = GrpcHandler(channel=MagicMock(), option={"cluster_id": "c1"})
         mock_response = MagicMock()
