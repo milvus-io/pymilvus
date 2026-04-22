@@ -23,7 +23,6 @@ from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, utils
-from .field_ops import FieldOpsInput, normalize_field_ops
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties, validate_str
 from .constants import (
@@ -55,6 +54,7 @@ from .constants import (
 )
 from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .search_aggregation import SearchAggregation
+from .field_ops import FieldOpsInput, normalize_field_ops
 from .types import (
     DataType,
     PlaceholderType,

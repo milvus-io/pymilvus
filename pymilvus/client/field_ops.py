@@ -39,9 +39,7 @@ FieldOpType = schema_pb2.FieldPartialUpdateOp.OpType
 #   * a :class:`schema_pb2.FieldPartialUpdateOp` message directly;
 #   * a :class:`FieldOpType` enum value;
 #   * a string alias like ``"array_append"`` / ``"array_remove"``.
-FieldOpsInput = Optional[
-    Mapping[str, Union[schema_pb2.FieldPartialUpdateOp, "FieldOpType", str]]
-]
+FieldOpsInput = Optional[Mapping[str, Union[schema_pb2.FieldPartialUpdateOp, "FieldOpType", str]]]
 
 
 class FieldOp:
@@ -116,9 +114,7 @@ def _coerce_single(
     if isinstance(op, str):
         alias = op.lower()
         if alias not in _STRING_ALIASES:
-            raise ParamError(
-                message=f"unknown field_op alias {op!r} for field {field_name!r}"
-            )
+            raise ParamError(message=f"unknown field_op alias {op!r} for field {field_name!r}")
         return schema_pb2.FieldPartialUpdateOp(op=_STRING_ALIASES[alias])
     # Fall back: treat it as a raw enum value if it is an int.
     if isinstance(op, int):

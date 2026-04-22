@@ -1,13 +1,11 @@
 """Tests for FieldPartialUpdateOp wiring through Prepare."""
 
 import pytest
-
-from pymilvus import DataType, FieldOp, FieldOpType, FieldSchema, CollectionSchema
+from pymilvus import CollectionSchema, DataType, FieldOp, FieldOpType, FieldSchema
 from pymilvus.client.field_ops import normalize_field_ops
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import milvus_pb2, schema_pb2
-
 
 # ============================================================
 # FieldOp factory + normalize_field_ops helpers
@@ -76,9 +74,7 @@ def array_schema():
     return CollectionSchema(
         [
             FieldSchema("pk", DataType.INT64, is_primary=True),
-            FieldSchema(
-                "tags", DataType.ARRAY, element_type=DataType.INT64, max_capacity=32
-            ),
+            FieldSchema("tags", DataType.ARRAY, element_type=DataType.INT64, max_capacity=32),
         ]
     )
 
@@ -129,9 +125,7 @@ def test_row_upsert_param_remove_op(array_schema):
 
 
 def test_row_upsert_param_without_ops_leaves_field_ops_empty(array_schema):
-    req = Prepare.row_upsert_param(
-        "test", [{"pk": 1, "tags": [1]}], "", _fields_info(array_schema)
-    )
+    req = Prepare.row_upsert_param("test", [{"pk": 1, "tags": [1]}], "", _fields_info(array_schema))
     assert req.partial_update is False
     assert len(req.field_ops) == 0
 
@@ -200,15 +194,13 @@ def test_batch_upsert_param_emits_field_op(array_schema):
 
 
 def test_batch_upsert_param_without_ops_default(array_schema):
-    req = Prepare.batch_upsert_param(
-        "test", _batch_entities(), "", _fields_info(array_schema)
-    )
+    req = Prepare.batch_upsert_param("test", _batch_entities(), "", _fields_info(array_schema))
     assert req.partial_update is False
     assert len(req.field_ops) == 0
 
 
 # ============================================================
-# Prepare._apply_field_ops (direct)
+# Direct tests for the internal _apply_field_ops helper
 # ============================================================
 
 
