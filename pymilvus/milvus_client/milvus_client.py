@@ -383,7 +383,7 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
-
+        validate_param("collection_name", collection_name, str)
         conn = self._get_connection()
         return conn.hybrid_search(
             collection_name,
@@ -438,6 +438,7 @@ class MilvusClient(BaseMilvusClient):
             List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
                 not included in the result data.
         """
+        validate_param("collection_name", collection_name, str)
         # Convert EmbeddingList objects to flat arrays if present
         if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
             data = [emb_list.to_flat_array() for emb_list in data]
@@ -1760,6 +1761,7 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong.
         """
+        validate_param("collection_name", collection_name, str)
         conn = self._get_connection()
         conn.flush(
             [collection_name],
