@@ -173,6 +173,14 @@ class TestGrpcHandlerConnectionMgmt:
                 "which blocks indefinitely on unreachable URIs"
             )
 
+    def test_wait_for_channel_ready_success(self):
+        handler = GrpcHandler(channel=MagicMock())
+        with patch("pymilvus.client.grpc_handler.grpc.channel_ready_future") as mock_ready:
+            mock_ready.return_value.result.return_value = None
+            with patch.object(handler, "_setup_identifier_interceptor") as mock_setup:
+                handler._wait_for_channel_ready(timeout=None)
+                mock_setup.assert_called_once_with(handler._user, timeout=10)
+
     def test_internal_register_forwards_connect_reserved(self):
         handler = GrpcHandler(channel=MagicMock(), option={"cluster_id": "c1"})
         mock_response = MagicMock()
