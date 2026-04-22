@@ -1557,8 +1557,7 @@ class AsyncGrpcHandler:
         )
         check_status(status)
 
-    @retry_on_rpc_failure()
-    async def alter_collection_schema_drop(
+    async def _alter_collection_schema_drop(
         self,
         collection_name: str,
         field_name: str = "",
@@ -1582,6 +1581,8 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.alter_status)
+        if response.HasField("index_status"):
+            check_status(response.index_status)
 
     @retry_on_rpc_failure()
     async def drop_collection_field(
@@ -1593,7 +1594,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.alter_collection_schema_drop(
+        await self._alter_collection_schema_drop(
             collection_name,
             field_name=field_name,
             field_id=field_id,
@@ -1611,7 +1612,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self.alter_collection_schema_drop(
+        await self._alter_collection_schema_drop(
             collection_name,
             function_name=function_name,
             timeout=timeout,
