@@ -1,8 +1,10 @@
 """Regression tests for pymilvus issues."""
+
 import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pymilvus import AnnSearchRequest, WeightedRanker
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.milvus_client import MilvusClient
@@ -46,8 +48,6 @@ class TestIssue2587:
 
     def test_issue_2587_hybrid_search_non_string_collection_name(self):
         # Regression test for #2587
-        from pymilvus import AnnSearchRequest, WeightedRanker
-
         client = make_client()
         reqs = [AnnSearchRequest([[0.1, 0.2]], "vec", {}, 10)]
         ranker = WeightedRanker(1.0)
