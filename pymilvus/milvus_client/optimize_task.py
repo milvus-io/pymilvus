@@ -17,7 +17,7 @@ unit_to_bytes = {
 
 # Sentinel passed to the server when optimize() is called without a target_size,
 # meaning "let the server choose the segment size automatically".
-_OPTIMIZE_DEFAULT_SIZE_MB = 1 << 63 - 1
+_OPTIMIZE_DEFAULT_SIZE_MB = (1 << 63) - 1
 
 
 def parse_target_size(target_size: Union[str, float, int]) -> int:

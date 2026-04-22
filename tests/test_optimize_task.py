@@ -171,7 +171,7 @@ def test_parse_target_size_none_raises():
 
 
 def test_optimize_default_size_mb_is_sentinel():
-    assert _OPTIMIZE_DEFAULT_SIZE_MB == 1 << 63 - 1
+    assert _OPTIMIZE_DEFAULT_SIZE_MB == (1 << 63) - 1
 
 
 def test_parse_target_size_float_bytes():
