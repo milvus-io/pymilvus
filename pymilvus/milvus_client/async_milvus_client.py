@@ -526,6 +526,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         **kwargs,
     ) -> List[List[dict]]:
+        validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         return await conn.hybrid_search(
             collection_name,
@@ -554,6 +555,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         **kwargs,
     ) -> List[List[dict]]:
+        validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         return await conn.search(
             collection_name=collection_name,
@@ -1531,6 +1533,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def flush(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
+        validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         await conn.flush(
             [collection_name],
