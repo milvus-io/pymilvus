@@ -14,6 +14,7 @@ from pymilvus.client.types import (
     RestoreSnapshotJobInfo,
     SnapshotInfo,
 )
+from pymilvus.exceptions import ParamError
 from pymilvus.orm.collection import Function
 from pymilvus.orm.schema import StructFieldSchema
 
@@ -199,6 +200,66 @@ class TestAsyncMilvusClientNewFeatures:
         assert result == 123
         call_args = mock_handler.compact.call_args
         assert call_args[1]["is_l0"] is True
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_mb_default(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        result = await client.compact("col", target_size=512)
+
+        assert result == 99
+        assert mock_handler.compact.call_args[1]["target_size"] == 512
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_gb(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        await client.compact("col", target_size=2, target_size_unit="gb")
+
+        assert mock_handler.compact.call_args[1]["target_size"] == 2048
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_none_passes_none(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        await client.compact("col")
+
+        assert mock_handler.compact.call_args[1]["target_size"] is None
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_zero_rejected(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        with pytest.raises(ParamError):
+            await client.compact("col", target_size=0)
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_negative_rejected(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        with pytest.raises(ParamError):
+            await client.compact("col", target_size=-1)
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_invalid_type(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        with pytest.raises(ParamError):
+            await client.compact("col", target_size="512mb")
+
+    @pytest.mark.asyncio
+    async def test_compact_target_size_invalid_unit(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.compact = AsyncMock(return_value=99)
+
+        with pytest.raises(ParamError):
+            await client.compact("col", target_size=512, target_size_unit="zb")
 
     @pytest.mark.asyncio
     async def test_flush_all(self, client_and_handler):

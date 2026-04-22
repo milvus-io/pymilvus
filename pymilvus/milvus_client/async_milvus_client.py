@@ -35,7 +35,7 @@ from .async_optimize_task import AsyncOptimizeTask
 from .base import BaseMilvusClient
 from .check import validate_param
 from .index import IndexParam, IndexParams
-from .optimize_task import OptimizeResult, ProgressStage
+from .optimize_task import OptimizeResult, ProgressStage, parse_target_size
 
 
 class AsyncMilvusClient(BaseMilvusClient):
@@ -1612,14 +1612,48 @@ class AsyncMilvusClient(BaseMilvusClient):
         collection_name: str,
         is_clustering: Optional[bool] = False,
         is_l0: Optional[bool] = False,
+        target_size: Optional[int] = None,
+        target_size_unit: str = "mb",
         timeout: Optional[float] = None,
         **kwargs,
     ) -> int:
+        """Compact merge the small segments in a collection.
+
+        Args:
+            collection_name (str): The name of the collection to compact.
+            is_clustering (``bool``, optional): Option to trigger clustering compaction.
+            is_l0 (``bool``, optional): Option to trigger L0 compaction.
+            target_size (``int``, optional): Target segment size after compaction. Must be a
+                positive integer. The unit is specified by ``target_size_unit`` (default MB).
+                If not provided, the server uses its default target size.
+            target_size_unit (``str``, optional): Unit for ``target_size``. Supported values:
+                ``"b"``, ``"kb"``, ``"mb"`` (default), ``"gb"``, ``"tb"``, ``"pb"``.
+                The value is converted to MB before being sent to the server.
+            timeout (``float``, optional): An optional duration of time in seconds to allow
+                for the RPC. When timeout is set to None, client waits until server response
+                or error occur.
+
+        Raises:
+            ParamError: If ``target_size`` is not an int or ``target_size_unit`` is invalid.
+            MilvusException: If anything goes wrong.
+
+        Returns:
+            int: An integer represents the server's compaction job. You can use this job ID
+            for subsequent state inquiries.
+        """
+        if target_size is not None:
+            if not isinstance(target_size, int):
+                raise ParamError(
+                    message=f"target_size must be an int, got {type(target_size).__name__}"
+                )
+            target_size = parse_target_size(f"{target_size}{target_size_unit}")
+
         conn = await self._get_connection()
         return await conn.compact(
             collection_name,
             is_clustering=is_clustering,
             is_l0=is_l0,
+            target_size=target_size,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,

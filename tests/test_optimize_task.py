@@ -7,6 +7,7 @@ from pymilvus import AsyncMilvusClient
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.milvus_client.async_optimize_task import AsyncOptimizeTask
 from pymilvus.milvus_client.optimize_task import (
+    _OPTIMIZE_DEFAULT_SIZE_MB,
     OptimizeResult,
     OptimizeTask,
     ProgressStage,
@@ -164,9 +165,13 @@ def test_parse_target_size_invalid_or_negative_values(invalid_value: Any) -> Non
         parse_target_size(invalid_value)
 
 
-def test_parse_target_size_none_returns_max_int():
-    result = parse_target_size(None)
-    assert result == 1 << 63 - 1
+def test_parse_target_size_none_raises():
+    with pytest.raises(ParamError):
+        parse_target_size(None)
+
+
+def test_optimize_default_size_mb_is_sentinel():
+    assert _OPTIMIZE_DEFAULT_SIZE_MB == 1 << 63 - 1
 
 
 def test_parse_target_size_float_bytes():
