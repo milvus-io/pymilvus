@@ -23,6 +23,7 @@ from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, utils
+from .field_ops import FieldOpsInput, normalize_field_ops
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties, validate_str
 from .constants import (
@@ -1144,23 +1145,35 @@ class Prepare:
         enable_dynamic: bool = False,
         schema_timestamp: int = 0,
         partial_update: bool = False,
+        field_ops: FieldOpsInput = None,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
 
         # upsert_request.hash_keys won't be filled in client.
         p_name = partition_name if isinstance(partition_name, str) else ""
+        ops = normalize_field_ops(field_ops)
+        # Non-REPLACE ops imply partial_update semantics; auto-promote so
+        # callers do not need to set both kwargs explicitly.
+        effective_partial_update = partial_update or bool(ops)
         request = milvus_types.UpsertRequest(
             collection_name=collection_name,
             partition_name=p_name,
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
-            partial_update=partial_update,
+            partial_update=effective_partial_update,
         )
 
-        return cls._parse_upsert_row_request(
-            request, fields_info, struct_fields_info, enable_dynamic, entities, partial_update
+        request = cls._parse_upsert_row_request(
+            request,
+            fields_info,
+            struct_fields_info,
+            enable_dynamic,
+            entities,
+            effective_partial_update,
         )
+        cls._apply_field_ops(request, ops)
+        return request
 
     @staticmethod
     def _pre_insert_batch_check(
@@ -1292,16 +1305,38 @@ class Prepare:
         partition_name: str,
         fields_info: Any,
         partial_update: bool = False,
+        field_ops: FieldOpsInput = None,
     ):
         location = cls._pre_upsert_batch_check(entities, fields_info, partial_update)
         tag = partition_name if isinstance(partition_name, str) else ""
+        ops = normalize_field_ops(field_ops)
+        effective_partial_update = partial_update or bool(ops)
         request = milvus_types.UpsertRequest(
             collection_name=collection_name,
             partition_name=tag,
-            partial_update=partial_update,
+            partial_update=effective_partial_update,
         )
 
-        return cls._parse_batch_request(request, entities, fields_info, location)
+        request = cls._parse_batch_request(request, entities, fields_info, location)
+        cls._apply_field_ops(request, ops)
+        return request
+
+    @staticmethod
+    def _apply_field_ops(
+        request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
+        field_ops: "dict[str, schema_types.FieldPartialUpdateOp]",
+    ) -> None:
+        """Append FieldPartialUpdateOp directives to ``request.field_ops``.
+
+        The ops are emitted independently of the ``fields_data`` contents so
+        an op targeting a field not present in ``fields_data`` reaches the
+        server and produces a descriptive validation error — client-side
+        filtering would hide user typos.
+        """
+        if not field_ops:
+            return
+        for field_name, op in field_ops.items():
+            request.field_ops.add(field_name=field_name, op=op.op)
 
     @classmethod
     def delete_request(
