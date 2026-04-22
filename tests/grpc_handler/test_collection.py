@@ -6,7 +6,7 @@ import pytest
 from pymilvus import FieldSchema
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DescribeCollectionException
+from pymilvus.exceptions import DescribeCollectionException, MilvusException
 from pymilvus.grpc_gen import common_pb2
 
 from .conftest import (
@@ -208,6 +208,31 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.AddCollectionField.assert_called_once()
 
     def test_drop_collection_function(self, handler):
-        handler._stub.DropCollectionFunction.return_value = make_status()
+        response = MagicMock()
+        response.alter_status.code = 0
+        response.alter_status.error_code = 0
+        response.HasField.return_value = False
+        handler._stub.AlterCollectionSchema.return_value = response
         handler.drop_collection_function("coll", "func")
-        handler._stub.DropCollectionFunction.assert_called_once()
+        handler._stub.AlterCollectionSchema.assert_called_once()
+
+    def test_drop_collection_field(self, handler):
+        response = MagicMock()
+        response.alter_status.code = 0
+        response.alter_status.error_code = 0
+        response.HasField.return_value = False
+        handler._stub.AlterCollectionSchema.return_value = response
+        handler.drop_collection_field("coll", field_name="f")
+        handler._stub.AlterCollectionSchema.assert_called_once()
+
+    def test_drop_collection_schema_propagates_index_status(self, handler):
+        response = MagicMock()
+        response.alter_status.code = 0
+        response.alter_status.error_code = 0
+        response.HasField.return_value = True
+        response.index_status.code = 1
+        response.index_status.error_code = 1
+        response.index_status.reason = "cascade index drop failed"
+        handler._stub.AlterCollectionSchema.return_value = response
+        with pytest.raises(MilvusException):
+            handler.drop_collection_field("coll", field_name="f")

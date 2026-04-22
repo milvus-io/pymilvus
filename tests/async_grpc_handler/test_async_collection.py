@@ -666,17 +666,41 @@ class TestAsyncGrpcHandlerCollectionProperties:
         handler.ensure_channel_ready = AsyncMock()
 
         mock_stub = AsyncMock()
-        mock_status = MagicMock()
-        mock_status.code = 0
-        mock_stub.DropCollectionFunction = AsyncMock(return_value=mock_status)
+        mock_response = MagicMock()
+        mock_response.alter_status.code = 0
+        mock_response.HasField.return_value = False
+        mock_stub.AlterCollectionSchema = AsyncMock(return_value=mock_response)
         handler._async_stub = mock_stub
 
         with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
-            mock_prepare.drop_collection_function_request.return_value = MagicMock()
+            mock_prepare.alter_collection_schema_drop_request.return_value = MagicMock()
             await handler.drop_collection_function("test_coll", "func1")
-            mock_stub.DropCollectionFunction.assert_called_once()
+            mock_stub.AlterCollectionSchema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_collection_field(self) -> None:
+        """Test drop_collection_field async API"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.alter_status.code = 0
+        mock_response.HasField.return_value = False
+        mock_stub.AlterCollectionSchema = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status"):
+            mock_prepare.alter_collection_schema_drop_request.return_value = MagicMock()
+            await handler.drop_collection_field("test_coll", field_name="f")
+            mock_stub.AlterCollectionSchema.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_add_collection_function(self) -> None:
