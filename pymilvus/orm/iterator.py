@@ -379,7 +379,11 @@ class QueryIterator:
             filtered_pk_str = f"{self._pk_field_name} > {self._next_id}"
         if current_expr is None or len(current_expr) == 0:
             return filtered_pk_str
-        return "(" + current_expr + ")" + " and " + filtered_pk_str
+        # Put the PK cursor on the LEFT of AND so that operators with strict
+        # position constraints (e.g. `element_filter()` on struct array, which
+        # must be the right-most operand of a logical AND) keep their position
+        # across paginated calls.
+        return filtered_pk_str + " and (" + current_expr + ")"
 
     def __update_cursor(self, res: List) -> None:
         if len(res) == 0:
