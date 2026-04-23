@@ -66,6 +66,7 @@ _VECTOR_DATA_ATTR = {
 }
 
 from . import entity_helper
+from .search_aggregation import AggregationBucket, parse_agg_buckets
 
 logger = logging.getLogger(__name__)
 
@@ -393,6 +394,11 @@ class SearchResult(list):
         self._session_ts = session_ts
         self._search_iterator_v2_results = res.search_iterator_v2_results
 
+        # search_aggregation response — List[List[AggregationBucket]], one inner
+        # list per query vector (nq). Empty outer list when request did not set
+        # search_aggregation. When nq == 1 this is a single-element outer list.
+        self.agg_buckets: List[List[AggregationBucket]] = self._split_agg_buckets(res)
+
     def __str__(self) -> str:
         """Only print at most 10 results"""
         result_msg = f"data: {self[:10]}"
@@ -409,6 +415,42 @@ class SearchResult(list):
     def materialize(self):
         for i in range(len(self)):
             self[i].materialize()
+
+    @staticmethod
+    def _split_agg_buckets(
+        res: schema_pb2.SearchResultData,
+    ) -> List[List[AggregationBucket]]:
+        if len(res.agg_buckets) == 0:
+            return []
+        parsed = parse_agg_buckets(res.agg_buckets)
+        # agg_topks[i] = number of top-level buckets belonging to query i.
+        # If the server omitted agg_topks, only the nq==1 shape can be recovered.
+        if len(res.agg_topks) == 0:
+            if res.num_queries > 1:
+                logger.warning(
+                    "search_aggregation response missing agg_topks for nq=%d; "
+                    "dropping %d buckets because per-query assignment is ambiguous",
+                    res.num_queries,
+                    len(parsed),
+                )
+                return [[] for _ in range(res.num_queries)]
+            return [parsed]
+
+        topks = list(res.agg_topks)
+        out: List[List[AggregationBucket]] = []
+        offset = 0
+        for k in topks:
+            out.append(parsed[offset : offset + k])
+            offset += k
+        if offset != len(parsed):
+            logger.warning(
+                "search_aggregation response bucket count mismatch: agg_topks sum=%d, parsed=%d",
+                offset,
+                len(parsed),
+            )
+            if offset < len(parsed):
+                out[-1].extend(parsed[offset:])
+        return out
 
     def _parse_search_result_data(
         self,

@@ -45,10 +45,12 @@ from .constants import (
     QUERY_GROUP_BY_FIELDS,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
+    SEARCH_AGGREGATION,
     STRICT_CAST,
     STRICT_GROUP_SIZE,
 )
 from .entity_helper import convert_to_array, convert_to_array_of_vector
+from .search_aggregation import SearchAggregation
 from .types import (
     DataType,
     PlaceholderType,
@@ -1500,10 +1502,12 @@ class Prepare:
         use_default_consistency: bool = True,
         **kwargs,
     ) -> milvus_types.SearchRequest:
+        param = dict(param)
         ignore_growing = param.get("ignore_growing", False) or kwargs.get("ignore_growing", False)
         params = param.get("params", {})
         if not isinstance(params, dict):
             raise ParamError(message=f"Search params must be a dict, got {type(params)}")
+        params = dict(params)
         param["params"] = params  # ensure modifications are visible to get_params()
 
         if PAGE_RETAIN_ORDER_FIELD in kwargs and PAGE_RETAIN_ORDER_FIELD in param:
@@ -1560,7 +1564,18 @@ class Prepare:
         if search_iter_id is not None:
             search_params[ITER_SEARCH_ID_KEY] = search_iter_id
 
+        search_aggregation = kwargs.get(SEARCH_AGGREGATION)
+        if search_aggregation is not None and not isinstance(search_aggregation, SearchAggregation):
+            raise ParamError(
+                message=(
+                    f"search_aggregation must be a SearchAggregation instance, "
+                    f"got {type(search_aggregation).__name__}"
+                )
+            )
+
         group_by_field = kwargs.get(GROUP_BY_FIELD)
+        if search_aggregation is not None and group_by_field is not None:
+            raise ParamError(message="search_aggregation and group_by_field are mutually exclusive")
         if group_by_field is not None:
             search_params[GROUP_BY_FIELD] = group_by_field
 
@@ -1675,6 +1690,9 @@ class Prepare:
 
         request = milvus_types.SearchRequest(**request_kwargs)
 
+        if search_aggregation is not None:
+            request.search_aggregation.CopyFrom(search_aggregation.to_proto())
+
         if expr is not None:
             request.dsl = expr
 
@@ -1725,6 +1743,8 @@ class Prepare:
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
+        if kwargs.get(SEARCH_AGGREGATION) is not None:
+            raise ParamError(message="search_aggregation is not supported in hybrid_search")
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
             rerank_param = rerank.dict()
