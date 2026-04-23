@@ -578,6 +578,25 @@ class TestQueryIteratorNextExpr:
         expr = qi._QueryIterator__setup_next_expr()
         assert "pk > 42" in expr
         assert "(pk > 0)" in expr
+        # PK cursor must precede the user filter so that right-most-operand
+        # constraints (e.g. `element_filter()`) are preserved across pages.
+        assert expr.index("pk > 42") < expr.index("(pk > 0)")
+
+    def test_setup_next_expr_element_filter_stays_right_most(self):
+        conn = _make_mock_conn(session_ts=100)
+        user_filter = "element_filter(structA, $[int_val] >= 20000)"
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr=user_filter,
+            output_fields=["pk"],
+            schema=_SCHEMA_DICT,
+        )
+        qi._next_id = 211
+        expr = qi._QueryIterator__setup_next_expr()
+        # element_filter() must remain the right-most operand of AND.
+        assert expr == f"pk > 211 and ({user_filter})"
 
     def test_setup_next_expr_with_varchar_cursor(self):
         conn = _make_mock_conn(session_ts=100)
