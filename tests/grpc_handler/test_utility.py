@@ -7,6 +7,7 @@ import pytest
 from pymilvus import AnnSearchRequest, RRFRanker
 from pymilvus.client.cache import GlobalCache
 from pymilvus.exceptions import AmbiguousIndexName, MilvusException
+from pymilvus.grpc_gen import common_pb2
 
 from .conftest import make_response
 
@@ -354,6 +355,18 @@ class TestGrpcHandlerCompactionAdditional:
         handler._stub.ManualCompaction.return_value = make_response(compactionID=111)
         result = handler.compact("coll", is_l0=True)
         assert result == 111
+
+    def test_compact_fallback_on_collection_name_not_found(self, handler):
+        first = make_response(error_code=common_pb2.CollectionNameNotFound)
+        second = make_response(compactionID=999)
+        handler._stub.ManualCompaction.side_effect = [first, second]
+        handler._stub.DescribeCollection.return_value = make_response(collectionID=42)
+
+        result = handler.compact("coll", is_l0=True, target_size=256)
+
+        assert result == 999
+        assert handler._stub.ManualCompaction.call_count == 2
+        handler._stub.DescribeCollection.assert_called_once()
 
 
 class TestGrpcHandlerMisc:

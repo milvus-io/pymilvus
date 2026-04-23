@@ -1054,6 +1054,52 @@ class TestMilvusClientMiscOps:
         handler.compact.return_value = 42
         assert client.compact("col") == 42
 
+    def test_compact_target_size_mb_default(self, mc):
+        client, handler = mc
+        handler.compact.return_value = 42
+        client.compact("col", target_size=512)
+        handler.compact.assert_called_once()
+        assert handler.compact.call_args[1]["target_size"] == 512
+
+    def test_compact_target_size_gb(self, mc):
+        client, handler = mc
+        handler.compact.return_value = 42
+        client.compact("col", target_size=2, target_size_unit="gb")
+        assert handler.compact.call_args[1]["target_size"] == 2048
+
+    def test_compact_target_size_kb(self, mc):
+        client, handler = mc
+        handler.compact.return_value = 42
+        # 2048 KB = 2 MB
+        client.compact("col", target_size=2048, target_size_unit="kb")
+        assert handler.compact.call_args[1]["target_size"] == 2
+
+    def test_compact_target_size_none_passes_none(self, mc):
+        client, handler = mc
+        handler.compact.return_value = 42
+        client.compact("col")
+        assert handler.compact.call_args[1]["target_size"] is None
+
+    def test_compact_target_size_zero_rejected(self, mc):
+        client, _ = mc
+        with pytest.raises(ParamError):
+            client.compact("col", target_size=0)
+
+    def test_compact_target_size_negative_rejected(self, mc):
+        client, _ = mc
+        with pytest.raises(ParamError):
+            client.compact("col", target_size=-1)
+
+    def test_compact_target_size_invalid_type(self, mc):
+        client, _ = mc
+        with pytest.raises(ParamError):
+            client.compact("col", target_size="512mb")
+
+    def test_compact_target_size_invalid_unit(self, mc):
+        client, _ = mc
+        with pytest.raises(ParamError):
+            client.compact("col", target_size=512, target_size_unit="zb")
+
     def test_get_compaction_state(self, mc):
         client, handler = mc
         state = MagicMock()
