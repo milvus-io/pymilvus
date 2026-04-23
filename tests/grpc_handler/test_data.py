@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus import AnnSearchRequest, RRFRanker
+from pymilvus import AnnSearchRequest, FieldOp, RRFRanker
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import (
@@ -695,3 +695,104 @@ class TestSchemaMismatchRetry:
         req2 = captured_requests[1]
         assert req2.schema_timestamp == 200
         assert "extra" in {fd.field_name for fd in req2.fields_data}
+
+
+class TestGrpcHandlerUpsertFieldOps:
+    """Tests that the GrpcHandler threads FieldPartialUpdateOp entries all
+    the way from the public upsert API down to the outgoing UpsertRequest,
+    and that a non-REPLACE op auto-promotes partial_update=True."""
+
+    @pytest.fixture
+    def array_schema(self):
+        """Schema with pk + float vector + Array<Int64> for partial-op tests."""
+        return (
+            {
+                "fields": [
+                    {
+                        "name": "id",
+                        "type": DataType.INT64,
+                        "is_primary": True,
+                        "auto_id": False,
+                    },
+                    {
+                        "name": "vector",
+                        "type": DataType.FLOAT_VECTOR,
+                        "params": {"dim": 4},
+                    },
+                    {
+                        "name": "tags",
+                        "type": DataType.ARRAY,
+                        "element_type": DataType.INT64,
+                        "params": {"max_capacity": 16},
+                    },
+                ],
+                "struct_array_fields": [],
+                "enable_dynamic_field": False,
+            },
+            100,
+        )
+
+    def test_upsert_rows_forwards_field_ops_and_auto_promotes(self, handler, array_schema):
+        captured = []
+
+        def capture(req, **_):
+            captured.append(req)
+            return make_mutation_response(insert_cnt=1, ids=[1], upsert_cnt=1)
+
+        handler._stub.Upsert.side_effect = capture
+
+        with patch.object(handler, "_get_schema", return_value=array_schema):
+            handler.upsert_rows(
+                "coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "tags": [3, 4]}],
+                field_ops={"tags": FieldOp.array_append()},
+            )
+
+        assert len(captured) == 1
+        req = captured[0]
+        # Non-REPLACE op forwarded to server...
+        assert len(req.field_ops) == 1
+        assert req.field_ops[0].field_name == "tags"
+        # ...and partial_update was auto-promoted from default False.
+        assert req.partial_update is True
+
+    def test_upsert_rows_without_field_ops_leaves_partial_update_false(self, handler, array_schema):
+        captured = []
+
+        def capture(req, **_):
+            captured.append(req)
+            return make_mutation_response(insert_cnt=1, ids=[1], upsert_cnt=1)
+
+        handler._stub.Upsert.side_effect = capture
+
+        with patch.object(handler, "_get_schema", return_value=array_schema):
+            handler.upsert_rows(
+                "coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "tags": [1, 2]}],
+            )
+
+        req = captured[0]
+        assert len(req.field_ops) == 0
+        assert req.partial_update is False
+
+    def test_upsert_rows_field_ops_accepts_string_alias(self, handler, array_schema):
+        captured = []
+
+        def capture(req, **_):
+            captured.append(req)
+            return make_mutation_response(insert_cnt=1, ids=[1], upsert_cnt=1)
+
+        handler._stub.Upsert.side_effect = capture
+
+        with patch.object(handler, "_get_schema", return_value=array_schema):
+            handler.upsert_rows(
+                "coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "tags": [5]}],
+                field_ops={"tags": "array_remove"},
+            )
+
+        req = captured[0]
+        assert len(req.field_ops) == 1
+        # ARRAY_REMOVE enum value is 2 per schema.proto FieldPartialUpdateOp.
+        assert req.field_ops[0].op == 2
+        assert req.partial_update is True

@@ -6,9 +6,11 @@ Coverage: Insert, delete, upsert, query, search, flush, compaction.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pymilvus import FieldOp
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import schema_pb2
 
@@ -543,6 +545,61 @@ class TestAsyncGrpcHandlerCompaction:
         with patch("pymilvus.client.async_grpc_handler.check_status"):
             result = await handler.get_compaction_state(12345, timeout=30)
             assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_upsert_rows_forwards_field_ops_and_auto_promotes(self) -> None:
+        """Async counterpart: FieldPartialUpdateOp threads into the outgoing
+        request and auto-promotes partial_update=True."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+            {
+                "name": "tags",
+                "type": DataType.ARRAY,
+                "element_type": DataType.INT64,
+                "params": {"max_capacity": 16},
+            },
+        ]
+        handler._get_info = AsyncMock(return_value=(fields_info, [], False, 0))
+
+        captured = []
+
+        async def capture(req, **_):
+            captured.append(req)
+            resp = MagicMock()
+            resp.status.code = 0
+            resp.IDs.int_id.data = [1]
+            resp.IDs.str_id.data = []
+            resp.timestamp = 1
+            resp.upsert_count = 1
+            resp.succ_index = [0]
+            resp.err_index = []
+            return resp
+
+        mock_stub = AsyncMock()
+        mock_stub.Upsert = AsyncMock(side_effect=capture)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"), patch(
+            "pymilvus.client.async_grpc_handler.ts_utils.update_collection_ts"
+        ):
+            await handler.upsert_rows(
+                "coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4], "tags": [7]}],
+                field_ops={"tags": FieldOp.array_append()},
+            )
+
+        assert len(captured) == 1
+        req = captured[0]
+        assert len(req.field_ops) == 1
+        assert req.field_ops[0].field_name == "tags"
+        assert req.partial_update is True
 
     @pytest.mark.asyncio
     async def test_run_analyzer(self) -> None:
