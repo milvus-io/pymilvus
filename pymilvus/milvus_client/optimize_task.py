@@ -15,8 +15,12 @@ unit_to_bytes = {
     "pb": 1024**5,
 }
 
+# Sentinel passed to the server when optimize() is called without a target_size,
+# meaning "let the server choose the segment size automatically".
+_OPTIMIZE_DEFAULT_SIZE_MB = (1 << 63) - 1
 
-def parse_target_size(target_size: Union[str, float, int, None]) -> int:
+
+def parse_target_size(target_size: Union[str, float, int]) -> int:
     """Parse target size string or number and return size in MB.
 
     Args:
@@ -38,9 +42,6 @@ def parse_target_size(target_size: Union[str, float, int, None]) -> int:
         >>> parse_target_size(1048576)
         1
     """
-    if target_size is None:
-        return 1 << 63 - 1
-
     if not isinstance(target_size, (str, int, float)):
         raise ParamError(
             message=f"target_size must be a string or number, got {type(target_size).__name__}"
@@ -132,10 +133,15 @@ class OptimizeTask(threading.Thread):
     def run(self) -> None:
         """Execute the optimization task in the background thread."""
         try:
+            size_mb = (
+                _OPTIMIZE_DEFAULT_SIZE_MB
+                if self._target_size is None
+                else parse_target_size(self._target_size)
+            )
             result = self._execute_fn(
                 task=self,
                 collection_name=self._collection_name,
-                size_mb=parse_target_size(self._target_size),
+                size_mb=size_mb,
                 timeout=self._task_timeout,
                 **self._kwargs,
             )
