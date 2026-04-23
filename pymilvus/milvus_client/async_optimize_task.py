@@ -3,7 +3,12 @@ from typing import Callable, List, Optional
 
 from pymilvus.exceptions import MilvusException
 
-from .optimize_task import OptimizeResult, ProgressStage, parse_target_size
+from .optimize_task import (
+    _OPTIMIZE_DEFAULT_SIZE_MB,
+    OptimizeResult,
+    ProgressStage,
+    parse_target_size,
+)
 
 
 class AsyncOptimizeTask:
@@ -29,10 +34,15 @@ class AsyncOptimizeTask:
     def start(self) -> None:
         async def _run() -> OptimizeResult:
             try:
+                size_mb = (
+                    _OPTIMIZE_DEFAULT_SIZE_MB
+                    if self._target_size is None
+                    else parse_target_size(self._target_size)
+                )
                 result = await self._execute_fn(
                     task=self,
                     collection_name=self._collection_name,
-                    size_mb=parse_target_size(self._target_size),
+                    size_mb=size_mb,
                     timeout=self._task_timeout,
                     **self._kwargs,
                 )
