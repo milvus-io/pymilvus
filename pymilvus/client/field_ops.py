@@ -27,7 +27,7 @@ from typing import Mapping, Optional, Union
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import schema_pb2
 
-__all__ = ["FieldOp", "FieldOpType", "normalize_field_ops"]
+__all__ = ["FieldOp", "FieldOpType"]
 
 # Re-exported for callers that want to compare against the low-level enum
 # (e.g. in tests) without reaching into the generated module.
@@ -116,8 +116,16 @@ def _coerce_single(
         if alias not in _STRING_ALIASES:
             raise ParamError(message=f"unknown field_op alias {op!r} for field {field_name!r}")
         return schema_pb2.FieldPartialUpdateOp(op=_STRING_ALIASES[alias])
-    # Fall back: treat it as a raw enum value if it is an int.
+    # ``bool`` is a subclass of ``int``; reject it explicitly so that
+    # ``field_ops={"tags": True}`` does not silently become ARRAY_APPEND.
+    if isinstance(op, bool):
+        raise ParamError(message=f"unsupported field_op type bool for field {field_name!r}")
+    # Fall back: treat it as a raw enum value if it is an int. Reject
+    # out-of-range values here rather than forwarding to the server so the
+    # caller gets a local, descriptive error.
     if isinstance(op, int):
+        if op not in schema_pb2.FieldPartialUpdateOp.OpType.values():
+            raise ParamError(message=f"invalid field_op enum value {op} for field {field_name!r}")
         return schema_pb2.FieldPartialUpdateOp(op=op)
     raise ParamError(
         message=f"unsupported field_op type {type(op).__name__} for field {field_name!r}"

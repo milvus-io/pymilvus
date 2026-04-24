@@ -1307,10 +1307,13 @@ class Prepare:
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
     ):
-        location = cls._pre_upsert_batch_check(entities, fields_info, partial_update)
-        tag = partition_name if isinstance(partition_name, str) else ""
         ops = normalize_field_ops(field_ops)
+        # Non-REPLACE ops imply partial_update semantics; auto-promote before
+        # the arity check so callers can omit unchanged columns when passing
+        # field_ops without also setting partial_update=True explicitly.
         effective_partial_update = partial_update or bool(ops)
+        location = cls._pre_upsert_batch_check(entities, fields_info, effective_partial_update)
+        tag = partition_name if isinstance(partition_name, str) else ""
         request = milvus_types.UpsertRequest(
             collection_name=collection_name,
             partition_name=tag,

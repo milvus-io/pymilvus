@@ -103,12 +103,6 @@ def test_row_upsert_param_emits_field_op_on_request(array_schema):
     tags_op = _find_field_op(req, "tags")
     assert tags_op is not None
     assert tags_op.op == FieldOpType.ARRAY_APPEND
-    # FieldData carries data only — no op leakage into individual rows.
-    for fd in req.fields_data:
-        # The proto no longer exposes partial_op on FieldData; assert that
-        # no field_ops have inadvertently been attached through some other
-        # path by checking the message has no populated sub-message.
-        assert fd.DESCRIPTOR.fields_by_name.get("partial_op") is None
 
 
 def test_row_upsert_param_remove_op(array_schema):
@@ -226,3 +220,62 @@ def test_apply_field_ops_empty_is_noop():
 def test_field_data_message_has_no_partial_op_field():
     """Regression guard: FieldData must remain a pure data carrier."""
     assert "partial_op" not in schema_pb2.FieldData.DESCRIPTOR.fields_by_name
+
+
+# ============================================================
+# Review-fix regression tests
+# ============================================================
+
+
+@pytest.fixture
+def three_field_schema():
+    # Three fields: pk + vec + tags. Used to verify batch auto-promote
+    # skips the arity check when the caller omits unchanged columns.
+    return CollectionSchema(
+        [
+            FieldSchema("pk", DataType.INT64, is_primary=True),
+            FieldSchema("vec", DataType.FLOAT_VECTOR, dim=4),
+            FieldSchema("tags", DataType.ARRAY, element_type=DataType.INT64, max_capacity=32),
+        ]
+    )
+
+
+def test_batch_upsert_param_auto_promotes_partial_update_skips_arity_check(three_field_schema):
+    """Non-REPLACE field_ops on the batch path must auto-promote
+    partial_update BEFORE the arity pre-check, so callers can omit
+    unchanged columns without also setting partial_update=True."""
+    entities = [
+        {"name": "pk", "type": DataType.INT64, "values": [1, 2]},
+        {
+            "name": "tags",
+            "type": DataType.ARRAY,
+            "element_type": DataType.INT64,
+            "values": [[1], [2]],
+        },
+    ]
+    req = Prepare.batch_upsert_param(
+        "test",
+        entities,
+        "",
+        _fields_info(three_field_schema),
+        field_ops={"tags": FieldOp.array_append()},
+    )
+    assert req.partial_update is True
+    tags_op = _find_field_op(req, "tags")
+    assert tags_op is not None
+    assert tags_op.op == FieldOpType.ARRAY_APPEND
+
+
+def test_normalize_field_ops_rejects_bool():
+    # bool subclasses int; must not silently become ARRAY_APPEND.
+    with pytest.raises(ParamError, match="bool"):
+        normalize_field_ops({"tags": True})
+    with pytest.raises(ParamError, match="bool"):
+        normalize_field_ops({"tags": False})
+
+
+def test_normalize_field_ops_rejects_out_of_range_int():
+    with pytest.raises(ParamError, match="invalid field_op enum value"):
+        normalize_field_ops({"tags": 99})
+    with pytest.raises(ParamError, match="invalid field_op enum value"):
+        normalize_field_ops({"tags": -1})
