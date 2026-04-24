@@ -1,9 +1,8 @@
 import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 import pymilvus.bulk_writer.bulk_import  # noqa: F401
+import pytest
 from pymilvus.bulk_writer.bulk_import import (
     _http_headers,
     _post_request,
