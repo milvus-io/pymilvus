@@ -204,8 +204,23 @@ class TestGrpcHandlerCollectionProperties:
 
         handler._stub.AddCollectionField.return_value = make_status()
         field = FieldSchema(name="new_field", dtype=DataType.VARCHAR, max_length=256)
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.add_collection_field("coll", field)
         handler._stub.AddCollectionField.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
+
+    def test_add_collection_function(self, handler):
+        handler._stub.AddCollectionFunction.return_value = make_status()
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+        with patch("pymilvus.client.grpc_handler.Prepare") as mock_prepare:
+            mock_prepare.add_collection_function_request.return_value = MagicMock()
+            handler.add_collection_function("coll", MagicMock())
+            handler._stub.AddCollectionFunction.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_drop_collection_function(self, handler):
         response = MagicMock()
@@ -213,8 +228,12 @@ class TestGrpcHandlerCollectionProperties:
         response.alter_status.error_code = 0
         response.HasField.return_value = False
         handler._stub.AlterCollectionSchema.return_value = response
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.drop_collection_function("coll", "func")
         handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_drop_collection_field(self, handler):
         response = MagicMock()
@@ -222,8 +241,12 @@ class TestGrpcHandlerCollectionProperties:
         response.alter_status.error_code = 0
         response.HasField.return_value = False
         handler._stub.AlterCollectionSchema.return_value = response
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.drop_collection_field("coll", field_name="f")
         handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_drop_collection_schema_propagates_index_status(self, handler):
         response = MagicMock()

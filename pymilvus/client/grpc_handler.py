@@ -464,6 +464,7 @@ class GrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     def _alter_collection_schema_drop(
         self,
@@ -509,6 +510,7 @@ class GrpcHandler:
             context=context,
             **kwargs,
         )
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def drop_collection_function(
@@ -526,6 +528,7 @@ class GrpcHandler:
             context=context,
             **kwargs,
         )
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def add_collection_function(
@@ -543,6 +546,7 @@ class GrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def alter_collection_function(

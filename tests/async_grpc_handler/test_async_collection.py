@@ -653,8 +653,12 @@ class TestAsyncGrpcHandlerCollectionProperties:
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.add_collection_field_request.return_value = MagicMock()
+            GlobalCache._reset_for_testing()
+            GlobalCache.schema.set(handler.server_address, "", "test_coll", {"fields": []})
             await handler.add_collection_field("test_coll", mock_field_schema)
             mock_stub.AddCollectionField.assert_called_once()
+            assert GlobalCache.schema.get(handler.server_address, "", "test_coll") is None
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_drop_collection_function(self) -> None:
@@ -676,8 +680,12 @@ class TestAsyncGrpcHandlerCollectionProperties:
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.alter_collection_schema_drop_request.return_value = MagicMock()
+            GlobalCache._reset_for_testing()
+            GlobalCache.schema.set(handler.server_address, "", "test_coll", {"fields": []})
             await handler.drop_collection_function("test_coll", "func1")
             mock_stub.AlterCollectionSchema.assert_called_once()
+            assert GlobalCache.schema.get(handler.server_address, "", "test_coll") is None
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_drop_collection_field(self) -> None:
@@ -699,8 +707,12 @@ class TestAsyncGrpcHandlerCollectionProperties:
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.alter_collection_schema_drop_request.return_value = MagicMock()
+            GlobalCache._reset_for_testing()
+            GlobalCache.schema.set(handler.server_address, "", "test_coll", {"fields": []})
             await handler.drop_collection_field("test_coll", field_name="f")
             mock_stub.AlterCollectionSchema.assert_called_once()
+            assert GlobalCache.schema.get(handler.server_address, "", "test_coll") is None
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_drop_collection_schema_propagates_index_status(self) -> None:
@@ -749,8 +761,12 @@ class TestAsyncGrpcHandlerCollectionProperties:
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.add_collection_function_request.return_value = MagicMock()
+            GlobalCache._reset_for_testing()
+            GlobalCache.schema.set(handler.server_address, "", "test_coll", {"fields": []})
             await handler.add_collection_function("test_coll", mock_function)
             mock_stub.AddCollectionFunction.assert_called_once()
+            assert GlobalCache.schema.get(handler.server_address, "", "test_coll") is None
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_alter_collection_function(self) -> None:
