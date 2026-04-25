@@ -6,7 +6,9 @@ import pytest
 from pymilvus.bulk_writer.bulk_import import (
     _http_headers,
     _post_request,
+    bulk_import,
     get_import_progress,
+    list_import_jobs,
 )
 from pymilvus.exceptions import MilvusException
 
@@ -118,3 +120,89 @@ class TestGetImportProgress:
                 api_key="my-key",
                 db_name="my_db",
             )
+
+
+class TestBulkImport:
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_db_name_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        resp = bulk_import(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+            db_name="my_db",
+            files=[["file1.parquet"]],
+        )
+
+        assert resp is mock_resp
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        assert kwargs["url"] == "http://example.com/v2/vectordb/jobs/import/create"
+        assert kwargs["headers"]["DB-Name"] == "my_db"
+        assert kwargs["json"]["dbName"] == "my_db"
+        assert kwargs["json"]["collectionName"] == "my_collection"
+        assert "db_name" not in kwargs
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_without_db_name_has_no_db_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        bulk_import(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+            files=[["file1.parquet"]],
+        )
+
+        _, kwargs = mock_post.call_args
+        assert "DB-Name" not in kwargs["headers"]
+        assert kwargs["json"]["dbName"] == ""
+
+
+class TestListImportJobs:
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_db_name_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        resp = list_import_jobs(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+            db_name="my_db",
+        )
+
+        assert resp is mock_resp
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        assert kwargs["url"] == "http://example.com/v2/vectordb/jobs/import/list"
+        assert kwargs["headers"]["DB-Name"] == "my_db"
+        assert kwargs["json"]["dbName"] == "my_db"
+        assert kwargs["json"]["collectionName"] == "my_collection"
+        assert "db_name" not in kwargs
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_without_db_name_has_no_db_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        list_import_jobs(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+        )
+
+        _, kwargs = mock_post.call_args
+        assert "DB-Name" not in kwargs["headers"]
+        assert kwargs["json"]["dbName"] == ""
