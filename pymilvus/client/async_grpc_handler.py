@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import logging
 import socket
 import time
 from pathlib import Path
@@ -69,6 +70,8 @@ from .utils import (
     is_successful,
     len_of,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncGrpcHandler:
@@ -963,6 +966,11 @@ class AsyncGrpcHandler:
         if isinstance(ids, (int, str)):
             ids = [ids]
         check_id_and_data(ids, data)
+        if kwargs.get("search_aggregation") is not None:
+            logger.warning(
+                "search_aggregation is set; search limit=%s is ignored and bucket count comes from SearchAggregation.size",
+                limit,
+            )
 
         check_pass_param(
             limit=limit,

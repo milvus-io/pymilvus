@@ -1126,3 +1126,62 @@ class Highlighter(_message.Message):
     type: HighlightType
     params: _containers.RepeatedCompositeFieldContainer[KeyValuePair]
     def __init__(self, type: _Optional[_Union[HighlightType, str]] = ..., params: _Optional[_Iterable[_Union[KeyValuePair, _Mapping]]] = ...) -> None: ...
+
+class MetricAggSpec(_message.Message):
+    __slots__ = ("op", "field_name")
+    OP_FIELD_NUMBER: _ClassVar[int]
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    op: str
+    field_name: str
+    def __init__(self, op: _Optional[str] = ..., field_name: _Optional[str] = ...) -> None: ...
+
+class SortSpec(_message.Message):
+    __slots__ = ("field_name", "direction", "null_first")
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIRST_FIELD_NUMBER: _ClassVar[int]
+    field_name: str
+    direction: str
+    null_first: bool
+    def __init__(self, field_name: _Optional[str] = ..., direction: _Optional[str] = ..., null_first: bool = ...) -> None: ...
+
+class TopHitsSpec(_message.Message):
+    __slots__ = ("size", "sort")
+    SIZE_FIELD_NUMBER: _ClassVar[int]
+    SORT_FIELD_NUMBER: _ClassVar[int]
+    size: int
+    sort: _containers.RepeatedCompositeFieldContainer[SortSpec]
+    def __init__(self, size: _Optional[int] = ..., sort: _Optional[_Iterable[_Union[SortSpec, _Mapping]]] = ...) -> None: ...
+
+class OrderSpec(_message.Message):
+    __slots__ = ("key", "direction", "null_first")
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    DIRECTION_FIELD_NUMBER: _ClassVar[int]
+    NULL_FIRST_FIELD_NUMBER: _ClassVar[int]
+    key: str
+    direction: str
+    null_first: bool
+    def __init__(self, key: _Optional[str] = ..., direction: _Optional[str] = ..., null_first: bool = ...) -> None: ...
+
+class SearchAggregationSpec(_message.Message):
+    __slots__ = ("fields", "size", "metrics", "order", "top_hits", "sub_aggregation")
+    class MetricsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: MetricAggSpec
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[MetricAggSpec, _Mapping]] = ...) -> None: ...
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SIZE_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    ORDER_FIELD_NUMBER: _ClassVar[int]
+    TOP_HITS_FIELD_NUMBER: _ClassVar[int]
+    SUB_AGGREGATION_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.RepeatedScalarFieldContainer[str]
+    size: int
+    metrics: _containers.MessageMap[str, MetricAggSpec]
+    order: _containers.RepeatedCompositeFieldContainer[OrderSpec]
+    top_hits: TopHitsSpec
+    sub_aggregation: SearchAggregationSpec
+    def __init__(self, fields: _Optional[_Iterable[str]] = ..., size: _Optional[int] = ..., metrics: _Optional[_Mapping[str, MetricAggSpec]] = ..., order: _Optional[_Iterable[_Union[OrderSpec, _Mapping]]] = ..., top_hits: _Optional[_Union[TopHitsSpec, _Mapping]] = ..., sub_aggregation: _Optional[_Union[SearchAggregationSpec, _Mapping]] = ...) -> None: ...

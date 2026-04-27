@@ -190,18 +190,20 @@ class CollectionSchema(_message.Message):
     def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
-    __slots__ = ("fieldID", "name", "description", "fields", "type_params")
+    __slots__ = ("fieldID", "name", "description", "fields", "type_params", "nullable")
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     TYPE_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    NULLABLE_FIELD_NUMBER: _ClassVar[int]
     fieldID: int
     name: str
     description: str
     fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
     type_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+    nullable: bool
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nullable: bool = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
@@ -385,6 +387,22 @@ class StructArrayField(_message.Message):
     fields: _containers.RepeatedCompositeFieldContainer[FieldData]
     def __init__(self, fields: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
 
+class FieldPartialUpdateOp(_message.Message):
+    __slots__ = ("field_name", "op")
+    class OpType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        __slots__ = ()
+        REPLACE: _ClassVar[FieldPartialUpdateOp.OpType]
+        ARRAY_APPEND: _ClassVar[FieldPartialUpdateOp.OpType]
+        ARRAY_REMOVE: _ClassVar[FieldPartialUpdateOp.OpType]
+    REPLACE: FieldPartialUpdateOp.OpType
+    ARRAY_APPEND: FieldPartialUpdateOp.OpType
+    ARRAY_REMOVE: FieldPartialUpdateOp.OpType
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    OP_FIELD_NUMBER: _ClassVar[int]
+    field_name: str
+    op: FieldPartialUpdateOp.OpType
+    def __init__(self, field_name: _Optional[str] = ..., op: _Optional[_Union[FieldPartialUpdateOp.OpType, str]] = ...) -> None: ...
+
 class FieldData(_message.Message):
     __slots__ = ("type", "field_name", "scalars", "vectors", "struct_arrays", "field_id", "is_dynamic", "valid_data")
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -422,7 +440,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices", "order_by_field_values")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices", "group_by_field_values", "agg_buckets", "agg_topks")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -438,7 +456,9 @@ class SearchResultData(_message.Message):
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHT_RESULTS_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
-    ORDER_BY_FIELD_VALUES_FIELD_NUMBER: _ClassVar[int]
+    GROUP_BY_FIELD_VALUES_FIELD_NUMBER: _ClassVar[int]
+    AGG_BUCKETS_FIELD_NUMBER: _ClassVar[int]
+    AGG_TOPKS_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -454,8 +474,89 @@ class SearchResultData(_message.Message):
     primary_field_name: str
     highlight_results: _containers.RepeatedCompositeFieldContainer[_common_pb2.HighlightResult]
     element_indices: LongArray
-    order_by_field_values: _containers.RepeatedCompositeFieldContainer[FieldData]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ..., order_by_field_values: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
+    group_by_field_values: _containers.RepeatedCompositeFieldContainer[FieldData]
+    agg_buckets: _containers.RepeatedCompositeFieldContainer[AggBucket]
+    agg_topks: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ..., group_by_field_values: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., agg_buckets: _Optional[_Iterable[_Union[AggBucket, _Mapping]]] = ..., agg_topks: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class AggBucket(_message.Message):
+    __slots__ = ("key", "count", "metrics", "hits", "sub_groups")
+    class MetricsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: MetricValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[MetricValue, _Mapping]] = ...) -> None: ...
+    KEY_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
+    METRICS_FIELD_NUMBER: _ClassVar[int]
+    HITS_FIELD_NUMBER: _ClassVar[int]
+    SUB_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    key: _containers.RepeatedCompositeFieldContainer[BucketKeyEntry]
+    count: int
+    metrics: _containers.MessageMap[str, MetricValue]
+    hits: _containers.RepeatedCompositeFieldContainer[AggHit]
+    sub_groups: _containers.RepeatedCompositeFieldContainer[AggBucket]
+    def __init__(self, key: _Optional[_Iterable[_Union[BucketKeyEntry, _Mapping]]] = ..., count: _Optional[int] = ..., metrics: _Optional[_Mapping[str, MetricValue]] = ..., hits: _Optional[_Iterable[_Union[AggHit, _Mapping]]] = ..., sub_groups: _Optional[_Iterable[_Union[AggBucket, _Mapping]]] = ...) -> None: ...
+
+class MetricValue(_message.Message):
+    __slots__ = ("int_val", "double_val", "string_val", "bool_val")
+    INT_VAL_FIELD_NUMBER: _ClassVar[int]
+    DOUBLE_VAL_FIELD_NUMBER: _ClassVar[int]
+    STRING_VAL_FIELD_NUMBER: _ClassVar[int]
+    BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
+    int_val: int
+    double_val: float
+    string_val: str
+    bool_val: bool
+    def __init__(self, int_val: _Optional[int] = ..., double_val: _Optional[float] = ..., string_val: _Optional[str] = ..., bool_val: bool = ...) -> None: ...
+
+class BucketKeyEntry(_message.Message):
+    __slots__ = ("field_id", "field_name", "int_val", "string_val", "bool_val")
+    FIELD_ID_FIELD_NUMBER: _ClassVar[int]
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    INT_VAL_FIELD_NUMBER: _ClassVar[int]
+    STRING_VAL_FIELD_NUMBER: _ClassVar[int]
+    BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
+    field_id: int
+    field_name: str
+    int_val: int
+    string_val: str
+    bool_val: bool
+    def __init__(self, field_id: _Optional[int] = ..., field_name: _Optional[str] = ..., int_val: _Optional[int] = ..., string_val: _Optional[str] = ..., bool_val: bool = ...) -> None: ...
+
+class AggHit(_message.Message):
+    __slots__ = ("int_pk", "str_pk", "score", "fields")
+    INT_PK_FIELD_NUMBER: _ClassVar[int]
+    STR_PK_FIELD_NUMBER: _ClassVar[int]
+    SCORE_FIELD_NUMBER: _ClassVar[int]
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    int_pk: int
+    str_pk: str
+    score: float
+    fields: _containers.RepeatedCompositeFieldContainer[AggHitField]
+    def __init__(self, int_pk: _Optional[int] = ..., str_pk: _Optional[str] = ..., score: _Optional[float] = ..., fields: _Optional[_Iterable[_Union[AggHitField, _Mapping]]] = ...) -> None: ...
+
+class AggHitField(_message.Message):
+    __slots__ = ("field_id", "field_name", "int_val", "bool_val", "float_val", "double_val", "string_val", "bytes_val")
+    FIELD_ID_FIELD_NUMBER: _ClassVar[int]
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    INT_VAL_FIELD_NUMBER: _ClassVar[int]
+    BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
+    FLOAT_VAL_FIELD_NUMBER: _ClassVar[int]
+    DOUBLE_VAL_FIELD_NUMBER: _ClassVar[int]
+    STRING_VAL_FIELD_NUMBER: _ClassVar[int]
+    BYTES_VAL_FIELD_NUMBER: _ClassVar[int]
+    field_id: int
+    field_name: str
+    int_val: int
+    bool_val: bool
+    float_val: float
+    double_val: float
+    string_val: str
+    bytes_val: bytes
+    def __init__(self, field_id: _Optional[int] = ..., field_name: _Optional[str] = ..., int_val: _Optional[int] = ..., bool_val: bool = ..., float_val: _Optional[float] = ..., double_val: _Optional[float] = ..., string_val: _Optional[str] = ..., bytes_val: _Optional[bytes] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")

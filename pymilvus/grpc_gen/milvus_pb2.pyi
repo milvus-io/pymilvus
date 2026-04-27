@@ -856,7 +856,7 @@ class DropCollectionFunctionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., function_name: _Optional[str] = ...) -> None: ...
 
 class UpsertRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace")
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace", "field_ops")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -867,6 +867,7 @@ class UpsertRequest(_message.Message):
     SCHEMA_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
     PARTIAL_UPDATE_FIELD_NUMBER: _ClassVar[int]
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    FIELD_OPS_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -877,7 +878,8 @@ class UpsertRequest(_message.Message):
     schema_timestamp: int
     partial_update: bool
     namespace: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ...) -> None: ...
+    field_ops: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldPartialUpdateOp]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ..., field_ops: _Optional[_Iterable[_Union[_schema_pb2.FieldPartialUpdateOp, _Mapping]]] = ...) -> None: ...
 
 class MutationResult(_message.Message):
     __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp")
@@ -954,7 +956,7 @@ class SubSearchRequest(_message.Message):
     def __init__(self, dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nq: _Optional[int] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "ids", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs", "expr_template_values", "function_score", "namespace", "highlighter")
+    __slots__ = ("base", "db_name", "collection_name", "partition_names", "dsl", "placeholder_group", "ids", "dsl_type", "output_fields", "search_params", "travel_timestamp", "guarantee_timestamp", "nq", "not_return_all_meta", "consistency_level", "use_default_consistency", "search_by_primary_keys", "sub_reqs", "expr_template_values", "function_score", "namespace", "highlighter", "search_aggregation")
     class ExprTemplateValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -984,6 +986,7 @@ class SearchRequest(_message.Message):
     FUNCTION_SCORE_FIELD_NUMBER: _ClassVar[int]
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHTER_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_AGGREGATION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -1006,7 +1009,8 @@ class SearchRequest(_message.Message):
     function_score: _schema_pb2.FunctionScore
     namespace: str
     highlighter: _common_pb2.Highlighter
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., ids: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., function_score: _Optional[_Union[_schema_pb2.FunctionScore, _Mapping]] = ..., namespace: _Optional[str] = ..., highlighter: _Optional[_Union[_common_pb2.Highlighter, _Mapping]] = ...) -> None: ...
+    search_aggregation: _common_pb2.SearchAggregationSpec
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., dsl: _Optional[str] = ..., placeholder_group: _Optional[bytes] = ..., ids: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., dsl_type: _Optional[_Union[_common_pb2.DslType, str]] = ..., output_fields: _Optional[_Iterable[str]] = ..., search_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., nq: _Optional[int] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., search_by_primary_keys: bool = ..., sub_reqs: _Optional[_Iterable[_Union[SubSearchRequest, _Mapping]]] = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., function_score: _Optional[_Union[_schema_pb2.FunctionScore, _Mapping]] = ..., namespace: _Optional[str] = ..., highlighter: _Optional[_Union[_common_pb2.Highlighter, _Mapping]] = ..., search_aggregation: _Optional[_Union[_common_pb2.SearchAggregationSpec, _Mapping]] = ...) -> None: ...
 
 class Hits(_message.Message):
     __slots__ = ("IDs", "row_data", "scores")
@@ -3056,12 +3060,14 @@ class AlterCollectionSchemaRequest(_message.Message):
         do_physical_backfill: bool
         def __init__(self, field_infos: _Optional[_Iterable[_Union[AlterCollectionSchemaRequest.FieldInfo, _Mapping]]] = ..., func_schema: _Optional[_Iterable[_Union[_schema_pb2.FunctionSchema, _Mapping]]] = ..., do_physical_backfill: bool = ...) -> None: ...
     class DropRequest(_message.Message):
-        __slots__ = ("field_name", "field_id")
+        __slots__ = ("field_name", "field_id", "function_name")
         FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
         FIELD_ID_FIELD_NUMBER: _ClassVar[int]
+        FUNCTION_NAME_FIELD_NUMBER: _ClassVar[int]
         field_name: str
         field_id: int
-        def __init__(self, field_name: _Optional[str] = ..., field_id: _Optional[int] = ...) -> None: ...
+        function_name: str
+        def __init__(self, field_name: _Optional[str] = ..., field_id: _Optional[int] = ..., function_name: _Optional[str] = ...) -> None: ...
     class Action(_message.Message):
         __slots__ = ("add_request", "drop_request")
         ADD_REQUEST_FIELD_NUMBER: _ClassVar[int]

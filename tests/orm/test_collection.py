@@ -4,7 +4,15 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
-from pymilvus import Collection, CollectionSchema, DataType, FieldSchema, connections
+from pymilvus import (
+    Collection,
+    CollectionSchema,
+    DataType,
+    FieldSchema,
+    SearchAggregation,
+    TopHits,
+    connections,
+)
 from pymilvus.exceptions import (
     AutoIDException,
     DataTypeNotMatchException,
@@ -282,6 +290,19 @@ class TestCollectionSearch:
                 limit=10,
             )
             m.assert_called_once()
+
+    def test_search_passes_search_aggregation(self, collection):
+        fake_res = MagicMock()
+        agg = SearchAggregation(fields=["brand"], size=3, top_hits=TopHits(size=1))
+        with mock.patch(f"{GRPC_PREFIX}.search", return_value=fake_res) as m:
+            collection.search(
+                data=[[0.1] * 128],
+                anns_field="vec",
+                param={"metric_type": "L2"},
+                limit=10,
+                search_aggregation=agg,
+            )
+            assert m.call_args.kwargs["search_aggregation"] is agg
 
     def test_search_empty_data(self, collection):
         result = collection.search(

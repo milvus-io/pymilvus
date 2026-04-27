@@ -4,7 +4,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from pymilvus import AsyncMilvusClient, DataType
+from pymilvus import AsyncMilvusClient, DataType, SearchAggregation, TopHits
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.connection_manager import AsyncConnectionManager
 from pymilvus.client.types import (
@@ -171,6 +171,16 @@ class TestAsyncMilvusClientNewFeatures:
         call_args = mock_handler.search.call_args
         # ranker is passed as keyword argument
         assert call_args.kwargs.get("ranker") == mock_ranker
+
+    @pytest.mark.asyncio
+    async def test_search_passes_search_aggregation(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+        agg = SearchAggregation(fields=["brand"], size=3, top_hits=TopHits(size=1))
+
+        await client.search("test_collection", data=[[0.1, 0.2]], search_aggregation=agg)
+
+        assert mock_handler.search.call_args.kwargs["search_aggregation"] is agg
 
     @pytest.mark.asyncio
     async def test_hybrid_search_with_function_ranker(self, client_and_handler):
