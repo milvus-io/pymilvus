@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import time
 from copy import deepcopy
@@ -41,6 +42,8 @@ from .constants import (
     MILVUS_LIMIT,
     OFFSET,
     PARAMS,
+    QUERY_ITER_LAST_ELEMENT_OFFSET,
+    QUERY_ITER_LAST_PK,
     RADIUS,
     RANGE_FILTER,
     REDUCE_STOP_FOR_BEST,
@@ -53,6 +56,29 @@ from .utility import mkts_from_datetime
 log = logging.getLogger(__name__)
 QueryIterator = TypeVar("QueryIterator")
 SearchIterator = TypeVar("SearchIterator")
+
+
+class QueryIteratorCursor:
+    def __init__(
+        self,
+        session_ts: int,
+        int_pk: Optional[int] = None,
+        str_pk: Optional[str] = None,
+        last_element_offset: Optional[int] = None,
+    ):
+        self.session_ts = session_ts
+        self.int_pk = int_pk
+        self.str_pk = str_pk
+        self.last_element_offset = last_element_offset
+
+    def to_proto(self) -> milvus_types.QueryCursor:
+        cursor = milvus_types.QueryCursor()
+        cursor.session_ts = self.session_ts
+        if self.str_pk is not None:
+            cursor.str_pk = self.str_pk
+        elif self.int_pk is not None:
+            cursor.int_pk = self.int_pk
+        return cursor
 
 
 def fall_back_to_latest_session_ts():
@@ -117,6 +143,8 @@ class QueryIterator:
         self.__setup__pk_prop()
         self.__set_up_expr(expr)
         self._next_id = None
+        self._next_element_offset = None
+        self._is_element_filter_iterator = self.__is_element_filter_expr(self._expr)
         self._cache_id_in_use = NO_CACHE_ID
         self._cp_file_handler = None
         self.__set_up_ts_cp()
@@ -140,13 +168,19 @@ class QueryIterator:
 
             def seek_offset_by_batch(batch: int, expr: str) -> int:
                 seek_params[MILVUS_LIMIT] = batch
+                query_params = seek_params.copy()
+                query_params.pop(QUERY_ITER_LAST_PK, None)
+                query_params.pop(QUERY_ITER_LAST_ELEMENT_OFFSET, None)
+                if self._has_element_cursor():
+                    query_params[QUERY_ITER_LAST_PK] = self._next_id
+                    query_params[QUERY_ITER_LAST_ELEMENT_OFFSET] = self._next_element_offset
                 res = self._conn.query(
                     collection_name=self._collection_name,
                     expr=expr,
                     output_fields=[],
                     partition_names=self._partition_names,
                     timeout=self._timeout,
-                    **seek_params,
+                    **query_params,
                 )
                 self.__update_cursor(res)
                 return len(res)
@@ -209,9 +243,37 @@ class QueryIterator:
                 )
                 self._buffer_cursor_lines_number = 0
                 self.__save_mvcc_ts()
-            self._cp_file_handler.writelines(str(self._next_id) + "\n")
+            self._cp_file_handler.writelines(self.__dump_cursor_line() + "\n")
             self._cp_file_handler.flush()
             self._buffer_cursor_lines_number += 1
+
+    def __dump_cursor_line(self) -> str:
+        if self._has_element_cursor():
+            return json.dumps(
+                {
+                    "pk": self._next_id,
+                    "last_element_offset": self._next_element_offset,
+                },
+                separators=(",", ":"),
+            )
+        return str(self._next_id)
+
+    def __restore_cursor_line(self, line: str) -> None:
+        cursor_line = line.strip()
+        try:
+            cursor = json.loads(cursor_line)
+        except json.JSONDecodeError:
+            self._next_id = cursor_line
+            self._next_element_offset = None
+            return
+
+        if isinstance(cursor, dict) and "pk" in cursor:
+            self._next_id = cursor["pk"]
+            self._next_element_offset = cursor.get("last_element_offset")
+            return
+
+        self._next_id = cursor_line
+        self._next_element_offset = None
 
     def __check_set_reduce_stop_for_best(self):
         if self._kwargs.get(REDUCE_STOP_FOR_BEST, True):
@@ -235,6 +297,10 @@ class QueryIterator:
             self._expr = self._pk_field_name + ' != ""'
         else:
             self._expr = self._pk_field_name + " < " + str(INT64_MAX)
+
+    @staticmethod
+    def __is_element_filter_expr(expr: str) -> bool:
+        return expr is not None and "element_filter" in expr.lower()
 
     def __setup_ts_by_request(self):
         init_ts_kwargs = self._kwargs.copy()
@@ -290,7 +356,7 @@ class QueryIterator:
                     self._kwargs[GUARANTEE_TIMESTAMP] = self._session_ts
                     if line_count > 1:
                         self._buffer_cursor_lines_number = line_count - 1
-                        self._next_id = lines[self._buffer_cursor_lines_number].strip()
+                        self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
                 except OSError as ose:
                     raise MilvusException(
                         message=f"Failed to read cp info from file:{self._cp_file_path_str}"
@@ -309,14 +375,18 @@ class QueryIterator:
     def __is_res_sufficient(self, res: List):
         return res is not None and len(res) >= self._kwargs[BATCH_SIZE]
 
-    def get_cursor(self) -> milvus_types.QueryCursor:
-        cursor = milvus_types.QueryCursor
-        cursor.session_ts = self._session_ts
+    def get_cursor(self) -> QueryIteratorCursor:
         if self._pk_str:
-            cursor.str_pk = str(self._next_id)
-        else:
-            cursor.int_pk = self._next_id
-        return cursor
+            return QueryIteratorCursor(
+                session_ts=self._session_ts,
+                str_pk=str(self._next_id),
+                last_element_offset=self._next_element_offset,
+            )
+        return QueryIteratorCursor(
+            session_ts=self._session_ts,
+            int_pk=None if self._next_id is None else int(self._next_id),
+            last_element_offset=self._next_element_offset,
+        )
 
     def next(self):
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
@@ -329,13 +399,14 @@ class QueryIterator:
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
             log.debug(f"query_iterator_next_expr:{current_expr}")
+            query_params = self.__setup_query_params()
             res = self._conn.query(
                 collection_name=self._collection_name,
                 expr=current_expr,
                 output_fields=self._output_fields,
                 partition_names=self._partition_names,
                 timeout=self._timeout,
-                **self._kwargs,
+                **query_params,
             )
             self.__maybe_cache(res)
             ret = res[0 : min(self._kwargs[BATCH_SIZE], len(res))]
@@ -373,10 +444,11 @@ class QueryIterator:
         if self._next_id is None:
             return current_expr
         filtered_pk_str = ""
+        pk_op = ">=" if self._has_element_cursor() else ">"
         if self._pk_str:
-            filtered_pk_str = f'{self._pk_field_name} > "{self._next_id}"'
+            filtered_pk_str = f'{self._pk_field_name} {pk_op} "{self._next_id}"'
         else:
-            filtered_pk_str = f"{self._pk_field_name} > {self._next_id}"
+            filtered_pk_str = f"{self._pk_field_name} {pk_op} {self._next_id}"
         if current_expr is None or len(current_expr) == 0:
             return filtered_pk_str
         # Put the PK cursor on the LEFT of AND so that operators with strict
@@ -385,10 +457,23 @@ class QueryIterator:
         # across paginated calls.
         return filtered_pk_str + " and (" + current_expr + ")"
 
+    def __setup_query_params(self) -> Dict[str, Any]:
+        params = self._kwargs.copy()
+        params.pop(QUERY_ITER_LAST_PK, None)
+        params.pop(QUERY_ITER_LAST_ELEMENT_OFFSET, None)
+        if self._has_element_cursor():
+            params[QUERY_ITER_LAST_PK] = self._next_id
+            params[QUERY_ITER_LAST_ELEMENT_OFFSET] = self._next_element_offset
+        return params
+
+    def _has_element_cursor(self) -> bool:
+        return self._is_element_filter_iterator and self._next_element_offset is not None
+
     def __update_cursor(self, res: List) -> None:
         if len(res) == 0:
             return
         self._next_id = res[-1][self._pk_field_name]
+        self._next_element_offset = res[-1].get(OFFSET)
 
     def close(self) -> None:
         # release cache in use

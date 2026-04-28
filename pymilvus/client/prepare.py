@@ -43,6 +43,8 @@ from .constants import (
     ORDER_BY_FIELDS,
     PAGE_RETAIN_ORDER_FIELD,
     QUERY_GROUP_BY_FIELDS,
+    QUERY_ITER_LAST_ELEMENT_OFFSET,
+    QUERY_ITER_LAST_PK,
     RANK_GROUP_SCORER,
     REDUCE_STOP_FOR_BEST,
     STRICT_CAST,
@@ -2115,6 +2117,20 @@ class Prepare:
         if is_iterator is not None:
             req.query_params.append(
                 common_types.KeyValuePair(key=ITERATOR_FIELD, value=is_iterator)
+            )
+
+        query_iter_last_pk = kwargs.get(QUERY_ITER_LAST_PK)
+        query_iter_last_element_offset = kwargs.get(QUERY_ITER_LAST_ELEMENT_OFFSET)
+        if query_iter_last_pk is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(key=QUERY_ITER_LAST_PK, value=str(query_iter_last_pk))
+            )
+        if query_iter_last_element_offset is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(
+                    key=QUERY_ITER_LAST_ELEMENT_OFFSET,
+                    value=str(query_iter_last_element_offset),
+                )
             )
 
         req.query_params.append(
