@@ -21,8 +21,8 @@ from pymilvus.exceptions import MilvusException
 logger = logging.getLogger(__name__)
 
 
-def _http_headers(api_key: str):
-    return {
+def _http_headers(api_key: str, db_name: str = ""):
+    headers = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_0) AppleWebKit/535.11 (KHTML, like Gecko) "
         "Chrome/17.0.963.56 Safari/535.11",
         "Accept": "application/json",
@@ -30,6 +30,9 @@ def _http_headers(api_key: str):
         "Accept-Languag": "en-US,en;q=0.5",
         "Authorization": f"Bearer {api_key}",
     }
+    if db_name:
+        headers["DB-Name"] = db_name
+    return headers
 
 
 def _throw(msg: str):
@@ -68,10 +71,11 @@ def _post_request(
     Returns:
         requests.Response: Response object.
     """
+    db_name = kwargs.pop("db_name", "")
     try:
         resp = requests.post(
             url=url,
-            headers=_http_headers(api_key),
+            headers=_http_headers(api_key, db_name),
             json=params,
             timeout=timeout,
             verify=verify,
@@ -230,6 +234,7 @@ def get_import_progress(
     job_id: str,
     cluster_id: str = "",
     api_key: str = "",
+    db_name: str = "",
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
     **kwargs,
@@ -241,6 +246,7 @@ def get_import_progress(
         job_id (str): a job id
         cluster_id (str): id of a milvus instance(for cloud)
         api_key (str): API key to authenticate your requests.
+        db_name (str): database name, sent via DB-Name header for RBAC
         verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
@@ -257,7 +263,13 @@ def get_import_progress(
     }
 
     resp = _post_request(
-        url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs
+        url=request_url,
+        api_key=api_key,
+        params=params,
+        verify=verify,
+        cert=cert,
+        db_name=db_name,
+        **kwargs,
     )
     _handle_response(request_url, resp.json())
     return resp
