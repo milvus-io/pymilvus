@@ -26,6 +26,7 @@ from . import __version__, blob, check, entity_helper, utils
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties, validate_str
 from .constants import (
+    CLUSTER_ID,
     COLLECTION_ID,
     DEFAULT_CONSISTENCY_LEVEL,
     DYNAMIC_FIELD_NAME,
@@ -1550,6 +1551,10 @@ class Prepare:
         if collection_id is not None:
             search_params[COLLECTION_ID] = str(collection_id)
 
+        cluster_id = kwargs.get(CLUSTER_ID)
+        if cluster_id is not None:
+            search_params[CLUSTER_ID] = str(cluster_id)
+
         is_search_iter_v2 = kwargs.get(ITER_SEARCH_V2_KEY)
         if is_search_iter_v2 is not None:
             search_params[ITER_SEARCH_V2_KEY] = is_search_iter_v2
@@ -1781,6 +1786,12 @@ class Prepare:
                         value=val if param_key == RANK_GROUP_SCORER else utils.dumps(val),
                     )
                 )
+
+        cluster_id = kwargs.get(CLUSTER_ID)
+        if cluster_id is not None:
+            request.rank_params.append(
+                common_types.KeyValuePair(key=CLUSTER_ID, value=str(cluster_id))
+            )
 
         if isinstance(rerank, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))
@@ -2113,6 +2124,12 @@ class Prepare:
         if collection_id is not None:
             req.query_params.append(
                 common_types.KeyValuePair(key=COLLECTION_ID, value=str(collection_id))
+            )
+
+        cluster_id = kwargs.get(CLUSTER_ID)
+        if cluster_id is not None:
+            req.query_params.append(
+                common_types.KeyValuePair(key=CLUSTER_ID, value=str(cluster_id))
             )
 
         limit = kwargs.get("limit")

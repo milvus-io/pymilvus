@@ -4,7 +4,7 @@ from typing import Dict, List, Optional, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
-from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_iterator import SearchIteratorV2
@@ -82,6 +82,7 @@ class MilvusClient(BaseMilvusClient):
 
         # Create config and get handler via ConnectionManager
         dedicated = kwargs.pop("dedicated", False)
+        kwargs.pop("cluster_id", None)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
@@ -100,6 +101,11 @@ class MilvusClient(BaseMilvusClient):
         self._using = f"cm-{id(self._handler)}"
 
         self.is_self_hosted = bool(self.get_server_type() == "milvus")
+
+    def session(self, cluster_id: str) -> "MilvusClientSession":
+        """Create a lightweight client session pinned to a target cluster."""
+        validate_param("cluster_id", cluster_id, str)
+        return MilvusClientSession(self, cluster_id)
 
     def create_collection(
         self,
@@ -386,6 +392,7 @@ class MilvusClient(BaseMilvusClient):
         """
         validate_param("collection_name", collection_name, str)
         conn = self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
         return conn.hybrid_search(
             collection_name,
             reqs,
@@ -450,6 +457,7 @@ class MilvusClient(BaseMilvusClient):
             kwargs["is_embedding_list"] = True
 
         conn = self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
         return conn.search(
             collection_name=collection_name,
             data=data,
@@ -518,6 +526,7 @@ class MilvusClient(BaseMilvusClient):
         if not output_fields:
             output_fields = ["*"]
 
+        kwargs = self._with_cluster_id(kwargs)
         return conn.query(
             collection_name,
             expr=filter,
@@ -552,6 +561,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+        kwargs = self._with_cluster_id(kwargs)
         return QueryIterator(
             connection=conn,
             collection_name=collection_name,
@@ -624,6 +634,7 @@ class MilvusClient(BaseMilvusClient):
         """
 
         conn = self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
 
         # compatibility logic, change this when support get version from server
         try:
@@ -766,6 +777,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields = ["*"]
 
         expr = self._pack_pks_expr(schema_dict, ids)
+        kwargs = self._with_cluster_id(kwargs)
         return conn.query(
             collection_name,
             expr=expr,
@@ -3126,3 +3138,47 @@ class MilvusClient(BaseMilvusClient):
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
+
+
+class MilvusClientSession:
+    """DQL session bound to a cluster id and backed by a parent MilvusClient."""
+
+    def __init__(self, parent: MilvusClient, cluster_id: str) -> None:
+        self._parent = parent
+        self._cluster_id = cluster_id
+        self._closed = False
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise MilvusException(message="MilvusClient session is closed")
+
+    def _with_cluster_id(self, kwargs: Dict) -> Dict:
+        kwargs[CLUSTER_ID] = self._cluster_id
+        return kwargs
+
+    def close(self) -> None:
+        self._closed = True
+
+    def search(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.search(*args, **self._with_cluster_id(kwargs))
+
+    def hybrid_search(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.hybrid_search(*args, **self._with_cluster_id(kwargs))
+
+    def query(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.query(*args, **self._with_cluster_id(kwargs))
+
+    def query_iterator(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.query_iterator(*args, **self._with_cluster_id(kwargs))
+
+    def search_iterator(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.search_iterator(*args, **self._with_cluster_id(kwargs))
+
+    def get(self, *args, **kwargs):
+        self._ensure_open()
+        return self._parent.get(*args, **self._with_cluster_id(kwargs))

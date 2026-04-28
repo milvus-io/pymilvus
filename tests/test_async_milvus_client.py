@@ -14,7 +14,8 @@ from pymilvus.client.types import (
     RestoreSnapshotJobInfo,
     SnapshotInfo,
 )
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession
 from pymilvus.orm.collection import Function
 from pymilvus.orm.schema import StructFieldSchema
 
@@ -52,6 +53,47 @@ class TestAsyncMilvusClientNewFeatures:
         assert result == "milvus"
         # Verify it was called at least once more (during the explicit call)
         assert mock_handler.get_server_type.call_count >= 2
+
+    @pytest.mark.asyncio
+    async def test_session_search_adds_cluster_id(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[])
+
+        search_cluster = client.session("in07-xxx")
+        await search_cluster.search("test_collection", data=[[0.1, 0.2]])
+
+        _, kwargs = mock_handler.search.call_args
+        assert kwargs["cluster_id"] == "in07-xxx"
+
+    def test_cluster_id_not_forwarded_to_handler_on_create(self):
+        client = AsyncMilvusClient(cluster_id="in07-xxx")
+
+        assert "cluster_id" not in client._config.get_handler_kwargs()
+
+    @pytest.mark.asyncio
+    async def test_session_query_adds_cluster_id(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.query = AsyncMock(return_value=[])
+
+        search_cluster = client.session("in07-xxx")
+        await search_cluster.query("test_collection", filter="id > 0")
+
+        _, kwargs = mock_handler.query.call_args
+        assert kwargs["cluster_id"] == "in07-xxx"
+
+    @pytest.mark.asyncio
+    async def test_session_close_does_not_close_parent(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[])
+
+        search_cluster = client.session("in07-xxx")
+        await search_cluster.close()
+
+        with pytest.raises(MilvusException, match="session is closed"):
+            await search_cluster.search("test_collection", data=[[0.1, 0.2]])
+
+        await client.search("test_collection", data=[[0.1, 0.2]])
+        mock_handler.search.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_load_state_with_progress_when_loading(self, client_and_handler):
@@ -435,6 +477,43 @@ _SIMPLE_DELEGATION_CASES = [
     ("create_database", ("test_db",), {}, "create_database"),
     ("drop_database", ("test_db",), {}, "drop_database"),
 ]
+
+
+class TestAsyncMilvusClientSession:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "method_name,args,kwargs",
+        [
+            ("search", ("col",), {"data": [[0.1, 0.2]]}),
+            ("hybrid_search", ("col", [], MagicMock()), {"limit": 10}),
+            ("query", ("col",), {"filter": "id > 0"}),
+            ("get", ("col", [1, 2]), {"output_fields": ["id"]}),
+        ],
+    )
+    async def test_dql_methods_delegate_to_parent_with_cluster_id(self, method_name, args, kwargs):
+        parent = MagicMock()
+        expected = MagicMock()
+        parent_method = AsyncMock(return_value=expected)
+        setattr(parent, method_name, parent_method)
+        session = AsyncMilvusClientSession(parent, "in07-xxx")
+
+        result = await getattr(session, method_name)(*args, cluster_id="ignored", **kwargs)
+
+        assert result is expected
+        parent_method.assert_awaited_once()
+        call_args, call_kwargs = parent_method.call_args
+        assert call_args == args
+        assert call_kwargs["cluster_id"] == "in07-xxx"
+        for key, value in kwargs.items():
+            assert call_kwargs[key] == value
+
+    @pytest.mark.asyncio
+    async def test_closed_session_rejects_dql_methods(self):
+        session = AsyncMilvusClientSession(MagicMock(), "in07-xxx")
+        await session.close()
+
+        with pytest.raises(MilvusException, match="session is closed"):
+            await session.query("col", filter="id > 0")
 
 
 class TestSimpleDelegation:

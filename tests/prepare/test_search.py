@@ -168,6 +168,19 @@ class TestSearchRequestsWithExpr:
         )
         assert req is not None
 
+    def test_search_with_cluster_id_param(self, basic_search_params):
+        """Test search carries cluster_id in search_params."""
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=[[1.0, 2.0]],
+            anns_field="vector",
+            param=basic_search_params,
+            limit=10,
+            cluster_id="in07-xxx",
+        )
+        params = {kv.key: kv.value for kv in req.search_params}
+        assert params["cluster_id"] == "in07-xxx"
+
     @pytest.mark.parametrize(
         "group_key,value",
         [
@@ -828,6 +841,18 @@ class TestHybridSearchRequest:
         )
         assert req is not None
 
+    def test_hybrid_search_with_cluster_id_rank_param(self):
+        """Test hybrid search carries cluster_id in rank_params."""
+        req = Prepare.hybrid_search_request_with_ranker(
+            collection_name="test",
+            reqs=[],
+            rerank=None,
+            limit=10,
+            cluster_id="in07-xxx",
+        )
+        params = {kv.key: kv.value for kv in req.rank_params}
+        assert params["cluster_id"] == "in07-xxx"
+
 
 class TestQueryRequest:
     """Tests for query_request."""
@@ -855,6 +880,7 @@ class TestQueryRequest:
             pytest.param({"reduce_stop_for_best": True}, id="reduce_stop"),
             pytest.param({"is_iterator": "true"}, id="iterator"),
             pytest.param({"collection_id": 123}, id="collection_id"),
+            pytest.param({"cluster_id": "in07-xxx"}, id="cluster_id"),
         ],
     )
     def test_query_with_params(self, query_params):

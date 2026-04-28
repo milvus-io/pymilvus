@@ -17,7 +17,7 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
 )
 from pymilvus.milvus_client.index import IndexParams
-from pymilvus.milvus_client.milvus_client import MilvusClient
+from pymilvus.milvus_client.milvus_client import MilvusClient, MilvusClientSession
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
 
 log = logging.getLogger(__name__)
@@ -1055,6 +1055,46 @@ class TestMilvusClientSearchOps:
             client.search("col", data=[[0.1, 0.2]])
             handler.search.assert_called_once()
 
+    def test_cluster_id_not_forwarded_to_handler_on_create(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler) as mock_cls:
+            MilvusClient(cluster_id="in07-xxx")
+            assert "cluster_id" not in mock_cls.call_args.kwargs
+
+    def test_session_search_adds_cluster_id(self):
+        handler = _make_handler()
+        handler.search.return_value = []
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            search_cluster = client.session("in07-xxx")
+            search_cluster.search("col", data=[[0.1, 0.2]])
+            _, kwargs = handler.search.call_args
+            assert kwargs["cluster_id"] == "in07-xxx"
+
+    def test_session_query_adds_cluster_id(self):
+        handler = _make_handler()
+        handler.query.return_value = []
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            search_cluster = client.session("in07-xxx")
+            search_cluster.query("col", filter="id > 0")
+            _, kwargs = handler.query.call_args
+            assert kwargs["cluster_id"] == "in07-xxx"
+
+    def test_session_close_does_not_close_parent(self):
+        handler = _make_handler()
+        handler.search.return_value = []
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            search_cluster = client.session("in07-xxx")
+            search_cluster.close()
+
+            with pytest.raises(MilvusException, match="session is closed"):
+                search_cluster.search("col", data=[[0.1, 0.2]])
+
+            client.search("col", data=[[0.1, 0.2]])
+            handler.search.assert_called_once()
+
     def test_get_empty_list_ids_returns_early(self):
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
@@ -1099,6 +1139,43 @@ class TestMilvusClientSearchOps:
                 mock_v2.return_value = MagicMock()
                 client.search_iterator("col", data=[[0.1, 0.2]])
                 mock_v2.assert_called_once()
+
+
+class TestMilvusClientSession:
+    @pytest.mark.parametrize(
+        "method_name,args,kwargs",
+        [
+            ("search", ("col",), {"data": [[0.1, 0.2]]}),
+            ("hybrid_search", ("col", [], MagicMock()), {"limit": 10}),
+            ("query", ("col",), {"filter": "id > 0"}),
+            ("query_iterator", ("col",), {"filter": "id > 0", "batch_size": 10}),
+            ("search_iterator", ("col", [[0.1, 0.2]]), {"batch_size": 10}),
+            ("get", ("col", [1, 2]), {"output_fields": ["id"]}),
+        ],
+    )
+    def test_dql_methods_delegate_to_parent_with_cluster_id(self, method_name, args, kwargs):
+        parent = MagicMock()
+        expected = MagicMock()
+        parent_method = getattr(parent, method_name)
+        parent_method.return_value = expected
+        session = MilvusClientSession(parent, "in07-xxx")
+
+        result = getattr(session, method_name)(*args, cluster_id="ignored", **kwargs)
+
+        assert result is expected
+        parent_method.assert_called_once()
+        call_args, call_kwargs = parent_method.call_args
+        assert call_args == args
+        assert call_kwargs["cluster_id"] == "in07-xxx"
+        for key, value in kwargs.items():
+            assert call_kwargs[key] == value
+
+    def test_closed_session_rejects_dql_methods(self):
+        session = MilvusClientSession(MagicMock(), "in07-xxx")
+        session.close()
+
+        with pytest.raises(MilvusException, match="session is closed"):
+            session.query("col", filter="id > 0")
 
 
 class TestMilvusClientDeleteBranches:
