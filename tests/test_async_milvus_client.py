@@ -1137,3 +1137,40 @@ class TestAsyncMilvusClientExternalCollection:
         mock_handler.list_refresh_external_collection_jobs.assert_called_once_with(
             collection_name="ext_coll", timeout=None, context=ANY
         )
+
+
+class TestAsyncAlterCollectionSchema:
+    @pytest.mark.asyncio
+    async def test_add_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = MagicMock()
+        func = MagicMock()
+        idx = MagicMock()
+        idx.index_name = "idx"
+        idx.get_index_configs.return_value = {"metric_type": "L2"}
+        await client.alter_collection_schema("col", field_schema=field, func=func, index_param=idx)
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        await client.alter_collection_schema("col", drop_field_name="old")
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_rejects_both_add_and_drop(self, client_and_handler):
+        client, _ = client_and_handler
+
+        with pytest.raises(ParamError, match="Cannot perform both"):
+            await client.alter_collection_schema(
+                "col", field_schema=MagicMock(), drop_field_name="old"
+            )
+
+    @pytest.mark.asyncio
+    async def test_rejects_neither_add_nor_drop(self, client_and_handler):
+        client, _ = client_and_handler
+
+        with pytest.raises(ParamError, match="Must specify"):
+            await client.alter_collection_schema("col")

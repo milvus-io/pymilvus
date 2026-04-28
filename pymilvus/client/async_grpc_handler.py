@@ -1612,6 +1612,38 @@ class AsyncGrpcHandler:
         check_status(status)
 
     @retry_on_rpc_failure()
+    async def alter_collection_schema(
+        self,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        index_name: Optional[str] = None,
+        extra_params: Optional[Dict] = None,
+        func: Optional[Function] = None,
+        do_physical_backfill: bool = False,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+        **kwargs,
+    ):
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
+            index_name=index_name,
+            extra_params=extra_params,
+            func=func,
+            do_physical_backfill=do_physical_backfill,
+            drop_field_name=drop_field_name,
+            drop_field_id=drop_field_id,
+        )
+        response = await self._async_stub.AlterCollectionSchema(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.alter_status)
+        check_status(response.index_status)
+
+    @retry_on_rpc_failure()
     async def list_indexes(
         self,
         collection_name: str,

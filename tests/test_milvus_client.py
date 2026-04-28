@@ -1367,6 +1367,50 @@ class TestMilvusClientCollectionMgmt:
             client.drop_collection_function("col", "fn")
             handler.drop_collection_function.assert_called_once()
 
+    def test_alter_collection_schema_add_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            field = MagicMock()
+            func = MagicMock()
+            idx = MagicMock()
+            idx.index_name = "idx"
+            idx.get_index_configs.return_value = {"metric_type": "L2"}
+            client.alter_collection_schema("col", field_schema=field, func=func, index_param=idx)
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_alter_collection_schema_drop_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.alter_collection_schema("col", drop_field_name="old")
+            handler.alter_collection_schema.assert_called_once()
+
+    def test_alter_collection_schema_rejects_both_add_and_drop(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="Cannot perform both"):
+                client.alter_collection_schema(
+                    "col", field_schema=MagicMock(), drop_field_name="old"
+                )
+
+    def test_alter_collection_schema_rejects_neither_add_nor_drop(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="Must specify"):
+                client.alter_collection_schema("col")
+
+    def test_alter_collection_schema_add_requires_all_params(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="func is required"):
+                client.alter_collection_schema("col", field_schema=MagicMock())
+            with pytest.raises(ParamError, match="index_param is required"):
+                client.alter_collection_schema("col", field_schema=MagicMock(), func=MagicMock())
+
 
 class TestMilvusClientMiscOps:
     def test_compact_returns_id(self, mc):
