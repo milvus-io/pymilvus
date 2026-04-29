@@ -1,3 +1,4 @@
+import json
 import re
 import tempfile
 from pathlib import Path
@@ -25,6 +26,8 @@ from pymilvus.orm.constants import (
     METRIC_TYPE,
     OFFSET,
     PARAMS,
+    QUERY_ITER_LAST_ELEMENT_OFFSET,
+    QUERY_ITER_LAST_PK,
     RADIUS,
     RANGE_FILTER,
     REDUCE_STOP_FOR_BEST,
@@ -329,6 +332,15 @@ def _make_mock_conn(query_results=None, session_ts=100):
     return conn
 
 
+def _make_query_res(rows, extra=None):
+    mock_res = Mock()
+    mock_res.__len__ = Mock(return_value=len(rows))
+    mock_res.__iter__ = Mock(return_value=iter(rows))
+    mock_res.__getitem__ = lambda self, key: rows[key]
+    mock_res.extra = extra
+    return mock_res
+
+
 class TestQueryIteratorInit:
     def test_basic_init(self):
         conn = _make_mock_conn()
@@ -598,6 +610,22 @@ class TestQueryIteratorNextExpr:
         # element_filter() must remain the right-most operand of AND.
         assert expr == f"pk > 211 and ({user_filter})"
 
+    def test_setup_next_expr_element_filter_with_element_cursor(self):
+        conn = _make_mock_conn(session_ts=100)
+        user_filter = "element_filter(structA, $[int_val] >= 20000)"
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr=user_filter,
+            output_fields=["pk"],
+            schema=_SCHEMA_DICT,
+        )
+        qi._next_id = 211
+        qi._next_element_offset = 3
+        expr = qi._QueryIterator__setup_next_expr()
+        assert expr == f"pk >= 211 and ({user_filter})"
+
     def test_setup_next_expr_with_varchar_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
@@ -642,6 +670,7 @@ class TestQueryIteratorGetCursor:
         qi._next_id = 42
         cursor = qi.get_cursor()
         assert cursor.int_pk == 42
+        assert cursor.to_proto().int_pk == 42
 
     def test_get_cursor_varchar_pk(self):
         conn = _make_mock_conn(session_ts=200)
@@ -656,6 +685,23 @@ class TestQueryIteratorGetCursor:
         qi._next_id = "abc"
         cursor = qi.get_cursor()
         assert cursor.str_pk == "abc"
+        assert cursor.to_proto().str_pk == "abc"
+
+    def test_get_cursor_element_offset(self):
+        conn = _make_mock_conn(session_ts=200)
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr="element_filter(structA, $[int_val] >= 20000)",
+            output_fields=["pk"],
+            schema=_SCHEMA_DICT,
+        )
+        qi._next_id = 42
+        qi._next_element_offset = 3
+        cursor = qi.get_cursor()
+        assert cursor.int_pk == 42
+        assert cursor.last_element_offset == 3
 
 
 # ---------------------------------------------------------------------------
@@ -1236,6 +1282,33 @@ class TestQueryIteratorConnQueryArgs:
         assert kwargs["reduce_stop_for_best"] == "True"
         assert kwargs["guarantee_timestamp"] == 100
 
+    def test_next_element_filter_query_args_with_cursor(self):
+        conn = _make_mock_conn(session_ts=100)
+        user_filter = "element_filter(structA, $[int_val] >= 20000)"
+
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr=user_filter,
+            output_fields=["pk"],
+            partition_names=["part_a"],
+            schema=_SCHEMA_DICT,
+        )
+
+        first_res = _make_query_res([{"pk": 7, OFFSET: 1}])
+        second_res = _make_query_res([])
+        conn.query.reset_mock()
+        conn.query.side_effect = [first_res, second_res]
+
+        qi.next()
+        qi.next()
+
+        second_call = conn.query.call_args_list[1]
+        assert second_call.kwargs["expr"] == f"pk >= 7 and ({user_filter})"
+        assert second_call.kwargs[QUERY_ITER_LAST_PK] == 7
+        assert second_call.kwargs[QUERY_ITER_LAST_ELEMENT_OFFSET] == 1
+
 
 class TestQueryIteratorCpFile:
     """Cover __set_up_ts_cp with cp file (lines 273-299)."""
@@ -1279,6 +1352,36 @@ class TestQueryIteratorCpFile:
             )
             assert qi._session_ts == 300
             assert qi._next_id == "99"
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_existing_reads_element_cursor(self):
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write('{"pk":99,"last_element_offset":2}\n')
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                connection=conn,
+                collection_name="test",
+                batch_size=10,
+                expr="element_filter(structA, $[int_val] >= 20000)",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                **{ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == 99
+            assert qi._next_element_offset == 2
+            assert (
+                qi._QueryIterator__setup_next_expr()
+                == "pk >= 99 and (element_filter(structA, $[int_val] >= 20000))"
+            )
             qi.close()
         except Exception:
             if Path(cp_path).exists():
@@ -1367,6 +1470,27 @@ class TestQueryIteratorSavePkCursor:
 
             # Verify file was written
             assert Path(cp_path).exists()
+            qi.close()
+
+    def test_save_element_cursor_on_next(self):
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                connection=conn,
+                collection_name="test",
+                batch_size=10,
+                expr="element_filter(structA, $[int_val] >= 20000)",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                **{ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+
+            conn.query.return_value = _make_query_res([{"pk": 20, OFFSET: 4}])
+
+            qi.next()
+            cursor = json.loads(Path(cp_path).read_text().splitlines()[-1])
+            assert cursor == {"pk": 20, "last_element_offset": 4}
             qi.close()
 
     def test_save_pk_cursor_truncates_after_100_lines(self):

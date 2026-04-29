@@ -5,6 +5,7 @@ import orjson
 import pytest
 from pymilvus import DataType, Function, FunctionType
 from pymilvus.client.abstract import BaseRanker
+from pymilvus.client.constants import QUERY_ITER_LAST_ELEMENT_OFFSET, QUERY_ITER_LAST_PK
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
@@ -971,6 +972,21 @@ class TestQueryRequest:
         )
         params = {kv.key: kv.value for kv in req.query_params}
         assert "order_by_fields" not in params
+
+    def test_query_iterator_cursor_params(self):
+        req = Prepare.query_request(
+            collection_name="test",
+            expr="id > 0",
+            output_fields=["id"],
+            partition_names=[],
+            **{
+                QUERY_ITER_LAST_PK: 7,
+                QUERY_ITER_LAST_ELEMENT_OFFSET: 2,
+            },
+        )
+        params = {kv.key: kv.value for kv in req.query_params}
+        assert params[QUERY_ITER_LAST_PK] == "7"
+        assert params[QUERY_ITER_LAST_ELEMENT_OFFSET] == "2"
 
 
 class TestFunctionSchemas:
