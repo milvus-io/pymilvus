@@ -332,6 +332,18 @@ class TestAsyncMilvusClientNewFeatures:
             context=ANY,
         )
 
+    @pytest.mark.asyncio
+    async def test_get_replicate_configuration(self, client_and_handler):
+        """Test get_replicate_configuration method"""
+        client, mock_handler = client_and_handler
+        mock_config = MagicMock()
+        mock_handler.get_replicate_configuration = AsyncMock(return_value=mock_config)
+
+        result = await client.get_replicate_configuration(timeout=10)
+
+        assert result == mock_config
+        mock_handler.get_replicate_configuration.assert_called_once_with(timeout=10, context=ANY)
+
     def test_create_struct_field_schema(self):
         """Test create_struct_field_schema class method"""
         result = AsyncMilvusClient.create_struct_field_schema()

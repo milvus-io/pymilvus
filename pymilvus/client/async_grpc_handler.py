@@ -2505,6 +2505,30 @@ class AsyncGrpcHandler:
         return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
 
     @retry_on_rpc_failure()
+    async def get_replicate_configuration(
+        self,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """
+        Get replication configuration from Milvus.
+
+        Args:
+            timeout: An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            ReplicateConfiguration: The current replication configuration
+        """
+        request = milvus_types.GetReplicateConfigurationRequest()
+        response = await self._async_stub.GetReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.configuration
+
+    @retry_on_rpc_failure()
     async def create_snapshot(
         self,
         snapshot_name: str,

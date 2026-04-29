@@ -133,6 +133,7 @@ _SIMPLE_ASYNC_DELEGATION_CASES = [
     ("refresh_load", ("col",), {}, "refresh_load"),
     ("run_analyzer", ("hello world",), {}, "run_analyzer"),
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
+    ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
     ("get_server_version", (), {}, "get_server_version"),
     ("describe_replica", ("col",), {}, "describe_replica"),
     ("describe_resource_group", ("rg1",), {}, "describe_resource_group"),

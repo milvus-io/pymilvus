@@ -1767,6 +1767,31 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def get_replicate_configuration(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Get replication configuration from Milvus.
+
+        Args:
+            timeout (float, optional): An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            ReplicateConfiguration: The current replication configuration
+
+        Raises:
+            MilvusException: If the operation fails
+        """
+        conn = await self._get_connection()
+        return await conn.get_replicate_configuration(
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     async def _is_collection_loaded(
         self, collection_name: str, timeout: Optional[float] = None
     ) -> bool:
