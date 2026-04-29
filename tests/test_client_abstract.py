@@ -517,7 +517,7 @@ class TestCollectionSchema:
         assert "update_timestamp" not in d
 
     def test_collection_schema_dict_consistency_level_is_string(self):
-        """dict() must return consistency_level as a human-readable name, not an int (issue #2985)."""
+        """dict() must expose consistency_level as int (back-compat) and consistency_level_name as human-readable name (issue #2985)."""
         expected = {
             ConsistencyLevel.Strong: "Strong",
             ConsistencyLevel.Session: "Session",
@@ -528,9 +528,12 @@ class TestCollectionSchema:
         for int_val, name in expected.items():
             raw = self._create_mock_collection_raw(consistency_level=int_val)
             d = CollectionSchema(raw).dict()
+            assert d["consistency_level"] == int(
+                int_val
+            ), f"Expected int {int(int_val)} for level {int_val}, got {d['consistency_level']!r}"
             assert (
-                d["consistency_level"] == name
-            ), f"Expected '{name}' for level {int_val}, got {d['consistency_level']!r}"
+                d["consistency_level_name"] == name
+            ), f"Expected name '{name}' for level {int_val}, got {d['consistency_level_name']!r}"
 
     def test_collection_schema_rewrite_schema_dict(self):
         """Test CollectionSchema._rewrite_schema_dict method."""
