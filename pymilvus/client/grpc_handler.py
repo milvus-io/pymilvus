@@ -3185,3 +3185,27 @@ class GrpcHandler:
         )
         check_status(status)
         return status
+
+    @retry_on_rpc_failure()
+    def get_replicate_configuration(
+        self,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """
+        Get replication configuration from Milvus.
+
+        Args:
+            timeout: An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            ReplicateConfiguration: The current replication configuration
+        """
+        request = milvus_types.GetReplicateConfigurationRequest()
+        response = self._stub.GetReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.configuration

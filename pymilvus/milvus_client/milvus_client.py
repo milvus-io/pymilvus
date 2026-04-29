@@ -2250,6 +2250,30 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def get_replicate_configuration(
+        self,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Get replication configuration from Milvus.
+
+        Args:
+            timeout (float, optional): An optional duration of time in seconds to allow for the RPC
+            **kwargs: Additional arguments
+
+        Returns:
+            ReplicateConfiguration: The current replication configuration
+
+        Raises:
+            MilvusException: If the operation fails
+        """
+        return self._get_connection().get_replicate_configuration(
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     def flush_all(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Flush all collections.
 
