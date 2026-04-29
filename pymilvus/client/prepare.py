@@ -53,8 +53,8 @@ from .constants import (
     STRICT_GROUP_SIZE,
 )
 from .entity_helper import convert_to_array, convert_to_array_of_vector
-from .search_aggregation import SearchAggregation
 from .field_ops import FieldOpsInput, normalize_field_ops
+from .search_aggregation import SearchAggregation
 from .types import (
     DataType,
     PlaceholderType,
