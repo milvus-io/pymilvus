@@ -223,7 +223,13 @@ def bulk_import(
         params["options"] = options
 
     resp = _post_request(
-        url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs
+        url=request_url,
+        api_key=api_key,
+        params=params,
+        verify=verify,
+        cert=cert,
+        db_name=db_name,
+        **kwargs,
     )
     _handle_response(request_url, resp.json())
     return resp
@@ -315,7 +321,13 @@ def list_import_jobs(
     }
 
     resp = _post_request(
-        url=request_url, api_key=api_key, params=params, verify=verify, cert=cert, **kwargs
+        url=request_url,
+        api_key=api_key,
+        params=params,
+        verify=verify,
+        cert=cert,
+        db_name=db_name,
+        **kwargs,
     )
     _handle_response(request_url, resp.json())
     return resp
