@@ -894,6 +894,7 @@ _SIMPLE_DELEGATION_CASES = [
     ("get_compaction_plans", (42,), {}, "get_compaction_plans"),
     ("run_analyzer", ("hello world",), {}, "run_analyzer"),
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
+    ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
     ("alter_database_properties", ("mydb", {"key": "val"}), {}, "alter_database"),
     ("describe_alias", ("alias1",), {}, "describe_alias"),
     ("describe_resource_group", ("rg1",), {}, "describe_resource_group"),
