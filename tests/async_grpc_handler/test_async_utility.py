@@ -36,6 +36,31 @@ class TestAsyncGrpcHandlerUtility:
             assert result == "v2.4.0"
 
     @pytest.mark.asyncio
+    async def test_get_replicate_configuration(self) -> None:
+        """Test get_replicate_configuration async API"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        mock_config = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.status.error_code = 0
+        mock_response.status.reason = ""
+        mock_response.configuration = mock_config
+        mock_stub.GetReplicateConfiguration = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            result = await handler.get_replicate_configuration(timeout=10)
+
+        assert result == mock_config
+        mock_stub.GetReplicateConfiguration.assert_awaited_once()
+
+    @pytest.mark.asyncio
     async def test_get_server_version_with_detail(self) -> None:
         """Test get_server_version returns server info dict when detail=True"""
         mock_channel = MagicMock()
