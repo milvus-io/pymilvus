@@ -5,6 +5,11 @@ coverage:
   range: "70...100"
 
   status:
+    project:
+      default:
+        target: 90%
+        threshold: 0.5%
+        if_ci_failed: error
     patch:
       default:
         target: 90%
