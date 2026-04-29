@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Type, Union
 
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
-from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     ExceptionsMessage,
@@ -60,6 +60,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         # Store config for deferred connection
         self._dedicated = kwargs.pop("dedicated", False)
+        kwargs.pop("cluster_id", None)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
@@ -72,6 +73,11 @@ class AsyncMilvusClient(BaseMilvusClient):
         self._using = None
         self.is_self_hosted = None
         self._closed = False
+
+    def session(self, cluster_id: str) -> "AsyncMilvusClientSession":
+        """Create a lightweight client session pinned to a target cluster."""
+        validate_param("cluster_id", cluster_id, str)
+        return AsyncMilvusClientSession(self, cluster_id)
 
     async def __aenter__(self):
         """Async context manager entry: connect and return self."""
@@ -532,6 +538,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     ) -> List[List[dict]]:
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
         return await conn.hybrid_search(
             collection_name,
             reqs,
@@ -562,6 +569,7 @@ class AsyncMilvusClient(BaseMilvusClient):
     ) -> List[List[dict]]:
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
         return await conn.search(
             collection_name=collection_name,
             anns_field=anns_field or "",
@@ -616,6 +624,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         if not output_fields:
             output_fields = ["*"]
 
+        kwargs = self._with_cluster_id(kwargs)
         return await conn.query(
             collection_name,
             expr=filter,
@@ -657,6 +666,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             output_fields = ["*"]
 
         expr = self._pack_pks_expr(schema_dict, ids)
+        kwargs = self._with_cluster_id(kwargs)
         return await conn.query(
             collection_name,
             expr=expr,
@@ -2409,3 +2419,39 @@ class AsyncMilvusClient(BaseMilvusClient):
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
+
+
+class AsyncMilvusClientSession:
+    """Async DQL session bound to a cluster id and backed by a parent client."""
+
+    def __init__(self, parent: AsyncMilvusClient, cluster_id: str) -> None:
+        self._parent = parent
+        self._cluster_id = cluster_id
+        self._closed = False
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise MilvusException(message="AsyncMilvusClient session is closed")
+
+    def _with_cluster_id(self, kwargs: Dict) -> Dict:
+        kwargs[CLUSTER_ID] = self._cluster_id
+        return kwargs
+
+    async def close(self) -> None:
+        self._closed = True
+
+    async def search(self, *args, **kwargs):
+        self._ensure_open()
+        return await self._parent.search(*args, **self._with_cluster_id(kwargs))
+
+    async def hybrid_search(self, *args, **kwargs):
+        self._ensure_open()
+        return await self._parent.hybrid_search(*args, **self._with_cluster_id(kwargs))
+
+    async def query(self, *args, **kwargs):
+        self._ensure_open()
+        return await self._parent.query(*args, **self._with_cluster_id(kwargs))
+
+    async def get(self, *args, **kwargs):
+        self._ensure_open()
+        return await self._parent.get(*args, **self._with_cluster_id(kwargs))
