@@ -779,6 +779,7 @@ class AsyncGrpcHandler:
 
         # Extract partial_update parameter from kwargs
         partial_update = kwargs.get("partial_update", False)
+        field_ops = kwargs.get("field_ops")
 
         schema = kwargs.get("schema")
         schema, _ = await self._get_schema(
@@ -796,6 +797,7 @@ class AsyncGrpcHandler:
                 partition_name,
                 fields_info,
                 partial_update=partial_update,
+                field_ops=field_ops,
             )
         )
 
@@ -841,6 +843,7 @@ class AsyncGrpcHandler:
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
         partial_update = kwargs.get("partial_update", False)
+        field_ops = kwargs.get("field_ops")
         schema, schema_timestamp = await self._get_schema(
             collection_name, timeout=timeout, context=context, **kwargs
         )
@@ -856,6 +859,7 @@ class AsyncGrpcHandler:
             enable_dynamic=enable_dynamic,
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
+            field_ops=field_ops,
         )
 
     @retry_on_rpc_failure()
