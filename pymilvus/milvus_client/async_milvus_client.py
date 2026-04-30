@@ -485,6 +485,13 @@ class AsyncMilvusClient(BaseMilvusClient):
                 * *partial_update* (bool, optional): Whether this is a partial update operation.
                     If True, only the specified fields will be updated while others remain unchanged
                     Default is False.
+                * *field_ops* (Dict[str, Any], optional): Per-field partial-update operators that
+                    describe how to merge the provided values against the existing rows. Each
+                    value may be a :class:`~pymilvus.FieldOp` factory result (e.g.
+                    ``FieldOp.array_append()``), a string alias (``"array_append"``,
+                    ``"array_remove"``, ``"replace"``), or a
+                    :class:`schema_pb2.FieldPartialUpdateOp` message. Any non-REPLACE op implies
+                    partial_update=True.
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
