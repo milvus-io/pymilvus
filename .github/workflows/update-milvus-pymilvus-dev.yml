@@ -4,18 +4,50 @@ on:
   schedule:
     - cron: "5 2 * * *"  # daily at 02:05 UTC
   workflow_dispatch:
+    inputs:
+      pymilvus_branch:
+        description: "PyMilvus branch to read the dev version from"
+        required: true
+        default: "master"
+        type: string
+      milvus_branch:
+        description: "Milvus branch to update"
+        required: true
+        default: "master"
+        type: string
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  bump:
+  resolve-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+    - name: Resolve branch pairs
+      id: matrix
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PYMILVUS_BRANCH: ${{ inputs.pymilvus_branch }}
+        MILVUS_BRANCH: ${{ inputs.milvus_branch }}
+      run: |
+        set -euo pipefail
+        if [ "$EVENT_NAME" = "schedule" ]; then
+          matrix='{"include":[{"pymilvus_branch":"master","milvus_branch":"master"},{"pymilvus_branch":"2.6","milvus_branch":"2.6"}]}'
+        else
+          matrix="$(jq -cn --arg pymilvus_branch "$PYMILVUS_BRANCH" --arg milvus_branch "$MILVUS_BRANCH" '{include:[{pymilvus_branch:$pymilvus_branch,milvus_branch:$milvus_branch}]}')"
+        fi
+        echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  bump:
+    needs: resolve-matrix
+    runs-on: ubuntu-latest
+    name: Sync PyMilvus ${{ matrix.pymilvus_branch }} to Milvus ${{ matrix.milvus_branch }}
     strategy:
       fail-fast: false  # Continue with other branches even if one fails
-      matrix:
-        branch: [master, '2.6']
+      matrix: ${{ fromJSON(needs.resolve-matrix.outputs.matrix) }}
     steps:
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -33,7 +65,7 @@ jobs:
     - name: Checkout pymilvus (repo root for workflow)
       uses: actions/checkout@v6
       with:
-        ref: ${{ matrix.branch }}
+        ref: ${{ matrix.pymilvus_branch }}
         persist-credentials: false
 
     - name: Get history and tags for SCM versioning
@@ -45,7 +77,7 @@ jobs:
       uses: actions/checkout@v6
       with:
         repository: milvus-io/milvus
-        ref: ${{ matrix.branch }}
+        ref: ${{ matrix.milvus_branch }}
         path: milvus-upstream
         fetch-depth: 0
         persist-credentials: false
@@ -84,14 +116,19 @@ jobs:
       run: |
         set -euo pipefail
         TARGET_VERSION="${{ steps.version.outputs.latest }}"
-        TARGET_BRANCH="${{ matrix.branch }}"
+        PYMILVUS_BRANCH="${{ matrix.pymilvus_branch }}"
+        TARGET_BRANCH="${{ matrix.milvus_branch }}"
 
         # Search for open PRs with matching title pattern
-        PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} for ${TARGET_BRANCH} branch"
+        PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} from ${PYMILVUS_BRANCH} for ${TARGET_BRANCH} branch"
+        LEGACY_PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} for ${TARGET_BRANCH} branch"
         echo "Checking for existing PRs with title pattern: $PR_TITLE_PATTERN"
 
         # List open PRs and check if any match our criteria
-        EXISTING_PR=$(gh pr list --repo milvus-io/milvus --base "${TARGET_BRANCH}" --state open --json number,title,author --jq ".[] | select(.title == \"${PR_TITLE_PATTERN}\") | .number" || echo "")
+        EXISTING_PR=$(
+          gh pr list --repo milvus-io/milvus --base "${TARGET_BRANCH}" --state open --json number,title,author |
+            jq -r --arg title "$PR_TITLE_PATTERN" --arg legacy_title "$LEGACY_PR_TITLE_PATTERN" '.[] | select(.title == $title or .title == $legacy_title) | .number' || echo ""
+        )
 
         if [ -n "$EXISTING_PR" ]; then
           echo "Found existing PR #$EXISTING_PR with same version update"
@@ -114,8 +151,9 @@ jobs:
         set -euo pipefail
         cd milvus-upstream
         # Create unique branch name with target branch reference
-        TARGET_BRANCH="$(echo '${{ matrix.branch }}' | sed 's/\./-/g')"
-        BR="bot/pymilvus-update-for-${TARGET_BRANCH}-${{ steps.version.outputs.latest }}-$(date -u +%Y%m%d%H%M%S)"
+        PYMILVUS_BRANCH="$(echo '${{ matrix.pymilvus_branch }}' | sed 's#[./]#-#g')"
+        TARGET_BRANCH="$(echo '${{ matrix.milvus_branch }}' | sed 's#[./]#-#g')"
+        BR="bot/pymilvus-update-${PYMILVUS_BRANCH}-to-${TARGET_BRANCH}-${{ steps.version.outputs.latest }}-$(date -u +%Y%m%d%H%M%S)"
         echo "BRANCH=$BR" >> $GITHUB_ENV
         git switch -c "$BR"
 
@@ -159,10 +197,10 @@ jobs:
         GH_TOKEN: ${{ secrets.MILVUS_UPDATE_TOKEN }}
       run: |
         set -euo pipefail
-        title="test: Increase PyMilvus version to ${{ steps.version.outputs.latest }} for ${{ matrix.branch }} branch"
-        body="Automated daily bump from pymilvus ${{ matrix.branch }} branch. Updates tests/python_client/requirements.txt."
+        title="test: Increase PyMilvus version to ${{ steps.version.outputs.latest }} from ${{ matrix.pymilvus_branch }} for ${{ matrix.milvus_branch }} branch"
+        body="Automated bump from pymilvus ${{ matrix.pymilvus_branch }} branch to milvus ${{ matrix.milvus_branch }} branch. Updates tests/python_client/requirements.txt."
         head="$(echo ${{ vars.REPO_FORK }} | cut -d'/' -f1):${BRANCH}"
-        base="${{ matrix.branch }}"
+        base="${{ matrix.milvus_branch }}"
         echo "title=$title"
         echo "body=$body"
         echo "head=$head"
