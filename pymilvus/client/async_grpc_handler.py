@@ -1560,6 +1560,54 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+
+    async def _alter_collection_schema_drop(
+        self,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        function_name: str = "",
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.alter_collection_schema_drop_request(
+            collection_name,
+            field_name=field_name,
+            field_id=field_id,
+            function_name=function_name,
+            db_name=db_name,
+        )
+        response = await self._async_stub.AlterCollectionSchema(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.alter_status)
+        if response.HasField("index_status"):
+            check_status(response.index_status)
+
+    @retry_on_rpc_failure()
+    async def drop_collection_field(
+        self,
+        collection_name: str,
+        field_name: str = "",
+        field_id: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self._alter_collection_schema_drop(
+            collection_name,
+            field_name=field_name,
+            field_id=field_id,
+            timeout=timeout,
+            context=context,
+            **kwargs,
+        )
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     async def drop_collection_function(
@@ -1570,13 +1618,14 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.drop_collection_function_request(collection_name, function_name)
-
-        status = await self._async_stub.DropCollectionFunction(
-            request, timeout=timeout, metadata=_api_level_md(context)
+        await self._alter_collection_schema_drop(
+            collection_name,
+            function_name=function_name,
+            timeout=timeout,
+            context=context,
+            **kwargs,
         )
-        check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     async def add_collection_function(
@@ -1594,6 +1643,7 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     async def alter_collection_function(
