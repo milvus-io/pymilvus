@@ -54,6 +54,10 @@ class TestTypes:
             assert str(v) == str(v.value)
             assert str(v) != v.name
 
+    def test_mol_data_type(self):
+        assert DataType.MOL.name == "MOL"
+        assert isinstance(DataType.MOL.value, int)
+
 
 class TestConsistencyLevel:
     def test_consistency_level_int(self):

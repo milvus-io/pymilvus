@@ -455,6 +455,7 @@ class TestFunctionType:
             ("TEXTEMBEDDING", 2),
             ("RERANK", 3),
             ("MINHASH", 4),
+            ("MOL_FINGERPRINT", 5),
         ],
     )
     def test_function_type_values(self, attr, value):
