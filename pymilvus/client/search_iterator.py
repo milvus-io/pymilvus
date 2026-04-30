@@ -99,12 +99,15 @@ class SearchIteratorV2:
         # which means a segment reload triggered by add_collection_field can shift distances
         # by 1 ULP, causing last_bound items to pass the dist > last_bound filter again
         # and produce duplicate PKs. See: https://github.com/milvus-io/pymilvus/issues/3421
-        session_ts = probe_result.get_session_ts()
-        if session_ts > 0:
-            params[GUARANTEE_TIMESTAMP] = session_ts
-        else:
-            logger.warning("failed to set up mvccTs from probe call, use client-side ts instead")
-            params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
+        if params[GUARANTEE_TIMESTAMP] <= 0:
+            session_ts = probe_result.get_session_ts()
+            if session_ts > 0:
+                params[GUARANTEE_TIMESTAMP] = session_ts
+            else:
+                logger.warning(
+                    "failed to set up mvccTs from probe call, use client-side ts instead"
+                )
+                params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
 
     # internal next function, do not use this outside of this class
     def _next(self):

@@ -200,6 +200,28 @@ class TestSearchIteratorV2:
             iterator._params[GUARANTEE_TIMESTAMP] == 99999
         ), "GUARANTEE_TIMESTAMP must be set to fallback ts when server session_ts is 0"
 
+    def test_probe_preserves_explicit_guarantee_timestamp(self, mock_connection, search_data):
+        """Customized consistency callers can provide an explicit snapshot timestamp."""
+        probe_result = self.create_mock_search_result(num_results=1)
+        probe_result._session_ts = 12345678
+        mock_connection.search.return_value = probe_result
+
+        with patch(
+            "pymilvus.client.search_iterator.fall_back_to_latest_session_ts",
+            return_value=99999,
+        ) as mock_fallback:
+            iterator = SearchIteratorV2(
+                connection=mock_connection,
+                collection_name="test_collection",
+                data=search_data,
+                batch_size=100,
+                consistency_level="Customized",
+                guarantee_timestamp=42,
+            )
+            mock_fallback.assert_not_called()
+
+        assert iterator._params[GUARANTEE_TIMESTAMP] == 42
+
     @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
     def test_external_filter(self, mock_probe, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
