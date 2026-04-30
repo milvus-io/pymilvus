@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from pymilvus.client.call_context import CallContext
+from pymilvus.client.constants import GUARANTEE_TIMESTAMP
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.search_result import SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
@@ -39,6 +40,7 @@ class TestSearchIteratorV2:
         return SearchResult(result)
 
     def test_init_basic(self, mock_connection, search_data):
+        mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
             connection=mock_connection,
             collection_name="test_collection",
@@ -51,6 +53,7 @@ class TestSearchIteratorV2:
         assert iterator._collection_id == "test_id"
 
     def test_init_with_limit(self, mock_connection, search_data):
+        mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
             connection=mock_connection,
             collection_name="test_collection",
@@ -92,6 +95,7 @@ class TestSearchIteratorV2:
     def test_context_passed_to_describe_collection(self, mock_connection, search_data):
         """Regression test for #3270: context (db_name) must be forwarded to describe_collection"""
         ctx = CallContext(db_name="nondefault")
+        mock_connection.search.return_value = self.create_mock_search_result()
 
         SearchIteratorV2(
             connection=mock_connection,
@@ -145,6 +149,78 @@ class TestSearchIteratorV2:
                 data=search_data,
                 batch_size=100,
             )
+
+    def test_probe_pins_guarantee_timestamp_from_session_ts(self, mock_connection, search_data):
+        """Regression test for #3421: probe call must pin GUARANTEE_TIMESTAMP so the first
+        next() call does not run with GUARANTEE_TIMESTAMP=0 (Bounded consistency).
+        Without the fix, a segment reload between probe and next() can cause 1-ULP distance
+        drift, which makes last_bound items pass the dist > last_bound filter again → duplicate PKs.
+        """
+        probe_result = self.create_mock_search_result(num_results=1)
+        probe_result._session_ts = 12345678
+        mock_connection.search.return_value = probe_result
+
+        iterator = SearchIteratorV2(
+            connection=mock_connection,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=100,
+        )
+
+        # After construction the GUARANTEE_TIMESTAMP must be pinned to the probe's session_ts
+        assert iterator._params[GUARANTEE_TIMESTAMP] == 12345678, (
+            "GUARANTEE_TIMESTAMP must be pinned to probe session_ts to prevent "
+            "duplicate PKs after segment reload (issue #3421)"
+        )
+
+    def test_probe_pins_guarantee_timestamp_fallback_when_session_ts_zero(
+        self, mock_connection, search_data
+    ):
+        """When the server returns session_ts=0, _probe_for_compability must fall back to the
+        client-side timestamp (fall_back_to_latest_session_ts) rather than leaving
+        GUARANTEE_TIMESTAMP=0.
+        """
+        probe_result = self.create_mock_search_result(num_results=1)
+        probe_result._session_ts = 0  # server returns zero
+        mock_connection.search.return_value = probe_result
+
+        with patch(
+            "pymilvus.client.search_iterator.fall_back_to_latest_session_ts",
+            return_value=99999,
+        ) as mock_fallback:
+            iterator = SearchIteratorV2(
+                connection=mock_connection,
+                collection_name="test_collection",
+                data=search_data,
+                batch_size=100,
+            )
+            mock_fallback.assert_called_once()
+
+        assert (
+            iterator._params[GUARANTEE_TIMESTAMP] == 99999
+        ), "GUARANTEE_TIMESTAMP must be set to fallback ts when server session_ts is 0"
+
+    def test_probe_preserves_explicit_guarantee_timestamp(self, mock_connection, search_data):
+        """Customized consistency callers can provide an explicit snapshot timestamp."""
+        probe_result = self.create_mock_search_result(num_results=1)
+        probe_result._session_ts = 12345678
+        mock_connection.search.return_value = probe_result
+
+        with patch(
+            "pymilvus.client.search_iterator.fall_back_to_latest_session_ts",
+            return_value=99999,
+        ) as mock_fallback:
+            iterator = SearchIteratorV2(
+                connection=mock_connection,
+                collection_name="test_collection",
+                data=search_data,
+                batch_size=100,
+                consistency_level="Customized",
+                guarantee_timestamp=42,
+            )
+            mock_fallback.assert_not_called()
+
+        assert iterator._params[GUARANTEE_TIMESTAMP] == 42
 
     @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
     def test_external_filter(self, mock_probe, mock_connection, search_data):
