@@ -438,6 +438,58 @@ def cloud_bulkinsert():
     print(resp.json())
 
 
+def cloud_bulkinsert_pdb():
+    # The value of the URL is fixed.
+    # For overseas regions, it is: https://api.cloud.zilliz.com
+    # For regions in China, it is: https://api.cloud.zilliz.com.cn
+    url = "https://api.cloud.zilliz.com"
+    api_key = "_api_key_for_cluster_org_"
+    project_id = "_your_cloud_project_id_"
+    region_id = "_your_cloud_region_id_"
+    collection_name = "_collection_name_on_the_project_"
+    # If partition_name is not specified, use ""
+    partition_name = "_partition_name_on_the_collection_"
+
+    print(f"\n===================== import files to cloud project database ====================")
+    object_url = "_your_object_storage_service_url_"
+    object_url_access_key = "_your_object_storage_service_access_key_"
+    object_url_secret_key = "_your_object_storage_service_secret_key_"
+    resp = bulk_import(
+        url=url,
+        collection_name=collection_name,
+        partition_name=partition_name,
+        object_urls=[[object_url]],
+        project_id=project_id,
+        region_id=region_id,
+        api_key=api_key,
+        access_key=object_url_access_key,
+        secret_key=object_url_secret_key,
+    )
+    print(resp.json())
+
+    print(f"\n===================== get import job progress ====================")
+    job_id = resp.json()['data']['jobId']
+    resp = get_import_progress(
+        url=url,
+        job_id=job_id,
+        project_id=project_id,
+        region_id=region_id,
+        api_key=api_key,
+    )
+    print(resp.json())
+
+    print(f"\n===================== list import jobs ====================")
+    resp = list_import_jobs(
+        url=url,
+        project_id=project_id,
+        region_id=region_id,
+        api_key=api_key,
+        page_size=10,
+        current_page=1,
+    )
+    print(resp.json())
+
+
 if __name__ == '__main__':
     create_connection()
 
