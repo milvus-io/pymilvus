@@ -43,7 +43,7 @@ If you are interested in existing PRs, you can:
 Note: the problems, features, and questions mentioned here are not limited to Python code. They also refer to all kinds of documents (technical documents, API references, contributing guide, etc.)
 
 ## PyMilvus Code Structure
-`docs/`: Contains source documentation (except for API Reference) that created by sphinx; most documentation are stored as `.rst` files under `docs/source`.
+`docs/`: Contains PyMilvus design and planning documents, such as `docs/plans`.
 
 `examples/`: Contains Python scripts, which can be run directly, for introducing the usage of PyMiluvs API through examples.
 

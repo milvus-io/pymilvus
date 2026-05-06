@@ -51,7 +51,7 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 
 ## PyMilvus 代码结构
 
-`docs/`: 除了 API Reference 外的文档源码所在地，使用 sphinx 组织编译，大部分文档内容都在 `docs/source` 目录下的 rst 文件中。
+`docs/`: PyMilvus 的设计和规划文档目录，例如 `docs/plans`。
 
 `examples/`: 包含一些可以直接运行的 python 脚本，通过例子介绍 PyMilvus 每个接口的使用方法。
 
@@ -104,7 +104,6 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 ## 恭喜你！你已经成为了 Milvus 社区的贡献者！
 
 除了和代码、机器打交道，你还可以和 Milvus 社区中的人交流。社区中每天都有很多新面孔加入，当他们遇到的困难正好是你所了解的地方，请尽情的帮助这些人。回想你初次接触 Milvus 接受过的帮助，你也可以将这样的交流互助精神不断传递下去，我们一起共创一个协作、开源、开放、包容的社区。
-
 
 
 
