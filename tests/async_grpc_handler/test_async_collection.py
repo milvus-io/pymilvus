@@ -520,27 +520,6 @@ class TestAsyncGrpcHandlerSchemaCache:
         finally:
             GlobalCache.schema.invalidate("localhost:19530", "", "cache_miss_coll")
 
-    @pytest.mark.asyncio
-    async def test_get_info(self) -> None:
-        """Test _get_info method"""
-        mock_channel = MagicMock()
-        mock_channel._unary_unary_interceptors = []
-        handler = AsyncGrpcHandler(channel=mock_channel)
-        handler._is_channel_ready = True
-
-        schema = {
-            "fields": [{"name": "id", "type": 5}],
-            "struct_array_fields": [],
-            "enable_dynamic_field": True,
-            "update_timestamp": 100,
-        }
-        handler._get_schema = AsyncMock(return_value=(schema, 100))
-
-        fields, _struct_fields, enable_dynamic, ts = await handler._get_info("test_coll")
-        assert fields == schema["fields"]
-        assert enable_dynamic is True
-        assert ts == 100
-
     def test_invalidate_schema(self) -> None:
         """Test _invalidate_schema method"""
         mock_channel = MagicMock()

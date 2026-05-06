@@ -566,7 +566,16 @@ class TestAsyncGrpcHandlerCompaction:
                 "params": {"max_capacity": 16},
             },
         ]
-        handler._get_info = AsyncMock(return_value=(fields_info, [], False, 0))
+        handler._get_schema = AsyncMock(
+            return_value=(
+                {
+                    "fields": fields_info,
+                    "struct_array_fields": [],
+                    "enable_dynamic_field": False,
+                },
+                0,
+            )
+        )
 
         captured = []
 
