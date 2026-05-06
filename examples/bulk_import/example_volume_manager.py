@@ -16,5 +16,8 @@ if __name__ == "__main__":
     volume_list = volume_manager.list_volumes(PROJECT_ID, 1, 10)
     print(f"\nlistVolumes results: ", volume_list.json()['data'])
 
+    volume_info = volume_manager.describe_volume(VOLUME_NAME)
+    print(f"\ndescribeVolume result: ", volume_info.json()['data'])
+
     volume_manager.delete_volume(VOLUME_NAME)
     print(f"\nVolume {VOLUME_NAME} deleted")
