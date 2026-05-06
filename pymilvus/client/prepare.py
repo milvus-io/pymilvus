@@ -2032,23 +2032,6 @@ class Prepare:
         return milvus_types.DummyRequest(request_type=request_type)
 
     @classmethod
-    def retrieve_request(
-        cls,
-        collection_name: str,
-        ids: List[str],
-        output_fields: List[str],
-        partition_names: List[str],
-    ):
-        ids = schema_types.IDs(int_id=schema_types.LongArray(data=ids))
-        return milvus_types.RetrieveRequest(
-            db_name="",
-            collection_name=collection_name,
-            ids=ids,
-            output_fields=output_fields,
-            partition_names=partition_names,
-        )
-
-    @classmethod
     def query_request(
         cls,
         collection_name: str,
