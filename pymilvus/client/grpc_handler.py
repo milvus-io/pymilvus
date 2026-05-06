@@ -750,25 +750,6 @@ class GrpcHandler:
         check_status(status)
         return response.stats
 
-    # Seems not inuse
-    def _get_info(
-        self,
-        collection_name: str,
-        timeout: Optional[float] = None,
-        context: Optional[CallContext] = None,
-        **kwargs,
-    ):
-        schema = kwargs.get("schema")
-        if not schema:
-            schema = self.describe_collection(
-                collection_name, timeout=timeout, context=context, **kwargs
-            )
-
-        fields_info = schema.get("fields")
-        enable_dynamic = schema.get("enable_dynamic_field", False)
-
-        return fields_info, enable_dynamic
-
     @retry_on_rpc_failure()
     @retry_on_schema_mismatch()
     def insert_rows(

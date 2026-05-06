@@ -397,19 +397,6 @@ class TestGrpcHandlerMisc:
         result = handler.load_partitions_progress("coll", ["p1"])
         assert "loading_progress" in result
 
-    def test_get_info_with_schema(self, handler):
-        schema = {"fields": [{"name": "id"}], "enable_dynamic_field": True}
-        fields, dynamic = handler._get_info("coll", schema=schema)
-        assert fields == schema["fields"]
-        assert dynamic is True
-
-    def test_get_info_without_schema(self, handler):
-        with patch.object(handler, "describe_collection") as mock_desc:
-            mock_desc.return_value = {"fields": [{"name": "id"}], "enable_dynamic_field": False}
-            fields, dynamic = handler._get_info("coll")
-            assert fields == [{"name": "id"}]
-            assert dynamic is False
-
 
 class TestGrpcHandlerWaitOps:
     """Tests for wait operations."""
