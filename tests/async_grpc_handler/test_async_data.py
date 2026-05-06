@@ -140,6 +140,55 @@ class TestAsyncGrpcHandlerDataOps:
             assert result is not None
 
     @pytest.mark.asyncio
+    async def test_prepare_row_upsert_request_uses_schema(self) -> None:
+        """Test row upsert request preparation fetches schema directly."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        fields_info = [{"name": "id"}]
+        struct_fields_info = [{"name": "profile"}]
+        handler._get_schema = AsyncMock(
+            return_value=(
+                {
+                    "fields": fields_info,
+                    "struct_array_fields": struct_fields_info,
+                    "enable_dynamic_field": True,
+                },
+                123,
+            )
+        )
+
+        mock_request = MagicMock()
+        with patch(
+            "pymilvus.client.async_grpc_handler.Prepare.row_upsert_param",
+            return_value=mock_request,
+        ) as mock_prepare:
+            request = await handler._prepare_row_upsert_request(
+                "test_coll",
+                [{"id": 1}],
+                "partition",
+                timeout=30,
+                partial_update=True,
+            )
+
+        assert request is mock_request
+        handler._get_schema.assert_awaited_once_with(
+            "test_coll", timeout=30, context=None, partial_update=True
+        )
+        mock_prepare.assert_called_once_with(
+            "test_coll",
+            [{"id": 1}],
+            "partition",
+            fields_info,
+            struct_fields_info,
+            enable_dynamic=True,
+            partial_update=True,
+            schema_timestamp=123,
+        )
+
+    @pytest.mark.asyncio
     async def test_get_persistent_segment_infos(self) -> None:
         """Test get_persistent_segment_infos async API"""
         mock_channel = MagicMock()
