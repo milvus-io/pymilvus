@@ -1377,24 +1377,6 @@ class AsyncGrpcHandler:
         return list(response.partition_names)
 
     @retry_on_rpc_failure()
-    async def get(
-        self,
-        collection_name: str,
-        ids: List[int],
-        output_fields: Optional[List[str]] = None,
-        partition_names: Optional[List[str]] = None,
-        timeout: Optional[float] = None,
-        context: Optional[CallContext] = None,
-        **kwargs,
-    ):
-        # TODO: some check
-
-        request = Prepare.retrieve_request(collection_name, ids, output_fields, partition_names)
-        return await self._async_stub.Retrieve.get(
-            request, timeout=timeout, metadata=_api_level_md(context)
-        )
-
-    @retry_on_rpc_failure()
     async def query(
         self,
         collection_name: str,
