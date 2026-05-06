@@ -87,7 +87,12 @@ class TestGetImportProgress:
         _, kwargs = mock_post.call_args
         assert kwargs["url"] == "http://example.com/v2/vectordb/jobs/import/describe"
         assert kwargs["headers"]["DB-Name"] == "my_db"
-        assert kwargs["json"] == {"jobId": "job-123", "clusterId": ""}
+        assert kwargs["json"] == {
+            "jobId": "job-123",
+            "clusterId": "",
+            "projectId": "",
+            "regionId": "",
+        }
         assert "db_name" not in kwargs
 
     @patch.object(bulk_import_mod.requests, "post")
