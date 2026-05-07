@@ -1,12 +1,16 @@
 import asyncio
 import time
+import warnings
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import grpc
 import pytest
 from pymilvus.decorators import (
     IGNORE_RETRY_CODES,
+    PyMilvusDeprecationWarning,
     deprecated,
+    deprecated_class,
     error_handler,
     ignore_unimplemented,
     retry_on_rpc_failure,
@@ -437,15 +441,18 @@ class TestRetryDecoratorEdgeCases:
 
 
 class TestDeprecatedDecorator:
-    @patch("pymilvus.decorators.LOGGER")
-    def test_deprecated_logs_warning(self, mock_logger):
+    def test_deprecated_logs_warning(self):
         @deprecated
         def old_function():
             return "result"
 
-        result = old_function()
+        with pytest.warns(
+            PyMilvusDeprecationWarning,
+            match="old_function.*removed in PyMilvus 3.1.*MilvusClient",
+        ):
+            result = old_function()
+
         assert result == "result"
-        assert mock_logger.warning.called
 
     def test_deprecated_preserves_function_metadata(self):
         @deprecated
@@ -454,14 +461,37 @@ class TestDeprecatedDecorator:
 
         assert_preserves_metadata(my_old_function, "my_old_function")
 
-    @patch("pymilvus.decorators.LOGGER")
-    def test_deprecated_passes_arguments(self, mock_logger):
+    def test_deprecated_passes_arguments(self):
         @deprecated
         def old_function_with_args(a, b, c=None):
             return a + b + (c or 0)
 
-        result = old_function_with_args(1, 2, c=3)
+        with pytest.warns(PyMilvusDeprecationWarning, match="old_function_with_args.*MilvusClient"):
+            result = old_function_with_args(1, 2, c=3)
+
         assert result == 6
+
+    def test_deprecated_stacklevel_points_to_caller(self):
+        @deprecated("Collection.drop")
+        def old_function():
+            return "result"
+
+        with warnings.catch_warnings(record=True) as records:
+            warnings.simplefilter("always", PyMilvusDeprecationWarning)
+            old_function()
+
+        assert len(records) == 1
+        assert Path(records[0].filename) == Path(__file__)
+
+    def test_deprecated_class_wraps_staticmethod(self):
+        @deprecated_class("Example")
+        class Example:
+            @staticmethod
+            def run(value):
+                return value + 1
+
+        with pytest.warns(PyMilvusDeprecationWarning, match="Example.run.*MilvusClient"):
+            assert Example.run(1) == 2
 
 
 class TestTracingRequestDecorator:

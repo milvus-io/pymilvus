@@ -32,6 +32,7 @@ from .client.types import (
     Shard,
     Status,
 )
+from .decorators import PyMilvusDeprecationWarning
 from .exceptions import (
     ExceptionsMessage,
     MilvusException,
@@ -111,6 +112,7 @@ __all__ = [
     "MutationFuture",
     "Partition",
     "Prepare",
+    "PyMilvusDeprecationWarning",
     "RRFRanker",
     "Replica",
     "ResourceGroupInfo",

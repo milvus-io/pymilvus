@@ -21,6 +21,7 @@ from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.check import is_legal_address, is_legal_host, is_legal_port
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
+from pymilvus.decorators import deprecated
 from pymilvus.exceptions import (
     ConnectionConfigException,
     ConnectionNotExistException,
@@ -585,7 +586,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
         Returns:
             CallContext: The call context with db_name from the connection config.
         """
-        config = self.get_connection_addr(alias)
+        config = self._alias_config.get(alias, {})
         db_name = config.get("db_name", "")
         req_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
         return CallContext(db_name=db_name, client_request_id=req_id)
@@ -593,3 +594,23 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
 # Singleton Mode in Python
 connections = Connections()
+
+Connections.add_connection = deprecated("connections.add_connection")(Connections.add_connection)
+Connections.connect = deprecated("connections.connect")(Connections.connect)
+Connections.disconnect = deprecated("connections.disconnect")(Connections.disconnect)
+Connections.async_disconnect = deprecated("connections.async_disconnect")(
+    Connections.async_disconnect
+)
+Connections.remove_connection = deprecated("connections.remove_connection")(
+    Connections.remove_connection
+)
+Connections.async_remove_connection = deprecated("connections.async_remove_connection")(
+    Connections.async_remove_connection
+)
+Connections.list_connections = deprecated("connections.list_connections")(
+    Connections.list_connections
+)
+Connections.get_connection_addr = deprecated("connections.get_connection_addr")(
+    Connections.get_connection_addr
+)
+Connections.has_connection = deprecated("connections.has_connection")(Connections.has_connection)

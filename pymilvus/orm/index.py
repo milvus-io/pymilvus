@@ -13,6 +13,7 @@
 import copy
 from typing import Dict, Optional, TypeVar
 
+from pymilvus.decorators import deprecated_class
 from pymilvus.exceptions import CollectionNotExistException, ExceptionsMessage
 from pymilvus.settings import Config
 
@@ -140,3 +141,6 @@ class Index:
             timeout=timeout,
             context=context,
         )
+
+
+Index = deprecated_class("Index")(Index)
