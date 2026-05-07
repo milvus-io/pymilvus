@@ -762,6 +762,10 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=[partition_name] if partition_name else None,
+        )
         request = self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, context=context, **kwargs
         )
@@ -1020,6 +1024,10 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=[partition_name] if partition_name else None,
+        )
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
 
@@ -1211,6 +1219,7 @@ class GrpcHandler:
             )
 
         check_pass_param(
+            collection_name=collection_name,
             limit=limit,
             round_decimal=round_decimal,
             anns_field=anns_field,
@@ -1447,6 +1456,12 @@ class GrpcHandler:
     ):
         # for historical reason, index_name contained in kwargs.
         index_name = kwargs.pop("index_name", Config.IndexName)
+
+        check_pass_param(
+            collection_name=collection_name,
+            field_name=field_name,
+            index_name=index_name,
+        )
 
         _async = kwargs.get("_async", False)
         kwargs["_async"] = False
@@ -2035,6 +2050,7 @@ class GrpcHandler:
     ):
         flush_ret = False
         start = time.time()
+        last_log_time = start
         while not flush_ret:
             flush_ret = self.get_flush_state(
                 segment_ids, collection_name, flush_ts, timeout, context=context, **kwargs
@@ -2045,7 +2061,11 @@ class GrpcHandler:
                     message=f"wait for flush timeout, collection: {collection_name}, flusht_ts: {flush_ts}"
                 )
 
-            if not flush_ret:
+            if not flush_ret and end - last_log_time >= 60:
+                logger.info(
+                    f"Waiting for flush of collection {collection_name} done after {int(end - start)} seconds."
+                )
+                last_log_time = end
                 time.sleep(0.5)
 
     @retry_on_rpc_failure(initial_back_off=1)
@@ -2969,6 +2989,7 @@ class GrpcHandler:
     ):
         flush_ret = False
         start = time.time()
+        last_log_time = start
         while not flush_ret:
             flush_ret = self.get_flush_all_state(flush_all_ts, timeout, context=context, **kwargs)
             end = time.time()
@@ -2977,7 +2998,9 @@ class GrpcHandler:
                     message=f"wait for flush all timeout, flush_all_ts: {flush_all_ts}"
                 )
 
-            if not flush_ret:
+            if not flush_ret and end - last_log_time >= 60:
+                logger.info(f"Waiting for flush all done after {int(end - start)} seconds.")
+                last_log_time = end
                 time.sleep(5)
 
     @retry_on_rpc_failure()

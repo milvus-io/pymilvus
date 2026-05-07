@@ -675,6 +675,10 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=[partition_name] if partition_name else None,
+        )
         request = await self._prepare_row_insert_request(
             collection_name, entities, partition_name, schema, timeout, context=context, **kwargs
         )
@@ -821,6 +825,10 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(
+            collection_name=collection_name,
+            partition_name_array=[partition_name] if partition_name else None,
+        )
         if not check_invalid_binary_vector(entities):
             raise ParamError(message="Invalid binary vector data exists")
 
@@ -964,6 +972,7 @@ class AsyncGrpcHandler:
             )
 
         check_pass_param(
+            collection_name=collection_name,
             limit=limit,
             round_decimal=round_decimal,
             anns_field=anns_field,
@@ -1102,6 +1111,12 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         index_name = kwargs.pop("index_name", Config.IndexName)
+
+        check_pass_param(
+            collection_name=collection_name,
+            field_name=field_name,
+            index_name=index_name,
+        )
 
         # Note: Field validation is handled by the server.
         # Client-side validation for nested fields (e.g., "chunks[text_vector]")
@@ -2340,6 +2355,7 @@ class AsyncGrpcHandler:
         """Wait for segments to be flushed."""
         flush_ret = False
         start = time.time()
+        last_log_time = start
         while not flush_ret:
             flush_ret = await self.get_flush_state(
                 segment_ids, collection_name, flush_ts, timeout, context=context, **kwargs
@@ -2350,7 +2366,11 @@ class AsyncGrpcHandler:
                     message=f"wait for flush timeout, collection: {collection_name}, flusht_ts: {flush_ts}"
                 )
 
-            if not flush_ret:
+            if not flush_ret and end - last_log_time >= 60:
+                logger.info(
+                    f"Waiting for flush of collection {collection_name} done after {int(end - start)} seconds."
+                )
+                last_log_time = end
                 await asyncio.sleep(0.5)
 
     @retry_on_rpc_failure()

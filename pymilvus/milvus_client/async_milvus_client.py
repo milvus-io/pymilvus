@@ -21,6 +21,7 @@ from pymilvus.client.types import (
 )
 from pymilvus.client.utils import (
     convert_struct_fields_to_user_format,
+    get_params,
     is_vector_type,
 )
 from pymilvus.exceptions import (
@@ -30,6 +31,8 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
 )
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
+from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
+from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.types import DataType
 
 from .async_optimize_task import AsyncOptimizeTask
@@ -2423,6 +2426,158 @@ class AsyncMilvusClient(BaseMilvusClient):
         return await conn.list_refresh_external_collection_jobs(
             collection_name=collection_name,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def query_iterator(
+        self,
+        collection_name: str,
+        batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
+        filter: Optional[str] = "",
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Create an iterator for querying data in batches (async).
+
+        Args:
+            collection_name: Name of the collection to query.
+            batch_size: Number of results per batch.
+            limit: Total number of results to return.
+            filter: Filter expression.
+            output_fields: Fields to return.
+            partition_names: Partitions to query.
+            timeout: RPC timeout.
+
+        Returns:
+            QueryIterator: An iterator object for paginated queries.
+        """
+        if filter is not None and not isinstance(filter, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+        conn = await self._get_connection()
+        schema_dict, _ = await conn._get_schema(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+        kwargs = self._with_cluster_id(kwargs)
+        return QueryIterator(
+            connection=conn,
+            collection_name=collection_name,
+            batch_size=batch_size,
+            limit=limit,
+            expr=filter,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            schema=schema_dict,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def search_iterator(
+        self,
+        collection_name: str,
+        data: Union[List[list], list],
+        batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
+        filter: Optional[str] = None,
+        output_fields: Optional[List[str]] = None,
+        search_params: Optional[dict] = None,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        anns_field: Optional[str] = None,
+        round_decimal: int = -1,
+        **kwargs,
+    ) -> SearchIterator:
+        """Create an iterator for searching vectors in batches (async).
+
+        Args:
+            collection_name: Name of the collection to search.
+            data: Vector data to search with.
+            batch_size: Number of results per batch.
+            limit: Total number of results (deprecated).
+            filter: Filter expression.
+            output_fields: Fields to return.
+            search_params: Search parameters.
+            timeout: RPC timeout.
+            partition_names: Partitions to search.
+            anns_field: Vector field name.
+            round_decimal: Decimal precision for distances.
+
+        Returns:
+            SearchIterator: An iterator object for paginated search.
+        """
+        conn = await self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
+
+        if filter is not None and not isinstance(filter, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+        schema_dict, _ = await conn._get_schema(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+        if anns_field is None or anns_field == "":
+            vec_field = None
+            fields = schema_dict[FIELDS]
+            vec_field_count = 0
+            for field in fields:
+                if is_vector_type(field[TYPE]):
+                    vec_field_count += 1
+                    vec_field = field
+            if vec_field is None:
+                raise MilvusException(
+                    code=1,
+                    message="there should be at least one vector field in milvus collection",
+                )
+            if vec_field_count > 1:
+                raise MilvusException(
+                    code=1,
+                    message="must specify anns_field when there are more than one vector field",
+                )
+            anns_field = vec_field["name"]
+
+        if search_params is None:
+            search_params = {}
+        if METRIC_TYPE not in search_params:
+            indexes = await conn.list_indexes(
+                collection_name, context=self._generate_call_context(**kwargs)
+            )
+            for index in indexes:
+                if anns_field == index.index_name:
+                    params = index.params
+                    for param in params:
+                        if param.key == METRIC_TYPE:
+                            search_params[METRIC_TYPE] = param.value
+        if METRIC_TYPE not in search_params:
+            raise ParamError(message=f"Cannot set up metrics type for anns_field:{anns_field}")
+
+        search_params["params"] = get_params(search_params)
+
+        return SearchIterator(
+            connection=conn,
+            collection_name=collection_name,
+            data=data,
+            ann_field=anns_field,
+            param=search_params,
+            batch_size=batch_size,
+            limit=limit,
+            expr=filter,
+            partition_names=partition_names,
+            output_fields=output_fields,
+            timeout=timeout,
+            round_decimal=round_decimal,
+            schema=schema_dict,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
