@@ -12,6 +12,8 @@
 
 from typing import Optional
 
+from pymilvus.decorators import deprecated_class
+
 from .connections import connections
 
 INCLUDE_USER_INFO, NOT_INCLUDE_USER_INFO = True, False
@@ -348,3 +350,6 @@ class Role:
             >>>     privileges=["Insert","Release"])
         """
         return self._get_connection().remove_privileges_from_group(privilege_group, privileges)
+
+
+Role = deprecated_class("Role")(Role)
