@@ -1209,6 +1209,7 @@ class TestAsyncMilvusClientExternalCollection:
             external_source="s3://bucket",
             start_time=1000,
             end_time=2000,
+            external_spec='{"format":"parquet"}',
         )
         mock_handler.get_refresh_external_collection_progress = AsyncMock(return_value=job_info)
 
@@ -1216,6 +1217,7 @@ class TestAsyncMilvusClientExternalCollection:
 
         assert result.job_id == 42
         assert result.state == "RefreshCompleted"
+        assert result.external_spec == '{"format":"parquet"}'
 
     @pytest.mark.asyncio
     async def test_list_refresh_jobs(self, client_and_handler):

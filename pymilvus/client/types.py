@@ -1566,6 +1566,7 @@ class RefreshExternalCollectionJobInfo:
         progress: Progress percentage (0-100).
         reason: Error message if failed.
         external_source: External source used for this job.
+        external_spec: External spec used for this job.
         start_time: Job start timestamp in milliseconds.
         end_time: Job end timestamp in milliseconds (0 if not completed).
     """
@@ -1578,6 +1579,7 @@ class RefreshExternalCollectionJobInfo:
     external_source: str
     start_time: int
     end_time: int
+    external_spec: str = ""
 
 
 def parse_refresh_job_info(
@@ -1591,6 +1593,7 @@ def parse_refresh_job_info(
         progress=info.progress,
         reason=info.reason,
         external_source=info.external_source,
+        external_spec=info.external_spec,
         start_time=info.start_time,
         end_time=info.end_time,
     )

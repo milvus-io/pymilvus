@@ -31,6 +31,7 @@ def _make_job_info_pb(job_id=1, state=2, progress=100):
     info.progress = progress
     info.reason = ""
     info.external_source = "s3://bucket/path"
+    info.external_spec = '{"format":"parquet"}'
     info.start_time = 1000
     info.end_time = 2000
     return info
@@ -109,6 +110,7 @@ class TestAsyncGrpcHandlerExternalCollection:
             assert result.job_id == 42
             assert result.state == "RefreshCompleted"
             assert result.progress == 100
+            assert result.external_spec == '{"format":"parquet"}'
 
     @pytest.mark.asyncio
     async def test_list_refresh_jobs(self):
@@ -133,4 +135,6 @@ class TestAsyncGrpcHandlerExternalCollection:
 
             assert len(result) == 2
             assert result[0].state == "RefreshCompleted"
+            assert result[0].external_spec == '{"format":"parquet"}'
             assert result[1].state == "RefreshInProgress"
+            assert result[1].external_spec == '{"format":"parquet"}'
