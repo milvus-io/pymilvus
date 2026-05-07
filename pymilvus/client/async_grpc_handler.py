@@ -602,22 +602,6 @@ class AsyncGrpcHandler:
         )
         check_status(status)
 
-    async def _get_info(
-        self,
-        collection_name: str,
-        timeout: Optional[float] = None,
-        context: Optional[CallContext] = None,
-        **kwargs,
-    ):
-        schema, schema_timestamp = await self._get_schema(
-            collection_name, timeout=timeout, context=context, **kwargs
-        )
-        fields_info = schema.get("fields")
-        struct_fields_info = schema.get("struct_array_fields", [])
-        enable_dynamic = schema.get("enable_dynamic_field", False)
-
-        return fields_info, struct_fields_info, enable_dynamic, schema_timestamp
-
     async def _get_schema(
         self,
         collection_name: str,
@@ -857,9 +841,12 @@ class AsyncGrpcHandler:
             raise ParamError(message="'rows' must be a list, please provide valid row data.")
 
         partial_update = kwargs.get("partial_update", False)
-        fields_info, struct_fields_info, enable_dynamic, schema_timestamp = await self._get_info(
-            collection_name, timeout, context, **kwargs
+        schema, schema_timestamp = await self._get_schema(
+            collection_name, timeout=timeout, context=context, **kwargs
         )
+        fields_info = schema.get("fields")
+        struct_fields_info = schema.get("struct_array_fields", [])
+        enable_dynamic = schema.get("enable_dynamic_field", False)
         return Prepare.row_upsert_param(
             collection_name,
             rows,
