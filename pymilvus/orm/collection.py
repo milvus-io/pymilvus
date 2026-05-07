@@ -28,6 +28,7 @@ from pymilvus.client.types import (
     cmp_consistency_level,
     get_consistency_level,
 )
+from pymilvus.decorators import deprecated_class
 from pymilvus.exceptions import (
     AutoIDException,
     DataTypeNotMatchException,
@@ -1709,3 +1710,10 @@ class Collection:
     def describe(self, timeout: Optional[float] = None):
         conn, context = self._get_connection()
         return conn.describe_collection(self.name, timeout=timeout, context=context)
+
+
+Collection = deprecated_class(
+    "Collection",
+    exclude_methods={"query_iterator", "search_iterator"},
+    warn_properties={"aliases", "is_empty", "num_entities", "partitions", "indexes"},
+)(Collection)

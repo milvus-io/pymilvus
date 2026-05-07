@@ -23,6 +23,7 @@ from pymilvus.client.utils import (
     convert_struct_fields_to_user_format,
     is_vector_type,
 )
+from pymilvus.decorators import deprecated
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
@@ -1193,6 +1194,11 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "AsyncMilvusClient.using_database",
+        replacement="AsyncMilvusClient.use_database",
+        reason="is deprecated",
+    )
     async def using_database(self, db_name: str, **kwargs):
         """Deprecated: Use use_database instead."""
         await self.use_database(db_name, **kwargs)

@@ -19,6 +19,7 @@ from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import Replica
+from pymilvus.decorators import deprecated_class
 from pymilvus.exceptions import MilvusException
 from pymilvus.settings import Config
 
@@ -749,3 +750,9 @@ class Partition:
             Replica: All the replica information.
         """
         return self._collection.get_replicas(timeout=timeout, **kwargs)
+
+
+Partition = deprecated_class(
+    "Partition",
+    warn_properties={"is_empty", "num_entities"},
+)(Partition)

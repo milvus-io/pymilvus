@@ -1,10 +1,12 @@
 import asyncio
+import contextvars
 import functools
 import inspect
 import logging
 import time
 import traceback
-from typing import Any, Callable, Optional
+import warnings
+from typing import Any, Callable, Optional, Set
 
 import grpc
 
@@ -22,6 +24,7 @@ WARNING_COLOR = "\033[93m{}\033[0m"
 
 # gRPC connectivity state: int -> enum mapping
 _CONNECTIVITY_INT_TO_ENUM = {state.value[0]: state for state in grpc.ChannelConnectivity}
+_DEPRECATED_WARNING_DEPTH = contextvars.ContextVar("deprecated_warning_depth", default=0)
 
 
 def _get_rpc_error_info(e: grpc.RpcError, channel: grpc.Channel = None) -> str:
@@ -138,18 +141,129 @@ def retry_on_schema_mismatch():
     return wrapper
 
 
-def deprecated(func: Any):
-    @functools.wraps(func)
-    def inner(*args, **kwargs):
-        LOGGER.warning(
-            WARNING_COLOR.format(
-                "[WARNING] PyMilvus: ",
-                "class Milvus will be deprecated soon, please use Collection/utility instead",
-            )
-        )
-        return func(*args, **kwargs)
+class PyMilvusDeprecationWarning(FutureWarning):
+    """Warning category for PyMilvus APIs with a scheduled removal."""
 
-    return inner
+
+def warn_deprecated(
+    api_name: str,
+    replacement: str = "MilvusClient",
+    stacklevel: int = 2,
+    reason: str = "is an ORM-style PyMilvus API",
+) -> None:
+    warnings.warn(
+        f"`{api_name}` {reason} and will be removed in PyMilvus 3.1. "
+        f"Use `{replacement}` instead.",
+        category=PyMilvusDeprecationWarning,
+        stacklevel=stacklevel,
+    )
+
+
+def _deprecated_warning(
+    api_name: Optional[str],
+    replacement: str = "MilvusClient",
+    reason: str = "is an ORM-style PyMilvus API",
+) -> Callable[[Any], Any]:
+    def decorator(func: Any):
+        resolved_api_name = api_name or func.__qualname__
+
+        if inspect.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_wrapper(*args, **kwargs):
+                depth = _DEPRECATED_WARNING_DEPTH.get()
+                if depth == 0:
+                    warn_deprecated(
+                        resolved_api_name,
+                        replacement=replacement,
+                        reason=reason,
+                        stacklevel=3,
+                    )
+                token = _DEPRECATED_WARNING_DEPTH.set(depth + 1)
+                try:
+                    return await func(*args, **kwargs)
+                finally:
+                    _DEPRECATED_WARNING_DEPTH.reset(token)
+
+            return async_wrapper
+
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            depth = _DEPRECATED_WARNING_DEPTH.get()
+            if depth == 0:
+                warn_deprecated(
+                    resolved_api_name,
+                    replacement=replacement,
+                    reason=reason,
+                    stacklevel=3,
+                )
+            token = _DEPRECATED_WARNING_DEPTH.set(depth + 1)
+            try:
+                return func(*args, **kwargs)
+            finally:
+                _DEPRECATED_WARNING_DEPTH.reset(token)
+
+        return wrapper
+
+    return decorator
+
+
+def deprecated(
+    api_name: Optional[str] = None,
+    *,
+    replacement: str = "MilvusClient",
+    reason: str = "is an ORM-style PyMilvus API",
+) -> Callable[[Any], Any]:
+    if callable(api_name):
+        return _deprecated_warning(None, replacement=replacement, reason=reason)(api_name)
+    return _deprecated_warning(api_name, replacement=replacement, reason=reason)
+
+
+def _deprecated_property(api_name: str, prop: property) -> property:
+    fget = deprecated(api_name)(prop.fget) if prop.fget is not None else None
+    fset = deprecated(api_name)(prop.fset) if prop.fset is not None else None
+    fdel = deprecated(api_name)(prop.fdel) if prop.fdel is not None else None
+    return property(fget, fset, fdel, prop.__doc__)
+
+
+def deprecated_class(
+    api_prefix: str,
+    *,
+    exclude_methods: Optional[Set[str]] = None,
+    warn_properties: Optional[Set[str]] = None,
+) -> Callable[[Any], Any]:
+    exclude_methods = exclude_methods or set()
+    warn_properties = warn_properties or set()
+
+    def decorator(cls: Any):
+        if hasattr(cls, "__init__") and "__init__" not in exclude_methods:
+            cls.__init__ = deprecated(api_prefix)(cls.__init__)
+
+        for name, attr in list(cls.__dict__.items()):
+            if name.startswith("_") or name in exclude_methods:
+                continue
+
+            api_name = f"{api_prefix}.{name}"
+
+            if isinstance(attr, property):
+                if name in warn_properties:
+                    setattr(cls, name, _deprecated_property(api_name, attr))
+                continue
+
+            if isinstance(attr, classmethod):
+                setattr(cls, name, classmethod(deprecated(api_name)(attr.__func__)))
+                continue
+
+            if isinstance(attr, staticmethod):
+                setattr(cls, name, staticmethod(deprecated(api_name)(attr.__func__)))
+                continue
+
+            if callable(attr):
+                setattr(cls, name, deprecated(api_name)(attr))
+
+        return cls
+
+    return decorator
 
 
 # Reference: https://grpc.github.io/grpc/python/grpc.html#grpc-status-code

@@ -1,5 +1,7 @@
 from typing import Optional
 
+from pymilvus.decorators import deprecated
+
 from .connections import connections
 
 
@@ -83,3 +85,11 @@ def describe_database(db_name: str, using: str = "default", timeout: Optional[fl
     """
     context = connections._generate_call_context(using)
     return _get_connection(using).describe_database(db_name, timeout=timeout, context=context)
+
+
+using_database = deprecated("db.using_database")(using_database)
+create_database = deprecated("db.create_database")(create_database)
+drop_database = deprecated("db.drop_database")(drop_database)
+list_database = deprecated("db.list_database")(list_database)
+set_properties = deprecated("db.set_properties")(set_properties)
+describe_database = deprecated("db.describe_database")(describe_database)
