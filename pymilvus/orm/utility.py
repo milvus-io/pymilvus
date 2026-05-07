@@ -21,6 +21,7 @@ from pymilvus.client.utils import hybridts_to_unixtime as _hybridts_to_unixtime
 from pymilvus.client.utils import mkts_from_datetime as _mkts_from_datetime
 from pymilvus.client.utils import mkts_from_hybridts as _mkts_from_hybridts
 from pymilvus.client.utils import mkts_from_unixtime as _mkts_from_unixtime
+from pymilvus.decorators import deprecated
 from pymilvus.exceptions import MilvusException
 
 from .connections import connections
@@ -1389,3 +1390,48 @@ def list_indexes(
                 # list all indexes of this field.
                 index_name_list.append(index.index_name)
     return index_name_list
+
+
+loading_progress = deprecated("utility.loading_progress")(loading_progress)
+load_state = deprecated("utility.load_state")(load_state)
+wait_for_loading_complete = deprecated("utility.wait_for_loading_complete")(
+    wait_for_loading_complete
+)
+index_building_progress = deprecated("utility.index_building_progress")(index_building_progress)
+wait_for_index_building_complete = deprecated("utility.wait_for_index_building_complete")(
+    wait_for_index_building_complete
+)
+has_collection = deprecated("utility.has_collection")(has_collection)
+has_partition = deprecated("utility.has_partition")(has_partition)
+drop_collection = deprecated("utility.drop_collection")(drop_collection)
+truncate_collection = deprecated("utility.truncate_collection")(truncate_collection)
+rename_collection = deprecated("utility.rename_collection")(rename_collection)
+list_collections = deprecated("utility.list_collections")(list_collections)
+load_balance = deprecated("utility.load_balance")(load_balance)
+get_query_segment_info = deprecated("utility.get_query_segment_info")(get_query_segment_info)
+create_alias = deprecated("utility.create_alias")(create_alias)
+drop_alias = deprecated("utility.drop_alias")(drop_alias)
+alter_alias = deprecated("utility.alter_alias")(alter_alias)
+list_aliases = deprecated("utility.list_aliases")(list_aliases)
+do_bulk_insert = deprecated("utility.do_bulk_insert")(do_bulk_insert)
+get_bulk_insert_state = deprecated("utility.get_bulk_insert_state")(get_bulk_insert_state)
+list_bulk_insert_tasks = deprecated("utility.list_bulk_insert_tasks")(list_bulk_insert_tasks)
+reset_password = deprecated("utility.reset_password")(reset_password)
+create_user = deprecated("utility.create_user")(create_user)
+update_password = deprecated("utility.update_password")(update_password)
+delete_user = deprecated("utility.delete_user")(delete_user)
+list_usernames = deprecated("utility.list_usernames")(list_usernames)
+list_roles = deprecated("utility.list_roles")(list_roles)
+list_user = deprecated("utility.list_user")(list_user)
+list_users = deprecated("utility.list_users")(list_users)
+get_server_version = deprecated("utility.get_server_version")(get_server_version)
+create_resource_group = deprecated("utility.create_resource_group")(create_resource_group)
+update_resource_groups = deprecated("utility.update_resource_groups")(update_resource_groups)
+drop_resource_group = deprecated("utility.drop_resource_group")(drop_resource_group)
+describe_resource_group = deprecated("utility.describe_resource_group")(describe_resource_group)
+list_resource_groups = deprecated("utility.list_resource_groups")(list_resource_groups)
+transfer_node = deprecated("utility.transfer_node")(transfer_node)
+transfer_replica = deprecated("utility.transfer_replica")(transfer_replica)
+flush_all = deprecated("utility.flush_all")(flush_all)
+get_server_type = deprecated("utility.get_server_type")(get_server_type)
+list_indexes = deprecated("utility.list_indexes")(list_indexes)

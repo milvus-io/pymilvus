@@ -26,6 +26,7 @@ from pymilvus.client.utils import (
     get_params,
     is_vector_type,
 )
+from pymilvus.decorators import deprecated
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     ErrorCode,
@@ -1737,7 +1738,11 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    # deprecated same to use_database
+    @deprecated(
+        "MilvusClient.using_database",
+        replacement="MilvusClient.use_database",
+        reason="is deprecated",
+    )
     def using_database(self, db_name: str, **kwargs):
         self.use_database(db_name, **kwargs)
 
