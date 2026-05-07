@@ -3242,7 +3242,7 @@ class GetRefreshExternalCollectionProgressRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., job_id: _Optional[int] = ...) -> None: ...
 
 class RefreshExternalCollectionJobInfo(_message.Message):
-    __slots__ = ("job_id", "collection_name", "state", "progress", "reason", "external_source", "start_time", "end_time")
+    __slots__ = ("job_id", "collection_name", "state", "progress", "reason", "external_source", "start_time", "end_time", "external_spec")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
@@ -3251,6 +3251,7 @@ class RefreshExternalCollectionJobInfo(_message.Message):
     EXTERNAL_SOURCE_FIELD_NUMBER: _ClassVar[int]
     START_TIME_FIELD_NUMBER: _ClassVar[int]
     END_TIME_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_SPEC_FIELD_NUMBER: _ClassVar[int]
     job_id: int
     collection_name: str
     state: RefreshExternalCollectionState
@@ -3259,7 +3260,8 @@ class RefreshExternalCollectionJobInfo(_message.Message):
     external_source: str
     start_time: int
     end_time: int
-    def __init__(self, job_id: _Optional[int] = ..., collection_name: _Optional[str] = ..., state: _Optional[_Union[RefreshExternalCollectionState, str]] = ..., progress: _Optional[int] = ..., reason: _Optional[str] = ..., external_source: _Optional[str] = ..., start_time: _Optional[int] = ..., end_time: _Optional[int] = ...) -> None: ...
+    external_spec: str
+    def __init__(self, job_id: _Optional[int] = ..., collection_name: _Optional[str] = ..., state: _Optional[_Union[RefreshExternalCollectionState, str]] = ..., progress: _Optional[int] = ..., reason: _Optional[str] = ..., external_source: _Optional[str] = ..., start_time: _Optional[int] = ..., end_time: _Optional[int] = ..., external_spec: _Optional[str] = ...) -> None: ...
 
 class GetRefreshExternalCollectionProgressResponse(_message.Message):
     __slots__ = ("status", "job_info")
