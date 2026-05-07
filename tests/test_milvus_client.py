@@ -1817,6 +1817,7 @@ class TestMilvusClientExternalCollection:
                 external_source="s3://bucket",
                 start_time=1000,
                 end_time=2000,
+                external_spec='{"format":"parquet"}',
             )
         )
 
@@ -1827,6 +1828,7 @@ class TestMilvusClientExternalCollection:
             assert result.job_id == 42
             assert result.state == "RefreshCompleted"
             assert result.progress == 100
+            assert result.external_spec == '{"format":"parquet"}'
             mock_handler.get_refresh_external_collection_progress.assert_called_once_with(
                 job_id=42, timeout=None, context=ANY
             )
@@ -1845,6 +1847,7 @@ class TestMilvusClientExternalCollection:
                 external_source="s3://a",
                 start_time=1000,
                 end_time=2000,
+                external_spec='{"format":"parquet"}',
             ),
         ]
 
@@ -1854,6 +1857,7 @@ class TestMilvusClientExternalCollection:
 
             assert len(result) == 1
             assert result[0].job_id == 1
+            assert result[0].external_spec == '{"format":"parquet"}'
             mock_handler.list_refresh_external_collection_jobs.assert_called_once_with(
                 collection_name="ext_coll", timeout=None, context=ANY
             )

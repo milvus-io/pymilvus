@@ -16,6 +16,7 @@ def _make_job_info(job_id=1, collection_name="ext_coll", state=2, progress=100, 
     info.progress = progress
     info.reason = reason
     info.external_source = "s3://bucket/path"
+    info.external_spec = '{"format":"parquet"}'
     info.start_time = 1000
     info.end_time = 2000
     return info
@@ -54,6 +55,7 @@ class TestGrpcHandlerExternalCollectionOps:
         assert result.state == "RefreshCompleted"
         assert result.progress == 100
         assert result.external_source == "s3://bucket/path"
+        assert result.external_spec == '{"format":"parquet"}'
 
     def test_get_refresh_progress_in_progress(self, handler):
         mock_resp = MagicMock()
@@ -109,8 +111,10 @@ class TestGrpcHandlerExternalCollectionOps:
         assert len(result) == 2
         assert result[0].job_id == 1
         assert result[0].state == "RefreshCompleted"
+        assert result[0].external_spec == '{"format":"parquet"}'
         assert result[1].job_id == 2
         assert result[1].state == "RefreshInProgress"
+        assert result[1].external_spec == '{"format":"parquet"}'
 
     def test_list_refresh_jobs_empty(self, handler):
         mock_resp = MagicMock()
