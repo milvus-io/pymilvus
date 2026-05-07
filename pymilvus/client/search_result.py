@@ -19,6 +19,7 @@ _SCALAR_TYPES = frozenset(
         DataType.FLOAT,
         DataType.DOUBLE,
         DataType.VARCHAR,
+        DataType.TEXT,
         DataType.GEOMETRY,
         DataType.TIMESTAMPTZ,
     }
@@ -50,6 +51,7 @@ _SCALAR_DATA_ATTR = {
     DataType.FLOAT: "float_data",
     DataType.DOUBLE: "double_data",
     DataType.VARCHAR: "string_data",
+    DataType.TEXT: "string_data",
     DataType.TIMESTAMPTZ: "string_data",
     DataType.GEOMETRY: "geometry_wkt_data",
     DataType.JSON: "json_data",
@@ -571,6 +573,16 @@ class SearchResult(list):
                 )
                 continue
 
+            if dtype == DataType.TEXT:
+                field2data[name] = (
+                    apply_valid_data(
+                        scalars.string_data.data[start:end],
+                        field.valid_data[start:end] if field.valid_data else None,
+                    ),
+                    field_meta,
+                )
+                continue
+
             if dtype == DataType.GEOMETRY:
                 field2data[name] = (
                     apply_valid_data(
@@ -921,7 +933,7 @@ def extract_array_row_data(
             row.append(ith_array.double_data.data)
             continue
 
-        if element_type in (DataType.STRING, DataType.VARCHAR):
+        if element_type in (DataType.STRING, DataType.VARCHAR, DataType.TEXT):
             row.append(ith_array.string_data.data)
             continue
     return row
@@ -951,7 +963,7 @@ def extract_struct_field_value(field_data: schema_pb2.FieldData, index: int) -> 
     elif field_data.type == DataType.DOUBLE:
         if index < len(field_data.scalars.double_data.data):
             return field_data.scalars.double_data.data[index]
-    elif field_data.type == DataType.VARCHAR:
+    elif field_data.type in (DataType.VARCHAR, DataType.TEXT):
         if index < len(field_data.scalars.string_data.data):
             return field_data.scalars.string_data.data[index]
     elif field_data.type == DataType.JSON:
