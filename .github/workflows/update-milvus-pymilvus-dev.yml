@@ -35,7 +35,7 @@ jobs:
       run: |
         set -euo pipefail
         if [ "$EVENT_NAME" = "schedule" ]; then
-          matrix='{"include":[{"pymilvus_branch":"master","milvus_branch":"master"},{"pymilvus_branch":"2.6","milvus_branch":"2.6"}]}'
+          matrix='{"include":[{"pymilvus_branch":"master","milvus_branch":"master"},{"pymilvus_branch":"3.0","milvus_branch":"3.0"},{"pymilvus_branch":"2.6","milvus_branch":"2.6"}]}'
         else
           matrix="$(jq -cn --arg pymilvus_branch "$PYMILVUS_BRANCH" --arg milvus_branch "$MILVUS_BRANCH" '{include:[{pymilvus_branch:$pymilvus_branch,milvus_branch:$milvus_branch}]}')"
         fi

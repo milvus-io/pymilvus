@@ -3,7 +3,7 @@ name: Check proto on pull request
 on:
   pull_request:
     branches:
-      - master
+      - 3.0
 
 jobs:
   build:
