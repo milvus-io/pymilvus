@@ -547,6 +547,7 @@ class FieldSchema:
             DataType.FLOAT16_VECTOR,
             DataType.BFLOAT16_VECTOR,
             DataType.VARCHAR,
+            DataType.TEXT,
             DataType.ARRAY,
             DataType.SPARSE_FLOAT_VECTOR,
             DataType.INT8_VECTOR,
@@ -931,7 +932,10 @@ class Function:
             raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputOutputCount)
 
         for field in schema.fields:
-            if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+            if field.name == self._input_field_names[0] and field.dtype not in (
+                DataType.VARCHAR,
+                DataType.TEXT,
+            ):
                 raise ParamError(message=ExceptionsMessage.BM25FunctionIncorrectInputFieldType)
             if (
                 field.name == self._output_field_names[0]
@@ -946,7 +950,10 @@ class Function:
             )
 
         for field in schema.fields:
-            if field.name == self._input_field_names[0] and field.dtype != DataType.VARCHAR:
+            if field.name == self._input_field_names[0] and field.dtype not in (
+                DataType.VARCHAR,
+                DataType.TEXT,
+            ):
                 raise ParamError(
                     message=ExceptionsMessage.TextEmbeddingFunctionIncorrectInputFieldType
                 )

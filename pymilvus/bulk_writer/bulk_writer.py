@@ -169,6 +169,14 @@ class BulkWriter:
 
         return len(x)
 
+    def _verify_text(self, x: object, field: FieldSchema):
+        # TEXT type has no max_length limit
+        validator = TYPE_VALIDATOR[DataType.TEXT.name]
+        if not validator(x):
+            self._throw(f"Illegal text value for field '{field.name}', type mismatch")
+
+        return len(x)
+
     def _verify_scalar(self, x: object, dtype: DataType, field_name: str):
         validator = TYPE_VALIDATOR[dtype.name]
         if not validator(x):
@@ -196,6 +204,9 @@ class BulkWriter:
         elif element_type == DataType.VARCHAR:
             for ele in x:
                 row_size = row_size + self._verify_varchar(ele, field)
+        elif element_type == DataType.TEXT:
+            for ele in x:
+                row_size = row_size + self._verify_text(ele, field)
         else:
             self._throw(f"Unsupported element type for array field '{field.name}'")
 
@@ -278,6 +289,8 @@ class BulkWriter:
                 row_size = row_size + byte_len
             elif dtype == DataType.VARCHAR:
                 row_size = row_size + self._verify_varchar(row[field.name], field)
+            elif dtype == DataType.TEXT:
+                row_size = row_size + self._verify_text(row[field.name], field)
             elif dtype == DataType.JSON:
                 row[field.name], size = self._verify_json(row[field.name], field)
                 row_size = row_size + size
@@ -317,6 +330,8 @@ class BulkWriter:
                     struct_size = struct_size + byte_len
                 elif sub_dtype == DataType.VARCHAR:
                     struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
+                elif sub_dtype == DataType.TEXT:
+                    struct_size = struct_size + self._verify_text(obj[sub_field.name], sub_field)
                 elif sub_dtype in {
                     DataType.BOOL,
                     DataType.INT8,

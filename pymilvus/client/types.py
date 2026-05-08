@@ -113,6 +113,7 @@ class DataType(IntEnum):
 
     STRING = schema_pb2.String
     VARCHAR = schema_pb2.VarChar
+    TEXT = schema_pb2.Text
     ARRAY = schema_pb2.Array
     JSON = schema_pb2.JSON
     GEOMETRY = schema_pb2.Geometry
