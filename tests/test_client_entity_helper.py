@@ -144,6 +144,16 @@ class TestEntityHelperExtended:
         assert len(result) == 2
         assert list(result[0].string_data.data) == ["hello", "world"]
 
+    def test_entity_to_array_arr_text(self):
+        """Test converting TEXT arrays stores string_data without max_length."""
+        field_info = {"name": "array_field", "element_type": DataType.TEXT}
+        long_text = "x" * (Config.MaxVarCharLength + 1)
+
+        result = entity_to_array_arr([["hello", long_text], ["foo"]], field_info)
+
+        assert len(result) == 2
+        assert list(result[0].string_data.data) == ["hello", long_text]
+
     def test_entity_to_array_arr_invalid_type(self):
         """Test error handling for invalid element type"""
         field_info = {"name": "array_field", "element_type": 999}
@@ -334,6 +344,18 @@ class TestEntityHelperExtended:
         assert result.field_name == "test_field"
         assert result.type == DataType.INT64
         assert list(result.scalars.long_data.data) == [1, 2, 3, 4, 5]
+
+    def test_entity_to_field_data_text_skips_max_length_check(self):
+        """Test TEXT field data accepts strings longer than VARCHAR max_length."""
+        long_text = "x" * (Config.MaxVarCharLength + 1)
+        entity = {"name": "text_field", "type": DataType.TEXT, "values": ["short", long_text]}
+        field_info = {"name": "text_field", "params": {Config.MaxVarCharLengthKey: 1}}
+
+        result = entity_to_field_data(entity, field_info, 2)
+
+        assert result.field_name == "text_field"
+        assert result.type == DataType.TEXT
+        assert list(result.scalars.string_data.data) == ["short", long_text]
 
 
 class TestNullableVectorSupport:
@@ -783,6 +805,19 @@ class TestPackFieldValueExtendedTypes:
         pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
         assert len(field_data.scalars.geometry_wkt_data.data) == 0
 
+    def test_pack_text_field_skips_max_length_check(self):
+        """Test packing TEXT accepts long strings without max_length validation."""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.TEXT
+        field_data.field_name = "text_field"
+        field_info = {"name": "text_field", "params": {Config.MaxVarCharLengthKey: 1}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+        long_text = "x" * (Config.MaxVarCharLength + 1)
+
+        pack_field_value_to_field_data(long_text, field_data, field_info, vector_bytes_cache)
+
+        assert list(field_data.scalars.string_data.data) == [long_text]
+
     def test_pack_unsupported_type_raises_error(self):
         """Test that unsupported field type raises ParamError"""
         field_data = schema_types.FieldData()
@@ -904,6 +939,23 @@ class TestExtractRowDataV2:
 
         assert entity_rows[0]["str_field"] == "hello"
         assert entity_rows[1]["str_field"] == "world"
+
+    def test_extract_text_with_validity(self):
+        """Test extracting TEXT data with validity mask."""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.TEXT
+        field_data.field_name = "text_field"
+        field_data.scalars.string_data.data.extend(["hello", "ignored", "world"])
+        field_data.valid_data.extend([True, False, True])
+
+        entity_rows = [{}, {}, {}]
+        extract_row_data_from_fields_data_v2(field_data, entity_rows)
+
+        assert entity_rows == [
+            {"text_field": "hello"},
+            {"text_field": None},
+            {"text_field": "world"},
+        ]
 
     def test_extract_geometry_with_validity(self):
         """Test extracting GEOMETRY data with validity mask"""
@@ -1028,6 +1080,16 @@ class TestExtractRowDataFromFieldsData:
 
         result = extract_row_data_from_fields_data([field_data], 0)
         assert result["geo_field"] == "POINT(0 0)"
+
+    def test_extract_text_field(self):
+        """Test extracting TEXT scalar field."""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.TEXT
+        field_data.field_name = "text_field"
+        field_data.scalars.string_data.data.extend(["hello", "world"])
+
+        result = extract_row_data_from_fields_data([field_data], 1)
+        assert result["text_field"] == "world"
 
 
 class TestExtractVectorArrayRowData:

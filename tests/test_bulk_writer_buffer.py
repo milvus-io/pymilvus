@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import numpy as np
+import pyarrow as pa
 import pytest
 from pymilvus.bulk_writer.buffer import Buffer
 from pymilvus.bulk_writer.constants import DYNAMIC_FIELD_NAME, BulkFileType
@@ -389,6 +390,27 @@ class TestBufferExtended:
             # Verify JSON field was persisted
             json_file = next(f for f in files if "json_field" in f)
             assert Path(json_file).exists()
+
+    def test_text_field_persists_npy_and_has_arrow_mapping(self):
+        """Test bulk writer buffer can persist TEXT and deduce parquet schema."""
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="text_field", dtype=DataType.TEXT),
+        ]
+        schema = CollectionSchema(fields=fields)
+        long_text = "x" * 70000
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = Buffer(schema, BulkFileType.NUMPY)
+            buffer.append_row({"id": 1, "text_field": long_text})
+            files = buffer.persist(temp_dir)
+
+            text_file = next(f for f in files if "text_field" in f)
+            assert np.load(text_file).tolist() == [long_text]
+
+        buffer = Buffer(schema, BulkFileType.PARQUET)
+        arrow_schema = buffer._deduce_arrow_schema()
+        assert arrow_schema.field("text_field").type == pa.string()
 
     def test_persist_npy_with_float16_vectors(self):
         """Test persisting float16 and bfloat16 vectors as numpy"""

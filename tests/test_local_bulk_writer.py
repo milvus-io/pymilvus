@@ -8,7 +8,8 @@ import pytest
 from pymilvus.bulk_writer.constants import MB, BulkFileType
 from pymilvus.bulk_writer.local_bulk_writer import LocalBulkWriter
 from pymilvus.client.types import DataType
-from pymilvus.orm.schema import CollectionSchema, FieldSchema
+from pymilvus.exceptions import MilvusException
+from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema
 
 
 class TestLocalBulkWriter:
@@ -131,6 +132,66 @@ class TestLocalBulkWriter:
         mock_thread.assert_called()
         mock_thread_instance.start.assert_called()
         mock_thread_instance.join.assert_not_called()
+
+    def test_append_row_text_scalar_array_and_struct(self, temp_dir):
+        struct_schema = StructFieldSchema()
+        struct_schema.add_field("chunk", DataType.TEXT)
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                FieldSchema(name="body", dtype=DataType.TEXT),
+                FieldSchema(
+                    name="tags",
+                    dtype=DataType.ARRAY,
+                    element_type=DataType.TEXT,
+                    max_capacity=4,
+                ),
+            ]
+        )
+        schema.add_field(
+            "chunks",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=2,
+        )
+        writer = LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=BulkFileType.JSON,
+        )
+        long_text = "x" * 70000
+
+        writer.append_row(
+            {
+                "id": 1,
+                "body": long_text,
+                "tags": ["short", long_text],
+                "chunks": [{"chunk": "a"}, {"chunk": long_text}],
+            }
+        )
+
+        assert writer.total_row_count == 1
+        assert writer._buffer._buffer["body"] == [long_text]
+        assert writer._buffer._buffer["tags"] == [["short", long_text]]
+
+    def test_append_row_text_rejects_non_string(self, temp_dir):
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                FieldSchema(name="body", dtype=DataType.TEXT),
+            ]
+        )
+        writer = LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=BulkFileType.JSON,
+        )
+
+        with pytest.raises(MilvusException, match="Illegal text value"):
+            writer.append_row({"id": 1, "body": 1})
 
     def test_commit_with_callback(self, writer):
         callback_mock = Mock()

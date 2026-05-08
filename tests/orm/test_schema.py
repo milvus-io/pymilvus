@@ -392,6 +392,13 @@ class TestFieldSchemaTypeParams:
         )
         assert field._kwargs["analyzer_params"] == '{"type":"standard"}'
 
+    def test_text_accepts_text_type_params_without_max_length(self):
+        """Test TEXT can carry analyzer params without requiring max_length."""
+        field = FieldSchema("text", DataType.TEXT, analyzer_params={"type": "standard"})
+        assert field.dtype == DataType.TEXT
+        assert field._kwargs["analyzer_params"] == '{"type":"standard"}'
+        assert field.params["analyzer_params"] == '{"type":"standard"}'
+
 
 # ============================================================
 # CollectionSchema Tests
@@ -940,6 +947,26 @@ class TestFunctionVerify:
                 FunctionType.BM25,
                 ["in"],
                 ["out"],
+                DataType.TEXT,
+                DataType.SPARSE_FLOAT_VECTOR,
+                False,
+                None,
+                id="bm25_text_input_passes",
+            ),
+            pytest.param(
+                FunctionType.TEXTEMBEDDING,
+                ["in"],
+                ["out"],
+                DataType.TEXT,
+                DataType.FLOAT_VECTOR,
+                False,
+                None,
+                id="textembedding_text_input_passes",
+            ),
+            pytest.param(
+                FunctionType.BM25,
+                ["in"],
+                ["out"],
                 DataType.INT64,
                 DataType.SPARSE_FLOAT_VECTOR,
                 True,
@@ -1121,6 +1148,12 @@ class TestStructFieldSchemaCreation:
         struct.add_field("name", DataType.VARCHAR, max_length=256)
         struct.add_field("age", DataType.INT32)
         assert len(struct.fields) == 2
+
+    def test_create_struct_schema_with_text_field(self):
+        """Test TEXT is valid as a struct sub-field."""
+        struct = StructFieldSchema()
+        struct.add_field("body", DataType.TEXT)
+        assert struct.fields[0].dtype == DataType.TEXT
 
     def test_struct_dtype_property(self):
         """Test dtype property returns STRUCT."""

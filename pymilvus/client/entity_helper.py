@@ -324,7 +324,7 @@ def convert_to_array(obj: List[Any], field_info: Any):
     if element_type == DataType.DOUBLE:
         field_data.double_data.data.extend(obj)
         return field_data
-    if element_type in (DataType.VARCHAR, DataType.STRING):
+    if element_type in (DataType.VARCHAR, DataType.STRING, DataType.TEXT):
         field_data.string_data.data.extend(obj)
         return field_data
     raise ParamError(
@@ -673,6 +673,21 @@ def pack_field_value_to_field_data(
                 % (field_name, "varchar", type(field_value))
                 + f" Detail: {e!s}"
             ) from e
+    elif field_type == DataType.TEXT:
+        try:
+            if field_value is None:
+                field_data.scalars.string_data.data.extend([])
+            else:
+                # TEXT type does not have max_length limit, skip length check
+                field_data.scalars.string_data.data.append(
+                    convert_to_str_array(field_value, field_info, check=False)
+                )
+        except (TypeError, ValueError) as e:
+            raise DataNotMatchException(
+                message=ExceptionsMessage.FieldDataInconsistent
+                % (field_name, "text", type(field_value))
+                + f" Detail: {e!s}"
+            ) from e
     elif field_type == DataType.GEOMETRY:
         try:
             if field_value is None:
@@ -791,6 +806,11 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             field_data.scalars.string_data.data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
+        elif entity_type == DataType.TEXT:
+            # TEXT type does not have max_length limit, skip length check
+            field_data.scalars.string_data.data.extend(
+                entity_to_str_arr(entity_values, field_info, check=False)
+            )
         elif entity_type == DataType.JSON:
             field_data.scalars.json_data.data.extend(entity_to_json_arr(entity_values, field_info))
         elif entity_type == DataType.ARRAY:
@@ -880,6 +900,7 @@ def extract_array_row_data_with_validity(field_data: Any, entity_rows: List[Dict
     elif element_type in (
         DataType.STRING,
         DataType.VARCHAR,
+        DataType.TEXT,
     ):
         [
             entity_rows[i].__setitem__(
@@ -915,6 +936,7 @@ def extract_array_row_data_no_validity(field_data: Any, entity_rows: List[Dict],
     elif element_type in (
         DataType.STRING,
         DataType.VARCHAR,
+        DataType.TEXT,
     ):
         [entity_rows[i].__setitem__(field_name, data[i].string_data.data) for i in range(row_count)]
     else:
@@ -935,7 +957,7 @@ def extract_array_row_data(field_data: Any, index: int):
         return array.float_data.data
     if element_type == DataType.DOUBLE:
         return array.double_data.data
-    if element_type in (DataType.STRING, DataType.VARCHAR):
+    if element_type in (DataType.STRING, DataType.VARCHAR, DataType.TEXT):
         return array.string_data.data
     return None
 
@@ -989,6 +1011,11 @@ def extract_row_data_from_fields_data_v2(
         return False
 
     if field_data.type == DataType.VARCHAR:
+        data = field_data.scalars.string_data.data
+        assign_scalar(data)
+        return False
+
+    if field_data.type == DataType.TEXT:
         data = field_data.scalars.string_data.data
         assign_scalar(data)
         return False
@@ -1127,7 +1154,7 @@ def extract_row_data_from_fields_data(
                 row_data[field_name] = None if is_null else scalar_data[index]
                 return
 
-        if field_data.type == DataType.VARCHAR:
+        if field_data.type in (DataType.VARCHAR, DataType.TEXT):
             scalar_data = field_data.scalars.string_data.data
             if len(scalar_data) >= index:
                 row_data[field_name] = None if is_null else scalar_data[index]
