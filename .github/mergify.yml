@@ -4,6 +4,7 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
+        - base~=3\.\d
       # Require that Python tests succeed on Windows (any Python version, any Windows build)
       - "status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
       # Require that Python tests succeed on Ubuntu (any Python version, any Ubuntu build)
@@ -23,6 +24,7 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
+        - base~=3\.\d
       - or:
         - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
         - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
@@ -38,6 +40,7 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
+        - base~=3\.\d
       - -status-success=DCO
     actions:
       label:
@@ -51,6 +54,7 @@ pull_request_rules:
       - or:
         - base=master
         - base~=2\.\d
+        - base~=3\.\d
       - status-success=DCO
     actions:
       label:
