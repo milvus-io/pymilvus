@@ -434,6 +434,7 @@ class TestDataType:
             ("INT64", 5),
             ("FLOAT", 10),
             ("DOUBLE", 11),
+            ("TEXT", 25),
         ],
     )
     def test_data_type_values(self, attr, value):
@@ -443,6 +444,7 @@ class TestDataType:
         assert str(DataType.BOOL) == "1"
         assert str(DataType.INT64) == "5"
         assert str(DataType.FLOAT) == "10"
+        assert str(DataType.TEXT) == "25"
 
 
 # TestFunctionType / HighlightType / RangeType / PlaceholderType

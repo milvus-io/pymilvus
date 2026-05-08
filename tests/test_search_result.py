@@ -50,6 +50,7 @@ def _make_scalar_field(dtype, name, data, field_id=0, is_dynamic=False, valid_da
         DataType.VARCHAR: lambda d: schema_pb2.ScalarField(
             string_data=schema_pb2.StringArray(data=d)
         ),
+        DataType.TEXT: lambda d: schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=d)),
         DataType.JSON: lambda d: schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=d)),
         DataType.GEOMETRY: lambda d: schema_pb2.ScalarField(
             geometry_wkt_data=schema_pb2.GeometryWktArray(data=d)
@@ -254,10 +255,14 @@ class TestSearchResult:
             _make_scalar_field(
                 DataType.VARCHAR, "varchar_field", [str(i * 10) for i in range(6)], field_id=107
             ),
+            _make_scalar_field(
+                DataType.TEXT, "text_field", [f"text {i}" for i in range(6)], field_id=118
+            ),
             _make_array_field(DataType.INT16, "int16_array_field", _int_rows * 6, field_id=108),
             _make_array_field(DataType.INT64, "int64_array_field", _long_rows * 6, field_id=109),
             _make_array_field(DataType.FLOAT, "float_array_field", _float_rows * 6, field_id=110),
             _make_array_field(DataType.VARCHAR, "varchar_array_field", _str_rows * 6, field_id=110),
+            _make_array_field(DataType.TEXT, "text_array_field", _str_rows * 6, field_id=119),
             _make_scalar_field(
                 DataType.JSON,
                 "normal_json_field",
@@ -311,6 +316,8 @@ class TestSearchResult:
         assert r[0][0].get("entity").get("int32_field") == 0
         assert r[0][1].get("entity").get("int8_field") == 1
         assert r[0][2].get("entity").get("int16_field") == 2
+        assert r[0][1].get("entity").get("text_field") == "text 1"
+        assert r[0][1].get("entity").get("text_array_field") == [str(j * 1.0) for j in range(10)]
         assert r[0][1].get("entity").get("int64_array_field") == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         assert len(r[0][0].get("entity").get("bfloat16_vector_field")) == 32
         assert len(r[0][0].get("entity").get("float16_vector_field")) == 32
@@ -797,6 +804,7 @@ class TestGetFieldsByRange:
             _make_scalar_field(DataType.FLOAT, "float", [float(i) for i in range(count)]),
             _make_scalar_field(DataType.DOUBLE, "double", [float(i) for i in range(count)]),
             _make_scalar_field(DataType.VARCHAR, "varchar", [str(i) for i in range(count)]),
+            _make_scalar_field(DataType.TEXT, "text", [f"text-{i}" for i in range(count)]),
             _make_scalar_field(DataType.JSON, "json", [b"{}"] * count),
             _make_scalar_field(DataType.GEOMETRY, "geom", ["POINT(0 0)"] * count),
             _make_array_field(DataType.INT32, "array", [_int_row] * count),
@@ -832,6 +840,7 @@ class TestGetFieldsByRange:
                 "float",
                 "double",
                 "varchar",
+                "text",
                 "json",
                 "geom",
                 "array",
@@ -846,6 +855,7 @@ class TestGetFieldsByRange:
             for key in expected_keys:
                 assert key in result
             assert len(result["bool"][0]) == count
+            assert result["text"][0] == [f"text-{i}" for i in range(count)]
 
         finally:
             entity_helper.extract_struct_array_from_column_data = original_struct_func
@@ -866,6 +876,20 @@ class TestGetFieldsByRange:
         result = res._get_fields_by_range(0, 2, [fd])
         # It calls directly return data
         assert result["fv"][0] == [1.0, 2.0, 3.0, 4.0]
+
+    def test_get_fields_by_range_text_with_validity(self):
+        """Test TEXT scalar range extraction applies the validity mask."""
+        res = SearchResult(schema_pb2.SearchResultData())
+        fd = _make_scalar_field(
+            DataType.TEXT,
+            "text",
+            ["keep-0", "drop-1", "keep-2"],
+            valid_data=[True, False, True],
+        )
+
+        result = res._get_fields_by_range(1, 3, [fd])
+
+        assert result["text"][0] == [None, "keep-2"]
 
 
 class TestHelpers:
@@ -905,6 +929,11 @@ class TestHelpers:
             (
                 schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["a", "b"])),
                 DataType.VARCHAR,
+                [["a", "b"]],
+            ),
+            (
+                schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["a", "b"])),
+                DataType.TEXT,
                 [["a", "b"]],
             ),
         ],
@@ -988,6 +1017,14 @@ class TestHelpers:
                 ),
                 0,
                 "s",
+            ),
+            (
+                schema_pb2.FieldData(
+                    type=DataType.TEXT,
+                    scalars=schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=["t"])),
+                ),
+                0,
+                "t",
             ),
             (
                 schema_pb2.FieldData(
