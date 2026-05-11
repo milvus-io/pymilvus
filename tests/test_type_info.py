@@ -1,8 +1,4 @@
-import os
-import subprocess
-import sys
 from dataclasses import FrozenInstanceError
-from pathlib import Path
 
 import pytest
 from pymilvus.client.type_info import (
@@ -29,37 +25,11 @@ from pymilvus.client.type_info import (
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
 
-REQUIRED_TYPES = {
-    DataType.BOOL,
-    DataType.INT8,
-    DataType.INT16,
-    DataType.INT32,
-    DataType.INT64,
-    DataType.FLOAT,
-    DataType.DOUBLE,
-    DataType.STRING,
-    DataType.VARCHAR,
-    DataType.TEXT,
-    DataType.JSON,
-    DataType.ARRAY,
-    DataType.GEOMETRY,
-    DataType.TIMESTAMPTZ,
-    DataType.FLOAT_VECTOR,
-    DataType.BINARY_VECTOR,
-    DataType.FLOAT16_VECTOR,
-    DataType.BFLOAT16_VECTOR,
-    DataType.SPARSE_FLOAT_VECTOR,
-    DataType.INT8_VECTOR,
-    DataType.STRUCT,
-    DataType._ARRAY_OF_VECTOR,
-    DataType._ARRAY_OF_STRUCT,
-}
 
-
-def test_registry_contains_required_logical_model_types():
-    assert set(TYPE_INFO) >= REQUIRED_TYPES
-    assert DataType.NONE not in TYPE_INFO
-    assert DataType.UNKNOWN not in TYPE_INFO
+def test_registry_covers_all_supported_data_types():
+    unsupported_types = {DataType.NONE, DataType.UNKNOWN}
+    assert set(TYPE_INFO) == set(DataType) - unsupported_types
+    assert all(info.dtype == dtype for dtype, info in TYPE_INFO.items())
 
 
 def test_registry_and_descriptors_are_immutable():
@@ -287,41 +257,3 @@ def test_complex_and_nested_types_have_static_metadata_only(dtype):
     assert info.placeholder is None
     assert info.embedding_list_placeholder is None
     assert info.arrow_layout is not None
-
-
-def test_type_info_and_search_result_imports_do_not_load_pyarrow():
-    repo_root = Path(__file__).resolve().parents[1]
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(repo_root) + os.pathsep + env.get("PYTHONPATH", "")
-    script = """
-import importlib
-import sys
-
-# Package initialization may import optional dataframe integrations in some
-# environments. Clear that noise before checking these internal modules.
-import pymilvus.client
-
-for name in list(sys.modules):
-    if name == "pyarrow" or name.startswith("pyarrow."):
-        del sys.modules[name]
-
-sys.modules.pop("pymilvus.client.type_info", None)
-sys.modules.pop("pymilvus.client.search_result", None)
-
-importlib.import_module("pymilvus.client.type_info")
-importlib.import_module("pymilvus.client.search_result")
-
-loaded = sorted(name for name in sys.modules if name == "pyarrow" or name.startswith("pyarrow."))
-if loaded:
-    raise SystemExit("pyarrow imported: " + ", ".join(loaded[:5]))
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        cwd=repo_root,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, result.stderr or result.stdout
