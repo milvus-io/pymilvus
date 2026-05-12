@@ -1,3 +1,4 @@
+import csv
 import json
 import tempfile
 from pathlib import Path
@@ -669,6 +670,87 @@ class TestBufferExtended:
             files = buffer.persist(temp_dir)
             assert len(files) == 1
             mock_to_csv.assert_called_once()
+
+    def test_persist_csv_nullable_vectors_use_default_nullkey(self):
+        """Test CSV persist keeps nullable vectors empty by default"""
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, dim=4, nullable=True),
+            FieldSchema(name="binary_vector", dtype=DataType.BINARY_VECTOR, dim=8, nullable=True),
+            FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR, nullable=True),
+            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4, nullable=True),
+            FieldSchema(
+                name="bfloat16_vector", dtype=DataType.BFLOAT16_VECTOR, dim=4, nullable=True
+            ),
+            FieldSchema(name="int8_vector", dtype=DataType.INT8_VECTOR, dim=4, nullable=True),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.CSV)
+
+        buffer.append_row(
+            {
+                "id": 1,
+                "float_vector": None,
+                "binary_vector": None,
+                "sparse_vector": None,
+                "float16_vector": None,
+                "bfloat16_vector": None,
+                "int8_vector": None,
+            }
+        )
+        buffer.append_row(
+            {
+                "id": 2,
+                "float_vector": [1.0, 2.0, 3.0, 4.0],
+                "binary_vector": [255],
+                "sparse_vector": {1: 0.5},
+                "float16_vector": np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes(),
+                "bfloat16_vector": None,
+                "int8_vector": [1, 2, 3, 4],
+            }
+        )
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            with Path(files[0]).open(newline="") as csv_file:
+                rows = list(csv.reader(csv_file))
+
+        header = rows[0]
+        null_row = dict(zip(header, rows[1]))
+        value_row = dict(zip(header, rows[2]))
+
+        assert null_row["float_vector"] == ""
+        assert null_row["binary_vector"] == ""
+        assert null_row["sparse_vector"] == ""
+        assert null_row["float16_vector"] == ""
+        assert null_row["bfloat16_vector"] == ""
+        assert null_row["int8_vector"] == ""
+        assert value_row["float_vector"] != "null"
+        assert json.loads(value_row["float_vector"]) == [1.0, 2.0, 3.0, 4.0]
+        assert json.loads(value_row["binary_vector"]) == [255]
+        assert json.loads(value_row["sparse_vector"]) == {"1": 0.5}
+        assert json.loads(value_row["float16_vector"]) == [1.0, 2.0, 3.0, 4.0]
+        assert json.loads(value_row["int8_vector"]) == [1, 2, 3, 4]
+
+    def test_persist_csv_nullable_vector_uses_custom_nullkey(self):
+        """Test CSV persist writes nullable vectors with configured nullkey"""
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float_vector", dtype=DataType.FLOAT_VECTOR, dim=4, nullable=True),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.CSV, config={"nullkey": "NULL"})
+
+        buffer.append_row({"id": 1, "float_vector": None})
+        buffer.append_row({"id": 2, "float_vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            with Path(files[0]).open(newline="") as csv_file:
+                rows = list(csv.reader(csv_file))
+
+        assert rows[1][1] == "NULL"
+        assert json.loads(rows[2][1]) == [1.0, 2.0, 3.0, 4.0]
 
     @patch("pandas.DataFrame.to_csv")
     def test_persist_csv_exception_handling(self, mock_to_csv):
