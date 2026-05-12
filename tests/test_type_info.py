@@ -1,10 +1,15 @@
-from dataclasses import FrozenInstanceError
+import subprocess
+import sys
+from dataclasses import FrozenInstanceError, fields
 
 import pytest
 from pymilvus.client.type_info import (
     TYPE_INFO,
     ArrowLayout,
+    ProtobufSlot,
+    ProtobufSlotKind,
     TypeFamily,
+    TypeInfo,
     get_arrow_layout,
     get_bulk_numpy_dtype,
     get_field_attr,
@@ -12,6 +17,7 @@ from pymilvus.client.type_info import (
     get_numpy_fallback_dtype,
     get_placeholder_type,
     get_protobuf_attr,
+    get_protobuf_slot,
     get_scalar_attr,
     get_type_info,
     get_vector_attr,
@@ -39,7 +45,38 @@ def test_registry_and_descriptors_are_immutable():
         TYPE_INFO[DataType.UNKNOWN] = info
 
     with pytest.raises(FrozenInstanceError):
-        info.vector_attr = "changed"
+        info.protobuf_slot = ProtobufSlot(ProtobufSlotKind.VECTOR, "changed")
+
+    with pytest.raises(FrozenInstanceError):
+        info.protobuf_slot.attr = "changed"
+
+
+def test_type_info_uses_single_protobuf_slot_field():
+    info = get_type_info(DataType.FLOAT_VECTOR)
+    field_names = {field.name for field in fields(TypeInfo)}
+
+    assert "protobuf_slot" in field_names
+    assert {"scalar_attr", "vector_attr", "field_attr"}.isdisjoint(field_names)
+    assert not hasattr(info, "scalar_attr")
+    assert not hasattr(info, "vector_attr")
+    assert not hasattr(info, "field_attr")
+
+
+def test_populated_protobuf_slots_are_valid():
+    for info in TYPE_INFO.values():
+        if info.protobuf_slot is None:
+            continue
+        assert isinstance(info.protobuf_slot.kind, ProtobufSlotKind)
+        assert info.protobuf_slot.attr
+
+
+def test_vector_width_metadata_matches_family_extension_rules():
+    for info in TYPE_INFO.values():
+        if info.family == TypeFamily.DENSE_VECTOR:
+            assert info.bytes_per_dim is not None or info.binary_packed
+        else:
+            assert info.bytes_per_dim is None
+            assert info.binary_packed is False
 
 
 @pytest.mark.parametrize(
@@ -105,7 +142,10 @@ def test_type_predicates(dtype, scalar, dense, sparse, vector, byte_vector):
     ],
 )
 def test_scalar_protobuf_attributes_match_existing_maps(dtype, attr):
+    assert get_protobuf_slot(dtype) == ProtobufSlot(ProtobufSlotKind.SCALAR, attr)
     assert get_scalar_attr(dtype) == attr
+    assert get_vector_attr(dtype) is None
+    assert get_field_attr(dtype) is None
     assert get_protobuf_attr(dtype) == attr
 
 
@@ -122,13 +162,29 @@ def test_scalar_protobuf_attributes_match_existing_maps(dtype, attr):
     ],
 )
 def test_vector_protobuf_attributes_match_existing_maps(dtype, attr):
+    assert get_protobuf_slot(dtype) == ProtobufSlot(ProtobufSlotKind.VECTOR, attr)
+    assert get_scalar_attr(dtype) is None
     assert get_vector_attr(dtype) == attr
+    assert get_field_attr(dtype) is None
     assert get_protobuf_attr(dtype) == attr
 
 
 def test_top_level_protobuf_attributes_for_struct_arrays():
+    assert get_protobuf_slot(DataType._ARRAY_OF_STRUCT) == ProtobufSlot(
+        ProtobufSlotKind.FIELD, "struct_arrays"
+    )
+    assert get_scalar_attr(DataType._ARRAY_OF_STRUCT) is None
+    assert get_vector_attr(DataType._ARRAY_OF_STRUCT) is None
     assert get_field_attr(DataType._ARRAY_OF_STRUCT) == "struct_arrays"
     assert get_protobuf_attr(DataType._ARRAY_OF_STRUCT) == "struct_arrays"
+
+
+def test_types_without_single_static_protobuf_slot_return_none():
+    assert get_protobuf_slot(DataType.STRUCT) is None
+    assert get_scalar_attr(DataType.STRUCT) is None
+    assert get_vector_attr(DataType.STRUCT) is None
+    assert get_field_attr(DataType.STRUCT) is None
+    assert get_protobuf_attr(DataType.STRUCT) is None
 
 
 @pytest.mark.parametrize(
@@ -257,3 +313,19 @@ def test_complex_and_nested_types_have_static_metadata_only(dtype):
     assert info.placeholder is None
     assert info.embedding_list_placeholder is None
     assert info.arrow_layout is not None
+
+
+def test_type_info_and_search_result_imports_do_not_load_pyarrow():
+    code = """
+import importlib
+import sys
+
+import pymilvus
+
+sys.modules.pop("pyarrow", None)
+importlib.import_module("pymilvus.client.type_info")
+assert "pyarrow" not in sys.modules
+importlib.import_module("pymilvus.client.search_result")
+assert "pyarrow" not in sys.modules
+"""
+    subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
