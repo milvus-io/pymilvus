@@ -214,7 +214,6 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
         ),
         DataType.STRING: _scalar(DataType.STRING, "string_data", "str", ArrowLayout("string")),
         DataType.VARCHAR: _scalar(DataType.VARCHAR, "string_data", "str", ArrowLayout("string")),
-        DataType.TEXT: _scalar(DataType.TEXT, "string_data", "str", ArrowLayout("string")),
         DataType.JSON: _scalar(DataType.JSON, "json_data", "str", ArrowLayout("string")),
         DataType.ARRAY: TypeInfo(
             dtype=DataType.ARRAY,

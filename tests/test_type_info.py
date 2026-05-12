@@ -132,7 +132,6 @@ def test_type_predicates(dtype, scalar, dense, sparse, vector, byte_vector):
         (DataType.DOUBLE, "double_data"),
         (DataType.STRING, "string_data"),
         (DataType.VARCHAR, "string_data"),
-        (DataType.TEXT, "string_data"),
         (DataType.TIMESTAMPTZ, "string_data"),
         (DataType.GEOMETRY, "geometry_wkt_data"),
         (DataType.JSON, "json_data"),
