@@ -1,9 +1,11 @@
 import logging.config
 import os
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
-load_dotenv()
+dotenv_path = find_dotenv(usecwd=True, raise_error_if_not_found=False)
+if dotenv_path:
+    load_dotenv(dotenv_path)
 
 
 class Config:
