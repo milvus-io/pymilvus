@@ -1,3 +1,16 @@
+"""Internal static metadata for PyMilvus ``DataType`` values.
+
+This module is a data-only registry for facts that are already duplicated by
+client consumers. It is intentionally not a public API, and it must stay cheap
+to import from Search V1 paths: keep Arrow facts symbolic and do not import
+``pyarrow`` or operation-specific packing/decoding code here.
+
+When adding a new supported ``DataType``, add exactly one ``TYPE_INFO`` entry,
+choose the narrowest ``TypeFamily``, fill only static protobuf/storage metadata,
+and extend ``tests/test_type_info.py`` for family, attributes, row width, and
+symbolic Arrow/NumPy facts as applicable.
+"""
+
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
@@ -8,6 +21,8 @@ from pymilvus.exceptions import ParamError
 
 
 class TypeFamily(str, Enum):
+    """Coarse type categories shared by later internal consumer migrations."""
+
     SCALAR = "scalar"
     DENSE_VECTOR = "dense_vector"
     SPARSE_VECTOR = "sparse_vector"
@@ -16,12 +31,22 @@ class TypeFamily(str, Enum):
 
 @dataclass(frozen=True)
 class ArrowLayout:
+    """Symbolic Arrow shape, translated to concrete ``pyarrow`` objects later."""
+
     kind: str
     value_type: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class TypeInfo:
+    """Immutable static facts for one ``DataType``.
+
+    Keep fields descriptive, not behavioral. Attributes name existing protobuf
+    containers, byte metadata describes fixed-width vector storage, placeholder
+    fields mirror existing search enums, and dtype/layout strings are symbolic
+    facts that consumers may translate in later feature slices.
+    """
+
     dtype: DataType
     family: TypeFamily
     scalar_attr: Optional[str] = None
@@ -38,6 +63,8 @@ class TypeInfo:
     arrow_layout: Optional[ArrowLayout] = None
 
 
+# Accept enum values and raw enum integers so registry helpers match callers
+# that receive serialized schema/type values before coercion.
 DataTypeLike = Union[DataType, int]
 
 
@@ -47,6 +74,8 @@ def _scalar(
     numpy_dtype: Optional[str],
     arrow_layout: ArrowLayout,
 ) -> TypeInfo:
+    """Build scalar descriptors whose runtime and bulk NumPy facts match."""
+
     return TypeInfo(
         dtype=dtype,
         family=TypeFamily.SCALAR,
@@ -57,6 +86,18 @@ def _scalar(
     )
 
 
+# Registry maintenance rules:
+# - Every supported DataType enum except NONE and UNKNOWN should have one entry.
+# - Keep entries data-only; operation-specific validation, packing, result
+#   decoding, and Arrow conversion stay in their consumer modules.
+# - Use one protobuf attribute slot per entry: scalar_attr, vector_attr, or
+#   field_attr. Complex/nested types may leave behavior metadata unset.
+# - Dense fixed-width vectors use bytes_per_dim; binary vectors also set
+#   binary_packed so row_width validates the dimension multiple-of-8 rule.
+# - byte_storage marks vectors whose payload is represented in byte-oriented
+#   protobuf fields, which is broader than binary_packed.
+# - ArrowLayout and NumPy dtype values are strings/descriptors only; this module
+#   must remain importable without optional Arrow dependencies.
 TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
     {
         DataType.BOOL: _scalar(DataType.BOOL, "bool_data", "bool", ArrowLayout("scalar", "bool")),
@@ -182,6 +223,8 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
 
 
 def _coerce_dtype(dtype: DataTypeLike) -> DataType:
+    """Normalize raw enum integers while rejecting unknown values deterministically."""
+
     if isinstance(dtype, DataType):
         return dtype
     try:
@@ -192,6 +235,8 @@ def _coerce_dtype(dtype: DataTypeLike) -> DataType:
 
 
 def get_type_info(dtype: DataTypeLike) -> TypeInfo:
+    """Return the descriptor for a supported ``DataType`` or raise ``ParamError``."""
+
     dtype = _coerce_dtype(dtype)
     try:
         return TYPE_INFO[dtype]
@@ -273,6 +318,13 @@ def get_arrow_layout(dtype: DataTypeLike) -> Optional[ArrowLayout]:
 
 
 def row_width(dtype: DataTypeLike, dim: int) -> Optional[int]:
+    """Return fixed vector row width in bytes.
+
+    Sparse vectors return ``None`` because their rows are not fixed-width
+    slices. Non-vector types and invalid dimensions raise ``ParamError`` so
+    callers do not silently compute inconsistent offsets.
+    """
+
     info = get_type_info(dtype)
     if info.family == TypeFamily.SPARSE_VECTOR:
         return None
