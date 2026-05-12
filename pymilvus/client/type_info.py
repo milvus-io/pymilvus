@@ -5,10 +5,14 @@ client consumers. It is intentionally not a public API, and it must stay cheap
 to import from Search V1 paths: keep Arrow facts symbolic and do not import
 ``pyarrow`` or operation-specific packing/decoding code here.
 
-When adding a new supported ``DataType``, add exactly one ``TYPE_INFO`` entry,
-choose the narrowest ``TypeFamily``, fill only static protobuf/storage metadata,
-and extend ``tests/test_type_info.py`` for family, attributes, row width, and
-symbolic Arrow/NumPy facts as applicable.
+When adding a new supported ``DataType``:
+
+1. Add exactly one ``TYPE_INFO`` entry.
+2. Choose the narrowest ``TypeFamily`` that describes existing behavior.
+3. Fill only static protobuf/storage metadata; keep validation, packing,
+   decoding, and Arrow conversion in consumer modules.
+4. Extend ``tests/test_type_info.py`` for family, protobuf attributes, row
+   width, placeholder, NumPy, and symbolic Arrow facts as applicable.
 """
 
 from dataclasses import dataclass
@@ -21,7 +25,12 @@ from pymilvus.exceptions import ParamError
 
 
 class TypeFamily(str, Enum):
-    """Coarse type categories shared by later internal consumer migrations."""
+    """Coarse type categories shared by later internal consumer migrations.
+
+    These families intentionally describe storage/metadata shape, not every
+    operation a type supports. For example, ``ARRAY`` is scalar-shaped in the
+    protobuf field data even though it can contain nested element values.
+    """
 
     SCALAR = "scalar"
     DENSE_VECTOR = "dense_vector"
@@ -31,7 +40,12 @@ class TypeFamily(str, Enum):
 
 @dataclass(frozen=True)
 class ArrowLayout:
-    """Symbolic Arrow shape, translated to concrete ``pyarrow`` objects later."""
+    """Symbolic Arrow shape, translated to concrete ``pyarrow`` objects later.
+
+    Keep this descriptor string-only so importing the registry never imports
+    optional Arrow dependencies. Bulk/Arrow consumers own the actual conversion
+    from these symbols to concrete Arrow types.
+    """
 
     kind: str
     value_type: Optional[str] = None
@@ -45,6 +59,12 @@ class TypeInfo:
     containers, byte metadata describes fixed-width vector storage, placeholder
     fields mirror existing search enums, and dtype/layout strings are symbolic
     facts that consumers may translate in later feature slices.
+
+    Exactly one protobuf attribute slot should be set when a type has a known
+    storage field: ``scalar_attr`` for scalar field data, ``vector_attr`` for
+    vector payloads, or ``field_attr`` for nested field containers. Leave
+    operation-specific behavior out of this record even when a future consumer
+    will use several of these facts together.
     """
 
     dtype: DataType
@@ -246,6 +266,8 @@ def get_type_info(dtype: DataTypeLike) -> TypeInfo:
 
 
 def _has_family(dtype: DataTypeLike, family: TypeFamily) -> bool:
+    """Return family membership without surfacing unsupported-type errors."""
+
     try:
         return get_type_info(dtype).family == family
     except ParamError:
@@ -253,22 +275,32 @@ def _has_family(dtype: DataTypeLike, family: TypeFamily) -> bool:
 
 
 def is_scalar_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is represented as scalar field data."""
+
     return _has_family(dtype, TypeFamily.SCALAR)
 
 
 def is_dense_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` has fixed-width dense vector row semantics."""
+
     return _has_family(dtype, TypeFamily.DENSE_VECTOR)
 
 
 def is_sparse_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` stores sparse vector rows without fixed width."""
+
     return _has_family(dtype, TypeFamily.SPARSE_VECTOR)
 
 
 def is_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is any vector family known to the registry."""
+
     return is_dense_vector_type(dtype) or is_sparse_vector_type(dtype)
 
 
 def is_byte_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether vector payloads use byte-oriented protobuf storage."""
+
     try:
         return get_type_info(dtype).byte_storage
     except ParamError:
@@ -276,18 +308,26 @@ def is_byte_vector_type(dtype: DataTypeLike) -> bool:
 
 
 def get_scalar_attr(dtype: DataTypeLike) -> Optional[str]:
+    """Return the scalar protobuf field name for ``dtype``, if one exists."""
+
     return get_type_info(dtype).scalar_attr
 
 
 def get_vector_attr(dtype: DataTypeLike) -> Optional[str]:
+    """Return the vector protobuf field name for ``dtype``, if one exists."""
+
     return get_type_info(dtype).vector_attr
 
 
 def get_field_attr(dtype: DataTypeLike) -> Optional[str]:
+    """Return the nested field-container protobuf name, if one exists."""
+
     return get_type_info(dtype).field_attr
 
 
 def get_protobuf_attr(dtype: DataTypeLike) -> Optional[str]:
+    """Return the single protobuf storage attribute recorded for ``dtype``."""
+
     info = get_type_info(dtype)
     return info.scalar_attr or info.vector_attr or info.field_attr
 
@@ -295,6 +335,8 @@ def get_protobuf_attr(dtype: DataTypeLike) -> Optional[str]:
 def get_placeholder_type(
     dtype: DataTypeLike, is_embedding_list: bool = False
 ) -> Optional[PlaceholderType]:
+    """Return search placeholder metadata without constructing placeholders."""
+
     info = get_type_info(dtype)
     if is_embedding_list:
         return info.embedding_list_placeholder
@@ -302,18 +344,26 @@ def get_placeholder_type(
 
 
 def get_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
+    """Return the runtime NumPy dtype string used by vector helpers, if known."""
+
     return get_type_info(dtype).numpy_dtype
 
 
 def get_numpy_fallback_dtype(dtype: DataTypeLike) -> Optional[str]:
+    """Return fallback runtime NumPy dtype metadata for optional dtype support."""
+
     return get_type_info(dtype).numpy_fallback_dtype
 
 
 def get_bulk_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
+    """Return the bulk-writer NumPy dtype string, if current behavior has one."""
+
     return get_type_info(dtype).bulk_numpy_dtype
 
 
 def get_arrow_layout(dtype: DataTypeLike) -> Optional[ArrowLayout]:
+    """Return symbolic Arrow layout facts without importing ``pyarrow``."""
+
     return get_type_info(dtype).arrow_layout
 
 
