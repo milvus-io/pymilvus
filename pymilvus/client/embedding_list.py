@@ -4,6 +4,11 @@ from typing import Any, List, Optional, Union
 
 import numpy as np
 
+from pymilvus.client.type_info import (
+    get_numpy_dtype,
+    get_numpy_fallback_dtype,
+    is_dense_vector_type,
+)
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
 
@@ -87,22 +92,20 @@ class EmbeddingList:
         if isinstance(dtype, str):
             return np.dtype(dtype)
         if isinstance(dtype, DataType):
-            if dtype == DataType.BFLOAT16_VECTOR:
-                try:
-                    return np.dtype("bfloat16")
-                except TypeError:
-                    return np.dtype(np.float16)
-            # Map DataType enum to numpy dtype
-            dtype_map = {
-                DataType.FLOAT_VECTOR: np.float32,
-                DataType.FLOAT16_VECTOR: np.float16,
-                DataType.BINARY_VECTOR: np.uint8,
-                DataType.INT8_VECTOR: np.int8,
-            }
-            if dtype in dtype_map:
-                return np.dtype(dtype_map[dtype])
-            msg = f"Unsupported DataType: {dtype}"
-            raise ParamError(message=msg)
+            if not is_dense_vector_type(dtype):
+                msg = f"Unsupported DataType: {dtype}"
+                raise ParamError(message=msg)
+            numpy_dtype = get_numpy_dtype(dtype)
+            fallback_dtype = get_numpy_fallback_dtype(dtype)
+            if numpy_dtype is None:
+                msg = f"Unsupported DataType: {dtype}"
+                raise ParamError(message=msg)
+            try:
+                return np.dtype(numpy_dtype)
+            except TypeError:
+                if fallback_dtype is not None:
+                    return np.dtype(fallback_dtype)
+                raise
         msg = f"dtype must be numpy dtype, string, or DataType, got {type(dtype)}"
         raise TypeError(msg)
 
