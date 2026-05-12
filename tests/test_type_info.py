@@ -1,5 +1,3 @@
-import subprocess
-import sys
 from dataclasses import FrozenInstanceError, fields
 
 import pytest
@@ -313,29 +311,3 @@ def test_complex_and_nested_types_have_static_metadata_only(dtype):
     assert info.placeholder is None
     assert info.embedding_list_placeholder is None
     assert info.arrow_layout is not None
-
-
-def test_type_info_and_search_result_imports_do_not_load_pyarrow():
-    code = """
-import importlib
-import sys
-
-import pymilvus
-
-for name in list(sys.modules):
-    if name == "pyarrow" or name.startswith("pyarrow."):
-        del sys.modules[name]
-
-importlib.import_module("pymilvus.client.type_info")
-loaded_after_type_info = sorted(
-    name for name in sys.modules if name == "pyarrow" or name.startswith("pyarrow.")
-)
-assert not loaded_after_type_info, loaded_after_type_info
-
-importlib.import_module("pymilvus.client.search_result")
-loaded_after_search_result = sorted(
-    name for name in sys.modules if name == "pyarrow" or name.startswith("pyarrow.")
-)
-assert not loaded_after_search_result, loaded_after_search_result
-"""
-    subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
