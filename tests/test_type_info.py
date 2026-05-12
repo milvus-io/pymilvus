@@ -322,10 +322,20 @@ import sys
 
 import pymilvus
 
-sys.modules.pop("pyarrow", None)
+for name in list(sys.modules):
+    if name == "pyarrow" or name.startswith("pyarrow."):
+        del sys.modules[name]
+
 importlib.import_module("pymilvus.client.type_info")
-assert "pyarrow" not in sys.modules
+loaded_after_type_info = sorted(
+    name for name in sys.modules if name == "pyarrow" or name.startswith("pyarrow.")
+)
+assert not loaded_after_type_info, loaded_after_type_info
+
 importlib.import_module("pymilvus.client.search_result")
-assert "pyarrow" not in sys.modules
+loaded_after_search_result = sorted(
+    name for name in sys.modules if name == "pyarrow" or name.startswith("pyarrow.")
+)
+assert not loaded_after_search_result, loaded_after_search_result
 """
     subprocess.run([sys.executable, "-c", code], check=True, capture_output=True, text=True)
