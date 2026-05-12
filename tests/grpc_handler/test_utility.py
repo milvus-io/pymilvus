@@ -383,6 +383,16 @@ class TestGrpcHandlerCompactionAdditional:
         assert handler._stub.ManualCompaction.call_count == 2
         handler._stub.DescribeCollection.assert_called_once()
 
+    def test_compact_raises_on_negative_compaction_id(self, handler):
+        handler._stub.ManualCompaction.return_value = make_response(compactionID=-1)
+        with pytest.raises(MilvusException, match="compact failed"):
+            handler.compact("coll")
+
+    def test_compact_raises_on_zero_compaction_id(self, handler):
+        handler._stub.ManualCompaction.return_value = make_response(compactionID=0)
+        with pytest.raises(MilvusException, match="compact failed"):
+            handler.compact("coll")
+
 
 class TestGrpcHandlerMisc:
     """Tests for miscellaneous operations."""

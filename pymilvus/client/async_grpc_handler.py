@@ -2440,6 +2440,10 @@ class AsyncGrpcHandler:
             req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
+        if response.compactionID <= 0:
+            raise MilvusException(
+                message=f"compact failed, compactionID is {response.compactionID}, maybe invalid target_size"
+            )
 
         return response.compactionID
 
