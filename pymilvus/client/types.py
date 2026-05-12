@@ -136,6 +136,15 @@ class DataType(IntEnum):
     def __str__(self) -> str:
         return str(self.value)
 
+    def to_dict(self) -> dict:
+        return {"name": self.name, "value": self.value}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "DataType":
+        if "value" in d:
+            return cls(d["value"])
+        return cls[d["name"].upper()]
+
 
 class FunctionType(IntEnum):
     UNKNOWN = 0
@@ -143,6 +152,15 @@ class FunctionType(IntEnum):
     TEXTEMBEDDING = 2
     RERANK = 3
     MINHASH = 4
+
+    def to_dict(self) -> dict:
+        return {"name": self.name, "value": self.value}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "FunctionType":
+        if "value" in d:
+            return cls(d["value"])
+        return cls[d["name"].upper()]
 
 
 class HighlightType(IntEnum):

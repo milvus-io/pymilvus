@@ -594,7 +594,7 @@ class FieldSchema:
         _dict = {
             "name": self.name,
             "description": self._description,
-            "type": self.dtype,
+            "type": self.dtype.value,
         }
         if self._type_params:
             _dict["params"] = copy.deepcopy(self.params)
@@ -614,7 +614,8 @@ class FieldSchema:
         if (
             self.dtype == DataType.ARRAY or self._dtype == DataType._ARRAY_OF_VECTOR
         ) and self.element_type:
-            _dict["element_type"] = self.element_type
+            et = self.element_type
+            _dict["element_type"] = et.value if isinstance(et, DataType) else et
         if self.is_clustering_key:
             _dict["is_clustering_key"] = True
         if self.is_function_output:
@@ -990,7 +991,7 @@ class Function:
         return {
             "name": self._name,
             "description": self._description,
-            "type": self._type,
+            "type": self._type.value,
             "input_field_names": self._input_field_names,
             "output_field_names": self._output_field_names,
             "params": self._params,
