@@ -354,6 +354,7 @@ class ParamChecker(metaclass=Singleton):
             "cmd": is_legal_cmd,
             "partition_name": is_legal_partition_name,
             "partition_name_array": is_legal_partition_name_array,
+            "partition_names": is_legal_partition_name_array,
             "limit": is_legal_limit,
             "anns_field": is_legal_anns_field,
             "search_data": is_legal_search_data,
