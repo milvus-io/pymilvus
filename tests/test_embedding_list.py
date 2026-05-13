@@ -270,6 +270,31 @@ class TestEmbeddingListParseDtype:
 
         assert el._dtype == np.dtype(np.float16)
 
+    def test_parse_datatype_missing_registry_dtype_raises_param_error(self):
+        with patch("pymilvus.client.embedding_list.get_numpy_dtype", return_value=None):
+            with pytest.raises(ParamError):
+                EmbeddingList(dtype=DataType.FLOAT_VECTOR)
+
+    def test_parse_datatype_missing_registry_fallback_raises_type_error(self):
+        with patch("pymilvus.client.embedding_list.get_numpy_dtype", return_value="missing_float"):
+            with patch(
+                "pymilvus.client.embedding_list.get_numpy_fallback_dtype", return_value=None
+            ):
+                with pytest.raises(TypeError):
+                    EmbeddingList(dtype=DataType.FLOAT_VECTOR)
+
+    def test_parse_datatype_invalid_registry_fallback_raises_type_error(self):
+        with patch(
+            "pymilvus.client.embedding_list.get_numpy_dtype",
+            return_value="missing_bfloat16",
+        ):
+            with patch(
+                "pymilvus.client.embedding_list.get_numpy_fallback_dtype",
+                return_value="missing_fallback",
+            ):
+                with pytest.raises(TypeError):
+                    EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
+
 
 class TestEmbeddingListAdd:
     """Tests for add() validation branches."""

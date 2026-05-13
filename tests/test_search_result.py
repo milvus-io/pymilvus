@@ -14,6 +14,7 @@ from pymilvus.client.search_result import (
     HybridHits,
     MilvusException,
     SearchResult,
+    _dense_result_slice_width,
     apply_valid_data,
     extract_array_row_data,
     extract_struct_field_value,
@@ -915,6 +916,9 @@ class TestGetFieldsByRange:
 
 class TestHelpers:
     """Test standalone helper functions in search_result.py"""
+
+    def test_dense_result_slice_width_returns_none_for_non_dense_type(self):
+        assert _dense_result_slice_width(DataType.INT64, 8) is None
 
     def test_get_field_data_registry_slots(self):
         scalar_fd = _make_scalar_field(DataType.TIMESTAMPTZ, "ts", ["2026-05-12T00:00:00Z"])
