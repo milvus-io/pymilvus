@@ -373,19 +373,22 @@ class Buffer:
             }:
                 arr = []
                 for val in v:
-                    arr.append(json.dumps(val))
+                    arr.append(None if val is None else json.dumps(val))
                 data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 # special process for float16 vector, the self._buffer stores bytes for
                 # float16 vector, convert the bytes to float list
-                dt = (
-                    np.dtype("bfloat16")
-                    if (field_schema.dtype == DataType.BFLOAT16_VECTOR)
-                    else np.dtype("float16")
-                )
                 arr = []
                 for val in v:
-                    arr.append(json.dumps(np.frombuffer(val, dtype=dt).tolist()))
+                    if val is None:
+                        arr.append(None)
+                    else:
+                        dt = (
+                            np.dtype("bfloat16")
+                            if (field_schema.dtype == DataType.BFLOAT16_VECTOR)
+                            else np.dtype("float16")
+                        )
+                        arr.append(json.dumps(np.frombuffer(val, dtype=dt).tolist()))
                 data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {
                 DataType.JSON,
