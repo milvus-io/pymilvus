@@ -19,11 +19,15 @@ from pymilvus.client.type_info import (
     get_scalar_attr,
     get_type_info,
     get_vector_attr,
+    get_vector_type_for_numpy_dtype,
     is_byte_vector_type,
     is_dense_vector_type,
     is_scalar_type,
     is_sparse_vector_type,
     is_vector_type,
+    require_numpy_dtype,
+    require_placeholder_type,
+    require_vector_type_for_numpy_dtype,
     row_width,
 )
 from pymilvus.client.types import DataType, PlaceholderType
@@ -251,6 +255,19 @@ def test_unknown_type_lookup_has_deterministic_error():
 def test_placeholder_metadata_matches_search_prepare(dtype, regular, embedding_list):
     assert get_placeholder_type(dtype) == regular
     assert get_placeholder_type(dtype, is_embedding_list=True) == embedding_list
+    assert require_placeholder_type(dtype) == regular
+    assert require_placeholder_type(dtype, is_embedding_list=True) == embedding_list
+
+
+@pytest.mark.parametrize("dtype", [DataType.INT64, DataType.JSON, DataType.ARRAY])
+def test_require_placeholder_type_rejects_types_without_placeholder_metadata(dtype):
+    with pytest.raises(ParamError, match="unsupported data type"):
+        require_placeholder_type(dtype)
+
+
+def test_require_placeholder_type_preserves_unsupported_dtype_error():
+    with pytest.raises(ParamError, match="Unsupported DataType"):
+        require_placeholder_type(DataType.UNKNOWN)
 
 
 @pytest.mark.parametrize(
@@ -271,6 +288,48 @@ def test_numpy_metadata_matches_embedding_list_and_bulk_facts(
     assert get_numpy_dtype(dtype) == numpy_dtype
     assert get_numpy_fallback_dtype(dtype) == fallback_dtype
     assert get_bulk_numpy_dtype(dtype) == bulk_numpy_dtype
+
+
+@pytest.mark.parametrize(
+    "dtype,numpy_dtype",
+    [
+        (DataType.FLOAT_VECTOR, "float32"),
+        (DataType.BINARY_VECTOR, "uint8"),
+        (DataType.FLOAT16_VECTOR, "float16"),
+        (DataType.BFLOAT16_VECTOR, "bfloat16"),
+        (DataType.INT8_VECTOR, "int8"),
+    ],
+)
+def test_require_numpy_dtype_returns_present_metadata(dtype, numpy_dtype):
+    assert require_numpy_dtype(dtype) == numpy_dtype
+
+
+def test_require_numpy_dtype_rejects_missing_metadata():
+    with pytest.raises(ParamError, match="Unsupported DataType"):
+        require_numpy_dtype(DataType.SPARSE_FLOAT_VECTOR)
+
+
+@pytest.mark.parametrize(
+    "dtype_name,vector_type",
+    [
+        ("float32", DataType.FLOAT_VECTOR),
+        ("float64", DataType.FLOAT_VECTOR),
+        ("float16", DataType.FLOAT16_VECTOR),
+        ("bfloat16", DataType.BFLOAT16_VECTOR),
+        ("int8", DataType.INT8_VECTOR),
+        ("uint8", DataType.BINARY_VECTOR),
+        ("byte", DataType.BINARY_VECTOR),
+    ],
+)
+def test_numpy_dtype_name_vector_type_metadata(dtype_name, vector_type):
+    assert get_vector_type_for_numpy_dtype(dtype_name) == vector_type
+    assert require_vector_type_for_numpy_dtype(dtype_name) == vector_type
+
+
+def test_require_vector_type_for_numpy_dtype_rejects_unknown_dtype_name():
+    assert get_vector_type_for_numpy_dtype("complex64") is None
+    with pytest.raises(ParamError, match="unsupported data type: complex64"):
+        require_vector_type_for_numpy_dtype("complex64")
 
 
 @pytest.mark.parametrize(

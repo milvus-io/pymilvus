@@ -55,7 +55,7 @@ from .constants import (
 from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .field_ops import FieldOpsInput, normalize_field_ops
 from .search_aggregation import SearchAggregation
-from .type_info import get_placeholder_type
+from .type_info import require_placeholder_type, require_vector_type_for_numpy_dtype
 from .types import (
     DataType,
     PlaceholderType,
@@ -76,23 +76,6 @@ _JSON_TYPE_MAP = {
 
 
 _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
-
-_NUMPY_DTYPE_TO_VECTOR_TYPE = {
-    "bfloat16": DataType.BFLOAT16_VECTOR,
-    "float16": DataType.FLOAT16_VECTOR,
-    "float32": DataType.FLOAT_VECTOR,
-    "float64": DataType.FLOAT_VECTOR,
-    "int8": DataType.INT8_VECTOR,
-    "byte": DataType.BINARY_VECTOR,
-    "uint8": DataType.BINARY_VECTOR,
-}
-
-
-def _placeholder_for_dtype(dtype: DataType, is_embedding_list: bool) -> PlaceholderType:
-    placeholder = get_placeholder_type(dtype, is_embedding_list=is_embedding_list)
-    if placeholder is None:
-        raise ParamError(message=f"unsupported data type: {dtype}")
-    return placeholder
 
 
 class Prepare:
@@ -1406,23 +1389,19 @@ class Prepare:
     ):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
-            pl_type = _placeholder_for_dtype(DataType.SPARSE_FLOAT_VECTOR, is_embedding_list)
+            pl_type = require_placeholder_type(DataType.SPARSE_FLOAT_VECTOR, is_embedding_list)
             pl_values = entity_helper.sparse_rows_to_proto(data).contents
 
         elif isinstance(data[0], np.ndarray):
-            vector_type = _NUMPY_DTYPE_TO_VECTOR_TYPE.get(str(data[0].dtype))
-            if vector_type is None:
-                err_msg = f"unsupported data type: {data[0].dtype}"
-                raise ParamError(message=err_msg)
-
-            pl_type = _placeholder_for_dtype(vector_type, is_embedding_list)
+            vector_type = require_vector_type_for_numpy_dtype(data[0].dtype)
+            pl_type = require_placeholder_type(vector_type, is_embedding_list)
             if vector_type == DataType.FLOAT_VECTOR:
                 pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
             else:
                 pl_values = (array.tobytes() for array in data)
 
         elif isinstance(data[0], bytes):
-            pl_type = _placeholder_for_dtype(
+            pl_type = require_placeholder_type(
                 vector_data_type or DataType.BINARY_VECTOR, is_embedding_list
             )
             pl_values = data

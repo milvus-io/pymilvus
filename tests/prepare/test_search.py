@@ -6,7 +6,7 @@ import pytest
 from pymilvus import DataType, Function, FunctionType
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import QUERY_ITER_LAST_ELEMENT_OFFSET, QUERY_ITER_LAST_PK
-from pymilvus.client.prepare import Prepare, _placeholder_for_dtype
+from pymilvus.client.prepare import Prepare
 from pymilvus.client.types import PlaceholderType
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
@@ -545,10 +545,6 @@ class TestPreparePlaceholderStr:
         data = [np.array([1, 2], dtype=np.complex64)]
         with pytest.raises(ParamError, match="unsupported data type"):
             Prepare._prepare_placeholder_str(data)
-
-    def test_registry_missing_placeholder_raises_param_error(self):
-        with pytest.raises(ParamError, match="unsupported data type"):
-            _placeholder_for_dtype(DataType.INT64, is_embedding_list=False)
 
     @pytest.mark.parametrize(
         "data,expected_type",

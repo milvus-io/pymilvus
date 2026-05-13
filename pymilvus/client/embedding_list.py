@@ -5,20 +5,16 @@ from typing import Any, List, Optional, Union
 import numpy as np
 
 from pymilvus.client.type_info import (
-    get_numpy_dtype,
     get_numpy_fallback_dtype,
     is_dense_vector_type,
+    require_numpy_dtype,
 )
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
 
 
 def _get_registry_numpy_dtype(dtype: DataType) -> np.dtype:
-    numpy_dtype = get_numpy_dtype(dtype)
-    if numpy_dtype is None:
-        msg = f"Unsupported DataType: {dtype}"
-        raise ParamError(message=msg)
-
+    numpy_dtype = require_numpy_dtype(dtype)
     try:
         return np.dtype(numpy_dtype)
     except TypeError:
