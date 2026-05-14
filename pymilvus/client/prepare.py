@@ -48,6 +48,7 @@ from .constants import (
 )
 from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .field_ops import FieldOpsInput, normalize_field_ops
+from .type_info import require_placeholder_type, require_vector_type_for_numpy_dtype
 from .types import (
     DataType,
     PlaceholderType,
@@ -65,17 +66,6 @@ _JSON_TYPE_MAP = {
     DataType.VARCHAR: "VarChar",
     DataType.STRING: "VarChar",
 }
-
-# Maps DataType to (regular PlaceholderType, EmbeddingList PlaceholderType) for bytes input
-_BYTES_PH_MAP = {
-    DataType.FLOAT16_VECTOR: (PlaceholderType.FLOAT16_VECTOR, PlaceholderType.EmbListFloat16Vector),
-    DataType.BFLOAT16_VECTOR: (
-        PlaceholderType.BFLOAT16_VECTOR,
-        PlaceholderType.EmbListBFloat16Vector,
-    ),
-    DataType.BINARY_VECTOR: (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector),
-}
-_BYTES_PH_DEFAULT = (PlaceholderType.BinaryVector, PlaceholderType.EmbListBinaryVector)
 
 
 class Prepare:
@@ -1360,56 +1350,21 @@ class Prepare:
     ):
         # sparse vector
         if entity_helper.entity_is_sparse_matrix(data):
-            pl_type = PlaceholderType.SparseFloatVector
+            pl_type = require_placeholder_type(DataType.SPARSE_FLOAT_VECTOR, is_embedding_list)
             pl_values = entity_helper.sparse_rows_to_proto(data).contents
 
         elif isinstance(data[0], np.ndarray):
-            dtype = data[0].dtype
-
-            if dtype == "bfloat16":
-                pl_type = (
-                    PlaceholderType.BFLOAT16_VECTOR
-                    if not is_embedding_list
-                    else PlaceholderType.EmbListBFloat16Vector
-                )
-                pl_values = (array.tobytes() for array in data)
-            elif dtype == "float16":
-                pl_type = (
-                    PlaceholderType.FLOAT16_VECTOR
-                    if not is_embedding_list
-                    else PlaceholderType.EmbListFloat16Vector
-                )
-                pl_values = (array.tobytes() for array in data)
-            elif dtype in ("float32", "float64"):
-                pl_type = (
-                    PlaceholderType.FloatVector
-                    if not is_embedding_list
-                    else PlaceholderType.EmbListFloatVector
-                )
+            vector_type = require_vector_type_for_numpy_dtype(data[0].dtype)
+            pl_type = require_placeholder_type(vector_type, is_embedding_list)
+            if vector_type == DataType.FLOAT_VECTOR:
                 pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
-            elif dtype == "int8":
-                pl_type = (
-                    PlaceholderType.Int8Vector
-                    if not is_embedding_list
-                    else PlaceholderType.EmbListInt8Vector
-                )
-                pl_values = (array.tobytes() for array in data)
-
-            elif dtype in ("byte", "uint8"):
-                pl_type = (
-                    PlaceholderType.BinaryVector
-                    if not is_embedding_list
-                    else PlaceholderType.EmbListBinaryVector
-                )
-                pl_values = (array.tobytes() for array in data)
-
             else:
-                err_msg = f"unsupported data type: {dtype}"
-                raise ParamError(message=err_msg)
+                pl_values = (array.tobytes() for array in data)
 
         elif isinstance(data[0], bytes):
-            ph_regular, ph_emb = _BYTES_PH_MAP.get(vector_data_type, _BYTES_PH_DEFAULT)
-            pl_type = ph_emb if is_embedding_list else ph_regular
+            pl_type = require_placeholder_type(
+                vector_data_type or DataType.BINARY_VECTOR, is_embedding_list
+            )
             pl_values = data
 
         elif isinstance(data[0], str):
