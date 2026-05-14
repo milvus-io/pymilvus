@@ -14,6 +14,7 @@ from pymilvus.client.search_result import (
     HybridHits,
     MilvusException,
     SearchResult,
+    _dense_result_slice_width,
     apply_valid_data,
     extract_array_row_data,
     extract_struct_field_value,
@@ -51,6 +52,9 @@ def _make_scalar_field(dtype, name, data, field_id=0, is_dynamic=False, valid_da
             string_data=schema_pb2.StringArray(data=d)
         ),
         DataType.TEXT: lambda d: schema_pb2.ScalarField(string_data=schema_pb2.StringArray(data=d)),
+        DataType.TIMESTAMPTZ: lambda d: schema_pb2.ScalarField(
+            string_data=schema_pb2.StringArray(data=d)
+        ),
         DataType.JSON: lambda d: schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=d)),
         DataType.GEOMETRY: lambda d: schema_pb2.ScalarField(
             geometry_wkt_data=schema_pb2.GeometryWktArray(data=d)
@@ -877,6 +881,24 @@ class TestGetFieldsByRange:
         # It calls directly return data
         assert result["fv"][0] == [1.0, 2.0, 3.0, 4.0]
 
+    def test_get_fields_by_range_dense_registry_widths(self):
+        res = SearchResult(schema_pb2.SearchResultData())
+        fields = [
+            _make_vector_field(DataType.FLOAT_VECTOR, "fv", 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
+            _make_vector_field(DataType.BINARY_VECTOR, "bv", 16, b"abcdef"),
+            _make_vector_field(DataType.FLOAT16_VECTOR, "f16v", 2, b"abcdefghijkl"),
+            _make_vector_field(DataType.BFLOAT16_VECTOR, "bf16v", 2, b"mnopqrstuvwx"),
+            _make_vector_field(DataType.INT8_VECTOR, "i8v", 2, b"ABCDEF"),
+        ]
+
+        result = res._get_fields_by_range(1, 3, fields)
+
+        assert result["fv"][0] == [3.0, 4.0, 5.0, 6.0]
+        assert result["bv"][0] == b"cdef"
+        assert result["f16v"][0] == b"efghijkl"
+        assert result["bf16v"][0] == b"qrstuvwx"
+        assert result["i8v"][0] == b"CDEF"
+
     def test_get_fields_by_range_text_with_validity(self):
         """Test TEXT scalar range extraction applies the validity mask."""
         res = SearchResult(schema_pb2.SearchResultData())
@@ -894,6 +916,24 @@ class TestGetFieldsByRange:
 
 class TestHelpers:
     """Test standalone helper functions in search_result.py"""
+
+    def test_dense_result_slice_width_returns_none_for_non_dense_type(self):
+        assert _dense_result_slice_width(DataType.INT64, 8) is None
+
+    def test_get_field_data_registry_slots(self):
+        scalar_fd = _make_scalar_field(DataType.TIMESTAMPTZ, "ts", ["2026-05-12T00:00:00Z"])
+        vector_fd = _make_vector_field(DataType.INT8_VECTOR, "i8", 2, b"\x01\x02")
+        struct_fd = schema_pb2.FieldData(type=DataType._ARRAY_OF_STRUCT, field_name="aos")
+        vector_array_fd = schema_pb2.FieldData(
+            type=DataType._ARRAY_OF_VECTOR,
+            field_name="aov",
+            vectors=schema_pb2.VectorField(vector_array=schema_pb2.VectorArray()),
+        )
+
+        assert get_field_data(scalar_fd) == ["2026-05-12T00:00:00Z"]
+        assert get_field_data(vector_fd) == b"\x01\x02"
+        assert get_field_data(struct_fd) == struct_fd.struct_arrays
+        assert get_field_data(vector_array_fd) == vector_array_fd.vectors.vector_array
 
     def test_extract_array_row_data_none(self):
         assert extract_array_row_data([None, None], DataType.INT64) == [None, None]

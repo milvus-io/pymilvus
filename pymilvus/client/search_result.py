@@ -5,72 +5,44 @@ import numpy as np
 import orjson
 
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 from pymilvus.grpc_gen.schema_pb2 import FieldData
 
-_SCALAR_TYPES = frozenset(
-    {
-        DataType.BOOL,
-        DataType.INT8,
-        DataType.INT16,
-        DataType.INT32,
-        DataType.INT64,
-        DataType.FLOAT,
-        DataType.DOUBLE,
-        DataType.VARCHAR,
-        DataType.TEXT,
-        DataType.GEOMETRY,
-        DataType.TIMESTAMPTZ,
-    }
-)
-
-_DENSE_VECTOR_TYPES = frozenset(
-    {
-        DataType.FLOAT_VECTOR,
-        DataType.BINARY_VECTOR,
-        DataType.BFLOAT16_VECTOR,
-        DataType.FLOAT16_VECTOR,
-        DataType.INT8_VECTOR,
-    }
-)
-
-_HALF_PRECISION_VECTOR_TYPES = frozenset(
-    {
-        DataType.BFLOAT16_VECTOR,
-        DataType.FLOAT16_VECTOR,
-    }
-)
-
-_SCALAR_DATA_ATTR = {
-    DataType.BOOL: "bool_data",
-    DataType.INT8: "int_data",
-    DataType.INT16: "int_data",
-    DataType.INT32: "int_data",
-    DataType.INT64: "long_data",
-    DataType.FLOAT: "float_data",
-    DataType.DOUBLE: "double_data",
-    DataType.VARCHAR: "string_data",
-    DataType.TEXT: "string_data",
-    DataType.TIMESTAMPTZ: "string_data",
-    DataType.GEOMETRY: "geometry_wkt_data",
-    DataType.JSON: "json_data",
-    DataType.ARRAY: "array_data",
-}
-
-_VECTOR_DATA_ATTR = {
-    DataType.FLOAT_VECTOR: "float_vector",
-    DataType.BINARY_VECTOR: "binary_vector",
-    DataType.BFLOAT16_VECTOR: "bfloat16_vector",
-    DataType.FLOAT16_VECTOR: "float16_vector",
-    DataType.INT8_VECTOR: "int8_vector",
-    DataType.SPARSE_FLOAT_VECTOR: "sparse_float_vector",
-}
-
 from . import entity_helper
 from .search_aggregation import AggregationBucket, parse_agg_buckets
+from .type_info import (
+    get_field_attr,
+    get_scalar_attr,
+    get_vector_attr,
+    is_byte_vector_type,
+    is_dense_vector_type,
+    is_scalar_type,
+    is_sparse_vector_type,
+    row_width,
+)
 
 logger = logging.getLogger(__name__)
+
+
+def _is_eager_scalar(dtype: DataType) -> bool:
+    return is_scalar_type(dtype) and dtype not in {DataType.JSON, DataType.ARRAY}
+
+
+def _is_lazy_result_field(dtype: DataType) -> bool:
+    return (
+        is_dense_vector_type(dtype)
+        or is_sparse_vector_type(dtype)
+        or dtype in {DataType.JSON, DataType._ARRAY_OF_STRUCT, DataType._ARRAY_OF_VECTOR}
+    )
+
+
+def _dense_result_slice_width(dtype: DataType, dim: int) -> Optional[int]:
+    if not is_dense_vector_type(dtype):
+        return None
+    if not is_byte_vector_type(dtype):
+        return dim
+    return row_width(dtype, dim)
 
 
 class HybridHits(list):
@@ -110,7 +82,7 @@ class HybridHits(list):
             has_valid = len(field_data.valid_data) > 0
             field_name = field_data.field_name
 
-            if field_data.type in _SCALAR_TYPES:
+            if _is_eager_scalar(field_data.type):
                 data = get_field_data(field_data)
                 col_results[field_name] = apply_valid_data(
                     data[start:end],
@@ -126,17 +98,7 @@ class HybridHits(list):
                     field_data.valid_data[start:end] if has_valid else None,
                 )
 
-            elif field_data.type in {
-                DataType.FLOAT_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.INT8_VECTOR,
-                DataType.SPARSE_FLOAT_VECTOR,
-                DataType.JSON,
-                DataType._ARRAY_OF_STRUCT,
-                DataType._ARRAY_OF_VECTOR,
-            }:
+            elif _is_lazy_result_field(field_data.type):
                 self.lazy_field_data.append(field_data)
             else:
                 msg = f"Unsupported field type: {field_data.type}"
@@ -212,13 +174,9 @@ class HybridHits(list):
                 field_name = field_data.field_name
                 has_valid = len(field_data.valid_data) > 0
 
-                if field_data.type in _DENSE_VECTOR_TYPES:
+                if is_dense_vector_type(field_data.type):
                     data = get_field_data(field_data)
-                    dim = field_data.vectors.dim
-                    if field_data.type == DataType.BINARY_VECTOR:
-                        dim = dim // 8
-                    elif field_data.type in _HALF_PRECISION_VECTOR_TYPES:
-                        dim = dim * 2
+                    dim = _dense_result_slice_width(field_data.type, field_data.vectors.dim)
 
                     if has_valid:
                         for i in range(n):
@@ -513,80 +471,10 @@ class SearchResult(list):
                 field_id=field.field_id,
                 is_dynamic=field.is_dynamic,
             )
-            if dtype == DataType.BOOL:
+            if _is_eager_scalar(dtype):
                 field2data[name] = (
                     apply_valid_data(
-                        scalars.bool_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype in (DataType.INT8, DataType.INT16, DataType.INT32):
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.int_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.INT64:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.long_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.FLOAT:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.float_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.DOUBLE:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.double_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.VARCHAR:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.string_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.TEXT:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.string_data.data[start:end],
-                        field.valid_data[start:end] if field.valid_data else None,
-                    ),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.GEOMETRY:
-                field2data[name] = (
-                    apply_valid_data(
-                        scalars.geometry_wkt_data.data[start:end],
+                        get_field_data(field)[start:end],
                         field.valid_data[start:end] if field.valid_data else None,
                     ),
                     field_meta,
@@ -641,50 +529,25 @@ class SearchResult(list):
             # vectors
             dim, vectors = field.vectors.dim, field.vectors
             field_meta.vectors.dim = dim
-            if dtype == DataType.FLOAT_VECTOR:
-                if start == 0 and (end - start) * dim >= len(vectors.float_vector.data):
+            if is_dense_vector_type(dtype):
+                data = get_field_data(field)
+                width = _dense_result_slice_width(dtype, dim)
+                if dtype == DataType.FLOAT_VECTOR and start == 0 and end * width >= len(data):
                     # If the range equals to the length of vectors.float_vector.data, direct return
                     # it to avoid a copy. This logic improves performance by 25% for the case
                     # retrival 1536 dim embeddings with topk=16384.
-                    field2data[name] = vectors.float_vector.data, field_meta
+                    field2data[name] = data, field_meta
                 else:
                     field2data[name] = (
-                        vectors.float_vector.data[start * dim : end * dim],
+                        data[start * width : end * width],
                         field_meta,
                     )
                 continue
 
-            if dtype == DataType.BINARY_VECTOR:
-                field2data[name] = (
-                    vectors.binary_vector[start * (dim // 8) : end * (dim // 8)],
-                    field_meta,
-                )
-                continue
             # TODO(SPARSE): do we want to allow the user to specify the return format?
-            if dtype == DataType.SPARSE_FLOAT_VECTOR:
+            if is_sparse_vector_type(dtype):
                 field2data[name] = (
                     entity_helper.sparse_proto_to_rows(vectors.sparse_float_vector, start, end),
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.BFLOAT16_VECTOR:
-                field2data[name] = (
-                    vectors.bfloat16_vector[start * (dim * 2) : end * (dim * 2)],
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.FLOAT16_VECTOR:
-                field2data[name] = (
-                    vectors.float16_vector[start * (dim * 2) : end * (dim * 2)],
-                    field_meta,
-                )
-                continue
-
-            if dtype == DataType.INT8_VECTOR:
-                field2data[name] = (
-                    vectors.int8_vector[start * dim : end * dim],
                     field_meta,
                 )
                 continue
@@ -703,18 +566,20 @@ class SearchResult(list):
 
 def get_field_data(field_data: FieldData):
     field_type = field_data.type
-    scalar_attr = _SCALAR_DATA_ATTR.get(field_type)
-    if scalar_attr is not None:
-        return getattr(field_data.scalars, scalar_attr).data
-    vector_attr = _VECTOR_DATA_ATTR.get(field_type)
-    if vector_attr is not None:
-        obj = getattr(field_data.vectors, vector_attr)
-        # float_vector returns .data, others return the bytes/proto directly
-        return obj.data if field_type == DataType.FLOAT_VECTOR else obj
-    if field_type == DataType._ARRAY_OF_STRUCT:
-        return field_data.struct_arrays
-    if field_type == DataType._ARRAY_OF_VECTOR:
-        return field_data.vectors.vector_array
+    try:
+        scalar_attr = get_scalar_attr(field_type)
+        if scalar_attr is not None:
+            return getattr(field_data.scalars, scalar_attr).data
+        vector_attr = get_vector_attr(field_type)
+        if vector_attr is not None:
+            obj = getattr(field_data.vectors, vector_attr)
+            # float_vector returns .data, others return the bytes/proto directly
+            return obj.data if field_type == DataType.FLOAT_VECTOR else obj
+        field_attr = get_field_attr(field_type)
+        if field_attr is not None:
+            return getattr(field_data, field_attr)
+    except ParamError:
+        pass
     msg = f"Unsupported field type: {field_type}"
     raise MilvusException(msg)
 
@@ -772,18 +637,8 @@ class Hits(list):
                 if len(data) <= i:
                     entity[fname] = None
                 # Get dense vectors
-                if field_meta.type in (
-                    DataType.FLOAT_VECTOR,
-                    DataType.BINARY_VECTOR,
-                    DataType.BFLOAT16_VECTOR,
-                    DataType.FLOAT16_VECTOR,
-                    DataType.INT8_VECTOR,
-                ):
-                    dim = field_meta.vectors.dim
-                    if field_meta.type in [DataType.BINARY_VECTOR]:
-                        dim = dim // 8
-                    elif field_meta.type in [DataType.BFLOAT16_VECTOR, DataType.FLOAT16_VECTOR]:
-                        dim = dim * 2
+                if is_dense_vector_type(field_meta.type):
+                    dim = _dense_result_slice_width(field_meta.type, field_meta.vectors.dim)
                     entity[fname] = data[i * dim : (i + 1) * dim]
                     continue
 
