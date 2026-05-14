@@ -1,5 +1,7 @@
 """Tests for EmbeddingList with non-float vector types and placeholder type selection."""
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 from pymilvus.client.embedding_list import EmbeddingList
@@ -238,6 +240,10 @@ class TestEmbeddingListParseDtype:
         el = EmbeddingList(dtype=DataType.INT8_VECTOR)
         assert el._dtype == np.dtype(np.int8)
 
+    def test_parse_datatype_binary_vector(self):
+        el = EmbeddingList(dtype=DataType.BINARY_VECTOR)
+        assert el._dtype == np.dtype(np.uint8)
+
     def test_parse_unsupported_datatype_raises(self):
         with pytest.raises(ParamError):
             EmbeddingList(dtype=DataType.INT64)
@@ -254,6 +260,45 @@ class TestEmbeddingListParseDtype:
         except TypeError:
             expected = np.dtype(np.float16)
         assert el._dtype == expected
+
+    def test_parse_bfloat16_uses_registry_fallback(self):
+        with patch(
+            "pymilvus.client.embedding_list.require_numpy_dtype",
+            return_value="missing_bfloat16",
+        ):
+            el = EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
+
+        assert el._dtype == np.dtype(np.float16)
+
+    def test_parse_datatype_missing_registry_dtype_raises_param_error(self):
+        with patch(
+            "pymilvus.client.embedding_list.require_numpy_dtype",
+            side_effect=ParamError(message="Unsupported DataType: 101"),
+        ):
+            with pytest.raises(ParamError):
+                EmbeddingList(dtype=DataType.FLOAT_VECTOR)
+
+    def test_parse_datatype_missing_registry_fallback_raises_type_error(self):
+        with patch(
+            "pymilvus.client.embedding_list.require_numpy_dtype", return_value="missing_float"
+        ):
+            with patch(
+                "pymilvus.client.embedding_list.get_numpy_fallback_dtype", return_value=None
+            ):
+                with pytest.raises(TypeError):
+                    EmbeddingList(dtype=DataType.FLOAT_VECTOR)
+
+    def test_parse_datatype_invalid_registry_fallback_raises_type_error(self):
+        with patch(
+            "pymilvus.client.embedding_list.require_numpy_dtype",
+            return_value="missing_bfloat16",
+        ):
+            with patch(
+                "pymilvus.client.embedding_list.get_numpy_fallback_dtype",
+                return_value="missing_fallback",
+            ):
+                with pytest.raises(TypeError):
+                    EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
 
 
 class TestEmbeddingListAdd:
