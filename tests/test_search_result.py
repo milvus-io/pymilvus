@@ -316,6 +316,56 @@ class TestSearchResult:
         assert len(r[0][0].get("entity").get("float16_vector_field")) == 32
         assert len(r[0][0].get("entity").get("int8_vector_field")) == 16
 
+    @pytest.mark.parametrize(
+        "element_indices,expected_offsets",
+        [
+            ([10, 20, 30, 40, 50, 60], [[10, 20, 30], [40, 50, 60]]),
+            (None, None),
+        ],
+        ids=["with_element_indices", "without_element_indices"],
+    )
+    def test_search_result_element_indices(self, element_indices, expected_offsets):
+        pk = schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6))))
+        result_kwargs = {
+            "num_queries": 2,
+            "top_k": 3,
+            "scores": [1.0 * i for i in range(6)],
+            "ids": pk,
+            "topks": [3, 3],
+        }
+        if element_indices is not None:
+            result_kwargs["element_indices"] = schema_pb2.LongArray(data=element_indices)
+
+        r = SearchResult(schema_pb2.SearchResultData(**result_kwargs))
+
+        assert len(r) == 2
+        assert len(r[0]) == 3
+        assert len(r[1]) == 3
+
+        if expected_offsets is None:
+            assert "offset" not in r[0][0]
+            assert hasattr(r[0][0], "offset") is False
+            return
+
+        for q, offsets in enumerate(expected_offsets):
+            for i, offset in enumerate(offsets):
+                assert r[q][i]["offset"] == offset
+                assert r[q][i].offset == offset
+
+    def test_search_result_element_indices_length_mismatch(self):
+        pk = schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(3))))
+        result = schema_pb2.SearchResultData(
+            num_queries=1,
+            top_k=3,
+            scores=[1.0, 2.0, 3.0],
+            ids=pk,
+            topks=[3],
+            element_indices=schema_pb2.LongArray(data=[0, 1]),
+        )
+
+        with pytest.raises(MilvusException, match="element indices"):
+            SearchResult(result)
+
 
 class TestSearchResultExtended:
     def _create_base_result(self, fields_data=None):
