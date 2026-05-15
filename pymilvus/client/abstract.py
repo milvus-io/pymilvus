@@ -149,6 +149,7 @@ class StructArrayFieldSchema:
         self.name = None
         self.fields = []
         self.description = None
+        self.nullable = False
         self.params = {}
 
         self.__pack(self._raw)
@@ -157,7 +158,10 @@ class StructArrayFieldSchema:
         self.name = raw.name
         self.field_id = raw.fieldID
         self.description = raw.description
+        self.nullable = raw.nullable
         self.fields = [FieldSchema(f) for f in raw.fields]
+        for field in self.fields:
+            field.name = _strip_struct_sub_field_name(self.name, field.name)
 
         self.params = {}
         for kv in raw.type_params:
@@ -176,9 +180,18 @@ class StructArrayFieldSchema:
             "type": DataType._ARRAY_OF_STRUCT,
             "fields": [f.dict() for f in self.fields],
         }
+        if self.nullable:
+            result["nullable"] = self.nullable
         if self.params:
             result["params"] = self.params
         return result
+
+
+def _strip_struct_sub_field_name(struct_name: str, field_name: str) -> str:
+    prefix = f"{struct_name}["
+    if field_name.startswith(prefix) and field_name.endswith("]"):
+        return field_name[len(prefix) : -1]
+    return field_name
 
 
 class FunctionSchema:

@@ -445,9 +445,13 @@ class CollectionSchema:
                 raise ParamError(message="Param struct_schema is required when datatype is STRUCT")
             struct_schema = copy.deepcopy(kwargs.pop("struct_schema"))
             struct_schema.name = field_name
+            struct_schema._nullable = kwargs.get("nullable", False)
             if "max_capacity" not in kwargs:
                 raise ParamError(message="Param max_capacity is required when datatype is STRUCT")
             struct_schema.max_capacity = kwargs["max_capacity"]
+
+            if "description" in kwargs:
+                struct_schema._description = kwargs["description"]
 
             if "mmap_enabled" in kwargs:
                 struct_schema._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
@@ -686,12 +690,17 @@ def isVectorDataType(datatype: DataType) -> bool:
 
 
 class StructFieldSchema:
-    def __init__(self):
+    def __init__(self, nullable: bool = False, description: str = ""):
+        if not isinstance(nullable, bool):
+            raise ParamError(message="nullable must be boolean")
+        if not isinstance(description, str):
+            raise ParamError(message="description must be string")
         self.name = ""
         self._kwargs = {}
         self._fields = []
-        self._description = ""
+        self._description = description
         self._type_params = {}
+        self._nullable = nullable
         # max_capacity will be set when added to CollectionSchema
         self.max_capacity = None
 
@@ -726,7 +735,10 @@ class StructFieldSchema:
 
             if field.nullable:
                 raise ParamError(
-                    message=f"Field '{field.name}' in struct '{self.name}' cannot be nullable"
+                    message=(
+                        f"Field '{field.name}' in struct '{self.name}' cannot be nullable "
+                        "individually, set nullable on the struct instead"
+                    )
                 )
 
             if field.auto_id:
@@ -766,6 +778,10 @@ class StructFieldSchema:
         return self._description
 
     @property
+    def nullable(self):
+        return self._nullable
+
+    @property
     def params(self):
         return self._type_params
 
@@ -780,6 +796,8 @@ class StructFieldSchema:
             "description": self._description,
             "fields": [field.to_dict() for field in self._fields],
         }
+        if self.nullable:
+            struct_dict["nullable"] = self.nullable
         # Include max_capacity if it's set
         if self.max_capacity is not None:
             struct_dict["max_capacity"] = self.max_capacity
@@ -802,6 +820,7 @@ class StructFieldSchema:
         # Set name and description
         instance.name = raw.get("name", "")
         instance._description = raw.get("description", "")
+        instance._nullable = raw.get("nullable", False)
 
         # Extract max_capacity if present
         if "max_capacity" in raw:

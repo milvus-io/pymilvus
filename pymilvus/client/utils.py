@@ -477,6 +477,8 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
             "element_type": DataType.STRUCT,
             "params": {},
         }
+        if struct_field_info.get("nullable", False):
+            user_struct_field["nullable"] = True
 
         # Extract max_capacity from first field (all fields should have the same value)
         max_capacity = None
@@ -499,7 +501,7 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
             if user_field_type:
                 struct_sub_field = {
                     "field_id": f.get("field_id"),
-                    "name": f["name"],
+                    "name": strip_struct_sub_field_name(struct_field_info["name"], f["name"]),
                     "type": user_field_type,
                     "description": f.get("description", ""),
                 }
@@ -516,6 +518,13 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
         converted_fields.append(user_struct_field)
 
     return converted_fields
+
+
+def strip_struct_sub_field_name(struct_name: str, field_name: str) -> str:
+    prefix = f"{struct_name}["
+    if field_name.startswith(prefix) and field_name.endswith("]"):
+        return field_name[len(prefix) : -1]
+    return field_name
 
 
 def validate_iso_timestamp(s: str) -> bool:

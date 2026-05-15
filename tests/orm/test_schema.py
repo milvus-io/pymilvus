@@ -1160,6 +1160,24 @@ class TestStructFieldSchemaCreation:
         struct = StructFieldSchema()
         assert struct.dtype == DataType.STRUCT
 
+    def test_create_nullable_struct_schema(self):
+        """Test creating nullable StructFieldSchema."""
+        struct = StructFieldSchema(nullable=True, description="desc")
+        assert struct.nullable is True
+        assert struct.description == "desc"
+
+    @pytest.mark.parametrize(
+        "kwargs,error_match",
+        [
+            pytest.param({"nullable": "true"}, "nullable must be boolean", id="nullable"),
+            pytest.param({"description": 123}, "description must be string", id="description"),
+        ],
+    )
+    def test_create_struct_schema_invalid_types(self, kwargs, error_match):
+        """Test StructFieldSchema constructor validates argument types."""
+        with pytest.raises(ParamError, match=error_match):
+            StructFieldSchema(**kwargs)
+
 
 class TestStructFieldSchemaValidation:
     """Tests for StructFieldSchema validation."""
@@ -1212,13 +1230,14 @@ class TestStructFieldSchemaToDict:
 
     def test_to_dict(self):
         """Test StructFieldSchema.to_dict."""
-        struct = StructFieldSchema()
+        struct = StructFieldSchema(nullable=True)
         struct.name = "test_struct"
         struct.max_capacity = 10
         struct.add_field("score", DataType.FLOAT)
 
         result = struct.to_dict()
         assert result["name"] == "test_struct"
+        assert result["nullable"] is True
         assert result["max_capacity"] == 10
         assert len(result["fields"]) == 1
 
@@ -1228,6 +1247,7 @@ class TestStructFieldSchemaToDict:
             pytest.param(
                 {
                     "name": "test",
+                    "nullable": True,
                     "max_capacity": 5,
                     "fields": [{"name": "score", "type": DataType.FLOAT, "description": ""}],
                 },
@@ -1255,6 +1275,7 @@ class TestStructFieldSchemaToDict:
         """Test StructFieldSchema.construct_from_dict."""
         struct = StructFieldSchema.construct_from_dict(d)
         assert struct.name == d["name"]
+        assert struct.nullable == d.get("nullable", False)
         assert len(struct.fields) >= 1
 
     def test_reused_struct_schema(self):
@@ -1287,6 +1308,31 @@ class TestStructFieldSchemaToDict:
         assert len(schema.struct_fields) == 2
         assert schema.struct_fields[0].name == "field1"
         assert schema.struct_fields[1].name == "field2"
+        # Original not modified
+        assert struct_schema.name == ""
+
+    def test_add_struct_field_with_description(self):
+        """Test CollectionSchema.add_field preserves struct description."""
+        struct_schema = StructFieldSchema()
+        struct_schema.add_field("score", DataType.FLOAT)
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+            ]
+        )
+        schema.add_field(
+            "metadata",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=10,
+            description="metadata desc",
+        )
+
+        assert schema.struct_fields[0].description == "metadata desc"
+        assert schema.struct_fields[0].name == "metadata"
         # Original not modified
         assert struct_schema.name == ""
 

@@ -811,6 +811,20 @@ class AddCollectionFieldRequest(_message.Message):
     schema: bytes
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., schema: _Optional[bytes] = ...) -> None: ...
 
+class AddCollectionStructFieldRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "struct_array_field_schema")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
+    STRUCT_ARRAY_FIELD_SCHEMA_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collectionID: int
+    struct_array_field_schema: _schema_pb2.StructArrayFieldSchema
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., struct_array_field_schema: _Optional[_Union[_schema_pb2.StructArrayFieldSchema, _Mapping]] = ...) -> None: ...
+
 class AddCollectionFunctionRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "functionSchema")
     BASE_FIELD_NUMBER: _ClassVar[int]

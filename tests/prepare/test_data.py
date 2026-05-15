@@ -68,6 +68,116 @@ class TestRowInsertParam:
                 enable_dynamic=False,
             )
 
+    def test_insert_nullable_struct_none_and_missing(self):
+        """Test nullable struct rows encode null through sub-field valid_data."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        struct_fields_info = [
+            {
+                "name": "metadata",
+                "type": DataType._ARRAY_OF_STRUCT,
+                "nullable": True,
+                "fields": [
+                    {
+                        "name": "score",
+                        "type": DataType.ARRAY,
+                        "element_type": DataType.FLOAT,
+                        "nullable": True,
+                        "params": {"max_capacity": 16},
+                    },
+                    {
+                        "name": "embedding",
+                        "type": DataType._ARRAY_OF_VECTOR,
+                        "element_type": DataType.FLOAT_VECTOR,
+                        "nullable": True,
+                        "params": {"max_capacity": 16, "dim": 2},
+                    },
+                ],
+            }
+        ]
+        rows = [
+            {"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0], "metadata": None},
+            {
+                "pk": 2,
+                "vector": [1.0, 2.0, 3.0, 4.0],
+                "metadata": [
+                    {"score": 1.0, "embedding": [1.0, 2.0]},
+                    {"score": 2.0, "embedding": [3.0, 4.0]},
+                ],
+            },
+            {"pk": 3, "vector": [1.0, 2.0, 3.0, 4.0]},
+        ]
+
+        req = Prepare.row_insert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=struct_fields_info,
+        )
+
+        struct_data = next(field for field in req.fields_data if field.field_name == "metadata")
+        score_data = struct_data.struct_arrays.fields[0]
+        assert list(score_data.valid_data) == [False, True, False]
+        assert len(score_data.scalars.array_data.data) == 3
+        embedding_data = struct_data.struct_arrays.fields[1]
+        assert list(embedding_data.valid_data) == [False, True, False]
+        assert embedding_data.vectors.vector_array.dim == 2
+        assert embedding_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR
+        assert len(embedding_data.vectors.vector_array.data) == 3
+        assert list(embedding_data.vectors.vector_array.data[1].float_vector.data) == [
+            1.0,
+            2.0,
+            3.0,
+            4.0,
+        ]
+
+    def test_insert_non_nullable_struct_none_or_missing_raises(self):
+        """Test non-nullable struct cannot be None or missing."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        struct_fields_info = [
+            {
+                "name": "metadata",
+                "type": DataType._ARRAY_OF_STRUCT,
+                "nullable": False,
+                "fields": [
+                    {
+                        "name": "score",
+                        "type": DataType.ARRAY,
+                        "element_type": DataType.FLOAT,
+                        "params": {"max_capacity": 16},
+                    },
+                ],
+            }
+        ]
+
+        with pytest.raises(DataNotMatchException, match="Expected list, got NoneType"):
+            Prepare.row_insert_param(
+                "test_coll",
+                [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0], "metadata": None}],
+                "",
+                fields_info=make_fields_info(schema),
+                struct_fields_info=struct_fields_info,
+            )
+
+        with pytest.raises(DataNotMatchException, match="Insert missed an field"):
+            Prepare.row_insert_param(
+                "test_coll",
+                [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}],
+                "",
+                fields_info=make_fields_info(schema),
+                struct_fields_info=struct_fields_info,
+            )
+
     def test_insert_with_dynamic_field(self):
         """Test insert with dynamic field enabled."""
         schema = CollectionSchema(
@@ -241,6 +351,39 @@ class TestRowUpsertParam:
             enable_dynamic=True,
         )
         assert req.num_rows == 1
+
+    def test_upsert_non_nullable_struct_missing_raises(self):
+        """Test upsert rejects missing non-nullable struct."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        struct_fields_info = [
+            {
+                "name": "metadata",
+                "type": DataType._ARRAY_OF_STRUCT,
+                "nullable": False,
+                "fields": [
+                    {
+                        "name": "score",
+                        "type": DataType.ARRAY,
+                        "element_type": DataType.FLOAT,
+                        "params": {"max_capacity": 16},
+                    },
+                ],
+            }
+        ]
+
+        with pytest.raises(DataNotMatchException, match="Insert missed an field"):
+            Prepare.row_upsert_param(
+                "test_coll",
+                [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}],
+                "",
+                fields_info=make_fields_info(schema),
+                struct_fields_info=struct_fields_info,
+            )
 
     def test_upsert_partial_update_struct_not_supported(self):
         """Test partial update with struct fields raises error."""
@@ -496,6 +639,11 @@ class TestStructFieldProcessing:
     def test_get_dim_value(self, field_info, expected):
         """Test get_dim_value with various inputs."""
         assert Prepare._get_dim_value(field_info) == expected
+
+    def test_strip_struct_sub_field_name(self):
+        """Test stored struct sub-field names are normalized."""
+        assert Prepare._strip_struct_sub_field_name("metadata", "metadata[score]") == "score"
+        assert Prepare._strip_struct_sub_field_name("metadata", "score") == "score"
 
     def test_process_struct_values_unsupported_type(self):
         """Test process_struct_values with unsupported type."""

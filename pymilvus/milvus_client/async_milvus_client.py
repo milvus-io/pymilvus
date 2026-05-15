@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import time
 import types
 from typing import Dict, List, Optional, Type, Union
@@ -31,6 +32,7 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
 )
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
+from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
 
 from .async_optimize_task import AsyncOptimizeTask
@@ -961,6 +963,45 @@ class AsyncMilvusClient(BaseMilvusClient):
         await conn.add_collection_field(
             collection_name,
             field_schema,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def add_collection_struct_field(
+        self,
+        collection_name: str,
+        field_name: str,
+        struct_schema: StructFieldSchema,
+        max_capacity: int,
+        desc: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Add a new nullable struct field to the collection."""
+        if not isinstance(struct_schema, StructFieldSchema):
+            raise ParamError(message="struct_schema must be StructFieldSchema")
+        if not kwargs.get("nullable", True):
+            raise ParamError(
+                message="Adding struct field to existing collection requires nullable=True"
+            )
+
+        struct_field_schema = copy.deepcopy(struct_schema)
+        struct_field_schema.name = field_name
+        struct_field_schema.max_capacity = max_capacity
+        if desc is not None:
+            struct_field_schema._description = desc
+        struct_field_schema._nullable = True
+
+        if "mmap_enabled" in kwargs:
+            struct_field_schema._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
+        if "warmup" in kwargs:
+            struct_field_schema._type_params["warmup"] = kwargs["warmup"]
+
+        conn = await self._get_connection()
+        await conn.add_collection_struct_field(
+            collection_name,
+            struct_field_schema,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
