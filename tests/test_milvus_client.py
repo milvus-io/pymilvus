@@ -1463,6 +1463,12 @@ class TestMilvusClientMiscOps:
         client.compact("col", target_size=2048, target_size_unit="kb")
         assert handler.compact.call_args[1]["target_size"] == 2
 
+    def test_compact_target_size_max_signed_int64_mb(self, mc):
+        client, handler = mc
+        handler.compact.return_value = 42
+        client.compact("col", target_size=(1 << 63) - 1)
+        assert handler.compact.call_args[1]["target_size"] == (1 << 63) - 1
+
     def test_compact_target_size_none_passes_none(self, mc):
         client, handler = mc
         handler.compact.return_value = 42
@@ -1488,6 +1494,12 @@ class TestMilvusClientMiscOps:
         client, _ = mc
         with pytest.raises(ParamError):
             client.compact("col", target_size=512, target_size_unit="zb")
+
+    def test_compact_target_size_over_signed_int64_mb_rejected_before_rpc(self, mc):
+        client, handler = mc
+        with pytest.raises(ParamError):
+            client.compact("col", target_size=1 << 63)
+        handler.compact.assert_not_called()
 
     def test_get_compaction_state(self, mc):
         client, handler = mc
