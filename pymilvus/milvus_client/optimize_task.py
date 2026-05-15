@@ -1,15 +1,19 @@
 import re
 import threading
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Callable, List, Optional, Union
 
 from pymilvus.exceptions import MilvusException, ParamError
 
+_BYTES_PER_MB = 1024**2
+_TARGET_SIZE_MAX_MB = (1 << 63) - 1
+
 unit_to_bytes = {
     "b": 1,
     "kb": 1024,
-    "mb": 1024**2,
+    "mb": _BYTES_PER_MB,
     "gb": 1024**3,
     "tb": 1024**4,
     "pb": 1024**5,
@@ -17,7 +21,7 @@ unit_to_bytes = {
 
 # Sentinel passed to the server when optimize() is called without a target_size,
 # meaning "let the server choose the segment size automatically".
-_OPTIMIZE_DEFAULT_SIZE_MB = (1 << 63) - 1
+_OPTIMIZE_DEFAULT_SIZE_MB = _TARGET_SIZE_MAX_MB
 
 
 def parse_target_size(target_size: Union[str, float, int]) -> int:
@@ -32,7 +36,7 @@ def parse_target_size(target_size: Union[str, float, int]) -> int:
 
     Raises:
         ParamError: If format is invalid or unit is not supported,
-        or size is less than or equal to zero
+        or size is outside the supported signed int64 MB range
 
     Examples:
         >>> parse_target_size("1GB")
@@ -47,9 +51,10 @@ def parse_target_size(target_size: Union[str, float, int]) -> int:
             message=f"target_size must be a string or number, got {type(target_size).__name__}"
         )
 
-    size_bytes = 0
     if isinstance(target_size, (int, float)):
-        size_bytes = target_size
+        decimal_source = int(target_size) if isinstance(target_size, bool) else str(target_size)
+        value = Decimal(decimal_source)
+        unit_bytes = 1
     else:
         target_str = str(target_size).strip().lower()
         pattern = r"^(\d+(?:\.\d+)?)\s*([a-z]*)$"
@@ -61,7 +66,7 @@ def parse_target_size(target_size: Union[str, float, int]) -> int:
                 f"Expected format: '1000', '1000MB', '1GB', '1.2gb', '1000B', '500KB', '2TB'"
             )
 
-        value = float(match.group(1))
+        value = Decimal(match.group(1))
         unit = match.group(2) or "b"
 
         if unit not in unit_to_bytes:
@@ -69,11 +74,18 @@ def parse_target_size(target_size: Union[str, float, int]) -> int:
                 message=f"Invalid unit: '{unit}'. Supported units: B, KB, MB, GB, TB, PB"
             )
 
-        size_bytes = value * unit_to_bytes[unit]
+        unit_bytes = unit_to_bytes[unit]
 
-    size_mb = int(size_bytes / (1024**2))
+    try:
+        size_mb = int((value * unit_bytes) // _BYTES_PER_MB)
+    except (InvalidOperation, ValueError, OverflowError):
+        raise ParamError(message=f"Invalid target_size value: {target_size}") from None
     if size_mb <= 0:
         raise ParamError(message=f"target size too small: {target_size}, must be at least 1MB")
+    if size_mb > _TARGET_SIZE_MAX_MB:
+        raise ParamError(
+            message=f"target size too large: {target_size}, must be at most {_TARGET_SIZE_MAX_MB}MB"
+        )
     return size_mb
 
 
