@@ -981,6 +981,7 @@ class GrpcHandler:
 
         # Extract partial_update parameter from kwargs
         partial_update = kwargs.get("partial_update", False)
+        field_ops = kwargs.get("field_ops")
 
         schema = kwargs.get("schema")
         if not schema:
@@ -999,6 +1000,7 @@ class GrpcHandler:
                 partition_name,
                 fields_info,
                 partial_update=partial_update,
+                field_ops=field_ops,
             )
         )
 
@@ -1062,6 +1064,7 @@ class GrpcHandler:
 
         # Extract partial_update parameter from kwargs
         partial_update = kwargs.get("partial_update", False)
+        field_ops = kwargs.get("field_ops")
 
         schema, schema_timestamp = self._get_schema(
             collection_name, timeout=timeout, context=context, **kwargs
@@ -1078,6 +1081,7 @@ class GrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
+            field_ops=field_ops,
         )
 
     @retry_on_rpc_failure()
