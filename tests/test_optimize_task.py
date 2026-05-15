@@ -150,6 +150,8 @@ async def test_async_optimize_task_can_be_cancelled_before_completion() -> None:
         ("1.5GB", 1536),
         (1048576, 1),
         (1.5 * 1024 * 1024, 1),
+        (f"{(1 << 63) - 1}mb", (1 << 63) - 1),
+        (((1 << 63) - 1) * 1024**2, (1 << 63) - 1),
     ],
 )
 def test_parse_target_size_converts_valid_values(input_value: Any, expected_mb: int) -> None:
@@ -177,6 +179,25 @@ def test_optimize_default_size_mb_is_sentinel():
 def test_parse_target_size_float_bytes():
     result = parse_target_size(2.5 * 1024 * 1024)
     assert result == 2
+
+
+@pytest.mark.parametrize(
+    "overflow_value",
+    [
+        f"{1 << 63}mb",
+        (1 << 63) * 1024**2,
+        f"{1 << 53}gb",
+    ],
+)
+def test_parse_target_size_over_signed_int64_mb_raises(overflow_value: Any) -> None:
+    with pytest.raises(ParamError):
+        parse_target_size(overflow_value)
+
+
+@pytest.mark.parametrize("invalid_value", [float("nan"), float("inf"), float("-inf")])
+def test_parse_target_size_non_finite_float_raises(invalid_value: float) -> None:
+    with pytest.raises(ParamError):
+        parse_target_size(invalid_value)
 
 
 # ── TestOptimizeTask ──────────────────────────────────────────────────────────
