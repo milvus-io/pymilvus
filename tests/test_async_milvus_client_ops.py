@@ -172,6 +172,13 @@ class TestAsyncClientSimpleDelegation:
         await getattr(client, method)(*args, **kwargs)
         getattr(handler, handler_method).assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_compact_target_size_over_signed_int64_mb_rejected_before_rpc(self):
+        client, handler = _make_client()
+        with pytest.raises(ParamError):
+            await client.compact("col", target_size=1 << 63)
+        handler.compact.assert_not_called()
+
 
 class TestAsyncClientAliasAndServerOps:
     @pytest.mark.asyncio
