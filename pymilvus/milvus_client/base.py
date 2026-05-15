@@ -42,13 +42,13 @@ class BaseMilvusClient:
         return CollectionSchema([], **kwargs)
 
     @classmethod
-    def create_struct_field_schema(cls) -> StructFieldSchema:
+    def create_struct_field_schema(cls, **kwargs) -> StructFieldSchema:
         """Create a struct field schema.
 
         Returns:
             StructFieldSchema: The created struct field schema.
         """
-        return StructFieldSchema()
+        return StructFieldSchema(**kwargs)
 
     @classmethod
     def create_field_schema(

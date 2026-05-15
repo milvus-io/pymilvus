@@ -169,6 +169,7 @@ def mock_grpc_stub():
     stub.AlterCollection = MagicMock(return_value=make_status())
     stub.AlterCollectionField = MagicMock(return_value=make_status())
     stub.AddCollectionField = MagicMock(return_value=make_status())
+    stub.AddCollectionStructField = MagicMock(return_value=make_status())
 
     # Partition operations
     stub.CreatePartition = MagicMock(return_value=make_status())
