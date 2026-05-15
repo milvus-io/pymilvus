@@ -88,6 +88,7 @@ class HybridHits(list):
         output_fields: List[str],
         highlight_results: List[common_pb2.HighlightResult],
         pk_name: str,
+        all_offsets: Optional[List[int]] = None,
     ):
         self.ids = all_pks[start:end]
         self.distances = all_scores[start:end]
@@ -98,6 +99,8 @@ class HybridHits(list):
         self.has_materialized = False
         self.start = start
         self._prefix_sum_cache = {}
+
+        offsets = all_offsets[start:end] if all_offsets is not None else None
 
         col_results = {}
 
@@ -144,13 +147,13 @@ class HybridHits(list):
             for i, value in enumerate(values):
                 entities[i][field_name] = value
 
-        top_k_res = [
-            Hit(
-                {pk_name: self.ids[i], "distance": self.distances[i], "entity": entities[i]},
-                pk_name=pk_name,
-            )
-            for i in range(count)
-        ]
+        top_k_res = []
+        for i in range(count):
+            hit_data = {pk_name: self.ids[i], "distance": self.distances[i]}
+            if offsets is not None:
+                hit_data["offset"] = offsets[i]
+            hit_data["entity"] = entities[i]
+            top_k_res.append(Hit(hit_data, pk_name=pk_name))
 
         if len(highlight_results) > 0:
             for i, hit in enumerate(top_k_res):
@@ -427,6 +430,12 @@ class SearchResult(list):
         else:
             all_scores = res.scores
 
+        all_offsets: Optional[List[int]] = None
+        if res.HasField("element_indices"):
+            all_offsets = list(res.element_indices.data)
+            if len(all_offsets) != len(all_pks):
+                raise MilvusException(message="The length of element indices is inconsistent")
+
         data = []
         nq_thres = 0
 
@@ -442,6 +451,7 @@ class SearchResult(list):
                     res.output_fields,
                     res.highlight_results,
                     _pk_name,
+                    all_offsets,
                 )
             )
 

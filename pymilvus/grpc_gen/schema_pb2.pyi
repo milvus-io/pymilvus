@@ -353,6 +353,22 @@ class StructArrayField(_message.Message):
     fields: _containers.RepeatedCompositeFieldContainer[FieldData]
     def __init__(self, fields: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
 
+class FieldPartialUpdateOp(_message.Message):
+    __slots__ = ("field_name", "op")
+    class OpType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        __slots__ = ()
+        REPLACE: _ClassVar[FieldPartialUpdateOp.OpType]
+        ARRAY_APPEND: _ClassVar[FieldPartialUpdateOp.OpType]
+        ARRAY_REMOVE: _ClassVar[FieldPartialUpdateOp.OpType]
+    REPLACE: FieldPartialUpdateOp.OpType
+    ARRAY_APPEND: FieldPartialUpdateOp.OpType
+    ARRAY_REMOVE: FieldPartialUpdateOp.OpType
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    OP_FIELD_NUMBER: _ClassVar[int]
+    field_name: str
+    op: FieldPartialUpdateOp.OpType
+    def __init__(self, field_name: _Optional[str] = ..., op: _Optional[_Union[FieldPartialUpdateOp.OpType, str]] = ...) -> None: ...
+
 class FieldData(_message.Message):
     __slots__ = ("type", "field_name", "scalars", "vectors", "struct_arrays", "field_id", "is_dynamic", "valid_data")
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -390,7 +406,7 @@ class SearchIteratorV2Results(_message.Message):
     def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
-    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results")
+    __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices")
     NUM_QUERIES_FIELD_NUMBER: _ClassVar[int]
     TOP_K_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -405,6 +421,7 @@ class SearchResultData(_message.Message):
     RECALLS_FIELD_NUMBER: _ClassVar[int]
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     HIGHLIGHT_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
     num_queries: int
     top_k: int
     fields_data: _containers.RepeatedCompositeFieldContainer[FieldData]
@@ -419,7 +436,8 @@ class SearchResultData(_message.Message):
     recalls: _containers.RepeatedScalarFieldContainer[float]
     primary_field_name: str
     highlight_results: _containers.RepeatedCompositeFieldContainer[_common_pb2.HighlightResult]
-    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ...) -> None: ...
+    element_indices: LongArray
+    def __init__(self, num_queries: _Optional[int] = ..., top_k: _Optional[int] = ..., fields_data: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ..., scores: _Optional[_Iterable[float]] = ..., ids: _Optional[_Union[IDs, _Mapping]] = ..., topks: _Optional[_Iterable[int]] = ..., output_fields: _Optional[_Iterable[str]] = ..., group_by_field_value: _Optional[_Union[FieldData, _Mapping]] = ..., all_search_count: _Optional[int] = ..., distances: _Optional[_Iterable[float]] = ..., search_iterator_v2_results: _Optional[_Union[SearchIteratorV2Results, _Mapping]] = ..., recalls: _Optional[_Iterable[float]] = ..., primary_field_name: _Optional[str] = ..., highlight_results: _Optional[_Iterable[_Union[_common_pb2.HighlightResult, _Mapping]]] = ..., element_indices: _Optional[_Union[LongArray, _Mapping]] = ...) -> None: ...
 
 class VectorClusteringInfo(_message.Message):
     __slots__ = ("field", "centroid")

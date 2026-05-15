@@ -778,14 +778,16 @@ class Blob(_message.Message):
     def __init__(self, value: _Optional[bytes] = ...) -> None: ...
 
 class PlaceholderValue(_message.Message):
-    __slots__ = ("tag", "type", "values")
+    __slots__ = ("tag", "type", "values", "element_level")
     TAG_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     VALUES_FIELD_NUMBER: _ClassVar[int]
+    ELEMENT_LEVEL_FIELD_NUMBER: _ClassVar[int]
     tag: str
     type: PlaceholderType
     values: _containers.RepeatedScalarFieldContainer[bytes]
-    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ...) -> None: ...
+    element_level: bool
+    def __init__(self, tag: _Optional[str] = ..., type: _Optional[_Union[PlaceholderType, str]] = ..., values: _Optional[_Iterable[bytes]] = ..., element_level: bool = ...) -> None: ...
 
 class PlaceholderGroup(_message.Message):
     __slots__ = ("placeholders",)

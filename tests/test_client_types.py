@@ -108,7 +108,6 @@ def _make_status(extra_info):
 
 # TestStatus
 class TestStatus:
-
     def test_status_default_success(self):
         status = Status()
         assert status.code == Status.SUCCESS and status.code == 0 and status.message == "Success"
@@ -177,7 +176,6 @@ class TestStatus:
 
 # TestOmitZeroDict
 class TestOmitZeroDict:
-
     def test_str_omits_zero_values(self):
         s = str(OmitZeroDict({"a": 1, "b": 0, "c": 3, "d": 0}))
         assert "'a': 1" in s and "'c': 3" in s
@@ -216,7 +214,6 @@ class TestOmitZeroDict:
 
 # TestState
 class TestState:
-
     def test_state_new(self):
         assert State.new(1) == State.Executing
         assert State.new(2) == State.Completed
@@ -240,7 +237,6 @@ class TestState:
 
 # TestCompactionState
 class TestCompactionState:
-
     def test_compaction_state_init(self):
         cs = CompactionState(
             compaction_id=123, state=State.Executing, in_executing=5, in_timeout=2, completed=10
@@ -265,7 +261,6 @@ class TestCompactionState:
 
 # TestPlan
 class TestPlan:
-
     def test_plan_init(self):
         plan = Plan(sources=[1, 2, 3], target=100)
         assert plan.sources == [1, 2, 3]
@@ -278,7 +273,6 @@ class TestPlan:
 
 # TestCompactionPlans
 class TestCompactionPlans:
-
     def test_compaction_plans_init(self):
         cp = CompactionPlans(compaction_id=789, state=1)
         assert cp.compaction_id == 789
@@ -296,7 +290,6 @@ class TestCompactionPlans:
 
 # TestCmpConsistencyLevel  (collapsed with parametrize)
 class TestCmpConsistencyLevel:
-
     @pytest.mark.parametrize(
         "a,b,expected",
         [
@@ -381,7 +374,6 @@ def test_enum_repr_and_str(enum_cls, member):
 
 # TestIndexType (aliases + remaining values)
 class TestIndexType:
-
     @pytest.mark.parametrize(
         "attr,value",
         [
@@ -409,7 +401,6 @@ class TestIndexType:
 
 # TestMetricType
 class TestMetricType:
-
     @pytest.mark.parametrize(
         "attr,value",
         [
@@ -432,7 +423,6 @@ class TestMetricType:
 
 # TestDataType
 class TestDataType:
-
     @pytest.mark.parametrize(
         "attr,value",
         [
@@ -730,7 +720,6 @@ class TestGetExtraInfo:
 
 
 class TestDataClasses:
-
     def _make_shard(self):
         return Shard(channel_name="ch1", shard_nodes=[1, 2], shard_leader=1)
 
