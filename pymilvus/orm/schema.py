@@ -491,7 +491,11 @@ class FieldSchema:
         if not isinstance(kwargs.get("is_primary", False), bool):
             raise PrimaryKeyException(message=ExceptionsMessage.IsPrimaryType)
         self.is_primary = kwargs.get("is_primary", False)
+        if not isinstance(kwargs.get("is_dynamic", False), bool):
+            raise ParamError(message=ExceptionsMessage.IsDynamicType)
         self.is_dynamic = kwargs.get("is_dynamic", False)
+        if not isinstance(kwargs.get("nullable", False), bool):
+            raise ParamError(message=ExceptionsMessage.NullableType)
         self.nullable = kwargs.get("nullable", False)
         self.auto_id = kwargs.get("auto_id", False)
         if "auto_id" in kwargs:

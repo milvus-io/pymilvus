@@ -198,6 +198,18 @@ class TestFieldSchemaValidation:
                 None,
                 id="clustering_key_not_bool",
             ),
+            pytest.param(
+                {"is_dynamic": "true"},
+                ParamError,
+                "is_dynamic",
+                id="is_dynamic_not_bool",
+            ),
+            pytest.param(
+                {"nullable": "true"},
+                ParamError,
+                "nullable",
+                id="nullable_not_bool",
+            ),
         ],
     )
     def test_invalid_field_options(self, kwargs, error_type, error_match):
