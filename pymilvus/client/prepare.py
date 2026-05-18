@@ -22,7 +22,7 @@ from pymilvus.orm.schema import (
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
 
-from . import __version__, blob, check, entity_helper, utils
+from . import __version__, blob, check, entity_helper, type_info, utils
 from .abstract import BaseRanker
 from .check import check_pass_param, is_legal_collection_properties, validate_str
 from .constants import (
@@ -886,12 +886,7 @@ class Prepare:
 
         # Flush all bytes vector field temporary byte lists to optimize memory usage
         for field_data in fields_data.values():
-            if field_data.type in (
-                DataType.INT8_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-            ):
+            if type_info.is_byte_vector_type(field_data.type):
                 entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
@@ -1047,12 +1042,7 @@ class Prepare:
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
         # Flush all bytes vector field temporary byte lists to optimize memory usage
         for field_data in fields_data.values():
-            if field_data.type in (
-                DataType.INT8_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-            ):
+            if type_info.is_byte_vector_type(field_data.type):
                 entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
