@@ -17,6 +17,7 @@ from pymilvus.exceptions import (
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
+from . import type_info
 from .types import DataType
 from .utils import (
     SciPyHelper,
@@ -415,12 +416,11 @@ def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
 
 
-_VECTOR_ATTR_MAP = {
-    DataType.INT8_VECTOR: "int8_vector",
-    DataType.BINARY_VECTOR: "binary_vector",
-    DataType.FLOAT16_VECTOR: "float16_vector",
-    DataType.BFLOAT16_VECTOR: "bfloat16_vector",
-}
+def _dim_from_vector_payload(dtype: DataType, payload: bytes) -> int:
+    info = type_info.get_type_info(dtype)
+    if info.binary_packed:
+        return len(payload) * 8
+    return len(payload) // info.bytes_per_dim
 
 
 def flush_vector_bytes(
@@ -437,8 +437,8 @@ def flush_vector_bytes(
     if not bytes_list:
         return
 
-    attr_name = _VECTOR_ATTR_MAP.get(field_data.type)
-    if attr_name:
+    attr_name = type_info.get_vector_attr(field_data.type)
+    if attr_name and type_info.is_byte_vector_type(field_data.type):
         setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
 
@@ -550,13 +550,11 @@ def pack_field_value_to_field_data(
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = _get_dim(field_info)
             else:
-                field_data.vectors.dim = len(field_value) * 8
+                len(field_value)
                 b_bytes = bytes(field_value)
+                field_data.vectors.dim = _dim_from_vector_payload(field_type, b_bytes)
 
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(b_bytes)
+                vector_bytes_cache.setdefault(id(field_data), []).append(b_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -582,12 +580,9 @@ def pack_field_value_to_field_data(
                         message="invalid input type for float16 vector. Expected an np.ndarray with dtype=float16"
                     )
 
-                field_data.vectors.dim = len(v_bytes) // 2
+                field_data.vectors.dim = _dim_from_vector_payload(field_type, v_bytes)
 
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(v_bytes)
+                vector_bytes_cache.setdefault(id(field_data), []).append(v_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -613,12 +608,9 @@ def pack_field_value_to_field_data(
                         message="invalid input type for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
                     )
 
-                field_data.vectors.dim = len(v_bytes) // 2
+                field_data.vectors.dim = _dim_from_vector_payload(field_type, v_bytes)
 
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(v_bytes)
+                vector_bytes_cache.setdefault(id(field_data), []).append(v_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -663,12 +655,9 @@ def pack_field_value_to_field_data(
                         message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
                     )
 
-                field_data.vectors.dim = len(i_bytes)
+                field_data.vectors.dim = _dim_from_vector_payload(field_type, i_bytes)
 
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(i_bytes)
+                vector_bytes_cache.setdefault(id(field_data), []).append(i_bytes)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -785,24 +774,13 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 field_data.vectors.dim = _get_dim(field_info)
             all_floats = [f for vector in entity_values for f in vector]
             field_data.vectors.float_vector.data.extend(all_floats)
-        elif entity_type == DataType.BINARY_VECTOR:
+        elif type_info.is_byte_vector_type(entity_type):
             if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) * 8
+                field_data.vectors.dim = _dim_from_vector_payload(entity_type, entity_values[0])
             else:
                 field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.binary_vector = b"".join(entity_values)
-        elif entity_type == DataType.FLOAT16_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) // 2
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.float16_vector = b"".join(entity_values)
-        elif entity_type == DataType.BFLOAT16_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) // 2
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.bfloat16_vector = b"".join(entity_values)
+            attr_name = type_info.get_vector_attr(entity_type)
+            setattr(field_data.vectors, attr_name, b"".join(entity_values))
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
             entity_len = (
                 entity_values.shape[0]
@@ -811,13 +789,6 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             )
             if entity_len > 0:
                 field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
-        elif entity_type == DataType.INT8_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0])
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.int8_vector = b"".join(entity_values)
-
         elif entity_type == DataType.VARCHAR:
             field_data.scalars.string_data.data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)

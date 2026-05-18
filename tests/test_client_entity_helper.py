@@ -25,6 +25,7 @@ from pymilvus.client.entity_helper import (
     sparse_proto_to_rows,
     sparse_rows_to_proto,
 )
+from pymilvus.client.prepare import Prepare
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import DataNotMatchException, ParamError
 from pymilvus.grpc_gen import schema_pb2
@@ -750,6 +751,160 @@ class TestNullableVectorSupport:
                 expected_size = num_vectors * dim * 2
 
             assert len(vector_data) == expected_size, f"{vector_attr} size mismatch"
+
+
+class TestLogicalTypeInsertPaths:
+    @staticmethod
+    def _byte_vector_payload(dtype, dim, seed=0):
+        if dtype == DataType.BINARY_VECTOR:
+            return bytes((seed + i) % 256 for i in range(dim // 8))
+        if dtype == DataType.FLOAT16_VECTOR:
+            return np.array([seed + i for i in range(dim)], dtype=np.float16)
+        if dtype == DataType.BFLOAT16_VECTOR:
+            return bytes((seed + i) % 256 for i in range(dim * 2))
+        if dtype == DataType.INT8_VECTOR:
+            return np.array([(seed + i) % 128 - 64 for i in range(dim)], dtype=np.int8)
+        raise AssertionError(f"unexpected dtype {dtype}")
+
+    @staticmethod
+    def _payload_bytes(dtype, payload):
+        if dtype in (DataType.FLOAT16_VECTOR, DataType.INT8_VECTOR):
+            return payload.tobytes()
+        return payload
+
+    @staticmethod
+    def _field_data_by_name(request):
+        return {field_data.field_name: field_data for field_data in request.fields_data}
+
+    @pytest.mark.parametrize(
+        "dtype,dim,vector_attr",
+        [
+            (DataType.BINARY_VECTOR, 16, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, 4, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, 4, "bfloat16_vector"),
+            (DataType.INT8_VECTOR, 4, "int8_vector"),
+        ],
+        ids=["binary", "float16", "bfloat16", "int8"],
+    )
+    def test_registry_backed_row_pack_byte_vectors(self, dtype, dim, vector_attr):
+        field_data = schema_types.FieldData(type=dtype, field_name="vec")
+        field_info = {"name": "vec", "params": {"dim": dim}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+        payload = self._byte_vector_payload(dtype, dim)
+
+        pack_field_value_to_field_data(payload, field_data, field_info, vector_bytes_cache)
+        flush_vector_bytes(field_data, vector_bytes_cache)
+
+        assert field_data.vectors.dim == dim
+        assert getattr(field_data.vectors, vector_attr) == self._payload_bytes(dtype, payload)
+
+    @pytest.mark.parametrize(
+        "dtype,dim,vector_attr",
+        [
+            (DataType.BINARY_VECTOR, 16, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, 4, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, 4, "bfloat16_vector"),
+            (DataType.INT8_VECTOR, 4, "int8_vector"),
+        ],
+        ids=["binary", "float16", "bfloat16", "int8"],
+    )
+    def test_registry_backed_batch_byte_vectors(self, dtype, dim, vector_attr):
+        values = [
+            self._payload_bytes(dtype, self._byte_vector_payload(dtype, dim, seed))
+            for seed in (1, 9)
+        ]
+        field_info = {"name": "vec", "params": {"dim": dim}}
+        entity = {"name": "vec", "type": dtype, "values": values}
+
+        field_data = entity_to_field_data(entity, field_info, 2)
+
+        assert field_data.vectors.dim == dim
+        assert getattr(field_data.vectors, vector_attr) == b"".join(values)
+
+    @pytest.mark.parametrize(
+        "dtype,dim,vector_attr",
+        [
+            (DataType.BINARY_VECTOR, 16, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, 4, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, 4, "bfloat16_vector"),
+            (DataType.INT8_VECTOR, 4, "int8_vector"),
+        ],
+        ids=["binary", "float16", "bfloat16", "int8"],
+    )
+    def test_registry_backed_nullable_all_null_uses_schema_dim(self, dtype, dim, vector_attr):
+        entity = {"name": "vec", "type": dtype, "values": [None, None]}
+        field_info = {"name": "vec", "nullable": True, "params": {"dim": str(dim)}}
+
+        field_data = entity_to_field_data(entity, field_info, 2)
+
+        assert field_data.vectors.dim == dim
+        assert getattr(field_data.vectors, vector_attr) == b""
+        assert list(field_data.valid_data) == [False, False]
+
+    def test_prepare_row_insert_and_upsert_flush_byte_vectors(self):
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "binary", "type": DataType.BINARY_VECTOR, "params": {"dim": 16}},
+            {"name": "int8", "type": DataType.INT8_VECTOR, "params": {"dim": 4}},
+        ]
+        rows = [
+            {
+                "id": 1,
+                "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 1),
+                "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 1),
+            },
+            {
+                "id": 2,
+                "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 9),
+                "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 9),
+            },
+        ]
+
+        insert_request = Prepare.row_insert_param("c", rows, "", fields_info, [])
+        upsert_request = Prepare.row_upsert_param("c", rows, "", fields_info, [])
+
+        for request in (insert_request, upsert_request):
+            fields = self._field_data_by_name(request)
+            assert fields["binary"].vectors.dim == 16
+            assert fields["binary"].vectors.binary_vector == b"".join(row["binary"] for row in rows)
+            assert fields["int8"].vectors.dim == 4
+            assert fields["int8"].vectors.int8_vector == b"".join(
+                row["int8"].tobytes() for row in rows
+            )
+
+    def test_prepare_batch_insert_and_upsert_byte_vectors(self):
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "binary", "type": DataType.BINARY_VECTOR, "params": {"dim": 16}},
+            {"name": "float16", "type": DataType.FLOAT16_VECTOR, "params": {"dim": 4}},
+        ]
+        binary_values = [
+            self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 1),
+            self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 9),
+        ]
+        float16_values = [
+            self._payload_bytes(
+                DataType.FLOAT16_VECTOR, self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 1)
+            ),
+            self._payload_bytes(
+                DataType.FLOAT16_VECTOR, self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 9)
+            ),
+        ]
+        entities = [
+            {"name": "id", "type": DataType.INT64, "values": [1, 2]},
+            {"name": "binary", "type": DataType.BINARY_VECTOR, "values": binary_values},
+            {"name": "float16", "type": DataType.FLOAT16_VECTOR, "values": float16_values},
+        ]
+
+        insert_request = Prepare.batch_insert_param("c", entities, "", fields_info)
+        upsert_request = Prepare.batch_upsert_param("c", entities, "", fields_info)
+
+        for request in (insert_request, upsert_request):
+            fields = self._field_data_by_name(request)
+            assert fields["binary"].vectors.dim == 16
+            assert fields["binary"].vectors.binary_vector == b"".join(binary_values)
+            assert fields["float16"].vectors.dim == 4
+            assert fields["float16"].vectors.float16_vector == b"".join(float16_values)
 
 
 class TestPackFieldValueExtendedTypes:
