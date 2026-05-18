@@ -3,6 +3,7 @@ import json
 import logging
 import math
 import struct
+from collections.abc import Sized
 from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
@@ -568,7 +569,9 @@ def pack_field_value_to_field_data(
             else:
                 # Preserve binary-vector input compatibility: bytes(123) is valid
                 # Python but was rejected because scalar integers have no length.
-                len(field_value)
+                if not isinstance(field_value, Sized):
+                    message = f"object of type '{type(field_value).__name__}' has no len()"
+                    raise TypeError(message)
                 b_bytes = bytes(field_value)
                 field_data.vectors.dim = _dim_from_vector_payload(field_type, b_bytes)
 
@@ -805,7 +808,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             if entity_len > 0:
                 attr_name = type_info.get_vector_attr(entity_type)
                 getattr(field_data.vectors, attr_name).CopyFrom(sparse_rows_to_proto(entity_values))
-        elif entity_type == DataType.VARCHAR:
+        elif entity_type in (DataType.VARCHAR, DataType.GEOMETRY):
             attr_name = type_info.get_scalar_attr(entity_type)
             getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
@@ -825,11 +828,6 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             attr_name = type_info.get_scalar_attr(entity_type)
             getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_array_arr(entity_values, field_info)
-            )
-        elif entity_type == DataType.GEOMETRY:
-            attr_name = type_info.get_scalar_attr(entity_type)
-            getattr(field_data.scalars, attr_name).data.extend(
-                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
