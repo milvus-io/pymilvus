@@ -7,6 +7,7 @@ from pymilvus import DataType, Function, FunctionType
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import QUERY_ITER_LAST_ELEMENT_OFFSET, QUERY_ITER_LAST_PK
 from pymilvus.client.prepare import Prepare
+from pymilvus.client.types import PlaceholderType
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.orm.schema import FunctionScore, LexicalHighlighter
@@ -544,6 +545,74 @@ class TestPreparePlaceholderStr:
         data = [np.array([1, 2], dtype=np.complex64)]
         with pytest.raises(ParamError, match="unsupported data type"):
             Prepare._prepare_placeholder_str(data)
+
+    @pytest.mark.parametrize(
+        "data,expected_type",
+        [
+            pytest.param(
+                [np.array([1.0, 2.0], dtype=np.float32)],
+                PlaceholderType.FloatVector,
+                id="float32",
+            ),
+            pytest.param(
+                [np.array([1.0, 2.0], dtype=np.float64)],
+                PlaceholderType.FloatVector,
+                id="float64",
+            ),
+            pytest.param(
+                [np.array([1.0, 2.0], dtype=np.float16)],
+                PlaceholderType.FLOAT16_VECTOR,
+                id="float16",
+            ),
+            pytest.param(
+                [np.array([1, 2], dtype=np.int8)],
+                PlaceholderType.Int8Vector,
+                id="int8",
+            ),
+            pytest.param(
+                [np.array([1, 2], dtype=np.uint8)],
+                PlaceholderType.BinaryVector,
+                id="uint8",
+            ),
+            pytest.param([{1: 0.5}], PlaceholderType.SparseFloatVector, id="sparse"),
+        ],
+    )
+    def test_registry_backed_placeholder_types(self, data, expected_type):
+        result = Prepare._prepare_placeholder_str(data)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == expected_type
+
+    @pytest.mark.parametrize(
+        "data,expected_type",
+        [
+            pytest.param(
+                [np.array([1.0, 2.0], dtype=np.float32)],
+                PlaceholderType.EmbListFloatVector,
+                id="emb_float32",
+            ),
+            pytest.param(
+                [np.array([1.0, 2.0], dtype=np.float16)],
+                PlaceholderType.EmbListFloat16Vector,
+                id="emb_float16",
+            ),
+            pytest.param(
+                [np.array([1, 2], dtype=np.int8)],
+                PlaceholderType.EmbListInt8Vector,
+                id="emb_int8",
+            ),
+            pytest.param(
+                [np.array([1, 2], dtype=np.uint8)],
+                PlaceholderType.EmbListBinaryVector,
+                id="emb_uint8",
+            ),
+        ],
+    )
+    def test_registry_backed_embedding_list_placeholder_types(self, data, expected_type):
+        result = Prepare._prepare_placeholder_str(data, is_embedding_list=True)
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(result)
+        assert pg.placeholders[0].type == expected_type
 
 
 class TestSearchRequestsWithSchemaKwarg:

@@ -572,6 +572,31 @@ def get_placeholder_type(
     return info.placeholder
 
 
+def require_placeholder_type(
+    dtype: DataTypeLike, is_embedding_list: bool = False
+) -> PlaceholderType:
+    """Return placeholder metadata or raise when the fact is absent.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to look up.
+        is_embedding_list: Whether to require EmbeddingList-specific placeholder
+            metadata.
+
+    Returns:
+        Required placeholder enum.
+
+    Raises:
+        ParamError: If ``dtype`` is unsupported or has no placeholder metadata
+            for the requested placeholder kind.
+    """
+
+    coerced_dtype = _coerce_dtype(dtype)
+    placeholder = get_placeholder_type(coerced_dtype, is_embedding_list=is_embedding_list)
+    if placeholder is None:
+        raise ParamError(message=f"unsupported data type: {coerced_dtype}")
+    return placeholder
+
+
 def get_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
     """Return the runtime NumPy dtype string used by vector helpers, if known.
 
@@ -587,6 +612,27 @@ def get_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
     """
 
     return get_type_info(dtype).numpy_dtype
+
+
+def require_numpy_dtype(dtype: DataTypeLike) -> str:
+    """Return runtime NumPy dtype metadata or raise when the fact is absent.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to look up.
+
+    Returns:
+        Required symbolic NumPy dtype string.
+
+    Raises:
+        ParamError: If ``dtype`` is unsupported or has no runtime NumPy dtype
+            metadata.
+    """
+
+    coerced_dtype = _coerce_dtype(dtype)
+    numpy_dtype = get_numpy_dtype(coerced_dtype)
+    if numpy_dtype is None:
+        raise ParamError(message=f"Unsupported DataType: {coerced_dtype}")
+    return numpy_dtype
 
 
 def get_numpy_fallback_dtype(dtype: DataTypeLike) -> Optional[str]:
@@ -621,6 +667,54 @@ def get_bulk_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
     """
 
     return get_type_info(dtype).bulk_numpy_dtype
+
+
+_NUMPY_DTYPE_TO_VECTOR_TYPE: Mapping[str, DataType] = MappingProxyType(
+    {
+        "bfloat16": DataType.BFLOAT16_VECTOR,
+        "float16": DataType.FLOAT16_VECTOR,
+        "float32": DataType.FLOAT_VECTOR,
+        "float64": DataType.FLOAT_VECTOR,
+        "int8": DataType.INT8_VECTOR,
+        "byte": DataType.BINARY_VECTOR,
+        "uint8": DataType.BINARY_VECTOR,
+    }
+)
+
+
+def get_vector_type_for_numpy_dtype(dtype_name: object) -> Optional[DataType]:
+    """Return vector ``DataType`` metadata for a symbolic NumPy dtype name.
+
+    Args:
+        dtype_name: Symbolic dtype name or object whose string form is a dtype
+            name.
+
+    Returns:
+        Vector ``DataType`` when this registry records a search placeholder
+        mapping for the dtype name; otherwise ``None``.
+    """
+
+    return _NUMPY_DTYPE_TO_VECTOR_TYPE.get(str(dtype_name))
+
+
+def require_vector_type_for_numpy_dtype(dtype_name: object) -> DataType:
+    """Return vector ``DataType`` metadata or raise for unsupported dtype names.
+
+    Args:
+        dtype_name: Symbolic dtype name or object whose string form is a dtype
+            name.
+
+    Returns:
+        Required vector ``DataType``.
+
+    Raises:
+        ParamError: If the dtype name has no vector placeholder mapping.
+    """
+
+    vector_type = get_vector_type_for_numpy_dtype(dtype_name)
+    if vector_type is None:
+        raise ParamError(message=f"unsupported data type: {dtype_name}")
+    return vector_type
 
 
 def get_arrow_layout(dtype: DataTypeLike) -> Optional[ArrowLayout]:
