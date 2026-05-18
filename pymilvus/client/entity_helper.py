@@ -30,20 +30,40 @@ logger = logging.getLogger(__name__)
 
 CHECK_STR_ARRAY = True
 
-ARRAY_ELEMENT_TYPE_TO_ATTR: Dict[DataType, str] = {
-    DataType.INT64: "long_data",
-    DataType.BOOL: "bool_data",
-    DataType.INT8: "int_data",
-    DataType.INT16: "int_data",
-    DataType.INT32: "int_data",
-    DataType.FLOAT: "float_data",
-    DataType.DOUBLE: "double_data",
-    DataType.STRING: "string_data",
-    DataType.VARCHAR: "string_data",
-    DataType.TEXT: "string_data",
-    DataType.TIMESTAMPTZ: "string_data",
-}
+_DIRECT_SCALAR_INSERT_TYPES = frozenset(
+    {
+        DataType.BOOL,
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.INT64,
+        DataType.TIMESTAMPTZ,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+    }
+)
 
+_SUPPORTED_ARRAY_ELEMENT_TYPES = frozenset(
+    {
+        DataType.BOOL,
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.INT64,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+        DataType.STRING,
+        DataType.VARCHAR,
+        DataType.TEXT,
+    }
+)
+
+_ARRAY_EXTRACT_ELEMENT_TYPES = _SUPPORTED_ARRAY_ELEMENT_TYPES | {DataType.TIMESTAMPTZ}
+ARRAY_ELEMENT_TYPE_TO_ATTR: Dict[DataType, str] = {
+    dtype: type_info.get_scalar_attr(dtype)
+    for dtype in _ARRAY_EXTRACT_ELEMENT_TYPES
+    if type_info.get_scalar_attr(dtype) is not None
+}
 _ARRAY_DATA_ATTRS = tuple(dict.fromkeys(ARRAY_ELEMENT_TYPE_TO_ATTR.values()))
 
 
@@ -326,23 +346,9 @@ def convert_to_array(obj: List[Any], field_info: Any):
 
     field_data = schema_types.ScalarField()
     element_type = field_info.get("element_type", None)
-    if element_type == DataType.BOOL:
-        field_data.bool_data.data.extend(obj)
-        return field_data
-    if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        field_data.int_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.INT64:
-        field_data.long_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.FLOAT:
-        field_data.float_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.DOUBLE:
-        field_data.double_data.data.extend(obj)
-        return field_data
-    if element_type in (DataType.VARCHAR, DataType.STRING, DataType.TEXT):
-        field_data.string_data.data.extend(obj)
+    if element_type in _SUPPORTED_ARRAY_ELEMENT_TYPES:
+        attr_name = type_info.get_scalar_attr(element_type)
+        getattr(field_data, attr_name).data.extend(obj)
         return field_data
     raise ParamError(
         message=f"Unsupported element type: {element_type} for Array field: {field_info.get('name')}"
@@ -378,8 +384,10 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     field_data.dim = _get_dim(field_info)
 
     if element_type == DataType.FLOAT_VECTOR:
+        attr_name = type_info.get_vector_attr(element_type)
+        vector_values = getattr(field_data, attr_name).data
         if not obj:
-            field_data.float_vector.data.extend([])
+            vector_values.extend([])
         for field_value in obj:
             f_value = field_value
             if isinstance(field_value, np.ndarray):
@@ -388,22 +396,15 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                         message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
                     )
                 f_value = field_value.tolist()
-            field_data.float_vector.data.extend(f_value)
+            vector_values.extend(f_value)
 
-    elif element_type in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
-        all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-        if element_type == DataType.FLOAT16_VECTOR:
-            field_data.float16_vector = all_bytes
+    elif type_info.is_byte_vector_type(element_type):
+        attr_name = type_info.get_vector_attr(element_type)
+        if element_type == DataType.BINARY_VECTOR:
+            all_bytes = b"".join(fv if isinstance(fv, bytes) else bytes(fv) for fv in obj)
         else:
-            field_data.bfloat16_vector = all_bytes
-
-    elif element_type == DataType.INT8_VECTOR:
-        field_data.int8_vector = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-
-    elif element_type == DataType.BINARY_VECTOR:
-        field_data.binary_vector = b"".join(
-            fv if isinstance(fv, bytes) else bytes(fv) for fv in obj
-        )
+            all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
+        setattr(field_data, attr_name, all_bytes)
 
     else:
         raise ParamError(
@@ -437,9 +438,11 @@ def flush_vector_bytes(
     if not bytes_list:
         return
 
+    if not type_info.is_byte_vector_type(field_data.type):
+        return
+
     attr_name = type_info.get_vector_attr(field_data.type)
-    if attr_name and type_info.is_byte_vector_type(field_data.type):
-        setattr(field_data.vectors, attr_name, b"".join(bytes_list))
+    setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
 
 def pack_field_value_to_field_data(
@@ -452,10 +455,12 @@ def pack_field_value_to_field_data(
     field_name = field_info["name"]
     if field_type == DataType.BOOL:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.bool_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.bool_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -464,11 +469,13 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type in (DataType.INT8, DataType.INT16, DataType.INT32):
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             # need to extend it, or cannot correctly identify field_data.scalars.int_data.data
             if field_value is None:
-                field_data.scalars.int_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.int_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -477,10 +484,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.INT64:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.long_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.long_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -489,10 +498,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.FLOAT:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.float_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.float_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -501,10 +512,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.DOUBLE:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.double_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.double_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -513,10 +526,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.TIMESTAMPTZ:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.string_data.data.extend([])  # Timestamptz is passed as String
+                scalar_values.extend([])
             else:
-                field_data.scalars.string_data.data.append(field_value)
+                scalar_values.append(field_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -524,6 +539,7 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.FLOAT_VECTOR:
         try:
+            attr_name = type_info.get_vector_attr(field_type)
             if field_value is None:
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = _get_dim(field_info)
@@ -537,7 +553,7 @@ def pack_field_value_to_field_data(
                     f_value = field_value.tolist()
 
                 field_data.vectors.dim = len(f_value)
-                field_data.vectors.float_vector.data.extend(f_value)
+                getattr(field_data.vectors, attr_name).data.extend(f_value)
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -550,6 +566,8 @@ def pack_field_value_to_field_data(
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = _get_dim(field_info)
             else:
+                # Preserve binary-vector input compatibility: bytes(123) is valid
+                # Python but was rejected because scalar integers have no length.
                 len(field_value)
                 b_bytes = bytes(field_value)
                 field_data.vectors.dim = _dim_from_vector_payload(field_type, b_bytes)
@@ -619,6 +637,7 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.SPARSE_FLOAT_VECTOR:
         try:
+            attr_name = type_info.get_vector_attr(field_type)
             if field_value is None:
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = 0
@@ -629,7 +648,7 @@ def pack_field_value_to_field_data(
                     raise ParamError(message="invalid input for sparse float vector: expect 1 row")
                 if not entity_is_sparse_matrix(field_value):
                     raise ParamError(message="invalid input for sparse float vector")
-                field_data.vectors.sparse_float_vector.contents.append(
+                getattr(field_data.vectors, attr_name).contents.append(
                     sparse_rows_to_proto(field_value).contents[0]
                 )
         except (TypeError, ValueError) as e:
@@ -666,12 +685,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.VARCHAR:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.string_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.string_data.data.append(
-                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
-                )
+                scalar_values.append(convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -680,13 +699,13 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.TEXT:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.string_data.data.extend([])
+                scalar_values.extend([])
             else:
                 # TEXT type does not have max_length limit, skip length check
-                field_data.scalars.string_data.data.append(
-                    convert_to_str_array(field_value, field_info, check=False)
-                )
+                scalar_values.append(convert_to_str_array(field_value, field_info, check=False))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -695,12 +714,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.GEOMETRY:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.geometry_wkt_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.geometry_wkt_data.data.append(
-                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
-                )
+                scalar_values.append(convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -708,10 +727,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.JSON:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.json_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.json_data.data.append(convert_to_json(field_value))
+                scalar_values.append(convert_to_json(field_value))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -720,10 +741,12 @@ def pack_field_value_to_field_data(
             ) from e
     elif field_type == DataType.ARRAY:
         try:
+            attr_name = type_info.get_scalar_attr(field_type)
+            scalar_values = getattr(field_data.scalars, attr_name).data
             if field_value is None:
-                field_data.scalars.array_data.data.extend([])
+                scalar_values.extend([])
             else:
-                field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
+                scalar_values.append(convert_to_array(field_value, field_info))
         except (TypeError, ValueError) as e:
             raise DataNotMatchException(
                 message=ExceptionsMessage.FieldDataInconsistent
@@ -755,25 +778,17 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
     field_data.valid_data.extend(valid_data)
 
     try:
-        if entity_type == DataType.BOOL:
-            field_data.scalars.bool_data.data.extend(entity_values)
-        elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-            field_data.scalars.int_data.data.extend(entity_values)
-        elif entity_type == DataType.INT64:
-            field_data.scalars.long_data.data.extend(entity_values)
-        elif entity_type == DataType.TIMESTAMPTZ:
-            field_data.scalars.string_data.data.extend(entity_values)
-        elif entity_type == DataType.FLOAT:
-            field_data.scalars.float_data.data.extend(entity_values)
-        elif entity_type == DataType.DOUBLE:
-            field_data.scalars.double_data.data.extend(entity_values)
+        if entity_type in _DIRECT_SCALAR_INSERT_TYPES:
+            attr_name = type_info.get_scalar_attr(entity_type)
+            getattr(field_data.scalars, attr_name).data.extend(entity_values)
         elif entity_type == DataType.FLOAT_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0])
             else:
                 field_data.vectors.dim = _get_dim(field_info)
             all_floats = [f for vector in entity_values for f in vector]
-            field_data.vectors.float_vector.data.extend(all_floats)
+            attr_name = type_info.get_vector_attr(entity_type)
+            getattr(field_data.vectors, attr_name).data.extend(all_floats)
         elif type_info.is_byte_vector_type(entity_type):
             if len(entity_values) > 0:
                 field_data.vectors.dim = _dim_from_vector_payload(entity_type, entity_values[0])
@@ -788,24 +803,32 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 else len(entity_values)
             )
             if entity_len > 0:
-                field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
+                attr_name = type_info.get_vector_attr(entity_type)
+                getattr(field_data.vectors, attr_name).CopyFrom(sparse_rows_to_proto(entity_values))
         elif entity_type == DataType.VARCHAR:
-            field_data.scalars.string_data.data.extend(
+            attr_name = type_info.get_scalar_attr(entity_type)
+            getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
         elif entity_type == DataType.TEXT:
+            attr_name = type_info.get_scalar_attr(entity_type)
             # TEXT type does not have max_length limit, skip length check
-            field_data.scalars.string_data.data.extend(
+            getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_str_arr(entity_values, field_info, check=False)
             )
         elif entity_type == DataType.JSON:
-            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity_values, field_info))
+            attr_name = type_info.get_scalar_attr(entity_type)
+            getattr(field_data.scalars, attr_name).data.extend(
+                entity_to_json_arr(entity_values, field_info)
+            )
         elif entity_type == DataType.ARRAY:
-            field_data.scalars.array_data.data.extend(
+            attr_name = type_info.get_scalar_attr(entity_type)
+            getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_array_arr(entity_values, field_info)
             )
         elif entity_type == DataType.GEOMETRY:
-            field_data.scalars.geometry_wkt_data.data.extend(
+            attr_name = type_info.get_scalar_attr(entity_type)
+            getattr(field_data.scalars, attr_name).data.extend(
                 entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             )
         else:

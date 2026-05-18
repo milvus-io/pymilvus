@@ -26,8 +26,9 @@ from pymilvus.client.entity_helper import (
     sparse_rows_to_proto,
 )
 from pymilvus.client.prepare import Prepare
+from pymilvus.client.search_result import extract_array_row_data as extract_search_array_row_data
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DataNotMatchException, ParamError
+from pymilvus.exceptions import DataNotMatchException, MilvusException, ParamError
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
@@ -777,6 +778,112 @@ class TestLogicalTypeInsertPaths:
         return {field_data.field_name: field_data for field_data in request.fields_data}
 
     @pytest.mark.parametrize(
+        "dtype,value,attr,expected",
+        [
+            (DataType.INT64, 7, "long_data", 7),
+            (DataType.TIMESTAMPTZ, "2026-05-18T10:00:00Z", "string_data", "2026-05-18T10:00:00Z"),
+            (DataType.JSON, {"ok": True}, "json_data", orjson.dumps({"ok": True})),
+            (DataType.GEOMETRY, "POINT(1 2)", "geometry_wkt_data", "POINT(1 2)"),
+        ],
+        ids=["int64", "timestamptz", "json", "geometry"],
+    )
+    def test_registry_backed_row_pack_scalar_destinations(self, dtype, value, attr, expected):
+        field_data = schema_types.FieldData(type=dtype, field_name="scalar")
+        field_info = {"name": "scalar", "params": {Config.MaxVarCharLengthKey: 128}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        with patch(
+            "pymilvus.client.entity_helper.type_info.get_scalar_attr",
+            wraps=entity_helper.type_info.get_scalar_attr,
+        ) as get_scalar_attr:
+            pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
+
+        get_scalar_attr.assert_any_call(dtype)
+        assert list(getattr(field_data.scalars, attr).data) == [expected]
+
+    @pytest.mark.parametrize(
+        "dtype,values,attr,expected",
+        [
+            (DataType.BOOL, [True, False], "bool_data", [True, False]),
+            (DataType.INT32, [1, 2], "int_data", [1, 2]),
+            (DataType.FLOAT, [1.5, 2.5], "float_data", [1.5, 2.5]),
+            (DataType.TEXT, ["a", "b"], "string_data", ["a", "b"]),
+        ],
+        ids=["bool", "int32", "float", "text"],
+    )
+    def test_registry_backed_batch_scalar_destinations(self, dtype, values, attr, expected):
+        field_info = {"name": "scalar", "params": {Config.MaxVarCharLengthKey: 128}}
+        entity = {"name": "scalar", "type": dtype, "values": values}
+
+        with patch(
+            "pymilvus.client.entity_helper.type_info.get_scalar_attr",
+            wraps=entity_helper.type_info.get_scalar_attr,
+        ) as get_scalar_attr:
+            field_data = entity_to_field_data(entity, field_info, len(values))
+
+        get_scalar_attr.assert_any_call(dtype)
+        assert list(getattr(field_data.scalars, attr).data) == expected
+
+    def test_registry_backed_array_element_destination(self):
+        field_info = {"name": "array_field", "element_type": DataType.TEXT}
+
+        with patch(
+            "pymilvus.client.entity_helper.type_info.get_scalar_attr",
+            wraps=entity_helper.type_info.get_scalar_attr,
+        ) as get_scalar_attr:
+            array_data = entity_helper.convert_to_array(["a", "b"], field_info)
+
+        get_scalar_attr.assert_any_call(DataType.TEXT)
+        assert list(array_data.string_data.data) == ["a", "b"]
+
+    def test_array_element_attr_compatibility_map(self):
+        assert entity_helper.ARRAY_ELEMENT_TYPE_TO_ATTR[DataType.INT64] == "long_data"
+        assert entity_helper.ARRAY_ELEMENT_TYPE_TO_ATTR[DataType.TEXT] == "string_data"
+        assert entity_helper.ARRAY_ELEMENT_TYPE_TO_ATTR[DataType.TIMESTAMPTZ] == "string_data"
+
+    def test_extract_array_row_data_unsupported_element_returns_none(self):
+        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
+        field_data.scalars.array_data.element_type = 999
+        field_data.scalars.array_data.data.add()
+
+        assert entity_helper.extract_array_row_data(field_data, 0) is None
+
+    def test_extract_array_rows_unsupported_element_raises_milvus_exception(self):
+        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
+        field_data.scalars.array_data.element_type = 999
+        field_data.scalars.array_data.data.add()
+
+        with pytest.raises(MilvusException, match="Unsupported data type: 999"):
+            extract_array_row_data_no_validity(field_data, [{}], 1)
+
+    def test_search_result_array_extraction_uses_compatibility_map(self):
+        scalar = schema_types.ScalarField()
+        scalar.string_data.data.extend(["a", "b"])
+
+        assert extract_search_array_row_data([scalar], DataType.TEXT) == [["a", "b"]]
+
+    def test_registry_backed_array_of_vector_destination(self):
+        field_info = {
+            "name": "array_vec",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 4},
+        }
+        values = [
+            np.array([1, 2, 3, 4], dtype=np.int8),
+            np.array([5, 6, 7, 8], dtype=np.int8),
+        ]
+
+        with patch(
+            "pymilvus.client.entity_helper.type_info.get_vector_attr",
+            wraps=entity_helper.type_info.get_vector_attr,
+        ) as get_vector_attr:
+            vector_data = entity_helper.convert_to_array_of_vector(values, field_info)
+
+        get_vector_attr.assert_any_call(DataType.INT8_VECTOR)
+        assert vector_data.dim == 4
+        assert vector_data.int8_vector == b"".join(value.tobytes() for value in values)
+
+    @pytest.mark.parametrize(
         "dtype,dim,vector_attr",
         [
             (DataType.BINARY_VECTOR, 16, "binary_vector"),
@@ -844,18 +951,30 @@ class TestLogicalTypeInsertPaths:
     def test_prepare_row_insert_and_upsert_flush_byte_vectors(self):
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "float", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+            {"name": "sparse", "type": DataType.SPARSE_FLOAT_VECTOR},
             {"name": "binary", "type": DataType.BINARY_VECTOR, "params": {"dim": 16}},
+            {"name": "float16", "type": DataType.FLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "bfloat16", "type": DataType.BFLOAT16_VECTOR, "params": {"dim": 4}},
             {"name": "int8", "type": DataType.INT8_VECTOR, "params": {"dim": 4}},
         ]
         rows = [
             {
                 "id": 1,
+                "float": [1.0, 2.0, 3.0, 4.0],
+                "sparse": {0: 1.0, 3: 2.0},
                 "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 1),
+                "float16": self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 1),
+                "bfloat16": self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 1),
                 "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 1),
             },
             {
                 "id": 2,
+                "float": [5.0, 6.0, 7.0, 8.0],
+                "sparse": {1: 3.0},
                 "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 9),
+                "float16": self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 9),
+                "bfloat16": self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 9),
                 "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 9),
             },
         ]
@@ -865,19 +984,45 @@ class TestLogicalTypeInsertPaths:
 
         for request in (insert_request, upsert_request):
             fields = self._field_data_by_name(request)
+            assert fields["float"].vectors.dim == 4
+            assert list(fields["float"].vectors.float_vector.data) == [
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                6.0,
+                7.0,
+                8.0,
+            ]
+            assert len(fields["sparse"].vectors.sparse_float_vector.contents) == 2
             assert fields["binary"].vectors.dim == 16
             assert fields["binary"].vectors.binary_vector == b"".join(row["binary"] for row in rows)
+            assert fields["float16"].vectors.dim == 4
+            assert fields["float16"].vectors.float16_vector == b"".join(
+                row["float16"].tobytes() for row in rows
+            )
+            assert fields["bfloat16"].vectors.dim == 4
+            assert fields["bfloat16"].vectors.bfloat16_vector == b"".join(
+                row["bfloat16"] for row in rows
+            )
             assert fields["int8"].vectors.dim == 4
             assert fields["int8"].vectors.int8_vector == b"".join(
                 row["int8"].tobytes() for row in rows
             )
 
-    def test_prepare_batch_insert_and_upsert_byte_vectors(self):
+    def test_prepare_batch_insert_and_upsert_vectors(self):
         fields_info = [
             {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "float", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+            {"name": "sparse", "type": DataType.SPARSE_FLOAT_VECTOR},
             {"name": "binary", "type": DataType.BINARY_VECTOR, "params": {"dim": 16}},
             {"name": "float16", "type": DataType.FLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "bfloat16", "type": DataType.BFLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "int8", "type": DataType.INT8_VECTOR, "params": {"dim": 4}},
         ]
+        float_values = [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]
+        sparse_values = [{0: 1.0, 3: 2.0}, {1: 3.0}]
         binary_values = [
             self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 1),
             self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 9),
@@ -890,10 +1035,26 @@ class TestLogicalTypeInsertPaths:
                 DataType.FLOAT16_VECTOR, self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 9)
             ),
         ]
+        bfloat16_values = [
+            self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 1),
+            self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 9),
+        ]
+        int8_values = [
+            self._payload_bytes(
+                DataType.INT8_VECTOR, self._byte_vector_payload(DataType.INT8_VECTOR, 4, 1)
+            ),
+            self._payload_bytes(
+                DataType.INT8_VECTOR, self._byte_vector_payload(DataType.INT8_VECTOR, 4, 9)
+            ),
+        ]
         entities = [
             {"name": "id", "type": DataType.INT64, "values": [1, 2]},
+            {"name": "float", "type": DataType.FLOAT_VECTOR, "values": float_values},
+            {"name": "sparse", "type": DataType.SPARSE_FLOAT_VECTOR, "values": sparse_values},
             {"name": "binary", "type": DataType.BINARY_VECTOR, "values": binary_values},
             {"name": "float16", "type": DataType.FLOAT16_VECTOR, "values": float16_values},
+            {"name": "bfloat16", "type": DataType.BFLOAT16_VECTOR, "values": bfloat16_values},
+            {"name": "int8", "type": DataType.INT8_VECTOR, "values": int8_values},
         ]
 
         insert_request = Prepare.batch_insert_param("c", entities, "", fields_info)
@@ -901,10 +1062,19 @@ class TestLogicalTypeInsertPaths:
 
         for request in (insert_request, upsert_request):
             fields = self._field_data_by_name(request)
+            assert fields["float"].vectors.dim == 4
+            assert list(fields["float"].vectors.float_vector.data) == [
+                value for vector in float_values for value in vector
+            ]
+            assert len(fields["sparse"].vectors.sparse_float_vector.contents) == 2
             assert fields["binary"].vectors.dim == 16
             assert fields["binary"].vectors.binary_vector == b"".join(binary_values)
             assert fields["float16"].vectors.dim == 4
             assert fields["float16"].vectors.float16_vector == b"".join(float16_values)
+            assert fields["bfloat16"].vectors.dim == 4
+            assert fields["bfloat16"].vectors.bfloat16_vector == b"".join(bfloat16_values)
+            assert fields["int8"].vectors.dim == 4
+            assert fields["int8"].vectors.int8_vector == b"".join(int8_values)
 
 
 class TestPackFieldValueExtendedTypes:
