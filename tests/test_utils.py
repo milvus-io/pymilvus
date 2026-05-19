@@ -314,6 +314,53 @@ class TestSparseParseSingleRow:
             utils.sparse_parse_single_row(b"\x00\x01\x02")
 
 
+class TestConvertStructFieldsToUserFormat:
+    def test_nullable_struct_and_stored_sub_field_names(self):
+        converted = utils.convert_struct_fields_to_user_format(
+            [
+                {
+                    "field_id": 10,
+                    "name": "metadata",
+                    "description": "desc",
+                    "nullable": True,
+                    "fields": [
+                        {
+                            "field_id": 11,
+                            "name": "metadata[score]",
+                            "element_type": DataType.FLOAT,
+                            "description": "score desc",
+                            "params": {"max_capacity": "16", "mmap_enabled": True},
+                        }
+                    ],
+                }
+            ]
+        )
+
+        assert converted == [
+            {
+                "field_id": 10,
+                "name": "metadata",
+                "description": "desc",
+                "type": DataType.ARRAY,
+                "element_type": DataType.STRUCT,
+                "params": {"max_capacity": "16"},
+                "nullable": True,
+                "struct_fields": [
+                    {
+                        "field_id": 11,
+                        "name": "score",
+                        "type": DataType.FLOAT,
+                        "description": "score desc",
+                        "params": {"mmap_enabled": True},
+                    }
+                ],
+            }
+        ]
+
+    def test_strip_struct_sub_field_name_passthrough(self):
+        assert utils.strip_struct_sub_field_name("metadata", "score") == "score"
+
+
 class TestTraverseInfo:
     def test_basic_traverse(self):
         fields_info = [

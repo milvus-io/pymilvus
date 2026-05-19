@@ -40,7 +40,7 @@ schema.add_field("struct_field2", datatype=DataType.ARRAY, element_type=DataType
 
 milvus_client.create_collection(COLLECTION_NAME, schema=schema)
 
-# ---- Index ----
+# ---- Initial Index ----
 index_params = milvus_client.prepare_index_params()
 index_params.add_index(field_name="embedding", index_type="IVF_FLAT", metric_type="COSINE", index_params={"nlist": 128})
 # struct_field vector uses COSINE (for element-level search)
@@ -52,40 +52,94 @@ milvus_client.create_index(COLLECTION_NAME, schema=schema, index_params=index_pa
 coll = milvus_client.describe_collection(COLLECTION_NAME)
 print("Describe collection", coll)
 
-# ---- Insert ----
+# ---- Insert Before Dynamic Struct Add ----
 rng = np.random.default_rng(seed=19530)
 N = 1000
 content = ["aaa", "jjj", "sss", "ddd", "fff", "ggg", "hhh", "iii", "czx", "www", "qqq", "eee"]
 
-for _ in range(10):
-    arr_len = random.randint(2, 10)
-    rows = [{"embedding": rng.random((1, 16))[0],
-             "content": content[random.randint(0, len(content) - 1)],
-             "struct_field": [
-                 {
-                  "struct_str": content[random.randint(0, len(content) - 1)],
-                  "struct_int": random.randint(0, 100),
-                  "struct_float_vec": rng.random((1, EMBEDDING_DIM))[0],
-                  }
-                  for _ in range(arr_len)],
-             "struct_field2": [
-                 {
-                     "struct_str": content[random.randint(0, len(content) - 1)],
-                     "struct_float_vec": rng.random((1, EMBEDDING_DIM))[0],
-                 }
-                 for _ in range(arr_len)],
-             }
-            for _ in range(N)]
+def build_rows(row_count, include_added_struct=False):
+    rows = []
+    for _ in range(row_count):
+        arr_len = random.randint(2, 10)
+        row = {
+            "embedding": rng.random((1, 16))[0],
+            "content": content[random.randint(0, len(content) - 1)],
+            "struct_field": [
+                {
+                    "struct_str": content[random.randint(0, len(content) - 1)],
+                    "struct_int": random.randint(0, 100),
+                    "struct_float_vec": rng.random((1, EMBEDDING_DIM))[0],
+                }
+                for _ in range(arr_len)
+            ],
+            "struct_field2": [
+                {
+                    "struct_str": content[random.randint(0, len(content) - 1)],
+                    "struct_float_vec": rng.random((1, EMBEDDING_DIM))[0],
+                }
+                for _ in range(arr_len)
+            ],
+        }
+        if include_added_struct:
+            row["struct_field3"] = [
+                {
+                    "added_str": content[random.randint(0, len(content) - 1)],
+                    "added_int": random.randint(0, 100),
+                    "added_float_vec": rng.random((1, EMBEDDING_DIM))[0],
+                }
+                for _ in range(arr_len)
+            ]
+        rows.append(row)
+    return rows
+
+
+for _ in range(5):
+    rows = build_rows(N, include_added_struct=False)
+    milvus_client.insert(COLLECTION_NAME, rows)
+
+milvus_client.flush(COLLECTION_NAME)
+
+# ---- Dynamically Add Nullable Struct Field ----
+# Existing rows will have struct_field3 as null; new rows can provide values.
+added_struct_schema = milvus_client.create_struct_field_schema()
+added_struct_schema.add_field("added_str", DataType.VARCHAR, max_length=65535)
+added_struct_schema.add_field("added_int", DataType.INT32)
+added_struct_schema.add_field("added_float_vec", DataType.FLOAT_VECTOR, dim=EMBEDDING_DIM)
+milvus_client.add_collection_struct_field(
+    COLLECTION_NAME,
+    field_name="struct_field3",
+    struct_schema=added_struct_schema,
+    max_capacity=1000,
+    desc="dynamically added nullable struct field",
+    nullable=True,
+)
+
+added_index_params = milvus_client.prepare_index_params()
+added_index_params.add_index(
+    field_name="struct_field3[added_float_vec]",
+    index_type="HNSW",
+    index_name="added_float_vec_index",
+    metric_type="COSINE",
+    index_params={"M": 16, "efConstruction": 200},
+)
+milvus_client.create_index(COLLECTION_NAME, index_params=added_index_params)
+
+coll = milvus_client.describe_collection(COLLECTION_NAME)
+print("Describe collection after dynamic struct add", coll)
+
+# ---- Insert After Dynamic Struct Add ----
+for _ in range(5):
+    rows = build_rows(N, include_added_struct=True)
     milvus_client.insert(COLLECTION_NAME, rows)
 
 milvus_client.flush(COLLECTION_NAME)
 milvus_client.load_collection(COLLECTION_NAME)
 
-# ---- Query ----
+# ---- Query Rows Across Schema Change ----
 result = milvus_client.query(
     collection_name=COLLECTION_NAME,
     filter="",
-    output_fields=["struct_field"],
+    output_fields=["struct_field", "struct_field3"],
     limit=2,
 )
 print("=== Query ===")

@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus import FieldSchema
+from pymilvus import FieldSchema, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import DescribeCollectionException
@@ -206,6 +206,20 @@ class TestGrpcHandlerCollectionProperties:
         field = FieldSchema(name="new_field", dtype=DataType.VARCHAR, max_length=256)
         handler.add_collection_field("coll", field)
         handler._stub.AddCollectionField.assert_called_once()
+
+    def test_add_collection_struct_field(self, handler):
+        handler._stub.AddCollectionStructField.return_value = make_status()
+        struct_field = StructFieldSchema(nullable=True)
+        struct_field.name = "metadata"
+        struct_field.max_capacity = 16
+        struct_field.add_field("score", DataType.FLOAT)
+
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+        handler.add_collection_struct_field("coll", struct_field)
+        handler._stub.AddCollectionStructField.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_drop_collection_function(self, handler):
         handler._stub.DropCollectionFunction.return_value = make_status()
