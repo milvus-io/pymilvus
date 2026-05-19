@@ -17,6 +17,7 @@ from pymilvus.orm.schema import (
     Function,
     FunctionScore,
     Highlighter,
+    StructFieldSchema,
     isVectorDataType,
 )
 from pymilvus.orm.types import infer_dtype_by_scalar_data
@@ -198,78 +199,75 @@ class Prepare:
             schema.fields.append(field_schema)
 
         for struct in fields.struct_fields:
-            # Validate that max_capacity is set
-            if struct.max_capacity is None:
-                raise ParamError(message=f"max_capacity not set for struct field: {struct.name}")
-
-            struct_schema = schema_types.StructArrayFieldSchema(
-                name=struct.name,
-                fields=[],
-                description=struct.description,
-            )
-
-            if struct.params:
-                for k, v in struct.params.items():
-                    kv_pair = common_types.KeyValuePair(
-                        key=str(k) if k != "mmap_enabled" else "mmap.enabled",
-                        value=(
-                            orjson.dumps(v).decode(Config.EncodeProtocol)
-                            if not isinstance(v, str)
-                            else str(v)
-                        ),
-                    )
-                    struct_schema.type_params.append(kv_pair)
-
-            for f in struct.fields:
-                # Convert struct field types to backend representation
-                # As struct itself only support array type, so all it's fields are array type
-                # internally
-                # So we need to convert the fields to array types
-                actual_dtype = f.dtype
-                actual_element_type = None
-
-                # Convert to appropriate array type
-                if isVectorDataType(f.dtype):
-                    actual_dtype = DataType._ARRAY_OF_VECTOR
-                    actual_element_type = f.dtype
-                else:
-                    actual_dtype = DataType.ARRAY
-                    actual_element_type = f.dtype
-
-                field_schema = schema_types.FieldSchema(
-                    name=f.name,
-                    data_type=actual_dtype,
-                    description=f.description,
-                    is_primary_key=f.is_primary,
-                    default_value=f.default_value,
-                    nullable=f.nullable,
-                    autoID=f.auto_id,
-                    is_partition_key=f.is_partition_key,
-                    is_dynamic=f.is_dynamic,
-                    element_type=actual_element_type,
-                    is_clustering_key=f.is_clustering_key,
-                    is_function_output=f.is_function_output,
-                )
-
-                # Copy field params and add max_capacity from struct_schema
-                field_params = dict(f.params) if f.params else {}
-                # max_capacity is required for struct fields
-                field_params["max_capacity"] = struct.max_capacity
-
-                for k, v in field_params.items():
-                    kv_pair = common_types.KeyValuePair(
-                        key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
-                    )
-                    field_schema.type_params.append(kv_pair)
-                struct_schema.fields.append(field_schema)
-
-            schema.struct_array_fields.append(struct_schema)
+            schema.struct_array_fields.append(cls.get_struct_array_field_schema(struct))
 
         for f in fields.functions:
             function_schema = cls.convert_function_to_function_schema(f)
             schema.functions.append(function_schema)
 
         return schema
+
+    @staticmethod
+    def get_struct_array_field_schema(
+        struct: StructFieldSchema,
+    ) -> schema_types.StructArrayFieldSchema:
+        if struct.max_capacity is None:
+            raise ParamError(message=f"max_capacity not set for struct field: {struct.name}")
+
+        struct._check_fields()
+        struct_schema = schema_types.StructArrayFieldSchema(
+            name=struct.name,
+            fields=[],
+            description=struct.description,
+            nullable=struct.nullable,
+        )
+
+        if struct.params:
+            for k, v in struct.params.items():
+                kv_pair = common_types.KeyValuePair(
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled",
+                    value=(
+                        orjson.dumps(v).decode(Config.EncodeProtocol)
+                        if not isinstance(v, str)
+                        else str(v)
+                    ),
+                )
+                struct_schema.type_params.append(kv_pair)
+
+        for f in struct.fields:
+            if isVectorDataType(f.dtype):
+                actual_dtype = DataType._ARRAY_OF_VECTOR
+                actual_element_type = f.dtype
+            else:
+                actual_dtype = DataType.ARRAY
+                actual_element_type = f.dtype
+
+            field_schema = schema_types.FieldSchema(
+                name=f.name,
+                data_type=actual_dtype,
+                description=f.description,
+                is_primary_key=f.is_primary,
+                default_value=f.default_value,
+                nullable=struct.nullable,
+                autoID=f.auto_id,
+                is_partition_key=f.is_partition_key,
+                is_dynamic=f.is_dynamic,
+                element_type=actual_element_type,
+                is_clustering_key=f.is_clustering_key,
+                is_function_output=f.is_function_output,
+            )
+
+            field_params = dict(f.params) if f.params else {}
+            field_params["max_capacity"] = struct.max_capacity
+
+            for k, v in field_params.items():
+                kv_pair = common_types.KeyValuePair(
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
+                )
+                field_schema.type_params.append(kv_pair)
+            struct_schema.fields.append(field_schema)
+
+        return struct_schema
 
     @staticmethod
     def get_field_schema(
@@ -428,6 +426,17 @@ class Prepare:
         return milvus_types.AddCollectionFieldRequest(
             collection_name=collection_name,
             schema=bytes(field_schema_proto.SerializeToString()),
+        )
+
+    @classmethod
+    def add_collection_struct_field_request(
+        cls,
+        collection_name: str,
+        struct_field_schema: StructFieldSchema,
+    ) -> milvus_types.AddCollectionStructFieldRequest:
+        return milvus_types.AddCollectionStructFieldRequest(
+            collection_name=collection_name,
+            struct_array_field_schema=cls.get_struct_array_field_schema(struct_field_schema),
         )
 
     @classmethod
@@ -602,6 +611,15 @@ class Prepare:
         if isinstance(values, np.ndarray):
             values = values.tolist()
 
+        relevant_field_info = struct_sub_field_info[field_name]
+        relevant_fields_data = struct_sub_fields_data[field_name]
+        if values is None:
+            if not struct_info.get("nullable", False):
+                msg = f"Field '{field_name}': Expected list, got NoneType"
+                raise TypeError(msg)
+            Prepare._add_empty_struct_data(relevant_field_info, relevant_fields_data, valid=False)
+            return
+
         if not isinstance(values, list):
             msg = f"Field '{field_name}': Expected list, got {type(values).__name__}"
             raise TypeError(msg)
@@ -611,9 +629,6 @@ class Prepare:
 
         # Handle empty array - create empty data structures
         if not values:
-            # Get relevant field info and data for this struct
-            relevant_field_info = struct_sub_field_info[field_name]
-            relevant_fields_data = struct_sub_fields_data[field_name]
             Prepare._add_empty_struct_data(relevant_field_info, relevant_fields_data)
             return
 
@@ -622,21 +637,23 @@ class Prepare:
             values, expected_fields, field_name
         )
 
-        # Process collected values using the struct-specific sub-dictionaries
-        relevant_field_info = struct_sub_field_info[field_name]
-        relevant_fields_data = struct_sub_fields_data[field_name]
         Prepare._process_struct_values(field_values, relevant_field_info, relevant_fields_data)
 
     @staticmethod
-    def _add_empty_struct_data(struct_field_info: Dict, struct_sub_fields_data: Dict):
+    def _add_empty_struct_data(
+        struct_field_info: Dict, struct_sub_fields_data: Dict, valid: bool = True
+    ):
         """Add empty data for struct fields."""
         for field_name, field_info in struct_field_info.items():
             field_data = struct_sub_fields_data[field_name]
+            if field_info.get("nullable", False):
+                field_data.valid_data.append(valid)
 
             if field_info["type"] == DataType.ARRAY:
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector([], field_info)
                 )
@@ -689,17 +706,27 @@ class Prepare:
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector(values, field_info)
                 )
             else:
                 raise ParamError(message=f"Unsupported data type: {field_info['type']}")
+            if field_info.get("nullable", False):
+                field_data.valid_data.append(True)
 
     @staticmethod
     def _get_dim_value(field_info: Dict) -> int:
         """Extract dimension value from field info."""
         dim_value = field_info.get("params", {}).get("dim", 0)
         return int(dim_value) if isinstance(dim_value, str) else dim_value
+
+    @staticmethod
+    def _strip_struct_sub_field_name(struct_name: str, field_name: str) -> str:
+        prefix = f"{struct_name}["
+        if field_name.startswith(prefix) and field_name.endswith("]"):
+            return field_name[len(prefix) : -1]
+        return field_name
 
     @staticmethod
     def _setup_struct_data_structures(struct_fields_info: Optional[List[Dict]]):
@@ -722,17 +749,31 @@ class Prepare:
         input_struct_field_info = []
 
         if struct_fields_info:
+            normalized_struct_fields_info = []
+            for struct_field_info in struct_fields_info:
+                struct_name = struct_field_info["name"]
+                normalized_struct = dict(struct_field_info)
+                normalized_fields = []
+                for field in struct_field_info["fields"]:
+                    normalized_field = dict(field)
+                    normalized_field["name"] = Prepare._strip_struct_sub_field_name(
+                        struct_name, field["name"]
+                    )
+                    normalized_fields.append(normalized_field)
+                normalized_struct["fields"] = normalized_fields
+                normalized_struct_fields_info.append(normalized_struct)
+
             struct_fields_data = {
                 field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])
-                for field in struct_fields_info
+                for field in normalized_struct_fields_info
             }
-            input_struct_field_info = list(struct_fields_info)
-            struct_info_map = {struct["name"]: struct for struct in struct_fields_info}
+            input_struct_field_info = normalized_struct_fields_info
+            struct_info_map = {struct["name"]: struct for struct in normalized_struct_fields_info}
 
             # Use two-level maps to avoid overwrite when different structs have fields
             # with same name
             # First level: struct name, Second level: field name
-            for struct_field_info in struct_fields_info:
+            for struct_field_info in normalized_struct_fields_info:
                 struct_name = struct_field_info["name"]
                 struct_sub_fields_data[struct_name] = {}
                 struct_sub_field_info[struct_name] = {}
@@ -740,9 +781,9 @@ class Prepare:
                 for field in struct_field_info["fields"]:
                     field_name = field["name"]
                     field_data = schema_types.FieldData(field_name=field_name, type=field["type"])
-                    # Set dim for ARRAY_OF_VECTOR types
                     if field["type"] == DataType._ARRAY_OF_VECTOR:
-                        field_data.vectors.dim = Prepare._get_dim_value(field)
+                        field_data.vectors.vector_array.dim = Prepare._get_dim_value(field)
+                        field_data.vectors.vector_array.element_type = field["element_type"]
                     struct_sub_fields_data[struct_name][field_name] = field_data
                     struct_sub_field_info[struct_name][field_name] = field
 
@@ -854,6 +895,18 @@ class Prepare:
                         field_data.valid_data.append(False)
                         entity_helper.pack_field_value_to_field_data(
                             None, field_data, field_info, vector_bytes_cache
+                        )
+                    else:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertMissedField % key
+                        )
+                for struct in input_struct_field_info:
+                    key = struct["name"]
+                    if key in entity:
+                        continue
+                    if struct.get("nullable", False):
+                        Prepare._add_empty_struct_data(
+                            struct_sub_field_info[key], struct_sub_fields_data[key], valid=False
                         )
                     else:
                         raise DataNotMatchException(
@@ -1014,6 +1067,18 @@ class Prepare:
                         field_len[key] += 1
                         entity_helper.pack_field_value_to_field_data(
                             None, field_data, field_info, vector_bytes_cache
+                        )
+                    else:
+                        raise DataNotMatchException(
+                            message=ExceptionsMessage.InsertMissedField % key
+                        )
+                for struct in input_struct_field_info:
+                    key = struct["name"]
+                    if key in entity or partial_update:
+                        continue
+                    if struct.get("nullable", False):
+                        Prepare._add_empty_struct_data(
+                            struct_sub_field_info[key], struct_sub_fields_data[key], valid=False
                         )
                     else:
                         raise DataNotMatchException(

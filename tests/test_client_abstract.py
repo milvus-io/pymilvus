@@ -233,6 +233,7 @@ class TestStructArrayFieldSchema:
         mock.fieldID = field_id
         mock.description = description
         mock.fields = fields or []
+        mock.nullable = False
         mock.type_params = type_params or []
         return mock
 
@@ -311,6 +312,34 @@ class TestStructArrayFieldSchema:
         assert d["type"] == DataType._ARRAY_OF_STRUCT
         assert d["fields"] == []
         assert d["params"]["setting"] == "value"
+
+    def test_struct_array_field_nullable_and_stored_subfield_name(self):
+        """Test nullable struct array and stored sub-field name normalization."""
+        nested_raw = MagicMock()
+        nested_raw.fieldID = 2
+        nested_raw.name = "struct_field[nested_int]"
+        nested_raw.is_primary_key = False
+        nested_raw.description = "Nested integer field"
+        nested_raw.autoID = False
+        nested_raw.data_type = DataType.ARRAY
+        nested_raw.is_partition_key = False
+        nested_raw.element_type = DataType.INT32
+        nested_raw.is_clustering_key = False
+        nested_raw.default_value = None
+        nested_raw.is_dynamic = False
+        nested_raw.nullable = True
+        nested_raw.is_function_output = False
+        nested_raw.external_field = False
+        nested_raw.type_params = []
+        nested_raw.index_params = []
+
+        raw = self._create_mock_raw_struct_field(fields=[nested_raw])
+        raw.nullable = True
+        field = StructArrayFieldSchema(raw)
+        d = field.dict()
+
+        assert d["nullable"] is True
+        assert d["fields"][0]["name"] == "nested_int"
 
 
 class TestFunctionSchema:

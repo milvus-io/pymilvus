@@ -2,7 +2,7 @@ import logging
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from pymilvus import DataType
+from pymilvus import DataType, StructFieldSchema
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.types import (
     LoadState,
@@ -256,6 +256,78 @@ class TestMilvusClient:
                 data_type=DataType.INT64,
             )
             mock_conn.add_collection_field.assert_called_once()
+
+    def test_add_collection_struct_field_requires_nullable(self):
+        """Test that adding struct field requires nullable=True."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+            struct_schema = StructFieldSchema()
+            struct_schema.add_field("score", DataType.FLOAT)
+
+            with pytest.raises(
+                ParamError,
+                match="Adding struct field to existing collection requires nullable=True",
+            ):
+                client.add_collection_struct_field(
+                    "test_collection",
+                    "metadata",
+                    struct_schema,
+                    max_capacity=16,
+                    nullable=False,
+                )
+
+    def test_add_collection_struct_field_requires_struct_schema(self):
+        """Test that adding struct field requires StructFieldSchema."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler):
+            client = MilvusClient()
+
+            with pytest.raises(ParamError, match="struct_schema must be StructFieldSchema"):
+                client.add_collection_struct_field(
+                    "test_collection",
+                    "metadata",
+                    object(),
+                    max_capacity=16,
+                )
+
+    def test_add_collection_struct_field(self):
+        """Test adding nullable struct field calls connection handler."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_conn = MagicMock()
+
+        with patch(
+            "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
+        ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
+            client = MilvusClient()
+            struct_schema = StructFieldSchema(description="schema desc")
+            struct_schema.add_field("score", DataType.FLOAT)
+            client.add_collection_struct_field(
+                "test_collection",
+                "metadata",
+                struct_schema,
+                max_capacity=16,
+                desc="field desc",
+                mmap_enabled=True,
+                warmup={"policy": "async"},
+            )
+
+            mock_conn.add_collection_struct_field.assert_called_once()
+            added_schema = mock_conn.add_collection_struct_field.call_args.args[1]
+            assert added_schema.name == "metadata"
+            assert added_schema.max_capacity == 16
+            assert added_schema.nullable is True
+            assert added_schema.description == "field desc"
+            assert added_schema.params["mmap_enabled"] is True
+            assert added_schema.params["warmup"] == {"policy": "async"}
 
 
 class TestMilvusClientSnapshot:

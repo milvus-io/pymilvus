@@ -334,3 +334,47 @@ class TestAddCollectionFieldRequest:
         field = FieldSchema("new_field", DataType.VARCHAR, max_length=100)
         req = Prepare.add_collection_field_request("test_coll", field)
         assert req.collection_name == "test_coll"
+
+    def test_add_struct_field_request(self):
+        """Test adding a nullable struct field to collection."""
+        struct_field = StructFieldSchema(nullable=True, description="new struct")
+        struct_field.name = "metadata"
+        struct_field.max_capacity = 16
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.add_field("embedding", DataType.FLOAT_VECTOR, dim=4)
+
+        req = Prepare.add_collection_struct_field_request("test_coll", struct_field)
+        struct_schema = req.struct_array_field_schema
+
+        assert req.collection_name == "test_coll"
+        assert struct_schema.name == "metadata"
+        assert struct_schema.description == "new struct"
+        assert struct_schema.nullable is True
+        assert [field.name for field in struct_schema.fields] == ["score", "embedding"]
+        assert [field.nullable for field in struct_schema.fields] == [True, True]
+        assert struct_schema.fields[0].data_type == DataType.ARRAY
+        assert struct_schema.fields[0].element_type == DataType.FLOAT
+        assert struct_schema.fields[1].data_type == DataType._ARRAY_OF_VECTOR
+        assert struct_schema.fields[1].element_type == DataType.FLOAT_VECTOR
+        assert any(
+            kv.key == "max_capacity" and kv.value == "16"
+            for kv in struct_schema.fields[0].type_params
+        )
+        assert any(
+            kv.key == "dim" and kv.value == "4" for kv in struct_schema.fields[1].type_params
+        )
+
+    def test_add_struct_field_request_with_struct_params(self):
+        """Test struct-level params are serialized on add struct field."""
+        struct_field = StructFieldSchema(nullable=True)
+        struct_field.name = "metadata"
+        struct_field.max_capacity = 16
+        struct_field._type_params["mmap_enabled"] = True
+        struct_field._type_params["warmup"] = {"policy": "async"}
+        struct_field.add_field("score", DataType.FLOAT)
+
+        req = Prepare.add_collection_struct_field_request("test_coll", struct_field)
+        params = {kv.key: kv.value for kv in req.struct_array_field_schema.type_params}
+
+        assert params["mmap.enabled"] == "true"
+        assert params["warmup"] == '{"policy":"async"}'
