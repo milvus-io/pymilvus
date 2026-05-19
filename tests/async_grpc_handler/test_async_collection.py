@@ -8,8 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
+from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
 from pymilvus.grpc_gen import common_pb2
+from pymilvus.orm.schema import StructFieldSchema
 
 
 class TestAsyncGrpcHandlerCollection:
@@ -634,6 +636,35 @@ class TestAsyncGrpcHandlerCollectionProperties:
             mock_prepare.add_collection_field_request.return_value = MagicMock()
             await handler.add_collection_field("test_coll", mock_field_schema)
             mock_stub.AddCollectionField.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_add_collection_struct_field(self) -> None:
+        """Test add_collection_struct_field async API"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.AddCollectionStructField = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        struct_field = StructFieldSchema(nullable=True)
+        struct_field.name = "metadata"
+        struct_field.max_capacity = 16
+        struct_field.add_field("score", DataType.FLOAT)
+        with patch("pymilvus.client.async_grpc_handler.check_pass_param"), patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            GlobalCache._reset_for_testing()
+            GlobalCache.schema.set(handler.server_address, "", "test_coll", {"fields": []})
+            await handler.add_collection_struct_field("test_coll", struct_field)
+            mock_stub.AddCollectionStructField.assert_called_once()
+            assert GlobalCache.schema.get(handler.server_address, "", "test_coll") is None
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_drop_collection_function(self) -> None:

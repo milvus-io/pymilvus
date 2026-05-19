@@ -381,6 +381,65 @@ class TestAsyncMilvusClientNewFeatures:
         result = AsyncMilvusClient.create_struct_field_schema()
         assert isinstance(result, StructFieldSchema)
 
+    @pytest.mark.asyncio
+    async def test_add_collection_struct_field_requires_nullable(self, client_and_handler):
+        """Test that adding struct field requires nullable=True."""
+        client, _ = client_and_handler
+        struct_schema = StructFieldSchema(description="schema desc")
+        struct_schema.add_field("score", DataType.FLOAT)
+
+        with pytest.raises(
+            ParamError,
+            match="Adding struct field to existing collection requires nullable=True",
+        ):
+            await client.add_collection_struct_field(
+                "test_collection",
+                "metadata",
+                struct_schema,
+                max_capacity=16,
+                nullable=False,
+            )
+
+    @pytest.mark.asyncio
+    async def test_add_collection_struct_field_requires_struct_schema(self, client_and_handler):
+        """Test that adding struct field requires StructFieldSchema."""
+        client, _ = client_and_handler
+
+        with pytest.raises(ParamError, match="struct_schema must be StructFieldSchema"):
+            await client.add_collection_struct_field(
+                "test_collection",
+                "metadata",
+                object(),
+                max_capacity=16,
+            )
+
+    @pytest.mark.asyncio
+    async def test_add_collection_struct_field(self, client_and_handler):
+        """Test adding nullable struct field calls connection handler."""
+        client, mock_handler = client_and_handler
+        mock_handler.add_collection_struct_field = AsyncMock()
+        struct_schema = StructFieldSchema(description="schema desc")
+        struct_schema.add_field("score", DataType.FLOAT)
+
+        await client.add_collection_struct_field(
+            "test_collection",
+            "metadata",
+            struct_schema,
+            max_capacity=16,
+            desc="field desc",
+            mmap_enabled=True,
+            warmup={"policy": "async"},
+        )
+
+        mock_handler.add_collection_struct_field.assert_awaited_once()
+        added_schema = mock_handler.add_collection_struct_field.call_args.args[1]
+        assert added_schema.name == "metadata"
+        assert added_schema.max_capacity == 16
+        assert added_schema.nullable is True
+        assert added_schema.description == "field desc"
+        assert added_schema.params["mmap_enabled"] is True
+        assert added_schema.params["warmup"] == {"policy": "async"}
+
     @pytest.mark.parametrize(
         "uri, db_name, expected_db_name",
         [

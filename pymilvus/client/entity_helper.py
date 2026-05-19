@@ -1203,9 +1203,12 @@ def extract_row_data_from_fields_data(
         ):
             row_data[field_name] = extract_vector_array_row_data(field_data, index)
         elif field_data.type == DataType._ARRAY_OF_STRUCT:
-            row_data[field_name] = {}
-            for sub_field_data in field_data.struct_arrays.fields:
-                check_append(sub_field_data, row_data[field_name])
+            raise MilvusException(
+                message=(
+                    "extract_row_data_from_fields_data does not support ARRAY_OF_STRUCT; "
+                    "use extract_struct_array_from_column_data instead"
+                )
+            )
 
     for field_data in fields_data:
         check_append(field_data, entity_row_data)
@@ -1233,7 +1236,16 @@ def get_array_value_at_index(array_item: Any, idx: int) -> Any:
     return None
 
 
-def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> List[Dict[str, Any]]:
+def _is_struct_array_row_null(struct_arrays: Any, row_idx: int) -> bool:
+    for sub_field in struct_arrays.fields:
+        if row_idx < len(sub_field.valid_data) and sub_field.valid_data[row_idx] is False:
+            return True
+    return False
+
+
+def extract_struct_array_from_column_data(
+    struct_arrays: Any, row_idx: int
+) -> Optional[List[Dict[str, Any]]]:
     """Convert column-format struct data back to array of structs format.
 
     Milvus stores struct arrays in column format where each field's data is stored separately.
@@ -1257,10 +1269,13 @@ def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> L
         row_idx: The row index to extract data for
 
     Returns:
-        List of dictionaries representing the struct array in row format
+        List of dictionaries representing the struct array in row format, or None for null rows.
     """
     if not struct_arrays or not hasattr(struct_arrays, "fields"):
         return []
+
+    if _is_struct_array_row_null(struct_arrays, row_idx):
+        return None
 
     # Determine the number of struct elements by checking the first sub-field's data length
     # All sub-fields should have the same number of elements
@@ -1303,7 +1318,7 @@ def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> L
         struct_obj = {}
 
         for sub_field in struct_arrays.fields:
-            sub_field_name = sub_field.field_name
+            sub_field_name = _strip_struct_sub_field_name(sub_field.field_name)
 
             # Handle scalar array fields (VARCHAR, INT, FLOAT, etc.)
             if sub_field.type == DataType.ARRAY:
@@ -1386,10 +1401,20 @@ def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> L
             # Any other type indicates a bug in the data conversion logic
             else:
                 raise ParamError(
-                    message=f"Unexpected field type {sub_field.type} for struct sub-field {sub_field_name}. "
-                    f"Struct fields must be ARRAY or ARRAY_OF_VECTOR internally."
+                    message=(
+                        f"Unexpected field type {sub_field.type} for struct sub-field "
+                        f"{sub_field_name}. Struct fields must be ARRAY or ARRAY_OF_VECTOR "
+                        "internally."
+                    )
                 )
 
         struct_array.append(struct_obj)
 
     return struct_array
+
+
+def _strip_struct_sub_field_name(field_name: str) -> str:
+    left = field_name.find("[")
+    if left > 0 and field_name.endswith("]"):
+        return field_name[left + 1 : -1]
+    return field_name
