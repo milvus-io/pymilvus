@@ -1164,7 +1164,7 @@ class OrderSpec(_message.Message):
     def __init__(self, key: _Optional[str] = ..., direction: _Optional[str] = ..., null_first: bool = ...) -> None: ...
 
 class SearchAggregationSpec(_message.Message):
-    __slots__ = ("fields", "size", "metrics", "order", "top_hits", "sub_aggregation")
+    __slots__ = ("fields", "size", "metrics", "order", "top_hits", "sub_aggregation", "search_size")
     class MetricsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -1178,10 +1178,12 @@ class SearchAggregationSpec(_message.Message):
     ORDER_FIELD_NUMBER: _ClassVar[int]
     TOP_HITS_FIELD_NUMBER: _ClassVar[int]
     SUB_AGGREGATION_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_SIZE_FIELD_NUMBER: _ClassVar[int]
     fields: _containers.RepeatedScalarFieldContainer[str]
     size: int
     metrics: _containers.MessageMap[str, MetricAggSpec]
     order: _containers.RepeatedCompositeFieldContainer[OrderSpec]
     top_hits: TopHitsSpec
     sub_aggregation: SearchAggregationSpec
-    def __init__(self, fields: _Optional[_Iterable[str]] = ..., size: _Optional[int] = ..., metrics: _Optional[_Mapping[str, MetricAggSpec]] = ..., order: _Optional[_Iterable[_Union[OrderSpec, _Mapping]]] = ..., top_hits: _Optional[_Union[TopHitsSpec, _Mapping]] = ..., sub_aggregation: _Optional[_Union[SearchAggregationSpec, _Mapping]] = ...) -> None: ...
+    search_size: int
+    def __init__(self, fields: _Optional[_Iterable[str]] = ..., size: _Optional[int] = ..., metrics: _Optional[_Mapping[str, MetricAggSpec]] = ..., order: _Optional[_Iterable[_Union[OrderSpec, _Mapping]]] = ..., top_hits: _Optional[_Union[TopHitsSpec, _Mapping]] = ..., sub_aggregation: _Optional[_Union[SearchAggregationSpec, _Mapping]] = ..., search_size: _Optional[int] = ...) -> None: ...
