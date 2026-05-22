@@ -536,7 +536,7 @@ def validate_iso_timestamp(s: str) -> bool:
         return True
 
 
-def replicate_checkpoint_to_dict(cp) -> Optional[Dict]:
+def replicate_checkpoint_to_dict(cp: Optional[common_pb2.ReplicateCheckpoint]) -> Optional[Dict]:
     """Convert a common_pb2.ReplicateCheckpoint proto to a plain dict, or None if empty.
 
     Returns None when the proto is None or has all default values (no cluster_id,
