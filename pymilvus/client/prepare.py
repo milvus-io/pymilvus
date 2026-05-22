@@ -2740,6 +2740,7 @@ class Prepare:
         source_cluster_id: Optional[str] = None,
         target_pchannel: Optional[str] = None,
     ):
+        # Treat None and empty string as missing; empty IDs are meaningless to the server.
         if not source_cluster_id:
             msg = "'source_cluster_id' must be provided"
             raise ParamError(message=msg)
