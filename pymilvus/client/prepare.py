@@ -2734,6 +2734,23 @@ class Prepare:
             force_promote=force_promote,
         )
 
+    @classmethod
+    def get_replicate_info_request(
+        cls,
+        source_cluster_id: Optional[str] = None,
+        target_pchannel: Optional[str] = None,
+    ):
+        if not source_cluster_id:
+            msg = "'source_cluster_id' must be provided"
+            raise ParamError(message=msg)
+        if not target_pchannel:
+            msg = "'target_pchannel' must be provided"
+            raise ParamError(message=msg)
+        return milvus_types.GetReplicateInfoRequest(
+            source_cluster_id=source_cluster_id,
+            target_pchannel=target_pchannel,
+        )
+
     @staticmethod
     def convert_function_to_function_schema(f: Function) -> schema_types.FunctionSchema:
         function_schema = schema_types.FunctionSchema(
