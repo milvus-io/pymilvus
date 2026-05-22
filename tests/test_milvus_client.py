@@ -1,8 +1,6 @@
 import logging
 from unittest.mock import ANY, MagicMock, patch
 
-from pymilvus.grpc_gen import common_pb2, milvus_pb2
-
 import pytest
 from pymilvus import DataType, SearchAggregation, StructFieldSchema, TopHits
 from pymilvus.client.connection_manager import ConnectionManager
@@ -18,6 +16,7 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient, MilvusClientSession
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
@@ -749,7 +748,6 @@ class TestMilvusClientCreateCollection:
                 mock_fast.assert_called_once()
 
     def test_create_collection_with_schema_routes_to_schema_method(self):
-
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
