@@ -1334,3 +1334,4 @@ class TestAsyncMilvusClientGetReplicateInfo:
         )
 
         assert result == expected
+        mock_handler.get_replicate_info.assert_called_once()
