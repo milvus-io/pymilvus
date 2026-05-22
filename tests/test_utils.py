@@ -493,3 +493,15 @@ class TestReplicateCheckpointToDict:
             "message_id": None,
             "time_tick": 9,
         }
+
+    def test_only_message_id_set(self):
+        cp = common_pb2.ReplicateCheckpoint(
+            message_id=common_pb2.MessageID(id="msg-1", WAL_name=common_pb2.WALName.Pulsar),
+        )
+        result = replicate_checkpoint_to_dict(cp)
+        assert result == {
+            "cluster_id": "",
+            "pchannel": "",
+            "message_id": {"id": "msg-1", "wal_name": "Pulsar"},
+            "time_tick": 0,
+        }

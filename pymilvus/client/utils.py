@@ -547,7 +547,12 @@ def replicate_checkpoint_to_dict(cp) -> Optional[Dict]:
     """
     if cp is None:
         return None
-    if not cp.cluster_id and not cp.pchannel and cp.time_tick == 0:
+    if (
+        not cp.cluster_id
+        and not cp.pchannel
+        and cp.time_tick == 0
+        and not cp.HasField("message_id")
+    ):
         return None
     message_id = None
     if cp.HasField("message_id"):
