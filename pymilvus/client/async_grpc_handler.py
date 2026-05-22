@@ -69,6 +69,7 @@ from .utils import (
     get_server_type,
     is_successful,
     len_of,
+    replicate_checkpoint_to_dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -2827,3 +2828,29 @@ class AsyncGrpcHandler:
         )
         check_status(response.status)
         return [parse_refresh_job_info(job) for job in response.jobs]
+
+    @retry_on_rpc_failure()
+    async def get_replicate_info(
+        self,
+        source_cluster_id: str,
+        target_pchannel: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """Async version of GrpcHandler.get_replicate_info. See sync version for docs."""
+        request = Prepare.get_replicate_info_request(
+            source_cluster_id=source_cluster_id,
+            target_pchannel=target_pchannel,
+        )
+        resp = await self._async_stub.GetReplicateInfo(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        return {
+            "checkpoint": replicate_checkpoint_to_dict(
+                resp.checkpoint if resp.HasField("checkpoint") else None
+            ),
+            "salvage_checkpoint": replicate_checkpoint_to_dict(
+                resp.salvage_checkpoint if resp.HasField("salvage_checkpoint") else None
+            ),
+        }

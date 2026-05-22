@@ -1856,6 +1856,23 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def get_replicate_info(
+        self,
+        source_cluster_id: str,
+        target_pchannel: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Async version of MilvusClient.get_replicate_info. See sync version for docs."""
+        conn = await self._get_connection()
+        return await conn.get_replicate_info(
+            source_cluster_id=source_cluster_id,
+            target_pchannel=target_pchannel,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     async def _is_collection_loaded(
         self, collection_name: str, timeout: Optional[float] = None
     ) -> bool:
