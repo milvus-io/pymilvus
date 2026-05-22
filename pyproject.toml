@@ -51,7 +51,6 @@ dynamic = ["version"]
 
 [project.urls]
 "Homepage" = "https://milvus.io"
-"Documentation" = "https://milvus.io/api-reference/pymilvus/v2.6.x/About.md"
 "Repository" = "https://github.com/milvus-io/pymilvus"
 "Issues" = "https://github.com/milvus-io/pymilvus/issues"
 
