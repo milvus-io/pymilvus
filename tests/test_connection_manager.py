@@ -684,6 +684,53 @@ class TestConnectionManager:
             assert len(dedicated) == 1
             assert dedicated[0]["address"] == "localhost:19530"
 
+    def test_get_stats_exposes_created_at_recovery_gen_and_age(self, mock_grpc_handler):
+        """get_stats() includes created_at, connection_age_seconds, and recovery_gen."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        before = time.time()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_grpc_handler):
+            mgr.get_or_create(config)
+        after = time.time()
+
+        stats = mgr.get_stats()
+        assert len(stats["connections"]) == 1
+        conn = stats["connections"][0]
+        assert before <= conn["created_at"] <= after
+        assert conn["connection_age_seconds"] >= 0
+        assert conn["recovery_gen"] == 0
+
+    def test_get_stats_recovery_gen_reflects_recoveries(self):
+        """get_stats() recovery_gen increments after each recovery."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            handler = _make_sync_handler()
+            mock_handler_cls.return_value = handler
+
+            mgr.get_or_create(config)
+            assert mgr.get_stats()["connections"][0]["recovery_gen"] == 0
+
+            mgr.handle_error(handler, _MockRpcError())
+            assert mgr.get_stats()["connections"][0]["recovery_gen"] == 1
+
+    def test_get_stats_dedicated_exposes_new_fields(self):
+        """get_stats() includes new fields for dedicated connections too."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            mock_handler_cls.return_value = _make_sync_handler()
+            mgr.get_or_create(config, dedicated=True)
+
+        stats = mgr.get_stats()
+        conn = stats["connections"][0]
+        assert "created_at" in conn
+        assert "connection_age_seconds" in conn
+        assert conn["recovery_gen"] == 0
+
     def test_unknown_handler_returns_none(self):
         """Test _get_managed returns None when handler is not in any registry."""
         mgr = ConnectionManager.get_instance()
@@ -1358,6 +1405,76 @@ class TestAsyncConnectionManager:
             await mgr.close_all()
             assert len(mgr._registry) == 0
             assert len(mgr._dedicated) == 0
+
+    @pytest.mark.asyncio
+    async def test_get_stats_empty(self):
+        """AsyncConnectionManager.get_stats() returns zero counts when empty."""
+        mgr = AsyncConnectionManager.get_instance()
+        stats = mgr.get_stats()
+        assert stats["total_connections"] == 0
+        assert stats["shared_connections"] == 0
+        assert stats["dedicated_connections"] == 0
+        assert stats["connections"] == []
+
+    @pytest.mark.asyncio
+    async def test_get_stats_shared_connection(self, mock_async_handler):
+        """AsyncConnectionManager.get_stats() returns shared connection details."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        before = time.time()
+        with patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=mock_async_handler
+        ):
+            await mgr.get_or_create(config)
+        after = time.time()
+
+        stats = mgr.get_stats()
+        assert stats["total_connections"] == 1
+        assert stats["shared_connections"] == 1
+        assert stats["dedicated_connections"] == 0
+        assert len(stats["connections"]) == 1
+
+        conn = stats["connections"][0]
+        assert conn["address"] == "localhost:19530"
+        assert conn["dedicated"] is False
+        assert conn["recovery_gen"] == 0
+        assert before <= conn["created_at"] <= after
+        assert conn["connection_age_seconds"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_get_stats_dedicated_connection(self):
+        """AsyncConnectionManager.get_stats() includes dedicated connection details."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
+            mock_handler_cls.return_value = _make_async_handler()
+            await mgr.get_or_create(config, dedicated=True)
+
+        stats = mgr.get_stats()
+        assert stats["total_connections"] == 1
+        assert stats["dedicated_connections"] == 1
+        conn = stats["connections"][0]
+        assert conn["dedicated"] is True
+        assert "created_at" in conn
+        assert "recovery_gen" in conn
+
+    @pytest.mark.asyncio
+    async def test_get_stats_recovery_gen_after_recovery(self):
+        """AsyncConnectionManager.get_stats() recovery_gen increments after recovery."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
+            handler = _make_async_handler()
+            mock_handler_cls.return_value = handler
+
+            await mgr.get_or_create(config)
+            assert mgr.get_stats()["connections"][0]["recovery_gen"] == 0
+
+            await mgr.handle_error(handler, _MockRpcError())
+            assert mgr.get_stats()["connections"][0]["recovery_gen"] == 1
 
     @pytest.mark.asyncio
     async def test_async_dedicated_connection_findable_after_recovery(self):

@@ -729,6 +729,7 @@ class ConnectionManager:
         Returns:
             Dict with connection counts and details
         """
+        now = time.time()
         with self._lock:
             shared = [
                 {
@@ -737,6 +738,9 @@ class ConnectionManager:
                     "idle_time": m.idle_time,
                     "client_count": len(m.clients),
                     "dedicated": False,
+                    "created_at": m.created_at,
+                    "connection_age_seconds": now - m.created_at,
+                    "recovery_gen": m.recovery_gen,
                 }
                 for key, m in self._registry.items()
             ]
@@ -747,6 +751,9 @@ class ConnectionManager:
                     "idle_time": m.idle_time,
                     "client_count": len(m.clients),
                     "dedicated": True,
+                    "created_at": m.created_at,
+                    "connection_age_seconds": now - m.created_at,
+                    "recovery_gen": m.recovery_gen,
                 }
                 for handler_id, m in self._dedicated.items()
             ]
@@ -1127,6 +1134,47 @@ class AsyncConnectionManager:
         except Exception:
             logger.warning("Async connection recovery failed", exc_info=True)
             raise
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get pool statistics.
+
+        Returns:
+            Dict with connection counts and details. Thread-safe snapshot; does
+            not acquire the asyncio lock so it is safe to call from sync code.
+        """
+        now = time.time()
+        shared = [
+            {
+                "key": key,
+                "address": m.config.address,
+                "idle_time": m.idle_time,
+                "client_count": len(m.clients),
+                "dedicated": False,
+                "created_at": m.created_at,
+                "connection_age_seconds": now - m.created_at,
+                "recovery_gen": m.recovery_gen,
+            }
+            for key, m in self._registry.items()
+        ]
+        dedicated = [
+            {
+                "key": str(handler_id),
+                "address": m.config.address,
+                "idle_time": m.idle_time,
+                "client_count": len(m.clients),
+                "dedicated": True,
+                "created_at": m.created_at,
+                "connection_age_seconds": now - m.created_at,
+                "recovery_gen": m.recovery_gen,
+            }
+            for handler_id, m in self._dedicated.items()
+        ]
+        return {
+            "total_connections": len(self._registry) + len(self._dedicated),
+            "shared_connections": len(self._registry),
+            "dedicated_connections": len(self._dedicated),
+            "connections": shared + dedicated,
+        }
 
     async def close_all(self) -> None:
         """Close all async connections."""
