@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev --frozen --python python
+          uv sync --group dev --frozen --python python
 
       - name: Test and generate coverage with pytest
         run: |

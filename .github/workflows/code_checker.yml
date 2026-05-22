@@ -27,7 +27,7 @@ jobs:
           uv sync --frozen --python python
       - name: Install requirements
         run: |
-          uv sync --extra dev --frozen --python python
+          uv sync --group dev --frozen --python python
       - name: Run pylint
         shell: bash
         run: |

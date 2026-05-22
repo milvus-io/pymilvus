@@ -1,8 +1,8 @@
 UV ?= uv
-UV_RUN_DEV = $(UV) run --extra dev
+UV_RUN_DEV = $(UV) run --group dev
 
 sync:
-	$(UV) sync --extra dev
+	$(UV) sync --group dev
 
 unittest:
 	PYTHONPATH=$(CURDIR) $(UV_RUN_DEV) python -m pytest tests --ignore=tests/benchmark --cov=pymilvus -v
@@ -12,7 +12,7 @@ lint:
 	PYTHONPATH=$(CURDIR) $(UV_RUN_DEV) python -m ruff check pymilvus tests
 
 format:
-	$(UV) sync --extra dev
+	$(UV) sync --group dev
 	PYTHONPATH=$(CURDIR) $(UV_RUN_DEV) python -m black pymilvus tests
 	PYTHONPATH=$(CURDIR) $(UV_RUN_DEV) python -m ruff check pymilvus tests --fix
 
@@ -32,8 +32,8 @@ get_proto:
 	git submodule update --init
 
 gen_proto:
-	$(UV) sync --extra dev
-	cd pymilvus/grpc_gen && PYTHON_CMD='$(UV) run --extra dev python' ./python_gen.sh
+	$(UV) sync --group dev
+	cd pymilvus/grpc_gen && PYTHON_CMD='$(UV) run --group dev python' ./python_gen.sh
 
 check_proto_product: gen_proto
 	./check_proto_product.sh

@@ -38,6 +38,17 @@ jobs:
         --wheel
         --out-dir dist/
         .
+    - name: Check distribution metadata
+      run: >-
+        uvx
+        twine
+        check
+        dist/*
+    - name: Check wheel contents
+      run: >-
+        uvx
+        check-wheel-contents
+        dist/*.whl
     - name: Publish distribution 📦 to Test PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:

@@ -29,7 +29,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        uv sync --extra dev --frozen --python python
+        uv sync --group dev --frozen --python python
 
     - name: Try generate proto
       run: |

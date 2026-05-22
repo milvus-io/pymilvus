@@ -4066,8 +4066,6 @@ dependencies = [
     { name = "requests", version = "2.32.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "requests", version = "2.32.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "requests", version = "2.34.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "setuptools", version = "75.3.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "setuptools", version = "82.0.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
 
 [package.optional-dependencies]
@@ -4087,6 +4085,15 @@ bulk-writer = [
     { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
+milvus-lite = [
+    { name = "milvus-lite", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and sys_platform != 'win32'" },
+    { name = "milvus-lite", version = "3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and sys_platform != 'win32'" },
+]
+model = [
+    { name = "pymilvus-model" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "azure-storage-blob", version = "12.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "azure-storage-blob", version = "12.29.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
@@ -4131,56 +4138,51 @@ dev = [
     { name = "urllib3", version = "2.6.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "urllib3", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
 ]
-milvus-lite = [
-    { name = "milvus-lite", version = "2.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10' and sys_platform != 'win32'" },
-    { name = "milvus-lite", version = "3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10' and sys_platform != 'win32'" },
-]
-model = [
-    { name = "pymilvus-model" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "azure-storage-blob", marker = "extra == 'bulk-writer'" },
-    { name = "azure-storage-blob", marker = "extra == 'dev'" },
-    { name = "black", marker = "extra == 'dev'" },
     { name = "cachetools", specifier = ">=5.0.0" },
-    { name = "cython", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "grpcio", marker = "python_full_version < '3.14'", specifier = ">=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0" },
     { name = "grpcio", marker = "python_full_version >= '3.14'", specifier = ">=1.75.1" },
-    { name = "grpcio", marker = "python_full_version < '3.14' and extra == 'dev'", specifier = "==1.66.2" },
-    { name = "grpcio-tools", marker = "python_full_version < '3.14' and extra == 'dev'", specifier = "==1.66.2" },
-    { name = "memray", marker = "sys_platform != 'win32' and extra == 'dev'" },
     { name = "milvus-lite", marker = "sys_platform != 'win32' and extra == 'milvus-lite'", specifier = ">=2.4.0" },
     { name = "minio", marker = "extra == 'bulk-writer'", specifier = ">=7.0.0" },
-    { name = "minio", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "ml-dtypes", marker = "extra == 'dev'" },
     { name = "numpy", marker = "python_full_version < '3.9'", specifier = "<1.25.0" },
     { name = "orjson", specifier = ">=3.10.15" },
     { name = "pandas", specifier = ">=1.2.4" },
     { name = "protobuf", specifier = ">=5.27.2" },
-    { name = "py-spy", marker = "extra == 'dev'" },
     { name = "pyarrow", marker = "extra == 'bulk-writer'", specifier = ">=12.0.0" },
-    { name = "pyarrow", marker = "extra == 'dev'", specifier = ">=12.0.0" },
     { name = "pymilvus-model", marker = "extra == 'model'", specifier = ">=0.3.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=5.3.4" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'" },
-    { name = "pytest-benchmark", extras = ["histogram"], marker = "extra == 'dev'" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-    { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=1.3.4" },
     { name = "python-dotenv", specifier = ">=1.0.1,<2.0.0" },
     { name = "requests", specifier = ">=2.20.0" },
     { name = "requests", marker = "extra == 'bulk-writer'" },
-    { name = "requests", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12.9,<1" },
-    { name = "scipy", marker = "extra == 'dev'" },
-    { name = "setuptools", marker = "python_full_version == '3.8.*'", specifier = "<=75.3.2" },
-    { name = "setuptools", marker = "python_full_version >= '3.9'", specifier = ">=78.1.1" },
-    { name = "setuptools-scm", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=6.2" },
     { name = "urllib3", marker = "extra == 'bulk-writer'" },
-    { name = "urllib3", marker = "extra == 'dev'" },
 ]
-provides-extras = ["bulk-writer", "model", "milvus-lite", "dev"]
+provides-extras = ["bulk-writer", "model", "milvus-lite"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "azure-storage-blob" },
+    { name = "black" },
+    { name = "cython", specifier = ">=3.0.0" },
+    { name = "grpcio", marker = "python_full_version < '3.14'", specifier = "==1.66.2" },
+    { name = "grpcio-tools", marker = "python_full_version < '3.14'", specifier = "==1.66.2" },
+    { name = "memray", marker = "sys_platform != 'win32'" },
+    { name = "minio", specifier = ">=7.0.0" },
+    { name = "ml-dtypes" },
+    { name = "py-spy" },
+    { name = "pyarrow", specifier = ">=12.0.0" },
+    { name = "pytest", specifier = ">=5.3.4" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-benchmark", extras = ["histogram"] },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-timeout", specifier = ">=1.3.4" },
+    { name = "requests" },
+    { name = "ruff", specifier = ">=0.12.9,<1" },
+    { name = "scipy" },
+    { name = "setuptools-scm", extras = ["toml"], specifier = ">=6.2" },
+    { name = "urllib3" },
+]
 
 [[package]]
 name = "pymilvus-model"

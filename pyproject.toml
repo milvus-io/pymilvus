@@ -20,11 +20,10 @@ authors = [
   {name='PyMilvus Team', email="pymilvus@zilliz.com"},
 ]
 requires-python = '>=3.8'
-description = "Python Sdk for Milvus"
+description = "Python SDK for Milvus"
 readme = "README.md"
+keywords = ["milvus", "vector database", "sdk", "similarity search"]
 dependencies=[
-    "setuptools <= 75.3.2; python_version == '3.8'",
-    "setuptools >= 78.1.1; python_version >= '3.9'",
     "grpcio>=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0; python_version < '3.14'",
     "grpcio>=1.75.1; python_version >= '3.14'",
     "orjson>=3.10.15", # orjson 3.10.15 is the last version to support python3.8
@@ -51,10 +50,14 @@ classifiers=[
 dynamic = ["version"]
 
 [project.urls]
-"repository" = 'https://github.com/milvus-io/pymilvus'
+"Homepage" = "https://milvus.io"
+"Documentation" = "https://milvus.io/api-reference/pymilvus/v2.6.x/About.md"
+"Repository" = "https://github.com/milvus-io/pymilvus"
+"Issues" = "https://github.com/milvus-io/pymilvus/issues"
 
 [tool.uv]
 package = true
+default-groups = []
 
 [project.optional-dependencies]
 bulk_writer = [
@@ -73,6 +76,7 @@ milvus_lite = [
     "milvus-lite>=2.4.0;sys_platform!='win32'",
 ]
 
+[dependency-groups]
 dev = [
     # Pin grpcio-tools to 1.66.2: generated code in grpc_gen/ embeds GRPC_GENERATED_VERSION,
     # so regenerating with a newer version would break older Python (e.g. 3.8) at import time.

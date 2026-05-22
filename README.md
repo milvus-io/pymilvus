@@ -101,7 +101,7 @@ Q7. How to run unittests?
 
 A7
 ```shell
-$ uv sync --extra dev
+$ uv sync --group dev
 $ make unittest
 ```
 
@@ -114,7 +114,7 @@ $ pip install "pymilvus[model]"
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.4.x/About.md
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.6.x/About.md
 
 ## Developing package releases
 
