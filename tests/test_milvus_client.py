@@ -1970,7 +1970,7 @@ class TestGrpcHandlerGetReplicateInfo:
     @staticmethod
     def _bare_handler(stub_response):
         """Construct a GrpcHandler without running __init__; attach a mocked stub."""
-        from pymilvus.client.grpc_handler import GrpcHandler
+        from pymilvus.client.grpc_handler import GrpcHandler  # noqa: PLC0415
 
         h = GrpcHandler.__new__(GrpcHandler)
         h._stub = MagicMock()
