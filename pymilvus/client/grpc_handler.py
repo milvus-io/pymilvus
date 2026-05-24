@@ -91,6 +91,7 @@ from .utils import (
     get_server_type,
     is_successful,
     len_of,
+    replicate_checkpoint_to_dict,
 )
 
 logger = logging.getLogger(__name__)
@@ -3229,6 +3230,47 @@ class GrpcHandler:
         )
         check_status(response.status)
         return response.configuration
+
+    @retry_on_rpc_failure()
+    def get_replicate_info(
+        self,
+        source_cluster_id: str,
+        target_pchannel: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """
+        Get the replication checkpoint that this (typically secondary) cluster
+        has recorded for a given source cluster and source pchannel.
+
+        Args:
+            source_cluster_id: ID of the source cluster.
+            target_pchannel: NOTE this is the SOURCE cluster's pchannel name.
+                The proto field naming is historical and misleading; the value
+                expected here is the pchannel belonging to source_cluster_id.
+            timeout: Optional RPC timeout in seconds.
+
+        Returns:
+            dict with two keys, each a dict or None:
+              - "checkpoint": current replication position
+              - "salvage_checkpoint": last-known position from a prior force_promote
+        """
+        request = Prepare.get_replicate_info_request(
+            source_cluster_id=source_cluster_id,
+            target_pchannel=target_pchannel,
+        )
+        resp = self._stub.GetReplicateInfo(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        return {
+            "checkpoint": replicate_checkpoint_to_dict(
+                resp.checkpoint if resp.HasField("checkpoint") else None
+            ),
+            "salvage_checkpoint": replicate_checkpoint_to_dict(
+                resp.salvage_checkpoint if resp.HasField("salvage_checkpoint") else None
+            ),
+        }
 
     @retry_on_rpc_failure()
     def create_snapshot(
