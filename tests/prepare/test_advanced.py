@@ -320,6 +320,46 @@ class TestUpdateReplicateConfiguration:
         assert req.force_promote is False
 
 
+class TestGetReplicateInfoRequest:
+    """Tests for Prepare.get_replicate_info_request."""
+
+    def test_builds_correct_request(self):
+        req = Prepare.get_replicate_info_request(
+            source_cluster_id="src",
+            target_pchannel="by-dev-rootcoord-dml_0",
+        )
+        assert req.source_cluster_id == "src"
+        assert req.target_pchannel == "by-dev-rootcoord-dml_0"
+
+    def test_missing_source_cluster_id_raises(self):
+        with pytest.raises(ParamError, match="source_cluster_id"):
+            Prepare.get_replicate_info_request(
+                source_cluster_id="",
+                target_pchannel="ch0",
+            )
+
+    def test_missing_target_pchannel_raises(self):
+        with pytest.raises(ParamError, match="target_pchannel"):
+            Prepare.get_replicate_info_request(
+                source_cluster_id="src",
+                target_pchannel="",
+            )
+
+    def test_none_source_cluster_id_raises(self):
+        with pytest.raises(ParamError, match="source_cluster_id"):
+            Prepare.get_replicate_info_request(
+                source_cluster_id=None,
+                target_pchannel="ch0",
+            )
+
+    def test_none_target_pchannel_raises(self):
+        with pytest.raises(ParamError, match="target_pchannel"):
+            Prepare.get_replicate_info_request(
+                source_cluster_id="src",
+                target_pchannel=None,
+            )
+
+
 class TestConvertFunctionToFunctionSchema:
     """Tests for convert_function_to_function_schema."""
 
