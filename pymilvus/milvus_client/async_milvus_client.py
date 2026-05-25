@@ -1799,6 +1799,54 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def get_replicate_info(
+        self,
+        source_cluster_id: str,
+        target_pchannel: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Get replication checkpoint state for a source cluster + source pchannel.
+
+        Args:
+            source_cluster_id (str): ID of the source cluster.
+            target_pchannel (str): The SOURCE cluster's pchannel name. The proto
+                field naming is historical and misleading; the value expected here
+                is the pchannel belonging to source_cluster_id.
+            timeout (float, optional): RPC timeout in seconds.
+
+        Returns:
+            dict: {
+                "checkpoint": dict or None — current replication position,
+                "salvage_checkpoint": dict or None — last-known position from a
+                    prior force_promote (None when no force_promote occurred),
+            }
+            Each non-None checkpoint dict has keys: cluster_id (str), pchannel (str),
+            message_id ({"id": str, "wal_name": str} or None), time_tick (int).
+
+        Raises:
+            ParamError: If source_cluster_id or target_pchannel is empty.
+            MilvusException: If the RPC fails.
+
+        Note:
+            This is the async coroutine version; callers must `await` it.
+
+        Examples:
+            await client.get_replicate_info(
+                source_cluster_id="primary",
+                target_pchannel="by-dev-rootcoord-dml_0",
+            )
+        """
+        conn = await self._get_connection()
+        return await conn.get_replicate_info(
+            source_cluster_id=source_cluster_id,
+            target_pchannel=target_pchannel,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     async def _is_collection_loaded(
         self, collection_name: str, timeout: Optional[float] = None
     ) -> bool:

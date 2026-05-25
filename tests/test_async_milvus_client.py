@@ -733,3 +733,49 @@ class TestAsyncMilvusClientDataOps:
         result = await client.get("test_collection", ids=[1])
 
         assert result == [{"id": 1, "name": "test"}]
+
+
+class TestAsyncMilvusClientGetReplicateInfo:
+    """Tests for AsyncMilvusClient.get_replicate_info."""
+
+    @pytest.mark.asyncio
+    async def test_delegation(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        expected = {
+            "checkpoint": {
+                "cluster_id": "primary",
+                "pchannel": "ch0",
+                "message_id": {"id": "msg-x", "wal_name": "Pulsar"},
+                "time_tick": 200,
+            },
+            "salvage_checkpoint": None,
+        }
+        mock_handler.get_replicate_info = AsyncMock(return_value=expected)
+
+        result = await client.get_replicate_info(
+            source_cluster_id="src",
+            target_pchannel="ch0",
+            timeout=10,
+        )
+
+        assert result == expected
+        mock_handler.get_replicate_info.assert_called_once_with(
+            source_cluster_id="src",
+            target_pchannel="ch0",
+            timeout=10,
+            context=ANY,
+        )
+
+    @pytest.mark.asyncio
+    async def test_returns_none_dict_when_no_checkpoints(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        expected = {"checkpoint": None, "salvage_checkpoint": None}
+        mock_handler.get_replicate_info = AsyncMock(return_value=expected)
+
+        result = await client.get_replicate_info(
+            source_cluster_id="src",
+            target_pchannel="ch0",
+        )
+
+        assert result == expected
+        mock_handler.get_replicate_info.assert_called_once()
