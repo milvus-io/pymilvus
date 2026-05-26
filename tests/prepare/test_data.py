@@ -123,13 +123,14 @@ class TestRowInsertParam:
         struct_data = next(field for field in req.fields_data if field.field_name == "metadata")
         score_data = struct_data.struct_arrays.fields[0]
         assert list(score_data.valid_data) == [False, True, False]
-        assert len(score_data.scalars.array_data.data) == 3
+        assert len(score_data.scalars.array_data.data) == 1
+        assert list(score_data.scalars.array_data.data[0].float_data.data) == [1.0, 2.0]
         embedding_data = struct_data.struct_arrays.fields[1]
         assert list(embedding_data.valid_data) == [False, True, False]
         assert embedding_data.vectors.vector_array.dim == 2
         assert embedding_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR
-        assert len(embedding_data.vectors.vector_array.data) == 3
-        assert list(embedding_data.vectors.vector_array.data[1].float_vector.data) == [
+        assert len(embedding_data.vectors.vector_array.data) == 1
+        assert list(embedding_data.vectors.vector_array.data[0].float_vector.data) == [
             1.0,
             2.0,
             3.0,

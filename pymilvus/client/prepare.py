@@ -649,6 +649,9 @@ class Prepare:
             if field_info.get("nullable", False):
                 field_data.valid_data.append(valid)
 
+            if not valid:
+                continue
+
             if field_info["type"] == DataType.ARRAY:
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
