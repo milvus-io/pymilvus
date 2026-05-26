@@ -6,7 +6,9 @@ import pytest
 from pymilvus.client import utils
 from pymilvus.client.constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from pymilvus.client.types import DataType
+from pymilvus.client.utils import replicate_checkpoint_to_dict
 from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.grpc_gen import common_pb2
 
 
 class TestGetServerType:
@@ -451,3 +453,55 @@ class TestValidateIsoTimestamp:
     def test_invalid_type(self):
         assert utils.validate_iso_timestamp(None) is False
         assert utils.validate_iso_timestamp(123) is False
+
+
+class TestReplicateCheckpointToDict:
+    """Tests for replicate_checkpoint_to_dict helper."""
+
+    def test_returns_none_for_none_input(self):
+        assert replicate_checkpoint_to_dict(None) is None
+
+    def test_returns_none_for_empty_proto(self):
+        cp = common_pb2.ReplicateCheckpoint()
+        assert replicate_checkpoint_to_dict(cp) is None
+
+    def test_populated_with_message_id(self):
+        cp = common_pb2.ReplicateCheckpoint(
+            cluster_id="primary",
+            pchannel="by-dev-rootcoord-dml_0",
+            message_id=common_pb2.MessageID(id="msg-1", WAL_name=common_pb2.WALName.Pulsar),
+            time_tick=12345,
+        )
+        result = replicate_checkpoint_to_dict(cp)
+        assert result == {
+            "cluster_id": "primary",
+            "pchannel": "by-dev-rootcoord-dml_0",
+            "message_id": {"id": "msg-1", "wal_name": "Pulsar"},
+            "time_tick": 12345,
+        }
+
+    def test_populated_without_message_id(self):
+        cp = common_pb2.ReplicateCheckpoint(
+            cluster_id="primary",
+            pchannel="ch0",
+            time_tick=9,
+        )
+        result = replicate_checkpoint_to_dict(cp)
+        assert result == {
+            "cluster_id": "primary",
+            "pchannel": "ch0",
+            "message_id": None,
+            "time_tick": 9,
+        }
+
+    def test_only_message_id_set(self):
+        cp = common_pb2.ReplicateCheckpoint(
+            message_id=common_pb2.MessageID(id="msg-1", WAL_name=common_pb2.WALName.Pulsar),
+        )
+        result = replicate_checkpoint_to_dict(cp)
+        assert result == {
+            "cluster_id": "",
+            "pchannel": "",
+            "message_id": {"id": "msg-1", "wal_name": "Pulsar"},
+            "time_tick": 0,
+        }

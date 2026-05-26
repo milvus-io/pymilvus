@@ -16,6 +16,7 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient, MilvusClientSession
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
@@ -747,7 +748,6 @@ class TestMilvusClientCreateCollection:
                 mock_fast.assert_called_once()
 
     def test_create_collection_with_schema_routes_to_schema_method(self):
-
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
@@ -1355,6 +1355,7 @@ _SIMPLE_DELEGATION_CASES = [
     ("run_analyzer", ("hello world",), {}, "run_analyzer"),
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
     ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
+    ("get_replicate_info", ("src", "ch0"), {}, "get_replicate_info"),
     ("alter_database_properties", ("mydb", {"key": "val"}), {}, "alter_database"),
     ("describe_alias", ("alias1",), {}, "describe_alias"),
     ("describe_resource_group", ("rg1",), {}, "describe_resource_group"),
@@ -1943,3 +1944,70 @@ class TestMilvusClientExternalCollection:
             assert result == []
             call_kwargs = mock_handler.list_refresh_external_collection_jobs.call_args[1]
             assert call_kwargs["collection_name"] == ""
+
+
+class TestGrpcHandlerGetReplicateInfo:
+    """Tests for GrpcHandler.get_replicate_info response shaping (handler layer)."""
+
+    @staticmethod
+    def _checkpoint(cluster_id="primary", pchannel="ch0", tt=100):
+        return common_pb2.ReplicateCheckpoint(
+            cluster_id=cluster_id,
+            pchannel=pchannel,
+            message_id=common_pb2.MessageID(id="msg-x", WAL_name=common_pb2.WALName.Pulsar),
+            time_tick=tt,
+        )
+
+    @staticmethod
+    def _bare_handler(stub_response):
+        """Construct a GrpcHandler without running __init__; attach a mocked stub."""
+        from pymilvus.client.grpc_handler import GrpcHandler  # noqa: PLC0415
+
+        h = GrpcHandler.__new__(GrpcHandler)
+        h._stub = MagicMock()
+        h._stub.GetReplicateInfo.return_value = stub_response
+        return h
+
+    def test_both_checkpoints_populated(self):
+        resp = milvus_pb2.GetReplicateInfoResponse(
+            checkpoint=self._checkpoint(tt=200),
+            salvage_checkpoint=self._checkpoint(tt=150),
+        )
+        h = self._bare_handler(resp)
+
+        result = h.get_replicate_info(source_cluster_id="src", target_pchannel="ch0")
+
+        assert result == {
+            "checkpoint": {
+                "cluster_id": "primary",
+                "pchannel": "ch0",
+                "message_id": {"id": "msg-x", "wal_name": "Pulsar"},
+                "time_tick": 200,
+            },
+            "salvage_checkpoint": {
+                "cluster_id": "primary",
+                "pchannel": "ch0",
+                "message_id": {"id": "msg-x", "wal_name": "Pulsar"},
+                "time_tick": 150,
+            },
+        }
+        h._stub.GetReplicateInfo.assert_called_once()
+
+    def test_both_checkpoints_unset(self):
+        resp = milvus_pb2.GetReplicateInfoResponse()
+        h = self._bare_handler(resp)
+
+        result = h.get_replicate_info(source_cluster_id="src", target_pchannel="ch0")
+
+        assert result == {"checkpoint": None, "salvage_checkpoint": None}
+
+    def test_only_checkpoint_set(self):
+        resp = milvus_pb2.GetReplicateInfoResponse(
+            checkpoint=self._checkpoint(tt=300),
+        )
+        h = self._bare_handler(resp)
+
+        result = h.get_replicate_info(source_cluster_id="src", target_pchannel="ch0")
+
+        assert result["checkpoint"]["time_tick"] == 300
+        assert result["salvage_checkpoint"] is None
