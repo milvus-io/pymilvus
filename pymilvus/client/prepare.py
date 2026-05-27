@@ -1469,6 +1469,8 @@ class Prepare:
                 if sf.get("name") == struct_name:
                     for f in sf.get("fields", []):
                         if f.get("name") == sub_field:
+                            if f.get("type") == DataType._ARRAY_OF_VECTOR:
+                                return f.get("element_type")
                             return f.get("type")
             return None
         # Regular field
