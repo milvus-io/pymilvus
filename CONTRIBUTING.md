@@ -63,9 +63,9 @@ Note: the problems, features, and questions mentioned here are not limited to Py
 
 `README.md`: Readme.
 
-`requirements.txt`: Dependencies for developing PyMilvus.
+`pyproject.toml`: Package metadata, runtime dependencies, optional dependency groups, and tool configuration.
 
-`setup.py`: Package script for PyMilvus.
+`uv.lock`: Locked development dependency graph used by uv.
 
 ## Backporting (Cherry-pick)
 

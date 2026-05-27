@@ -9,8 +9,10 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["pymilvus"]
+include-package-data = true
 
+[tool.setuptools.packages.find]
+include = ["pymilvus", "pymilvus.*"]
 
 [project]
 name="pymilvus"
@@ -18,12 +20,12 @@ authors = [
   {name='PyMilvus Team', email="pymilvus@zilliz.com"},
 ]
 requires-python = '>=3.8'
-description = "Python Sdk for Milvus"
+description = "Python SDK for Milvus"
 readme = "README.md"
+keywords = ["milvus", "vector database", "sdk", "similarity search"]
 dependencies=[
-    "setuptools <= 75.3.2; python_version == '3.8'",
-    "setuptools >= 78.1.1; python_version >= '3.9'",
-    "grpcio>=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0",
+    "grpcio>=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0; python_version < '3.14'",
+    "grpcio>=1.75.1; python_version >= '3.14'",
     "orjson>=3.10.15", # orjson 3.10.15 is the last version to support python3.8
     "protobuf>=5.27.2", # aligned with grpcio-tools generated codes
     "python-dotenv>=1.0.1, <2.0.0",
@@ -48,7 +50,19 @@ classifiers=[
 dynamic = ["version"]
 
 [project.urls]
-"repository" = 'https://github.com/milvus-io/pymilvus'
+"Homepage" = "https://milvus.io"
+"Repository" = "https://github.com/milvus-io/pymilvus"
+"Issues" = "https://github.com/milvus-io/pymilvus/issues"
+
+[tool.uv]
+package = true
+default-groups = []
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [project.optional-dependencies]
 bulk_writer = [
@@ -67,6 +81,7 @@ milvus_lite = [
     "milvus-lite>=2.4.0;sys_platform!='win32'",
 ]
 
+[dependency-groups]
 dev = [
     # Pin grpcio-tools to 1.66.2: generated code in grpc_gen/ embeds GRPC_GENERATED_VERSION,
     # so regenerating with a newer version would break older Python (e.g. 3.8) at import time.
@@ -78,6 +93,7 @@ dev = [
     "pytest-timeout>=1.3.4",
     "pytest-asyncio",
     "Cython>=3.0.0",
+    "setuptools_scm[toml]>=6.2",
     "ruff>=0.12.9,<1",
     "black",
     # develop bulk_writer
@@ -94,10 +110,16 @@ dev = [
     "ml_dtypes",
 ]
 
+release = [
+    "check-wheel-contents>=0.6.1",
+    "twine>=6.2.0",
+]
+
+[tool.uv.dependency-groups]
+release = { requires-python = ">=3.9" }
+
 [tool.setuptools.dynamic]
 version = { attr = "_version_helper.version"}
-
-[tool.setuptools_scm]
 
 [tool.black]
 line-length = 100

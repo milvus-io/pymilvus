@@ -19,12 +19,18 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.9.21"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       - name: Check pyproject.toml install
         run: |
-          pip install -e .
+          uv sync --frozen --python python
       - name: Install requirements
         run: |
-          pip install -e ".[dev]"
+          uv sync --group dev --frozen --python python
       - name: Run pylint
         shell: bash
         run: |
