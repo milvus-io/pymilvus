@@ -69,9 +69,9 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 
 `README.md`: Readme 文档。
 
-`requirements.txt`: 开发 PyMilvus 时依赖的第三方库。
+`pyproject.toml`: PyMilvus 的包元数据、运行时依赖、可选依赖组和工具配置。
 
-`setup.py`: PyMilvus 的打包脚本
+`uv.lock`: uv 使用的开发依赖锁文件。
 
 ## 贡献前必知
 
@@ -94,7 +94,6 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 ## 恭喜你！你已经成为了 Milvus 社区的贡献者！
 
 除了和代码、机器打交道，你还可以和 Milvus 社区中的人交流。社区中每天都有很多新面孔加入，当他们遇到的困难正好是你所了解的地方，请尽情的帮助这些人。回想你初次接触 Milvus 接受过的帮助，你也可以将这样的交流互助精神不断传递下去，我们一起共创一个协作、开源、开放、包容的社区。
-
 
 
 
