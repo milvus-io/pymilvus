@@ -704,6 +704,36 @@ class TestSearchRequestsWithSchemaKwarg:
         pg.ParseFromString(req.placeholder_group)
         assert pg.placeholders[0].type == 102  # FLOAT16_VECTOR
 
+    def test_bytes_data_with_schema_struct_array_binary_vector_field(self, basic_search_params):
+        """Test bytes data resolves a struct array vector sub-field from element_type."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "items",
+                    "fields": [
+                        {
+                            "name": "embedding",
+                            "type": DataType._ARRAY_OF_VECTOR,
+                            "element_type": DataType.BINARY_VECTOR,
+                        },
+                    ],
+                }
+            ],
+        }
+        data = [b"\x01\x02\x03\x04"]
+        req = Prepare.search_requests_with_expr(
+            collection_name="test",
+            data=data,
+            anns_field="items[embedding]",
+            param=basic_search_params,
+            limit=10,
+            schema=schema,
+        )
+        pg = common_types.PlaceholderGroup()
+        pg.ParseFromString(req.placeholder_group)
+        assert pg.placeholders[0].type == PlaceholderType.BinaryVector
+
 
 class TestPreparePlaceholderStrBytesVectorType:
     """Tests for _prepare_placeholder_str with bytes data and vector_data_type."""
@@ -804,6 +834,26 @@ class TestGetVectorTypeFromSchema:
         }
         result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
         assert result == DataType.FLOAT16_VECTOR
+
+    def test_struct_array_vector_field_uses_element_type(self):
+        """Test extracting vector type from array-of-vector struct sub-fields."""
+        schema = {
+            "fields": [],
+            "struct_array_fields": [
+                {
+                    "name": "items",
+                    "fields": [
+                        {
+                            "name": "embedding",
+                            "type": DataType._ARRAY_OF_VECTOR,
+                            "element_type": DataType.BINARY_VECTOR,
+                        },
+                    ],
+                }
+            ],
+        }
+        result = Prepare._get_vector_type_from_schema(schema, "items[embedding]")
+        assert result == DataType.BINARY_VECTOR
 
     def test_struct_field_not_found(self):
         """Test struct field returns None when sub-field not found."""
