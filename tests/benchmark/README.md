@@ -26,7 +26,7 @@ tests/benchmark/
 ### Installation
 
 ```bash
-pip install -e ".[dev]"
+uv sync --group dev
 ```
 
 ---
@@ -126,7 +126,7 @@ memray run --live pytest tests/benchmark/test_search_bench.py::test_search_float
 
 ```bash
 # Step 1: Install dependencies
-pip install -e ".[dev]"
+uv sync --group dev
 
 # Step 2: Run timing benchmarks (fast, ~minutes)
 pytest tests/benchmark/ --benchmark-only

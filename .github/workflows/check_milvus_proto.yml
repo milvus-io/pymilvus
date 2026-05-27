@@ -23,14 +23,19 @@ jobs:
       run: |
         git fetch --prune --unshallow --tags
 
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "0.9.21"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install -e ".[dev]"
+        uv sync --group dev --frozen --python python
 
     - name: Try generate proto
       run: |
         git submodule update --init
         make gen_proto
         make check_proto_product
-

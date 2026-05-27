@@ -1,0 +1,27 @@
+include LICENSE
+include README.md
+include pyproject.toml
+include _version_helper.py
+
+recursive-include pymilvus *.pyi
+
+prune .github
+prune build
+prune ci
+prune docs
+prune examples
+prune tests
+
+exclude .env.example
+exclude .gitignore
+exclude .gitmodules
+exclude .pre-commit-config.yaml
+exclude Dockerfile
+exclude OWNERS
+exclude check_proto_product.sh
+exclude codecov.yml
+exclude coverage.xml
+exclude uv.lock
+
+global-exclude *.py[cod]
+global-exclude .DS_Store
