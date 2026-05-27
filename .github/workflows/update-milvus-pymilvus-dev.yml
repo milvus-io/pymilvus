@@ -54,6 +54,13 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "0.9.21"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
     - name: Configure Git Identity
       run: |
         echo "Configuring git identity"
@@ -85,7 +92,6 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
-        python -m pip install --upgrade uv
         VERSION=$(uv run --no-project --with setuptools --with setuptools-scm python -c "import _version_helper; print(_version_helper.version)")
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
