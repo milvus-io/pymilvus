@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: testpypi
     permissions:
+      contents: read
       id-token: write
 
     steps:
@@ -24,22 +25,45 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: 3.13
-    - name: Install pypa/build
-      run: >-
-        python -m
-        pip install
-        build
-        --user
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        version: "0.9.21"
+        enable-cache: true
+        cache-dependency-glob: uv.lock
     - name: Build a binary wheel and a source tarball
       run: >-
-        python -m
+        uv
         build
+        --python 3.13
+        --no-sources
         --sdist
         --wheel
-        --outdir dist/
+        --out-dir dist/
         .
+    - name: Check distribution metadata
+      run: >-
+        uv
+        run
+        --frozen
+        --only-group release
+        --python 3.13
+        twine
+        check
+        dist/*
+    - name: Check wheel contents
+      run: >-
+        uv
+        run
+        --frozen
+        --only-group release
+        --python 3.13
+        check-wheel-contents
+        dist/*.whl
     - name: Publish distribution 📦 to Test PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://test.pypi.org/legacy/
-
+      run: >-
+        uv
+        publish
+        --index testpypi
+        --trusted-publishing always
+        dist/*

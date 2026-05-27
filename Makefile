@@ -1,39 +1,44 @@
+UV ?= uv
+UV_RUN_DEV = $(UV) run --group dev
+UV_RUN_DEV_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_DEV)
+
+sync:
+	$(UV) sync --group dev
+
 unittest:
-	PYTHONPATH=`pwd` python3 -m pytest tests --ignore=tests/benchmark --cov=pymilvus -v
+	$(UV_RUN_DEV_PYTHONPATH) pytest tests --ignore=tests/benchmark --cov=pymilvus -v
 
 lint:
-	PYTHONPATH=`pwd` python3 -m black pymilvus tests --check --diff
-	PYTHONPATH=`pwd` python3 -m ruff check pymilvus tests
+	$(UV_RUN_DEV_PYTHONPATH) black pymilvus tests --check --diff
+	$(UV_RUN_DEV_PYTHONPATH) ruff check pymilvus tests
 
 format:
-	pip install -e ".[dev]"
-	PYTHONPATH=`pwd` python3 -m black pymilvus tests
-	PYTHONPATH=`pwd` python3 -m ruff check pymilvus tests --fix
+	$(UV_RUN_DEV_PYTHONPATH) black pymilvus tests
+	$(UV_RUN_DEV_PYTHONPATH) ruff check pymilvus tests --fix
 
 coverage:
-	PYTHONPATH=`pwd` pytest --cov=pymilvus --ignore=tests/benchmark tests --cov-report=xml
+	$(UV_RUN_DEV_PYTHONPATH) pytest --cov=pymilvus --ignore=tests/benchmark tests --cov-report=xml
 
 example:
-	PYTHONPATH=`pwd` python examples/example.py
+	$(UV_RUN_DEV_PYTHONPATH) python examples/example.py
 
 example_index:
-	PYTHONPATH=`pwd` python examples/example_index.py
+	$(UV_RUN_DEV_PYTHONPATH) python examples/example_index.py
 
 package:
-	python3 -m build --sdist --wheel --outdir dist/ .
+	$(UV) build --sdist --wheel --out-dir dist/ .
 
 get_proto:
 	git submodule update --init
 
 gen_proto:
-	pip install -e ".[dev]"
-	cd pymilvus/grpc_gen && ./python_gen.sh
+	cd pymilvus/grpc_gen && PYTHON_CMD='$(UV) run --group dev python' ./python_gen.sh
 
 check_proto_product: gen_proto
 	./check_proto_product.sh
 
 version:
-	python -m setuptools_scm
+	$(UV_RUN_DEV) python -c "import _version_helper; print(_version_helper.version)"
 
 install:
-	pip install -e .
+	$(UV) sync
