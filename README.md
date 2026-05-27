@@ -51,6 +51,9 @@ $ pip3 install --upgrade pymilvus
 ```
 
 ## FAQ
+Local development commands use [uv](https://docs.astral.sh/uv/). Install uv before running the
+`make` targets below.
+
 Q1. How to get submodules?
 
 A1. The following command will get the protos matching to the generated files, for protos of certain version, see
@@ -88,7 +91,7 @@ Once installed, the hooks will automatically run `make format` and `make lint` b
 A5. Pre-commit hooks help ensure code quality by automatically running linting and formatting checks before each commit.
 ```shell
 # Install pre-commit (if not already installed)
-$ pip install pre-commit
+$ uv tool install pre-commit
 
 # Install the git hook scripts
 $ pre-commit install
@@ -98,7 +101,7 @@ Q7. How to run unittests?
 
 A7
 ```shell
-$ pip install ".[dev]"
+$ uv sync --group dev
 $ make unittest
 ```
 
@@ -111,7 +114,7 @@ $ pip install "pymilvus[model]"
 
 ## Documentation
 
-Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.4.x/About.md
+Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.6.x/About.md
 
 ## Developing package releases
 
