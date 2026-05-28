@@ -92,7 +92,7 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
-        VERSION=$(uv run --no-project --with setuptools --with setuptools-scm python -c "import _version_helper; print(_version_helper.version)")
+        VERSION=$(uv run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" python -m hatchling version)
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
 
