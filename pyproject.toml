@@ -1,17 +1,9 @@
 [build-system]
 requires = [
-  "setuptools >= 67",
-  "wheel",
-  "gitpython",
-  "setuptools_scm[toml]>=6.2",
+  "hatchling>=1.27,<1.28",
+  "setuptools_scm[toml]>=8",
 ]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.packages.find]
-include = ["pymilvus", "pymilvus.*"]
+build-backend = "hatchling.build"
 
 [project]
 name="pymilvus"
@@ -92,7 +84,7 @@ dev = [
     "pytest-timeout>=1.3.4",
     "pytest-asyncio",
     "Cython>=3.0.0",
-    "setuptools_scm[toml]>=6.2",
+    "setuptools_scm[toml]>=8",
     "ruff>=0.12.9,<1",
     "black",
     # develop bulk_writer
@@ -117,8 +109,24 @@ release = [
 [tool.uv.dependency-groups]
 release = { requires-python = ">=3.9" }
 
-[tool.setuptools.dynamic]
-version = { attr = "_version_helper.version"}
+[tool.hatch.version]
+source = "code"
+path = "pymilvus/_version.py"
+expression = "get_version()"
+
+[tool.hatch.build.targets.sdist]
+only-include = [
+    "CONTRIBUTING.md",
+    "CONTRIBUTING_CN.md",
+    "LICENSE",
+    "Makefile",
+    "README.md",
+    "pyproject.toml",
+    "pymilvus",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["pymilvus"]
 
 [tool.black]
 line-length = 100
