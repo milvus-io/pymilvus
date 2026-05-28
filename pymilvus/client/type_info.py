@@ -23,7 +23,7 @@ not grant or deny runtime support in insert, search, result, or bulk paths.
 from dataclasses import dataclass
 from enum import Enum
 from types import MappingProxyType
-from typing import Mapping, Optional, Union
+from typing import Any, Callable, Dict, Mapping, Optional, Tuple, Union
 
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
@@ -63,6 +63,27 @@ class ProtobufSlotKind(str, Enum):
     FIELD = "field"
 
 
+class TypeCapability(str, Enum):
+    """Operation capability names that can be registered for a ``DataType``.
+
+    Capabilities are intentionally stored outside ``TypeInfo`` so static facts
+    stay import-cheap and operation-specific behavior can be registered by the
+    consumer modules that own it.
+    """
+
+    ROW_INSERT_PACKER = "row_insert_packer"
+    BATCH_INSERT_PACKER = "batch_insert_packer"
+    RESULT_PARSER = "result_parser"
+    RESULT_EXTRACTOR = "result_extractor"
+    RESULT_UNPARSER = "result_unparser"
+    ARRAY_ELEMENT_PACKER = "array_element_packer"
+    ARRAY_ELEMENT_EXTRACTOR = "array_element_extractor"
+    ARRAY_VECTOR_PACKER = "array_vector_packer"
+    ARRAY_VECTOR_EXTRACTOR = "array_vector_extractor"
+    SEARCH_INPUT_CONVERTER = "search_input_converter"
+    DEFAULT_VALUE_ENCODER = "default_value_encoder"
+
+
 @dataclass(frozen=True)
 class ProtobufSlot:
     """Static protobuf storage location for one ``DataType``.
@@ -95,6 +116,24 @@ class ArrowLayout:
 
     kind: str
     value_type: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TypeCapabilityBinding:
+    """Registered operation behavior for one ``DataType`` capability.
+
+    Attributes:
+        dtype: ``DataType`` key this binding applies to.
+        capability: Operation capability name.
+        handler: Callable owned by a consumer module. ``type_info`` stores and
+            returns this callable but does not execute it.
+        owner: Optional human-readable owner label for diagnostics.
+    """
+
+    dtype: DataType
+    capability: TypeCapability
+    handler: Callable[..., Any]
+    owner: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -151,6 +190,10 @@ class TypeInfo:
 # Accept enum values and raw enum integers so registry helpers match callers
 # that receive serialized schema/type values before coercion.
 DataTypeLike = Union[DataType, int]
+TypeCapabilityLike = Union[TypeCapability, str]
+
+
+_TYPE_CAPABILITIES: Dict[DataType, Dict[TypeCapability, TypeCapabilityBinding]] = {}
 
 
 def _scalar(
@@ -339,6 +382,36 @@ def _coerce_dtype(dtype: DataTypeLike) -> DataType:
         raise ParamError(message=msg) from exc
 
 
+def _coerce_capability(capability: TypeCapabilityLike) -> TypeCapability:
+    """Normalize raw capability strings while rejecting unknown values.
+
+    Args:
+        capability: ``TypeCapability`` or raw capability string.
+
+    Returns:
+        Coerced ``TypeCapability`` value.
+
+    Raises:
+        ParamError: If ``capability`` cannot be coerced.
+    """
+
+    if isinstance(capability, TypeCapability):
+        return capability
+    try:
+        return TypeCapability(capability)
+    except (TypeError, ValueError) as exc:
+        msg = f"Unsupported TypeCapability: {capability}"
+        raise ParamError(message=msg) from exc
+
+
+def _coerce_capability_key(
+    dtype: DataTypeLike, capability: TypeCapabilityLike
+) -> Tuple[DataType, TypeCapability]:
+    """Normalize a capability registry key."""
+
+    return get_type_info(dtype).dtype, _coerce_capability(capability)
+
+
 def get_type_info(dtype: DataTypeLike) -> TypeInfo:
     """Return the registry entry for a supported ``DataType``.
 
@@ -360,6 +433,140 @@ def get_type_info(dtype: DataTypeLike) -> TypeInfo:
     except KeyError as exc:
         msg = f"Unsupported DataType: {dtype}"
         raise ParamError(message=msg) from exc
+
+
+def register_type_capability(
+    dtype: DataTypeLike,
+    capability: TypeCapabilityLike,
+    handler: Callable[..., Any],
+    owner: Optional[str] = None,
+) -> TypeCapabilityBinding:
+    """Register an operation capability for a ``DataType``.
+
+    Registration is explicit and one binding per ``(dtype, capability)`` is
+    allowed. The registry stores callable references only; the consumer that
+    owns the operation remains responsible for invoking the callable.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to register against.
+        capability: Capability name to register.
+        handler: Callable operation hook owned by the consumer module.
+        owner: Optional diagnostic owner label.
+
+    Returns:
+        Immutable ``TypeCapabilityBinding`` for the registered hook.
+
+    Raises:
+        ParamError: If dtype/capability is unsupported, handler is not callable,
+            or the capability is already registered for the dtype.
+    """
+
+    coerced_dtype, coerced_capability = _coerce_capability_key(dtype, capability)
+    if not callable(handler):
+        raise ParamError(message=f"handler for {coerced_capability} must be callable")
+
+    dtype_capabilities = _TYPE_CAPABILITIES.setdefault(coerced_dtype, {})
+    if coerced_capability in dtype_capabilities:
+        raise ParamError(
+            message=f"DataType {coerced_dtype} already registered {coerced_capability}"
+        )
+
+    binding = TypeCapabilityBinding(
+        dtype=coerced_dtype,
+        capability=coerced_capability,
+        handler=handler,
+        owner=owner,
+    )
+    dtype_capabilities[coerced_capability] = binding
+    return binding
+
+
+def unregister_type_capability(
+    dtype: DataTypeLike, capability: TypeCapabilityLike
+) -> Optional[TypeCapabilityBinding]:
+    """Remove a registered capability binding.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to unregister from.
+        capability: Capability name to remove.
+
+    Returns:
+        Removed binding when present; otherwise ``None``.
+
+    Raises:
+        ParamError: If dtype or capability is unsupported.
+    """
+
+    coerced_dtype, coerced_capability = _coerce_capability_key(dtype, capability)
+    dtype_capabilities = _TYPE_CAPABILITIES.get(coerced_dtype)
+    if not dtype_capabilities:
+        return None
+
+    binding = dtype_capabilities.pop(coerced_capability, None)
+    if not dtype_capabilities:
+        _TYPE_CAPABILITIES.pop(coerced_dtype, None)
+    return binding
+
+
+def get_type_capabilities(dtype: DataTypeLike) -> Mapping[TypeCapability, TypeCapabilityBinding]:
+    """Return registered capabilities for a ``DataType``.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to inspect.
+
+    Returns:
+        Immutable mapping from capability names to bindings. Empty means no
+        optional operation behavior is registered for this type.
+
+    Raises:
+        ParamError: If dtype is unsupported.
+    """
+
+    coerced_dtype = get_type_info(dtype).dtype
+    return MappingProxyType(dict(_TYPE_CAPABILITIES.get(coerced_dtype, {})))
+
+
+def get_type_capability(
+    dtype: DataTypeLike, capability: TypeCapabilityLike
+) -> Optional[TypeCapabilityBinding]:
+    """Return one registered capability binding if present.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to inspect.
+        capability: Capability name to look up.
+
+    Returns:
+        Registered binding or ``None``.
+
+    Raises:
+        ParamError: If dtype or capability is unsupported.
+    """
+
+    coerced_dtype, coerced_capability = _coerce_capability_key(dtype, capability)
+    return _TYPE_CAPABILITIES.get(coerced_dtype, {}).get(coerced_capability)
+
+
+def require_type_capability(
+    dtype: DataTypeLike, capability: TypeCapabilityLike
+) -> TypeCapabilityBinding:
+    """Return one registered capability binding or raise when absent.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to inspect.
+        capability: Capability name to require.
+
+    Returns:
+        Registered binding.
+
+    Raises:
+        ParamError: If dtype/capability is unsupported or no binding exists.
+    """
+
+    coerced_dtype, coerced_capability = _coerce_capability_key(dtype, capability)
+    binding = _TYPE_CAPABILITIES.get(coerced_dtype, {}).get(coerced_capability)
+    if binding is None:
+        raise ParamError(message=f"DataType {coerced_dtype} has no registered {coerced_capability}")
+    return binding
 
 
 def _has_family(dtype: DataTypeLike, family: TypeFamily) -> bool:
