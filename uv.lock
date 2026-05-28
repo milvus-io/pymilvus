@@ -4611,7 +4611,7 @@ requires-dist = [
     { name = "requests", marker = "extra == 'bulk-writer'" },
     { name = "urllib3", marker = "extra == 'bulk-writer'" },
 ]
-provides-extras = ["bulk-writer", "milvus-lite", "model"]
+provides-extras = ["bulk-writer", "model", "milvus-lite"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -4633,7 +4633,7 @@ dev = [
     { name = "requests" },
     { name = "ruff", specifier = ">=0.12.9,<1" },
     { name = "scipy" },
-    { name = "setuptools-scm", extras = ["toml"], specifier = ">=6.2" },
+    { name = "setuptools-scm", extras = ["toml"], specifier = ">=8" },
     { name = "urllib3" },
 ]
 release = [
