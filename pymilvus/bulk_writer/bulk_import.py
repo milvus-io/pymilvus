@@ -311,6 +311,110 @@ def get_import_progress(
     return resp
 
 
+def commit_import(
+    url: str,
+    job_id: str,
+    cluster_id: str = "",
+    project_id: str = "",
+    region_id: str = "",
+    api_key: str = "",
+    db_name: str = "",
+    verify: Optional[Union[bool, str]] = True,
+    cert: Optional[Union[str, tuple]] = None,
+    **kwargs,
+) -> requests.Response:
+    """commit an import job (2PC). Makes imported data visible.
+
+    Args:
+        url (str): url of the server
+        job_id (str): a job id
+        cluster_id (str): id of a milvus instance(for cloud)
+        project_id (str): id of a project(cloud, for project database)
+        region_id (str): id of a region(cloud, for project database)
+        api_key (str): API key to authenticate your requests.
+        db_name (str): database name, sent via DB-Name header for RBAC
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
+             or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file.
+                                     if Tuple, ('cert', 'key') pair.
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/vectordb/jobs/import/commit"
+
+    params = {
+        "jobId": job_id,
+        "clusterId": cluster_id,
+        "projectId": project_id,
+        "regionId": region_id,
+    }
+
+    resp = _post_request(
+        url=request_url,
+        api_key=api_key,
+        params=params,
+        verify=verify,
+        cert=cert,
+        db_name=db_name,
+        **kwargs,
+    )
+    _handle_response(request_url, resp.json())
+    return resp
+
+
+def abort_import(
+    url: str,
+    job_id: str,
+    cluster_id: str = "",
+    project_id: str = "",
+    region_id: str = "",
+    api_key: str = "",
+    db_name: str = "",
+    verify: Optional[Union[bool, str]] = True,
+    cert: Optional[Union[str, tuple]] = None,
+    **kwargs,
+) -> requests.Response:
+    """abort an import job (2PC). Discards the imported data.
+
+    Args:
+        url (str): url of the server
+        job_id (str): a job id
+        cluster_id (str): id of a milvus instance(for cloud)
+        project_id (str): id of a project(cloud, for project database)
+        region_id (str): id of a region(cloud, for project database)
+        api_key (str): API key to authenticate your requests.
+        db_name (str): database name, sent via DB-Name header for RBAC
+        verify (bool, str, optional): Either a boolean, to verify the server's TLS certificate
+             or a string, which must be server's certificate path. Defaults to `True`.
+        cert (str, tuple, optional): if String, path to ssl client cert file.
+                                     if Tuple, ('cert', 'key') pair.
+
+    Returns:
+        response of the restful interface
+    """
+    request_url = url + "/v2/vectordb/jobs/import/abort"
+
+    params = {
+        "jobId": job_id,
+        "clusterId": cluster_id,
+        "projectId": project_id,
+        "regionId": region_id,
+    }
+
+    resp = _post_request(
+        url=request_url,
+        api_key=api_key,
+        params=params,
+        verify=verify,
+        cert=cert,
+        db_name=db_name,
+        **kwargs,
+    )
+    _handle_response(request_url, resp.json())
+    return resp
+
+
 def list_import_jobs(
     url: str,
     collection_name: str = "",

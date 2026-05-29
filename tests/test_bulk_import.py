@@ -6,7 +6,9 @@ import pytest
 from pymilvus.bulk_writer.bulk_import import (
     _http_headers,
     _post_request,
+    abort_import,
     bulk_import,
+    commit_import,
     get_import_progress,
     list_import_jobs,
 )
@@ -211,3 +213,81 @@ class TestListImportJobs:
         _, kwargs = mock_post.call_args
         assert "DB-Name" not in kwargs["headers"]
         assert kwargs["json"]["dbName"] == ""
+
+
+class TestCommitImport:
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_job_id_and_db_name_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        resp = commit_import(
+            url="http://example.com",
+            job_id="job-123",
+            api_key="my-key",
+            db_name="my_db",
+        )
+
+        assert resp is mock_resp
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        assert kwargs["url"] == "http://example.com/v2/vectordb/jobs/import/commit"
+        assert kwargs["headers"]["DB-Name"] == "my_db"
+        assert kwargs["json"] == {
+            "jobId": "job-123",
+            "clusterId": "",
+            "projectId": "",
+            "regionId": "",
+        }
+        assert "db_name" not in kwargs
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_non_zero_code_raises(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 1, "message": "boom"}
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(MilvusException, match="boom"):
+            commit_import(url="http://example.com", job_id="job-123", api_key="my-key")
+
+
+class TestAbortImport:
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_job_id_and_db_name_header(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        resp = abort_import(
+            url="http://example.com",
+            job_id="job-123",
+            api_key="my-key",
+            db_name="my_db",
+        )
+
+        assert resp is mock_resp
+        mock_post.assert_called_once()
+        _, kwargs = mock_post.call_args
+        assert kwargs["url"] == "http://example.com/v2/vectordb/jobs/import/abort"
+        assert kwargs["headers"]["DB-Name"] == "my_db"
+        assert kwargs["json"] == {
+            "jobId": "job-123",
+            "clusterId": "",
+            "projectId": "",
+            "regionId": "",
+        }
+        assert "db_name" not in kwargs
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_non_zero_code_raises(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 1, "message": "boom"}
+        mock_post.return_value = mock_resp
+
+        with pytest.raises(MilvusException, match="boom"):
+            abort_import(url="http://example.com", job_id="job-123", api_key="my-key")

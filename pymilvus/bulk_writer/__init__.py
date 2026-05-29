@@ -10,7 +10,9 @@ if len(missing) > 0:
 
 
 from .bulk_import import (
+    abort_import,
     bulk_import,
+    commit_import,
     get_import_progress,
     list_import_jobs,
 )
@@ -28,7 +30,9 @@ __all__ = [
     "VolumeBulkWriter",
     "VolumeFileManager",
     "VolumeManager",
+    "abort_import",
     "bulk_import",
+    "commit_import",
     "get_import_progress",
     "list_import_jobs",
 ]
