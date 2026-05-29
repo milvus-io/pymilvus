@@ -17,6 +17,7 @@ from pymilvus.exceptions import (
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
+from . import type_info
 from .types import DataType
 from .utils import (
     SciPyHelper,
@@ -766,43 +767,30 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
     field_data.valid_data.extend(valid_data)
 
     try:
-        if entity_type == DataType.BOOL:
-            field_data.scalars.bool_data.data.extend(entity_values)
-        elif entity_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-            field_data.scalars.int_data.data.extend(entity_values)
-        elif entity_type == DataType.INT64:
-            field_data.scalars.long_data.data.extend(entity_values)
-        elif entity_type == DataType.TIMESTAMPTZ:
-            field_data.scalars.string_data.data.extend(entity_values)
-        elif entity_type == DataType.FLOAT:
-            field_data.scalars.float_data.data.extend(entity_values)
-        elif entity_type == DataType.DOUBLE:
-            field_data.scalars.double_data.data.extend(entity_values)
+        if type_info.is_scalar_type(entity_type):
+            attr_name = type_info.get_scalar_attr(entity_type)
+            if entity_type in (DataType.VARCHAR, DataType.GEOMETRY):
+                entity_values = entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
+            elif entity_type == DataType.TEXT:
+                # TEXT type does not have max_length limit, skip length check
+                entity_values = entity_to_str_arr(entity_values, field_info, check=False)
+            elif entity_type == DataType.JSON:
+                entity_values = entity_to_json_arr(entity_values, field_info)
+            elif entity_type == DataType.ARRAY:
+                entity_values = entity_to_array_arr(entity_values, field_info)
+            getattr(field_data.scalars, attr_name).data.extend(entity_values)
         elif entity_type == DataType.FLOAT_VECTOR:
             if len(entity_values) > 0:
                 field_data.vectors.dim = len(entity_values[0])
             else:
                 field_data.vectors.dim = _get_dim(field_info)
             all_floats = [f for vector in entity_values for f in vector]
-            field_data.vectors.float_vector.data.extend(all_floats)
-        elif entity_type == DataType.BINARY_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) * 8
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.binary_vector = b"".join(entity_values)
-        elif entity_type == DataType.FLOAT16_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) // 2
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.float16_vector = b"".join(entity_values)
-        elif entity_type == DataType.BFLOAT16_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0]) // 2
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.bfloat16_vector = b"".join(entity_values)
+            attr_name = type_info.get_vector_attr(entity_type)
+            getattr(field_data.vectors, attr_name).data.extend(all_floats)
+        elif type_info.is_byte_vector_type(entity_type):
+            field_data.vectors.dim = _get_dim(field_info)
+            attr_name = type_info.get_vector_attr(entity_type)
+            setattr(field_data.vectors, attr_name, b"".join(entity_values))
         elif entity_type == DataType.SPARSE_FLOAT_VECTOR:
             entity_len = (
                 entity_values.shape[0]
@@ -810,33 +798,8 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
                 else len(entity_values)
             )
             if entity_len > 0:
-                field_data.vectors.sparse_float_vector.CopyFrom(sparse_rows_to_proto(entity_values))
-        elif entity_type == DataType.INT8_VECTOR:
-            if len(entity_values) > 0:
-                field_data.vectors.dim = len(entity_values[0])
-            else:
-                field_data.vectors.dim = _get_dim(field_info)
-            field_data.vectors.int8_vector = b"".join(entity_values)
-
-        elif entity_type == DataType.VARCHAR:
-            field_data.scalars.string_data.data.extend(
-                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
-            )
-        elif entity_type == DataType.TEXT:
-            # TEXT type does not have max_length limit, skip length check
-            field_data.scalars.string_data.data.extend(
-                entity_to_str_arr(entity_values, field_info, check=False)
-            )
-        elif entity_type == DataType.JSON:
-            field_data.scalars.json_data.data.extend(entity_to_json_arr(entity_values, field_info))
-        elif entity_type == DataType.ARRAY:
-            field_data.scalars.array_data.data.extend(
-                entity_to_array_arr(entity_values, field_info)
-            )
-        elif entity_type == DataType.GEOMETRY:
-            field_data.scalars.geometry_wkt_data.data.extend(
-                entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
-            )
+                attr_name = type_info.get_vector_attr(entity_type)
+                getattr(field_data.vectors, attr_name).CopyFrom(sparse_rows_to_proto(entity_values))
         else:
             raise ParamError(message=f"Unsupported data type: {entity_type}")
     except (TypeError, ValueError) as e:
