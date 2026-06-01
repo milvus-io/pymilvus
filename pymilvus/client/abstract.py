@@ -581,7 +581,7 @@ class LoopBase:
     def __getitem__(self, item: Any):
         if isinstance(item, slice):
             _start = item.start or 0
-            _end = min(item.stop, self.__len__()) if item.stop else self.__len__()
+            _end = min(item.stop, self.__len__()) if item.stop is not None else self.__len__()
             _step = item.step or 1
 
             return [self.get__item(i) for i in range(_start, _end, _step)]
