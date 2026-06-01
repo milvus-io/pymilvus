@@ -985,6 +985,12 @@ class TestLoopBase:
         assert loop[:] == [1, 2, 3]
         assert loop[None:None:None] == [1, 2, 3]
 
+    def test_loop_base_getitem_slice_stop_zero(self):
+        """Test LoopBase slice with stop=0 returns empty list (not all items)."""
+        loop = self.ConcreteLoop([1, 2, 3])
+        assert loop[0:0] == []
+        assert loop[1:0] == []
+
     def test_loop_base_str(self):
         """Test LoopBase __str__ method."""
         loop = self.ConcreteLoop([1, 2, 3])
