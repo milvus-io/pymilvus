@@ -30,21 +30,11 @@ logger = logging.getLogger(__name__)
 
 CHECK_STR_ARRAY = True
 
-ARRAY_ELEMENT_TYPE_TO_ATTR: Dict[DataType, str] = {
-    DataType.INT64: "long_data",
-    DataType.BOOL: "bool_data",
-    DataType.INT8: "int_data",
-    DataType.INT16: "int_data",
-    DataType.INT32: "int_data",
-    DataType.FLOAT: "float_data",
-    DataType.DOUBLE: "double_data",
-    DataType.STRING: "string_data",
-    DataType.VARCHAR: "string_data",
-    DataType.TEXT: "string_data",
-    DataType.TIMESTAMPTZ: "string_data",
-}
-
-_ARRAY_DATA_ATTRS = tuple(dict.fromkeys(ARRAY_ELEMENT_TYPE_TO_ATTR.values()))
+_ARRAY_DATA_ATTRS = tuple(
+    dict.fromkeys(
+        attr for attr in (type_info.get_array_element_attr(dtype) for dtype in DataType) if attr
+    )
+)
 
 
 def _get_dim(field_info: Dict) -> int:
@@ -326,23 +316,9 @@ def convert_to_array(obj: List[Any], field_info: Any):
 
     field_data = schema_types.ScalarField()
     element_type = field_info.get("element_type", None)
-    if element_type == DataType.BOOL:
-        field_data.bool_data.data.extend(obj)
-        return field_data
-    if element_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        field_data.int_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.INT64:
-        field_data.long_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.FLOAT:
-        field_data.float_data.data.extend(obj)
-        return field_data
-    if element_type == DataType.DOUBLE:
-        field_data.double_data.data.extend(obj)
-        return field_data
-    if element_type in (DataType.VARCHAR, DataType.STRING, DataType.TEXT):
-        field_data.string_data.data.extend(obj)
+    attr_name = type_info.get_array_element_attr(element_type)
+    if attr_name is not None:
+        getattr(field_data, attr_name).data.extend(obj)
         return field_data
     raise ParamError(
         message=f"Unsupported element type: {element_type} for Array field: {field_info.get('name')}"
@@ -378,8 +354,10 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     field_data.dim = _get_dim(field_info)
 
     if element_type == DataType.FLOAT_VECTOR:
+        attr_name = type_info.get_vector_attr(element_type)
+        vector_values = getattr(field_data, attr_name).data
         if not obj:
-            field_data.float_vector.data.extend([])
+            vector_values.extend([])
         for field_value in obj:
             f_value = field_value
             if isinstance(field_value, np.ndarray):
@@ -388,22 +366,15 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                         message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
                     )
                 f_value = field_value.tolist()
-            field_data.float_vector.data.extend(f_value)
+            vector_values.extend(f_value)
 
-    elif element_type in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
-        all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-        if element_type == DataType.FLOAT16_VECTOR:
-            field_data.float16_vector = all_bytes
+    elif type_info.is_byte_vector_type(element_type):
+        attr_name = type_info.get_vector_attr(element_type)
+        if element_type == DataType.BINARY_VECTOR:
+            all_bytes = b"".join(fv if isinstance(fv, bytes) else bytes(fv) for fv in obj)
         else:
-            field_data.bfloat16_vector = all_bytes
-
-    elif element_type == DataType.INT8_VECTOR:
-        field_data.int8_vector = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
-
-    elif element_type == DataType.BINARY_VECTOR:
-        field_data.binary_vector = b"".join(
-            fv if isinstance(fv, bytes) else bytes(fv) for fv in obj
-        )
+            all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
+        setattr(field_data, attr_name, all_bytes)
 
     else:
         raise ParamError(
@@ -414,14 +385,6 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
 
 def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
-
-
-_VECTOR_ATTR_MAP = {
-    DataType.INT8_VECTOR: "int8_vector",
-    DataType.BINARY_VECTOR: "binary_vector",
-    DataType.FLOAT16_VECTOR: "float16_vector",
-    DataType.BFLOAT16_VECTOR: "bfloat16_vector",
-}
 
 
 def flush_vector_bytes(
@@ -438,7 +401,11 @@ def flush_vector_bytes(
     if not bytes_list:
         return
 
-    attr_name = _VECTOR_ATTR_MAP.get(field_data.type)
+    attr_name = (
+        type_info.get_vector_attr(field_data.type)
+        if type_info.is_byte_vector_type(field_data.type)
+        else None
+    )
     if attr_name:
         setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
@@ -767,7 +734,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
     field_data.valid_data.extend(valid_data)
 
     try:
-        if type_info.is_scalar_type(entity_type):
+        if type_info.is_scalar_type(entity_type) or entity_type == DataType.ARRAY:
             attr_name = type_info.get_scalar_attr(entity_type)
             if entity_type in (DataType.VARCHAR, DataType.GEOMETRY):
                 entity_values = entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
@@ -838,7 +805,7 @@ def extract_array_rows(field_data: Any, entity_rows: List[Dict], row_count: int,
     data = array_data.data
     element_type = array_data.element_type
 
-    attr = ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
+    attr = type_info.get_array_element_attr(element_type)
     if attr is None:
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
@@ -863,7 +830,7 @@ def extract_array_row_data(field_data: Any, index: int):
     array_data = field_data.scalars.array_data
     array = array_data.data[index]
     element_type = array_data.element_type
-    attr = ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
+    attr = type_info.get_array_element_attr(element_type)
     if attr is not None:
         return getattr(array, attr).data
     return None
