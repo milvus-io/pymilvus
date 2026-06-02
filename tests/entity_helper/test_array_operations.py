@@ -278,15 +278,16 @@ class TestConvertToArrayOfVector:
         result = convert_to_array_of_vector(vectors, field_info)
         assert list(result.float_vector.data) == [1.0, 2.0, 3.0, 4.0]
 
-    def test_convert_array_of_vector_unsupported_type(self):
-        """Test unsupported element type raises error"""
+    def test_convert_array_of_binary_vectors_uses_registry_destination(self):
+        """Test converting array of binary vectors"""
         field_info = {
             "name": "vec_arr_field",
             "element_type": DataType.BINARY_VECTOR,
             "params": {"dim": 8},
         }
-        with pytest.raises(ParamError, match="Unsupported element type"):
-            convert_to_array_of_vector([[1, 2]], field_info)
+        result = convert_to_array_of_vector([b"\x0f", b"\xf0"], field_info)
+        assert result.dim == 8
+        assert result.binary_vector == b"\x0f\xf0"
 
     def test_convert_array_of_float_vectors_invalid_dtype(self):
         """Test numpy array with invalid dtype raises error"""
