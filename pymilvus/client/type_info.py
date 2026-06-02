@@ -168,6 +168,9 @@ class TypeInfo:
         bulk_numpy_dtype: Optional symbolic bulk-writer NumPy dtype string.
             Empty means current bulk behavior has no NumPy dtype creator for
             the type.
+        array_element_attr: Optional scalar protobuf attr when this type is
+            supported as an ARRAY element. Empty means this type is not a
+            supported ARRAY element, even if it has scalar protobuf storage.
         arrow_layout: Optional symbolic Arrow layout. Empty means no Arrow
             layout fact is known; use ``ArrowLayout("unsupported")`` when the
             type is known but intentionally unsupported for Arrow conversion.
@@ -184,6 +187,7 @@ class TypeInfo:
     numpy_dtype: Optional[str] = None
     numpy_fallback_dtype: Optional[str] = None
     bulk_numpy_dtype: Optional[str] = None
+    array_element_attr: Optional[str] = None
     arrow_layout: Optional[ArrowLayout] = None
 
 
@@ -201,6 +205,8 @@ def _scalar(
     attr: str,
     numpy_dtype: Optional[str],
     arrow_layout: ArrowLayout,
+    *,
+    array_element: bool = False,
 ) -> TypeInfo:
     """Build scalar descriptors whose runtime and bulk NumPy facts match.
 
@@ -209,6 +215,8 @@ def _scalar(
         attr: Attribute under ``FieldData.scalars``.
         numpy_dtype: Shared runtime and bulk NumPy dtype string, if known.
         arrow_layout: Symbolic Arrow layout descriptor.
+        array_element: Whether this scalar type is supported as an ARRAY
+            element and should expose ``attr`` for array-cell decode.
 
     Returns:
         Immutable scalar ``TypeInfo`` using a scalar protobuf slot.
@@ -220,6 +228,7 @@ def _scalar(
         protobuf_slot=ProtobufSlot(ProtobufSlotKind.SCALAR, attr),
         numpy_dtype=numpy_dtype,
         bulk_numpy_dtype=numpy_dtype,
+        array_element_attr=attr if array_element else None,
         arrow_layout=arrow_layout,
     )
 
@@ -238,25 +247,69 @@ def _scalar(
 #   must remain importable without optional Arrow dependencies.
 TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
     {
-        DataType.BOOL: _scalar(DataType.BOOL, "bool_data", "bool", ArrowLayout("scalar", "bool")),
-        DataType.INT8: _scalar(DataType.INT8, "int_data", "int8", ArrowLayout("scalar", "int8")),
+        DataType.BOOL: _scalar(
+            DataType.BOOL,
+            "bool_data",
+            "bool",
+            ArrowLayout("scalar", "bool"),
+            array_element=True,
+        ),
+        DataType.INT8: _scalar(
+            DataType.INT8,
+            "int_data",
+            "int8",
+            ArrowLayout("scalar", "int8"),
+            array_element=True,
+        ),
         DataType.INT16: _scalar(
-            DataType.INT16, "int_data", "int16", ArrowLayout("scalar", "int16")
+            DataType.INT16,
+            "int_data",
+            "int16",
+            ArrowLayout("scalar", "int16"),
+            array_element=True,
         ),
         DataType.INT32: _scalar(
-            DataType.INT32, "int_data", "int32", ArrowLayout("scalar", "int32")
+            DataType.INT32,
+            "int_data",
+            "int32",
+            ArrowLayout("scalar", "int32"),
+            array_element=True,
         ),
         DataType.INT64: _scalar(
-            DataType.INT64, "long_data", "int64", ArrowLayout("scalar", "int64")
+            DataType.INT64,
+            "long_data",
+            "int64",
+            ArrowLayout("scalar", "int64"),
+            array_element=True,
         ),
         DataType.FLOAT: _scalar(
-            DataType.FLOAT, "float_data", "float32", ArrowLayout("scalar", "float32")
+            DataType.FLOAT,
+            "float_data",
+            "float32",
+            ArrowLayout("scalar", "float32"),
+            array_element=True,
         ),
         DataType.DOUBLE: _scalar(
-            DataType.DOUBLE, "double_data", "float64", ArrowLayout("scalar", "float64")
+            DataType.DOUBLE,
+            "double_data",
+            "float64",
+            ArrowLayout("scalar", "float64"),
+            array_element=True,
         ),
-        DataType.STRING: _scalar(DataType.STRING, "string_data", "str", ArrowLayout("string")),
-        DataType.VARCHAR: _scalar(DataType.VARCHAR, "string_data", "str", ArrowLayout("string")),
+        DataType.STRING: _scalar(
+            DataType.STRING,
+            "string_data",
+            "str",
+            ArrowLayout("string"),
+            array_element=True,
+        ),
+        DataType.VARCHAR: _scalar(
+            DataType.VARCHAR,
+            "string_data",
+            "str",
+            ArrowLayout("string"),
+            array_element=True,
+        ),
         DataType.JSON: _scalar(DataType.JSON, "json_data", "str", ArrowLayout("string")),
         DataType.ARRAY: TypeInfo(
             dtype=DataType.ARRAY,
@@ -358,25 +411,11 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
     }
 )
 
-_ARRAY_ELEMENT_TYPES = frozenset(
-    {
-        DataType.BOOL,
-        DataType.INT8,
-        DataType.INT16,
-        DataType.INT32,
-        DataType.INT64,
-        DataType.FLOAT,
-        DataType.DOUBLE,
-        DataType.STRING,
-        DataType.VARCHAR,
-    }
-)
-
 _ARRAY_ELEMENT_TYPE_TO_ATTR: Mapping[DataType, str] = MappingProxyType(
     {
-        dtype: TYPE_INFO[dtype].protobuf_slot.attr
-        for dtype in _ARRAY_ELEMENT_TYPES
-        if TYPE_INFO[dtype].protobuf_slot is not None
+        dtype: info.array_element_attr
+        for dtype, info in TYPE_INFO.items()
+        if info.array_element_attr is not None
     }
 )
 
