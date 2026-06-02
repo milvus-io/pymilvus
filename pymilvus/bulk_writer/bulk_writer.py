@@ -127,10 +127,7 @@ class BulkWriter:
                 if dtype == DataType.FLOAT_VECTOR:
                     return origin_list, dim * 4  # for float vector, each dim occupies 4 bytes
                 if dtype in [DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR]:
-                    return (
-                        origin_list,
-                        dim * 2,
-                    )  # for float16 or bfloat16 vector, each dim occupies 2 bytes
+                    return origin_list, dim * (4 if isinstance(origin_list, list) else 2)
                 if dtype == DataType.INT8_VECTOR:
                     return origin_list, dim  # for int8 vector, each dim occupies 1 bytes
                 if dtype == DataType.BINARY_VECTOR:

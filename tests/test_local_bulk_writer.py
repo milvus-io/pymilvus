@@ -133,6 +133,25 @@ class TestLocalBulkWriter:
         mock_thread_instance.start.assert_called()
         mock_thread_instance.join.assert_not_called()
 
+    def test_append_row_fp16_vector_list_uses_fp32_size(self, temp_dir):
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+                FieldSchema(name="vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+            ]
+        )
+        writer = LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=BulkFileType.JSON,
+        )
+
+        writer.append_row({"id": 1, "vector": [1.0, 2.0, 3.0, 4.0]})
+
+        assert writer.buffer_size == 24
+        assert writer._buffer._buffer["vector"] == [[1.0, 2.0, 3.0, 4.0]]
+
     def test_append_row_text_scalar_array_and_struct(self, temp_dir):
         struct_schema = StructFieldSchema()
         struct_schema.add_field("chunk", DataType.TEXT)

@@ -199,12 +199,13 @@ class Buffer:
                         f" error: milvus doesn't support parsing sparse vectors from numpy file"
                     )
                 elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
-                    # special process for float16 vector, the self._buffer stores bytes for
-                    # float16 vector, convert the bytes to uint8 array
                     a = []
                     for val in v:
-                        a.append(np.frombuffer(val, dtype=dt).tolist())
-                    arr = np.array(a, dtype=dt)
+                        if isinstance(val, list):
+                            a.append(np.asarray(val, dtype=np.float32))
+                        else:
+                            a.append(np.frombuffer(val, dtype=dt).tolist())
+                    arr = np.array(a, dtype=np.float32 if a and isinstance(v[0], list) else dt)
                 else:
                     a = []
                     for val in v:
@@ -238,12 +239,16 @@ class Buffer:
                 # float16 vector, convert the bytes to float list
                 field_schema = self._fields[k]
                 if field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
-                    dt = (
-                        np.dtype("bfloat16")
-                        if (field_schema.dtype == DataType.BFLOAT16_VECTOR)
-                        else np.float16
-                    )
-                    row[k] = np.frombuffer(v[row_index], dtype=dt).tolist()
+                    val = v[row_index]
+                    if isinstance(val, list):
+                        row[k] = val
+                    else:
+                        dt = (
+                            np.dtype("bfloat16")
+                            if (field_schema.dtype == DataType.BFLOAT16_VECTOR)
+                            else np.float16
+                        )
+                        row[k] = np.frombuffer(val, dtype=dt).tolist()
                 else:
                     row[k] = v[row_index]
             rows.append(row)
@@ -284,6 +289,10 @@ class Buffer:
                         pa.field(sub_field.name, ARROW_TYPE_CREATOR[sub_field.dtype.name])
                     )
                 arrow_list.append(pa.field(field_name, pa.list_(pa.struct(sub_list))))
+            elif field.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR} and any(
+                isinstance(val, list) for val in self._buffer[field_name]
+            ):
+                arrow_list.append(pa.field(field_name, pa.list_(pa.float32())))
             else:
                 arrow_list.append(pa.field(field_name, ARROW_TYPE_CREATOR[field.dtype.name]))
 
@@ -302,13 +311,14 @@ class Buffer:
                     str_arr.append(json.dumps(val))
                 data[k] = str_arr
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
-                # special process for float16 vector, the self._buffer stores bytes for
-                # float16 vector, convert the bytes to uint8 array
                 arr = []
                 for val in v:
-                    arr.append(
-                        np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
-                    )
+                    if isinstance(val, list):
+                        arr.append(np.asarray(val, dtype=np.float32))
+                    else:
+                        arr.append(
+                            np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
+                        )
                 data[k] = arr
             else:
                 data[k] = v
@@ -376,12 +386,12 @@ class Buffer:
                     arr.append(None if val is None else json.dumps(val))
                 data[k] = pd.Series(arr, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
-                # special process for float16 vector, the self._buffer stores bytes for
-                # float16 vector, convert the bytes to float list
                 arr = []
                 for val in v:
                     if val is None:
                         arr.append(None)
+                    elif isinstance(val, list):
+                        arr.append(json.dumps(val))
                     else:
                         dt = (
                             np.dtype("bfloat16")
