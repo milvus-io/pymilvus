@@ -3,6 +3,7 @@ import json
 import logging
 import math
 import struct
+from collections.abc import Sized
 from typing import Any, Dict, Iterable, List, Optional
 
 import numpy as np
@@ -35,6 +36,36 @@ _ARRAY_DATA_ATTRS = tuple(
         attr for attr in (type_info.get_array_element_attr(dtype) for dtype in DataType) if attr
     )
 )
+
+_LEGACY_ROW_ERROR_LABELS = {
+    DataType.INT8: "int",
+    DataType.INT16: "int",
+    DataType.INT32: "int",
+    DataType.TIMESTAMPTZ: "string",
+}
+
+
+def _error_label(dtype: DataType) -> str:
+    try:
+        dtype = DataType(dtype)
+    except (TypeError, ValueError):
+        return str(dtype)
+    return _LEGACY_ROW_ERROR_LABELS.get(dtype, dtype.name.lower())
+
+
+def _scalar_row_error_message(
+    dtype: DataType, field_name: str, value: Any, error: Exception
+) -> str:
+    message = ExceptionsMessage.FieldDataInconsistent % (
+        field_name,
+        _error_label(dtype),
+        type(value),
+    )
+    # Preserve the legacy row-pack error text for these two types. Improving
+    # the diagnostic detail can be handled separately from this TypeInfo refactor.
+    if dtype in (DataType.TIMESTAMPTZ, DataType.GEOMETRY):
+        return message
+    return message + f" Detail: {error!s}"
 
 
 def _get_dim(field_info: Dict) -> int:
@@ -426,6 +457,23 @@ def entity_to_array_arr(entity_values: List[Any], field_info: Any):
     return convert_to_array_arr(entity_values, field_info)
 
 
+_ROW_SCALAR_NORMALIZERS = {
+    DataType.VARCHAR: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
+    DataType.TEXT: lambda v, fi: convert_to_str_array(v, fi, check=False),
+    DataType.GEOMETRY: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
+    DataType.JSON: lambda v, _: convert_to_json(v),
+    DataType.ARRAY: convert_to_array,
+}
+
+
+def _get_protobuf_payload(field_data: schema_types.FieldData, dtype: Optional[DataType] = None):
+    dtype = field_data.type if dtype is None else dtype
+    slot = type_info.get_protobuf_slot(dtype)
+    if slot.kind is type_info.ProtobufSlotKind.SCALAR:
+        return getattr(field_data.scalars, slot.attr)
+    return getattr(field_data.vectors, slot.attr)
+
+
 def flush_vector_bytes(
     field_data: schema_types.FieldData, vector_bytes_cache: Dict[int, List[bytes]]
 ):
@@ -449,6 +497,133 @@ def flush_vector_bytes(
         setattr(field_data.vectors, attr_name, b"".join(bytes_list))
 
 
+def _pack_scalar_row(
+    dtype: DataType,
+    value: Any,
+    field_data: schema_types.FieldData,
+    field_info: Any,
+    field_name: str,
+):
+    try:
+        payload = _get_protobuf_payload(field_data, dtype)
+        if value is None:
+            payload.data.extend([])
+            return
+        normalizer = _ROW_SCALAR_NORMALIZERS.get(dtype)
+        payload.data.append(normalizer(value, field_info) if normalizer else value)
+    except (TypeError, ValueError) as e:
+        raise DataNotMatchException(
+            message=_scalar_row_error_message(dtype, field_name, value, e)
+        ) from e
+
+
+def _pack_float_vector_row(
+    value: Any,
+    field_data: schema_types.FieldData,
+    field_info: Any,
+    field_name: str,
+):
+    try:
+        payload = _get_protobuf_payload(field_data, DataType.FLOAT_VECTOR)
+        if value is None:
+            if field_data.vectors.dim == 0:
+                field_data.vectors.dim = _get_dim(field_info)
+            return
+
+        f_value = value
+        if isinstance(value, np.ndarray):
+            if value.dtype not in ("float32", "float64"):
+                raise ParamError(
+                    message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
+                )
+            f_value = value.tolist()
+
+        field_data.vectors.dim = len(f_value)
+        payload.data.extend(f_value)
+    except (TypeError, ValueError) as e:
+        raise DataNotMatchException(
+            message=ExceptionsMessage.FieldDataInconsistent
+            % (field_name, _error_label(DataType.FLOAT_VECTOR), type(value))
+            + f" Detail: {e!s}"
+        ) from e
+
+
+def _normalize_byte_vector_row(dtype: DataType, value: Any) -> Optional[bytes]:
+    if value is None:
+        return None
+
+    dtype = type_info.get_type_info(dtype).dtype
+
+    if dtype == DataType.BINARY_VECTOR:
+        # Preserve binary-vector input compatibility: bytes(123) is valid
+        # Python but was rejected because scalar integers have no length.
+        if not isinstance(value, Sized):
+            message = f"object of type '{type(value).__name__}' has no len()"
+            raise TypeError(message)
+        return bytes(value)
+
+    if not type_info.is_byte_vector_type(dtype):
+        raise ParamError(message=f"Unsupported data type: {dtype}")
+
+    return _convert_to_vector_bytes(value, dtype)
+
+
+def _pack_byte_vector_row(
+    dtype: DataType,
+    value: Any,
+    field_data: schema_types.FieldData,
+    field_info: Any,
+    field_name: str,
+    vector_bytes_cache: Dict[int, List[bytes]],
+):
+    try:
+        if dtype in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR) and _is_fp32_vector_value(
+            value
+        ):
+            _pack_fp32_vector_value(value, field_data)
+            return
+
+        payload = _normalize_byte_vector_row(dtype, value)
+        if payload is None:
+            if field_data.vectors.dim == 0:
+                field_data.vectors.dim = _get_dim(field_info)
+            return
+
+        field_data.vectors.dim = _get_dim(field_info)
+        vector_bytes_cache.setdefault(id(field_data), []).append(payload)
+    except (TypeError, ValueError) as e:
+        raise DataNotMatchException(
+            message=ExceptionsMessage.FieldDataInconsistent
+            % (field_name, _error_label(dtype), type(value))
+            + f" Detail: {e!s}"
+        ) from e
+
+
+def _pack_sparse_vector_row(
+    value: Any,
+    field_data: schema_types.FieldData,
+    field_name: str,
+):
+    try:
+        payload = _get_protobuf_payload(field_data, DataType.SPARSE_FLOAT_VECTOR)
+        if value is None:
+            return
+
+        if not SciPyHelper.is_scipy_sparse(value):
+            value = [value]
+        elif value.shape[0] != 1:
+            raise ParamError(message="invalid input for sparse float vector: expect 1 row")
+        if not entity_is_sparse_matrix(value):
+            raise ParamError(message="invalid input for sparse float vector")
+        payload.contents.append(sparse_rows_to_proto(value).contents[0])
+    except (TypeError, ValueError) as e:
+        raise DataNotMatchException(
+            message=ExceptionsMessage.FieldDataInconsistent
+            % (field_name, _error_label(DataType.SPARSE_FLOAT_VECTOR), type(value))
+            + f" Detail: {e!s}"
+        ) from e
+
+
 def pack_field_value_to_field_data(
     field_value: Any,
     field_data: schema_types.FieldData,
@@ -457,279 +632,17 @@ def pack_field_value_to_field_data(
 ):
     field_type = field_data.type
     field_name = field_info["name"]
-    if field_type == DataType.BOOL:
-        try:
-            if field_value is None:
-                field_data.scalars.bool_data.data.extend([])
-            else:
-                field_data.scalars.bool_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "bool", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        try:
-            # need to extend it, or cannot correctly identify field_data.scalars.int_data.data
-            if field_value is None:
-                field_data.scalars.int_data.data.extend([])
-            else:
-                field_data.scalars.int_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.INT64:
-        try:
-            if field_value is None:
-                field_data.scalars.long_data.data.extend([])
-            else:
-                field_data.scalars.long_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int64", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.FLOAT:
-        try:
-            if field_value is None:
-                field_data.scalars.float_data.data.extend([])
-            else:
-                field_data.scalars.float_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.DOUBLE:
-        try:
-            if field_value is None:
-                field_data.scalars.double_data.data.extend([])
-            else:
-                field_data.scalars.double_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "double", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.TIMESTAMPTZ:
-        try:
-            if field_value is None:
-                field_data.scalars.string_data.data.extend([])  # Timestamptz is passed as String
-            else:
-                field_data.scalars.string_data.data.append(field_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "string", type(field_value))
-            ) from e
-    elif field_type == DataType.FLOAT_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = _get_dim(field_info)
-            else:
-                f_value = field_value
-                if isinstance(field_value, np.ndarray):
-                    if field_value.dtype not in ("float32", "float64"):
-                        raise ParamError(
-                            message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
-                        )
-                    f_value = field_value.tolist()
-
-                field_data.vectors.dim = len(f_value)
-                field_data.vectors.float_vector.data.extend(f_value)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.BINARY_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = _get_dim(field_info)
-            else:
-                field_data.vectors.dim = len(field_value) * 8
-                b_bytes = bytes(field_value)
-
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(b_bytes)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "binary_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.FLOAT16_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = _get_dim(field_info)
-            elif _is_fp32_vector_value(field_value):
-                _pack_fp32_vector_value(field_value, field_data)
-            else:
-                v_bytes = _convert_to_vector_bytes(field_value, DataType.FLOAT16_VECTOR)
-                field_data.vectors.dim = len(v_bytes) // 2
-
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(v_bytes)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "float16_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.BFLOAT16_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = _get_dim(field_info)
-            elif _is_fp32_vector_value(field_value):
-                _pack_fp32_vector_value(field_value, field_data)
-            else:
-                v_bytes = _convert_to_vector_bytes(field_value, DataType.BFLOAT16_VECTOR)
-                field_data.vectors.dim = len(v_bytes) // 2
-
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(v_bytes)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "bfloat16_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.SPARSE_FLOAT_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = 0
-            else:
-                if not SciPyHelper.is_scipy_sparse(field_value):
-                    field_value = [field_value]
-                elif field_value.shape[0] != 1:
-                    raise ParamError(message="invalid input for sparse float vector: expect 1 row")
-                if not entity_is_sparse_matrix(field_value):
-                    raise ParamError(message="invalid input for sparse float vector")
-                field_data.vectors.sparse_float_vector.contents.append(
-                    sparse_rows_to_proto(field_value).contents[0]
-                )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "sparse_float_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.INT8_VECTOR:
-        try:
-            if field_value is None:
-                if field_data.vectors.dim == 0:
-                    field_data.vectors.dim = _get_dim(field_info)
-            else:
-                if isinstance(field_value, np.ndarray):
-                    if field_value.dtype != "int8":
-                        raise ParamError(
-                            message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
-                        )
-                    i_bytes = field_value.view(np.int8).tobytes()
-                else:
-                    raise ParamError(
-                        message="invalid input for int8 vector. Expected an np.ndarray with dtype=int8"
-                    )
-
-                field_data.vectors.dim = len(i_bytes)
-
-                field_id = id(field_data)
-                if field_id not in vector_bytes_cache:
-                    vector_bytes_cache[field_id] = []
-                vector_bytes_cache[field_id].append(i_bytes)
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "int8_vector", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.VARCHAR:
-        try:
-            if field_value is None:
-                field_data.scalars.string_data.data.extend([])
-            else:
-                field_data.scalars.string_data.data.append(
-                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
-                )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "varchar", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.TEXT:
-        try:
-            if field_value is None:
-                field_data.scalars.string_data.data.extend([])
-            else:
-                # TEXT type does not have max_length limit, skip length check
-                field_data.scalars.string_data.data.append(
-                    convert_to_str_array(field_value, field_info, check=False)
-                )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "text", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.GEOMETRY:
-        try:
-            if field_value is None:
-                field_data.scalars.geometry_wkt_data.data.extend([])
-            else:
-                field_data.scalars.geometry_wkt_data.data.append(
-                    convert_to_str_array(field_value, field_info, CHECK_STR_ARRAY)
-                )
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "geometry", type(field_value))
-            ) from e
-    elif field_type == DataType.JSON:
-        try:
-            if field_value is None:
-                field_data.scalars.json_data.data.extend([])
-            else:
-                field_data.scalars.json_data.data.append(convert_to_json(field_value))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "json", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    elif field_type == DataType.ARRAY:
-        try:
-            if field_value is None:
-                field_data.scalars.array_data.data.extend([])
-            else:
-                field_data.scalars.array_data.data.append(convert_to_array(field_value, field_info))
-        except (TypeError, ValueError) as e:
-            raise DataNotMatchException(
-                message=ExceptionsMessage.FieldDataInconsistent
-                % (field_name, "array", type(field_value))
-                + f" Detail: {e!s}"
-            ) from e
-    else:
-        raise ParamError(message=f"Unsupported data type: {field_type}")
+    if type_info.is_scalar_type(field_type) or field_type == DataType.ARRAY:
+        return _pack_scalar_row(field_type, field_value, field_data, field_info, field_name)
+    if field_type == DataType.FLOAT_VECTOR:
+        return _pack_float_vector_row(field_value, field_data, field_info, field_name)
+    if field_type == DataType.SPARSE_FLOAT_VECTOR:
+        return _pack_sparse_vector_row(field_value, field_data, field_name)
+    if type_info.is_byte_vector_type(field_type):
+        return _pack_byte_vector_row(
+            field_type, field_value, field_data, field_info, field_name, vector_bytes_cache
+        )
+    raise ParamError(message=f"Unsupported data type: {field_type}")
 
 
 # Don't change entity inside.
