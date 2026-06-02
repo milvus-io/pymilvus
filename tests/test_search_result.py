@@ -1,6 +1,7 @@
 import logging
 import os
 import random
+import struct
 from typing import Dict
 from unittest.mock import MagicMock, patch
 
@@ -8,6 +9,7 @@ import numpy as np
 import orjson
 import pytest
 from pymilvus.client import entity_helper
+from pymilvus.client.field_data_extractors import get_field_data
 from pymilvus.client.search_result import (
     Hit,
     Hits,
@@ -18,7 +20,6 @@ from pymilvus.client.search_result import (
     apply_valid_data,
     extract_array_row_data,
     extract_struct_field_value,
-    get_field_data,
 )
 from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import common_pb2, schema_pb2
@@ -337,24 +338,26 @@ class TestSearchResultExtended:
             output_fields=["*"],
         )
 
-    def test_sparse_float_vector(self, monkeypatch):
+    def test_sparse_float_vector(self):
         fields_data = [
             schema_pb2.FieldData(
                 type=DataType.SPARSE_FLOAT_VECTOR,
                 field_name="sparse_vec",
                 field_id=101,
                 vectors=schema_pb2.VectorField(
-                    dim=100, sparse_float_vector=schema_pb2.SparseFloatArray()
+                    dim=100,
+                    sparse_float_vector=schema_pb2.SparseFloatArray(
+                        contents=[
+                            struct.pack("If", 0, 1.0),
+                            struct.pack("If", 1, 0.5),
+                            struct.pack("If", 2, 0.2),
+                        ]
+                    ),
                 ),
             )
         ]
 
         res_data = self._create_base_result(fields_data)
-        expected_rows = [{0: 1.0}, {1: 0.5}, {2: 0.2}]
-
-        monkeypatch.setattr(
-            entity_helper, "sparse_proto_to_rows", lambda x, start, end: expected_rows[start:end]
-        )
 
         sr = SearchResult(res_data)
         assert len(sr) == 1
@@ -362,20 +365,20 @@ class TestSearchResultExtended:
         assert len(hits) == 3
         assert hits[0].entity["sparse_vec"] == {0: 1.0}
         assert hits[1].entity["sparse_vec"] == {1: 0.5}
-        assert hits[2].entity["sparse_vec"] == {2: 0.2}
+        assert hits[2].entity["sparse_vec"] == {2: pytest.approx(0.2)}
 
         # Test with validity mask
         res_data.fields_data[0].valid_data.extend([True, False, True])
-        valid_rows = [{0: 1.0}, {2: 0.2}]
-        monkeypatch.setattr(
-            entity_helper, "sparse_proto_to_rows", lambda x, start, end: valid_rows[start:end]
+        res_data.fields_data[0].vectors.sparse_float_vector.contents[:] = (
+            struct.pack("If", 0, 1.0),
+            struct.pack("If", 2, 0.2),
         )
 
         sr = SearchResult(res_data)
         hits = sr[0]
         assert hits[0].entity["sparse_vec"] == {0: 1.0}
         assert hits[1].entity["sparse_vec"] is None
-        assert hits[2].entity["sparse_vec"] == {2: 0.2}
+        assert hits[2].entity["sparse_vec"] == {2: pytest.approx(0.2)}
 
     def test_array_of_struct(self, monkeypatch):
         fields_data = [
@@ -1059,7 +1062,9 @@ class TestCoverageEdgeCases:
         fd = schema_pb2.FieldData(type=DataType._ARRAY_OF_STRUCT, field_name="aos", field_id=1)
         # Mock get_field_data to return object without fields
 
-        with patch("pymilvus.client.search_result.get_field_data") as mock_get:
+        with patch(
+            "pymilvus.client.search_result.field_data_extractors.get_field_data"
+        ) as mock_get:
             mock_get.return_value = MagicMock(spec=[])  # No fields attr
 
             hh = HybridHits(0, 1, [1], [0.1], [fd], [], [], "id")

@@ -13,6 +13,7 @@
 
 from unittest.mock import MagicMock
 
+import numpy as np
 import pytest
 from pymilvus.client.types import (
     ALWAYS_KEEP_ZERO_KEYS,
@@ -57,7 +58,7 @@ from pymilvus.client.types import (
     get_extra_info,
 )
 from pymilvus.exceptions import AutoIDException, InvalidConsistencyLevel
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2, schema_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 
@@ -1121,3 +1122,45 @@ class TestHybridExtraList:
     def test_hybrid_extra_list_negative_index(self):
         hel = self._make_hel([{"id": 1}, {"id": 2}, {"id": 3}])
         assert hel[-1]["id"] == 3 and hel[-2]["id"] == 2
+
+    def test_hybrid_extra_list_dynamic_json_preserves_existing_keys(self):
+        field_data = schema_pb2.FieldData(
+            type=DataType.JSON,
+            field_name="$meta",
+            is_dynamic=True,
+            scalars=schema_pb2.ScalarField(
+                json_data=schema_pb2.JSONArray(data=[b'{"keep":"new","extra":2}'])
+            ),
+        )
+        hel = HybridExtraList([field_data], [{"keep": "old"}], dynamic_fields=None)
+
+        row = hel[0]
+
+        assert row["keep"] == "old"
+        assert row["extra"] == 2
+
+    def test_hybrid_extra_list_strict_float32_uses_decoder_data(self):
+        field_data = schema_pb2.FieldData(
+            type=DataType.FLOAT_VECTOR,
+            field_name="vec",
+            vectors=schema_pb2.VectorField(
+                dim=2,
+                float_vector=schema_pb2.FloatArray(data=[1.25, 2.5]),
+            ),
+        )
+        hel = HybridExtraList([field_data], [{}], strict_float32=True)
+
+        vector = hel[0]["vec"]
+
+        assert vector.tolist() == [1.25, 2.5]
+        assert vector.dtype == np.float32
+
+    def test_hybrid_extra_list_byte_vectors_keep_wrapped_shape(self):
+        field_data = schema_pb2.FieldData(
+            type=DataType.INT8_VECTOR,
+            field_name="vec",
+            vectors=schema_pb2.VectorField(dim=2, int8_vector=b"abcd"),
+        )
+        hel = HybridExtraList([field_data], [{}, {}])
+
+        assert hel[1]["vec"] == [b"cd"]
