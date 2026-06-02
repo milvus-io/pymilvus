@@ -48,7 +48,11 @@ from .constants import (
 )
 from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .field_ops import FieldOpsInput, normalize_field_ops
-from .type_info import require_placeholder_type, require_vector_type_for_numpy_dtype
+from .type_info import (
+    is_byte_vector_type,
+    require_placeholder_type,
+    require_vector_type_for_numpy_dtype,
+)
 from .types import (
     DataType,
     PlaceholderType,
@@ -1344,7 +1348,7 @@ class Prepare:
         elif isinstance(data[0], np.ndarray):
             vector_type = require_vector_type_for_numpy_dtype(data[0].dtype)
             pl_type = require_placeholder_type(vector_type, is_embedding_list)
-            if vector_type == DataType.FLOAT_VECTOR:
+            if not is_byte_vector_type(vector_type):
                 pl_values = (blob.vector_float_to_bytes(entity) for entity in data)
             else:
                 pl_values = (array.tobytes() for array in data)

@@ -716,6 +716,53 @@ def is_byte_vector_type(dtype: DataTypeLike) -> bool:
         return False
 
 
+_DENSE_FLOAT_VECTOR_PLACEHOLDERS = frozenset(
+    {
+        PlaceholderType.FloatVector,
+        PlaceholderType.FLOAT16_VECTOR,
+        PlaceholderType.BFLOAT16_VECTOR,
+    }
+)
+
+
+def _has_regular_placeholder(dtype: DataTypeLike, *placeholders: PlaceholderType) -> bool:
+    try:
+        return get_type_info(dtype).placeholder in placeholders
+    except ParamError:
+        return False
+
+
+def is_dense_float_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is a dense vector with float search semantics."""
+
+    try:
+        info = get_type_info(dtype)
+    except ParamError:
+        return False
+    return (
+        info.family == TypeFamily.DENSE_VECTOR
+        and info.placeholder in _DENSE_FLOAT_VECTOR_PLACEHOLDERS
+    )
+
+
+def is_float_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is a dense or sparse float vector."""
+
+    return is_sparse_vector_type(dtype) or is_dense_float_vector_type(dtype)
+
+
+def is_binary_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is the binary vector type."""
+
+    return _has_regular_placeholder(dtype, PlaceholderType.BinaryVector)
+
+
+def is_int_vector_type(dtype: DataTypeLike) -> bool:
+    """Return whether ``dtype`` is the int vector type."""
+
+    return _has_regular_placeholder(dtype, PlaceholderType.Int8Vector)
+
+
 def get_protobuf_slot(dtype: DataTypeLike) -> Optional[ProtobufSlot]:
     """Return the static protobuf storage slot for a ``DataType``.
 
