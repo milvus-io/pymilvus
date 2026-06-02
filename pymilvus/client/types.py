@@ -5,7 +5,6 @@ from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
 import numpy as np
-import orjson
 
 from pymilvus.exceptions import (
     AutoIDException,
@@ -14,8 +13,6 @@ from pymilvus.exceptions import (
 )
 from pymilvus.grpc_gen import common_pb2, rg_pb2, schema_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-
-from . import utils
 
 Status = TypeVar("Status")
 ConsistencyLevel = common_pb2.ConsistencyLevel
@@ -1106,17 +1103,13 @@ class HybridExtraList(list):
         return int(prefix_sum[logical_index])
 
     def _extract_lazy_fields(self, index: int, field_data: Any, row_data: Dict) -> Any:
+        from . import field_data_extractors  # noqa: PLC0415
+
         if field_data.type == DataType.JSON:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
+            json_dict = field_data_extractors.decode_cell(field_data, index)
+            if json_dict is None:
                 row_data[field_data.field_name] = None
                 return
-            try:
-                json_dict = orjson.loads(field_data.scalars.json_data.data[index])
-            except Exception as e:
-                logger.error(
-                    f"HybridExtraList::_extract_lazy_fields::Failed to load JSON data: {e}, original data: {field_data.scalars.json_data.data[index]}"
-                )
-                raise
             if not field_data.is_dynamic:
                 row_data[field_data.field_name] = json_dict
                 return
@@ -1132,103 +1125,25 @@ class HybridExtraList(list):
                     if k in self._dynamic_fields and k not in row_data
                 }
             )
-        elif field_data.type == DataType.FLOAT_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            dim = field_data.vectors.dim
-            phys_idx = self._get_physical_index(field_data, index)
-            start_pos = phys_idx * dim
-            end_pos = start_pos + dim
-            if len(field_data.vectors.float_vector.data) >= end_pos:
-                # Here we use numpy.array to convert the float64 values to numpy.float32 values,
-                # and return a list of numpy.float32 to users
-                # By using numpy.array, performance improved by 60% for topk=16384 dim=1536 case.
-                if self._strict_float32:
-                    row_data[field_data.field_name] = self._float_vector_np_array[
-                        field_data.field_name
-                    ][start_pos:end_pos]
-                else:
-                    row_data[field_data.field_name] = field_data.vectors.float_vector.data[
-                        start_pos:end_pos
-                    ]
-        elif field_data.type == DataType.BINARY_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim // 8
-            phys_idx = self._get_physical_index(field_data, index)
-            start_pos = phys_idx * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.binary_vector) >= end_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.binary_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.BFLOAT16_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim * 2
-            phys_idx = self._get_physical_index(field_data, index)
-            start_pos = phys_idx * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.bfloat16_vector) >= end_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.bfloat16_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.FLOAT16_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            dim = field_data.vectors.dim
-            bytes_per_vector = dim * 2
-            phys_idx = self._get_physical_index(field_data, index)
-            start_pos = phys_idx * bytes_per_vector
-            end_pos = start_pos + bytes_per_vector
-            if len(field_data.vectors.float16_vector) >= end_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.float16_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType.SPARSE_FLOAT_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            phys_idx = self._get_physical_index(field_data, index)
-            row_data[field_data.field_name] = utils.sparse_parse_single_row(
-                field_data.vectors.sparse_float_vector.contents[phys_idx]
+        elif field_data.type in (
+            DataType.FLOAT_VECTOR,
+            DataType.FLOAT16_VECTOR,
+            DataType.BFLOAT16_VECTOR,
+            DataType.BINARY_VECTOR,
+            DataType.SPARSE_FLOAT_VECTOR,
+            DataType.INT8_VECTOR,
+            DataType._ARRAY_OF_VECTOR,
+        ):
+            dense_vector_data = None
+            if field_data.type == DataType.FLOAT_VECTOR and self._strict_float32:
+                dense_vector_data = self._float_vector_np_array[field_data.field_name]
+            row_data[field_data.field_name] = field_data_extractors.decode_cell(
+                field_data,
+                index,
+                physical_index_override=self._get_physical_index(field_data, index),
+                dense_vector_data=dense_vector_data,
+                wrap_byte_vectors=True,
             )
-        elif field_data.type == DataType.INT8_VECTOR:
-            if len(field_data.valid_data) > 0 and field_data.valid_data[index] is False:
-                row_data[field_data.field_name] = None
-                return
-            dim = field_data.vectors.dim
-            phys_idx = self._get_physical_index(field_data, index)
-            start_pos = phys_idx * dim
-            end_pos = start_pos + dim
-            if len(field_data.vectors.int8_vector) >= end_pos:
-                row_data[field_data.field_name] = [
-                    field_data.vectors.int8_vector[start_pos:end_pos]
-                ]
-        elif field_data.type == DataType._ARRAY_OF_VECTOR:
-            # Handle array of vectors
-            if hasattr(field_data, "vectors") and hasattr(field_data.vectors, "vector_array"):
-                if index < len(field_data.vectors.vector_array.data):
-                    vector_data = field_data.vectors.vector_array.data[index]
-                    dim = vector_data.dim
-                    float_data = vector_data.float_vector.data
-                    num_vectors = len(float_data) // dim
-                    row_vectors = []
-                    for vec_idx in range(num_vectors):
-                        vec_start = vec_idx * dim
-                        vec_end = vec_start + dim
-                        row_vectors.append(list(float_data[vec_start:vec_end]))
-                    row_data[field_data.field_name] = row_vectors
-                else:
-                    row_data[field_data.field_name] = []
-            else:
-                row_data[field_data.field_name] = []
         elif field_data.type == DataType._ARRAY_OF_STRUCT:
             # Handle struct arrays - convert column format back to array of structs
             if hasattr(field_data, "struct_arrays") and field_data.struct_arrays:
