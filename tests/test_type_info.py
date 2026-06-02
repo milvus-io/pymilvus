@@ -59,6 +59,7 @@ def test_type_info_uses_single_protobuf_slot_field():
     field_names = {field.name for field in fields(TypeInfo)}
 
     assert "protobuf_slot" in field_names
+    assert "array_element_attr" in field_names
     assert {"scalar_attr", "vector_attr", "field_attr"}.isdisjoint(field_names)
     assert not hasattr(info, "scalar_attr")
     assert not hasattr(info, "vector_attr")
@@ -170,6 +171,7 @@ def test_scalar_protobuf_attributes_match_existing_maps(dtype, attr):
 )
 def test_supported_array_element_attrs_match_scalar_attrs(dtype):
     assert get_array_element_attr(dtype) == get_scalar_attr(dtype)
+    assert get_type_info(dtype).array_element_attr == get_scalar_attr(dtype)
 
 
 @pytest.mark.parametrize(
@@ -185,6 +187,8 @@ def test_supported_array_element_attrs_match_scalar_attrs(dtype):
 )
 def test_unsupported_array_element_attrs_return_none(dtype):
     assert get_array_element_attr(dtype) is None
+    if dtype in {DataType.TIMESTAMPTZ, DataType.JSON, DataType.ARRAY, DataType.STRUCT}:
+        assert get_type_info(dtype).array_element_attr is None
 
 
 @pytest.mark.parametrize(
