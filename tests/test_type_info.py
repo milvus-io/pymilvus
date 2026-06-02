@@ -6,7 +6,6 @@ from pymilvus.client.type_info import (
     ArrowLayout,
     ProtobufSlot,
     ProtobufSlotKind,
-    TypeCapability,
     TypeFamily,
     TypeInfo,
     get_arrow_layout,
@@ -18,8 +17,6 @@ from pymilvus.client.type_info import (
     get_protobuf_attr,
     get_protobuf_slot,
     get_scalar_attr,
-    get_type_capabilities,
-    get_type_capability,
     get_type_info,
     get_vector_attr,
     get_vector_type_for_numpy_dtype,
@@ -28,13 +25,10 @@ from pymilvus.client.type_info import (
     is_scalar_type,
     is_sparse_vector_type,
     is_vector_type,
-    register_type_capability,
     require_numpy_dtype,
     require_placeholder_type,
-    require_type_capability,
     require_vector_type_for_numpy_dtype,
     row_width,
-    unregister_type_capability,
 )
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
@@ -68,107 +62,6 @@ def test_type_info_uses_single_protobuf_slot_field():
     assert not hasattr(info, "scalar_attr")
     assert not hasattr(info, "vector_attr")
     assert not hasattr(info, "field_attr")
-
-
-def test_type_capability_names_cover_consumer_boundaries():
-    assert {capability.value for capability in TypeCapability} == {
-        "row_insert_packer",
-        "batch_insert_packer",
-        "result_parser",
-        "result_extractor",
-        "result_unparser",
-        "array_element_packer",
-        "array_element_extractor",
-        "array_vector_packer",
-        "array_vector_extractor",
-        "search_input_converter",
-        "default_value_encoder",
-    }
-
-
-def test_capabilities_stay_separate_from_static_type_info():
-    assert "capabilities" not in {field.name for field in fields(TypeInfo)}
-    assert get_type_capabilities(DataType.JSON) == {}
-    assert get_type_capability(DataType.JSON, TypeCapability.ROW_INSERT_PACKER) is None
-
-
-def test_registers_and_requires_capabilities_explicitly():
-    def pack_row(*args, **kwargs):
-        return "packed"
-
-    try:
-        binding = register_type_capability(
-            DataType.JSON,
-            TypeCapability.ROW_INSERT_PACKER,
-            pack_row,
-            owner="tests",
-        )
-
-        assert binding.dtype == DataType.JSON
-        assert binding.capability == TypeCapability.ROW_INSERT_PACKER
-        assert binding.handler is pack_row
-        assert binding.owner == "tests"
-        assert get_type_capability(DataType.JSON, "row_insert_packer") == binding
-        assert require_type_capability(DataType.JSON, TypeCapability.ROW_INSERT_PACKER) == binding
-
-        with pytest.raises(TypeError):
-            get_type_capabilities(DataType.JSON)[TypeCapability.BATCH_INSERT_PACKER] = binding
-
-        with pytest.raises(ParamError, match="already registered"):
-            register_type_capability(
-                DataType.JSON,
-                TypeCapability.ROW_INSERT_PACKER,
-                pack_row,
-            )
-    finally:
-        unregister_type_capability(DataType.JSON, TypeCapability.ROW_INSERT_PACKER)
-
-
-def test_complex_types_can_register_result_codecs():
-    def parse_struct(*args, **kwargs):
-        return {"parsed": True}
-
-    def unparse_struct(*args, **kwargs):
-        return {"unparsed": True}
-
-    try:
-        parse_binding = register_type_capability(
-            DataType.STRUCT,
-            TypeCapability.RESULT_EXTRACTOR,
-            parse_struct,
-            owner="struct-result",
-        )
-        unparse_binding = register_type_capability(
-            DataType.STRUCT,
-            TypeCapability.RESULT_UNPARSER,
-            unparse_struct,
-            owner="struct-result",
-        )
-
-        assert (
-            require_type_capability(DataType.STRUCT, TypeCapability.RESULT_EXTRACTOR)
-            == parse_binding
-        )
-        assert (
-            require_type_capability(DataType.STRUCT, TypeCapability.RESULT_UNPARSER)
-            == unparse_binding
-        )
-    finally:
-        unregister_type_capability(DataType.STRUCT, TypeCapability.RESULT_EXTRACTOR)
-        unregister_type_capability(DataType.STRUCT, TypeCapability.RESULT_UNPARSER)
-
-
-def test_missing_or_invalid_capabilities_raise_deterministically():
-    assert unregister_type_capability(DataType.ARRAY, TypeCapability.ARRAY_ELEMENT_PACKER) is None
-
-    with pytest.raises(ParamError, match="has no registered"):
-        require_type_capability(DataType.ARRAY, TypeCapability.ARRAY_ELEMENT_PACKER)
-
-    with pytest.raises(ParamError, match="Unsupported TypeCapability"):
-        get_type_capability(DataType.ARRAY, "not-a-capability")
-
-    with pytest.raises(ParamError, match="callable"):
-        register_type_capability(DataType.ARRAY, TypeCapability.ARRAY_ELEMENT_PACKER, object())
 
 
 def test_populated_protobuf_slots_are_valid():
