@@ -11,6 +11,7 @@ from pymilvus.grpc_gen.schema_pb2 import FieldData
 
 from . import entity_helper
 from .type_info import (
+    get_array_element_attr,
     get_field_attr,
     get_scalar_attr,
     get_vector_attr,
@@ -720,7 +721,7 @@ class Hit(dict):
 def extract_array_row_data(
     scalars: List[schema_pb2.ScalarField], element_type: DataType
 ) -> List[List[Any]]:
-    attr = entity_helper.ARRAY_ELEMENT_TYPE_TO_ATTR.get(element_type)
+    attr = get_array_element_attr(element_type)
     if attr is None:
         raise MilvusException(message=f"Unsupported data type: {element_type}")
 
