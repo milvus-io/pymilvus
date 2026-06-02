@@ -1498,3 +1498,322 @@ class TestEmptyResultArrayField:
         entity_rows: List[Dict] = []
         # Must not raise MilvusException("Unsupported data type: 0")
         extract_array_row_data_with_validity(fd, entity_rows, 0)
+
+
+class TestLogicalTypeRowInsertPaths:
+    @staticmethod
+    def _byte_vector_payload(dtype, dim, seed=0):
+        if dtype == DataType.BINARY_VECTOR:
+            return bytes((seed + i) % 256 for i in range(dim // 8))
+        if dtype == DataType.FLOAT16_VECTOR:
+            return np.array([seed + i for i in range(dim)], dtype=np.float16)
+        if dtype == DataType.BFLOAT16_VECTOR:
+            return bytes((seed + i) % 256 for i in range(dim * 2))
+        if dtype == DataType.INT8_VECTOR:
+            return np.array([(seed + i) % 128 - 64 for i in range(dim)], dtype=np.int8)
+        raise AssertionError(f"unexpected dtype {dtype}")
+
+    @staticmethod
+    def _payload_bytes(dtype, payload):
+        if dtype in (DataType.FLOAT16_VECTOR, DataType.INT8_VECTOR):
+            return payload.tobytes()
+        return payload
+
+    @staticmethod
+    def _field_data_by_name(request):
+        return {field_data.field_name: field_data for field_data in request.fields_data}
+
+    @pytest.mark.parametrize(
+        "dtype,value,attr,expected",
+        [
+            (DataType.BOOL, True, "bool_data", True),
+            (DataType.INT8, 7, "int_data", 7),
+            (DataType.INT16, 8, "int_data", 8),
+            (DataType.INT32, 9, "int_data", 9),
+            (DataType.INT64, 7, "long_data", 7),
+            (DataType.FLOAT, 1.5, "float_data", 1.5),
+            (DataType.DOUBLE, 2.5, "double_data", 2.5),
+            (
+                DataType.TIMESTAMPTZ,
+                "2026-05-18T10:00:00Z",
+                "string_data",
+                "2026-05-18T10:00:00Z",
+            ),
+            (DataType.VARCHAR, "varchar", "string_data", "varchar"),
+            (DataType.JSON, {"ok": True}, "json_data", orjson.dumps({"ok": True})),
+            (DataType.GEOMETRY, "POINT(1 2)", "geometry_wkt_data", "POINT(1 2)"),
+        ],
+        ids=[
+            "bool",
+            "int8",
+            "int16",
+            "int32",
+            "int64",
+            "float",
+            "double",
+            "timestamptz",
+            "varchar",
+            "json",
+            "geometry",
+        ],
+    )
+    def test_type_info_backed_row_pack_scalar_wire_slots(self, dtype, value, attr, expected):
+        field_data = schema_types.FieldData(type=dtype, field_name="scalar")
+        field_info = {"name": "scalar", "params": {Config.MaxVarCharLengthKey: 128}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
+        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
+
+        assert list(getattr(field_data.scalars, attr).data) == [expected]
+
+    def test_type_info_backed_row_pack_array_wire_slot(self):
+        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="array")
+        field_info = {"name": "array", "element_type": DataType.INT64}
+
+        pack_field_value_to_field_data([1, 2, 3], field_data, field_info, {})
+        pack_field_value_to_field_data(None, field_data, field_info, {})
+
+        assert len(field_data.scalars.array_data.data) == 1
+        assert list(field_data.scalars.array_data.data[0].long_data.data) == [1, 2, 3]
+
+    @pytest.mark.parametrize(
+        "dtype,bad_value,field_info,expected",
+        [
+            (
+                DataType.INT64,
+                "not int",
+                {"name": "f"},
+                "The Input data type is inconsistent with defined schema, {f} field should be a int64, but got a {<class 'str'>} instead. Detail: 'str' object cannot be interpreted as an integer",
+            ),
+            (
+                DataType.TIMESTAMPTZ,
+                1,
+                {"name": "f"},
+                "The Input data type is inconsistent with defined schema, {f} field should be a string, but got a {<class 'int'>} instead.",
+            ),
+            (
+                DataType.VARCHAR,
+                123,
+                {"name": "f", "params": {Config.MaxVarCharLengthKey: 10}},
+                "The Input data type is inconsistent with defined schema, {f} field should be a varchar, but got a {<class 'int'>} instead. Detail: 'int' object is not iterable",
+            ),
+            (
+                DataType.GEOMETRY,
+                123,
+                {"name": "f", "params": {Config.MaxVarCharLengthKey: 10}},
+                "The Input data type is inconsistent with defined schema, {f} field should be a geometry, but got a {<class 'int'>} instead.",
+            ),
+        ],
+        ids=["int64", "timestamptz", "varchar", "geometry"],
+    )
+    def test_scalar_row_error_messages_preserve_legacy_labels(
+        self, dtype, bad_value, field_info, expected
+    ):
+        field_data = schema_types.FieldData(type=dtype, field_name="f")
+
+        with pytest.raises(DataNotMatchException) as exc:
+            pack_field_value_to_field_data(bad_value, field_data, field_info, {})
+
+        assert exc.value.message == expected
+
+    @pytest.mark.parametrize(
+        "dtype,dim,vector_attr",
+        [
+            (DataType.BINARY_VECTOR, 16, "binary_vector"),
+            (DataType.FLOAT16_VECTOR, 4, "float16_vector"),
+            (DataType.BFLOAT16_VECTOR, 4, "bfloat16_vector"),
+            (DataType.INT8_VECTOR, 4, "int8_vector"),
+        ],
+        ids=["binary", "float16", "bfloat16", "int8"],
+    )
+    def test_type_info_backed_row_pack_byte_vectors(self, dtype, dim, vector_attr):
+        field_data = schema_types.FieldData(type=dtype, field_name="vec")
+        field_info = {"name": "vec", "params": {"dim": dim}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+        payload = self._byte_vector_payload(dtype, dim)
+
+        pack_field_value_to_field_data(payload, field_data, field_info, vector_bytes_cache)
+        flush_vector_bytes(field_data, vector_bytes_cache)
+
+        assert field_data.vectors.dim == dim
+        assert getattr(field_data.vectors, vector_attr) == self._payload_bytes(dtype, payload)
+
+    def test_float_vector_row_rejects_invalid_ndarray_dtype(self):
+        field_data = schema_types.FieldData(type=DataType.FLOAT_VECTOR, field_name="float")
+        field_info = {"name": "float", "params": {"dim": 2}}
+
+        with pytest.raises(ParamError, match="invalid input for float32 vector"):
+            pack_field_value_to_field_data(
+                np.array([1, 2], dtype=np.int32), field_data, field_info, {}
+            )
+
+    def test_float16_vector_row_accepts_bytes_payload(self):
+        field_data = schema_types.FieldData(type=DataType.FLOAT16_VECTOR, field_name="float16")
+        field_info = {"name": "float16", "params": {"dim": 2}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        pack_field_value_to_field_data(
+            b"\x00\x01\x02\x03", field_data, field_info, vector_bytes_cache
+        )
+        flush_vector_bytes(field_data, vector_bytes_cache)
+
+        assert field_data.vectors.dim == 2
+        assert field_data.vectors.float16_vector == b"\x00\x01\x02\x03"
+
+    @pytest.mark.parametrize(
+        "dtype,value,match",
+        [
+            (
+                DataType.FLOAT16_VECTOR,
+                np.array([1, 2], dtype=np.int32),
+                "invalid input for float16 vector",
+            ),
+            (
+                DataType.BFLOAT16_VECTOR,
+                np.array([1, 2], dtype=np.float16),
+                "invalid input for bfloat16 vector",
+            ),
+            (DataType.INT8_VECTOR, [1, 2], "invalid input type for INT8_VECTOR vector"),
+        ],
+        ids=["float16-wrong-dtype", "bfloat16-wrong-dtype", "int8-non-array"],
+    )
+    def test_byte_vector_row_rejects_invalid_payload(self, dtype, value, match):
+        field_data = schema_types.FieldData(type=dtype, field_name="vec")
+        field_info = {"name": "vec", "params": {"dim": 2}}
+
+        with pytest.raises(ParamError, match=match):
+            pack_field_value_to_field_data(value, field_data, field_info, {})
+
+    def test_sparse_vector_row_rejects_multi_row_scipy_payload(self):
+        field_data = schema_types.FieldData(type=DataType.SPARSE_FLOAT_VECTOR, field_name="sparse")
+        field_info = {"name": "sparse"}
+
+        class FakeSparse:
+            shape = (2, 4)
+
+        with patch("pymilvus.client.entity_helper.SciPyHelper.is_scipy_sparse", return_value=True):
+            with pytest.raises(ParamError, match="expect 1 row"):
+                pack_field_value_to_field_data(FakeSparse(), field_data, field_info, {})
+
+    def test_sparse_vector_row_rejects_invalid_payload(self):
+        field_data = schema_types.FieldData(type=DataType.SPARSE_FLOAT_VECTOR, field_name="sparse")
+        field_info = {"name": "sparse"}
+
+        with pytest.raises(ParamError, match="invalid input for sparse float vector"):
+            pack_field_value_to_field_data("bad sparse row", field_data, field_info, {})
+
+    def test_prepare_row_insert_and_upsert_flush_byte_vectors(self):
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "float", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+            {"name": "sparse", "type": DataType.SPARSE_FLOAT_VECTOR},
+            {"name": "binary", "type": DataType.BINARY_VECTOR, "params": {"dim": 16}},
+            {"name": "float16", "type": DataType.FLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "bfloat16", "type": DataType.BFLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "int8", "type": DataType.INT8_VECTOR, "params": {"dim": 4}},
+        ]
+        rows = [
+            {
+                "id": 1,
+                "float": [1.0, 2.0, 3.0, 4.0],
+                "sparse": {0: 1.0, 3: 2.0},
+                "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 1),
+                "float16": self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 1),
+                "bfloat16": self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 1),
+                "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 1),
+            },
+            {
+                "id": 2,
+                "float": [5.0, 6.0, 7.0, 8.0],
+                "sparse": {1: 3.0},
+                "binary": self._byte_vector_payload(DataType.BINARY_VECTOR, 16, 9),
+                "float16": self._byte_vector_payload(DataType.FLOAT16_VECTOR, 4, 9),
+                "bfloat16": self._byte_vector_payload(DataType.BFLOAT16_VECTOR, 4, 9),
+                "int8": self._byte_vector_payload(DataType.INT8_VECTOR, 4, 9),
+            },
+        ]
+
+        insert_request = Prepare.row_insert_param("c", rows, "", fields_info, [])
+        upsert_request = Prepare.row_upsert_param("c", rows, "", fields_info, [])
+
+        for request in (insert_request, upsert_request):
+            fields = self._field_data_by_name(request)
+            assert fields["float"].vectors.dim == 4
+            assert list(fields["float"].vectors.float_vector.data) == [
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                6.0,
+                7.0,
+                8.0,
+            ]
+            assert len(fields["sparse"].vectors.sparse_float_vector.contents) == 2
+            assert fields["binary"].vectors.dim == 16
+            assert fields["binary"].vectors.binary_vector == b"".join(row["binary"] for row in rows)
+            assert fields["float16"].vectors.dim == 4
+            assert fields["float16"].vectors.float16_vector == b"".join(
+                row["float16"].tobytes() for row in rows
+            )
+            assert fields["bfloat16"].vectors.dim == 4
+            assert fields["bfloat16"].vectors.bfloat16_vector == b"".join(
+                row["bfloat16"] for row in rows
+            )
+            assert fields["int8"].vectors.dim == 4
+            assert fields["int8"].vectors.int8_vector == b"".join(
+                row["int8"].tobytes() for row in rows
+            )
+
+    def test_prepare_row_insert_and_upsert_fp16_bf16_float_inputs_use_float_vector_slot(self):
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+            {"name": "float16", "type": DataType.FLOAT16_VECTOR, "params": {"dim": 4}},
+            {"name": "bfloat16", "type": DataType.BFLOAT16_VECTOR, "params": {"dim": 4}},
+        ]
+        rows = [
+            {
+                "id": 1,
+                "float16": [1.0, 2.0, 3.0, 4.0],
+                "bfloat16": np.array([9.0, 10.0, 11.0, 12.0], dtype=np.float64),
+            },
+            {
+                "id": 2,
+                "float16": np.array([5.0, 6.0, 7.0, 8.0], dtype=np.float32),
+                "bfloat16": [13.0, 14.0, 15.0, 16.0],
+            },
+        ]
+
+        insert_request = Prepare.row_insert_param("c", rows, "", fields_info, [])
+        upsert_request = Prepare.row_upsert_param("c", rows, "", fields_info, [])
+
+        for request in (insert_request, upsert_request):
+            fields = self._field_data_by_name(request)
+            assert fields["float16"].vectors.dim == 4
+            assert list(fields["float16"].vectors.float_vector.data) == [
+                1.0,
+                2.0,
+                3.0,
+                4.0,
+                5.0,
+                6.0,
+                7.0,
+                8.0,
+            ]
+            assert fields["float16"].vectors.WhichOneof("data") == "float_vector"
+            assert fields["float16"].vectors.float16_vector == b""
+
+            assert fields["bfloat16"].vectors.dim == 4
+            assert list(fields["bfloat16"].vectors.float_vector.data) == [
+                9.0,
+                10.0,
+                11.0,
+                12.0,
+                13.0,
+                14.0,
+                15.0,
+                16.0,
+            ]
+            assert fields["bfloat16"].vectors.WhichOneof("data") == "float_vector"
+            assert fields["bfloat16"].vectors.bfloat16_vector == b""

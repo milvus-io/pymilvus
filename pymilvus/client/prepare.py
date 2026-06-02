@@ -873,13 +873,7 @@ class Prepare:
 
         # Flush all bytes vector field temporary byte lists to optimize memory usage
         for field_data in fields_data.values():
-            if field_data.type in (
-                DataType.INT8_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-            ):
-                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
+            entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
         request.fields_data.extend(struct_fields_data.values())
@@ -1034,13 +1028,7 @@ class Prepare:
         fields_data = {k: v for k, v in fields_data.items() if field_len[k] > 0}
         # Flush all bytes vector field temporary byte lists to optimize memory usage
         for field_data in fields_data.values():
-            if field_data.type in (
-                DataType.INT8_VECTOR,
-                DataType.BINARY_VECTOR,
-                DataType.FLOAT16_VECTOR,
-                DataType.BFLOAT16_VECTOR,
-            ):
-                entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
+            entity_helper.flush_vector_bytes(field_data, vector_bytes_cache)
 
         request.fields_data.extend(fields_data.values())
 
