@@ -171,3 +171,25 @@ class TestExtractStructArray:
 
         with pytest.raises(ParamError, match="Unexpected field type"):
             extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
+
+    def test_extract_struct_array_unsupported_vector_subfield_materializes_none(self):
+        struct_field = schema_types.FieldData()
+
+        valid_field = schema_types.FieldData()
+        valid_field.field_name = "valid"
+        valid_field.type = DataType.ARRAY
+        arr = schema_types.ScalarField()
+        arr.int_data.data.extend([1])
+        valid_field.scalars.array_data.data.append(arr)
+        struct_field.struct_arrays.fields.append(valid_field)
+
+        unsupported_vector = schema_types.FieldData()
+        unsupported_vector.field_name = "bad_vector"
+        unsupported_vector.type = DataType._ARRAY_OF_VECTOR
+        unsupported_vector.vectors.vector_array.element_type = DataType.SPARSE_FLOAT_VECTOR
+        unsupported_vector.vectors.vector_array.data.append(schema_types.VectorField(dim=2))
+        struct_field.struct_arrays.fields.append(unsupported_vector)
+
+        result = extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
+
+        assert result == [{"valid": 1, "bad_vector": None}]
