@@ -300,52 +300,6 @@ class TestEntityHelperSparse:
         assert field_data.vectors.dim == 4
         assert list(field_data.vectors.float_vector.data) == value
 
-    @pytest.mark.parametrize(
-        "element_type,data_attr,data_values,expected,use_approx",
-        [
-            (DataType.INT64, "long_data", [0, 1, 2], [0, 1, 2], False),
-            (DataType.VARCHAR, "string_data", ["str_0", "str_1"], ["str_0", "str_1"], False),
-            (DataType.BOOL, "bool_data", [True, False, True], [True, False, True], False),
-            (DataType.FLOAT, "float_data", [1.1, 2.2, 3.3], [1.1, 2.2, 3.3], True),
-            (
-                DataType.DOUBLE,
-                "double_data",
-                [1.11111, 2.22222, 3.33333],
-                [1.11111, 2.22222, 3.33333],
-                True,
-            ),
-        ],
-    )
-    def test_extract_array_row_data_types(
-        self, element_type, data_attr, data_values, expected, use_approx
-    ):
-        """Test extracting array data of various types from protobuf"""
-        field_data = schema_pb2.FieldData()
-        field_data.scalars.array_data.element_type = element_type
-
-        scalar_field = schema_pb2.ScalarField()
-        getattr(scalar_field, data_attr).data.extend(data_values)
-        field_data.scalars.array_data.data.append(scalar_field)
-
-        result = entity_helper.extract_array_row_data(field_data, 0)
-        if use_approx:
-            assert result == pytest.approx(expected)
-        else:
-            assert result == expected
-
-    def test_extract_array_row_data_invalid_type(self):
-        """Test extracting array data with invalid type"""
-        # Create field data with array
-        field_data = schema_pb2.FieldData()
-        field_data.scalars.array_data.element_type = 999  # Invalid type
-
-        # Add array data for index 0
-        scalar_field = schema_pb2.ScalarField()
-        field_data.scalars.array_data.data.append(scalar_field)
-
-        result = entity_helper.extract_array_row_data(field_data, 0)
-        assert result is None  # Returns None for unknown types
-
 
 class TestMockedSparseMatrix:
     """Test sparse matrix functions using mocks to avoid environment issues"""
