@@ -256,51 +256,6 @@ class TestCheckInvalidBinaryVector:
         assert utils.check_invalid_binary_vector(entities) is False
 
 
-# ── TestVectorTypeChecks (parametrized) ───────────────────────────────────────
-
-
-@pytest.mark.parametrize(
-    "dtype,fn_name,expected",
-    [
-        # is_sparse_vector_type
-        (DataType.SPARSE_FLOAT_VECTOR, "is_sparse_vector_type", True),
-        (DataType.FLOAT_VECTOR, "is_sparse_vector_type", False),
-        (DataType.BINARY_VECTOR, "is_sparse_vector_type", False),
-        # is_dense_float_vector_type
-        (DataType.FLOAT_VECTOR, "is_dense_float_vector_type", True),
-        (DataType.FLOAT16_VECTOR, "is_dense_float_vector_type", True),
-        (DataType.BFLOAT16_VECTOR, "is_dense_float_vector_type", True),
-        (DataType.SPARSE_FLOAT_VECTOR, "is_dense_float_vector_type", False),
-        (DataType.BINARY_VECTOR, "is_dense_float_vector_type", False),
-        (DataType.INT8_VECTOR, "is_dense_float_vector_type", False),
-        # is_float_vector_type
-        (DataType.FLOAT_VECTOR, "is_float_vector_type", True),
-        (DataType.FLOAT16_VECTOR, "is_float_vector_type", True),
-        (DataType.BFLOAT16_VECTOR, "is_float_vector_type", True),
-        (DataType.SPARSE_FLOAT_VECTOR, "is_float_vector_type", True),
-        (DataType.BINARY_VECTOR, "is_float_vector_type", False),
-        (DataType.INT8_VECTOR, "is_float_vector_type", False),
-        # is_binary_vector_type
-        (DataType.BINARY_VECTOR, "is_binary_vector_type", True),
-        (DataType.FLOAT_VECTOR, "is_binary_vector_type", False),
-        # is_int_vector_type
-        (DataType.INT8_VECTOR, "is_int_vector_type", True),
-        (DataType.FLOAT_VECTOR, "is_int_vector_type", False),
-        # is_vector_type
-        (DataType.FLOAT_VECTOR, "is_vector_type", True),
-        (DataType.FLOAT16_VECTOR, "is_vector_type", True),
-        (DataType.BFLOAT16_VECTOR, "is_vector_type", True),
-        (DataType.SPARSE_FLOAT_VECTOR, "is_vector_type", True),
-        (DataType.BINARY_VECTOR, "is_vector_type", True),
-        (DataType.INT8_VECTOR, "is_vector_type", True),
-        (DataType.INT64, "is_vector_type", False),
-        (DataType.VARCHAR, "is_vector_type", False),
-    ],
-)
-def test_vector_type_checks(dtype, fn_name, expected):
-    assert getattr(utils, fn_name)(dtype) is expected
-
-
 class TestSparseParseSingleRow:
     def test_basic_parsing(self):
         data = struct.pack("If", 0, 1.0) + struct.pack("If", 1, 2.0)
