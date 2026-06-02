@@ -349,14 +349,53 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
+def _is_fp32_vector_value(field_value: Any) -> bool:
+    if isinstance(field_value, list):
+        return True
+    if isinstance(field_value, np.ndarray):
+        return field_value.dtype in ("float32", "float64")
+    return False
+
+
+def _pack_fp32_vector_value(field_value: Any, field_data: schema_types.FieldData) -> None:
+    if isinstance(field_value, np.ndarray) and field_value.dtype not in ("float32", "float64"):
+        raise ParamError(
+            message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32 or float64"
+        )
+    f_value = np.asarray(field_value, dtype=np.float32).tolist()
+    field_data.vectors.dim = len(f_value)
+    field_data.vectors.float_vector.data.extend(f_value)
+
+
 def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     """Convert a single vector value to bytes for byte-based vector types."""
     if isinstance(field_value, bytes):
         return field_value
+
+    if element_type == DataType.FLOAT16_VECTOR:
+        if isinstance(field_value, np.ndarray):
+            if field_value.dtype == "float16":
+                return field_value.view(np.uint8).tobytes()
+            raise ParamError(
+                message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
+            )
+        raise ParamError(
+            message="invalid input type for float16 vector. Expected bytes or np.ndarray(dtype=float16)"
+        )
+
+    if element_type == DataType.BFLOAT16_VECTOR:
+        if isinstance(field_value, np.ndarray):
+            if field_value.dtype == "bfloat16":
+                return field_value.view(np.uint8).tobytes()
+            raise ParamError(
+                message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
+            )
+        raise ParamError(
+            message="invalid input type for bfloat16 vector. Expected bytes or np.ndarray(dtype=bfloat16)"
+        )
+
     if isinstance(field_value, np.ndarray):
         expected_dtypes = {
-            DataType.FLOAT16_VECTOR: "float16",
-            DataType.BFLOAT16_VECTOR: "bfloat16",
             DataType.INT8_VECTOR: "int8",
         }
         expected = expected_dtypes.get(element_type)
@@ -569,20 +608,10 @@ def pack_field_value_to_field_data(
             if field_value is None:
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = _get_dim(field_info)
+            elif _is_fp32_vector_value(field_value):
+                _pack_fp32_vector_value(field_value, field_data)
             else:
-                if isinstance(field_value, bytes):
-                    v_bytes = field_value
-                elif isinstance(field_value, np.ndarray):
-                    if field_value.dtype != "float16":
-                        raise ParamError(
-                            message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
-                        )
-                    v_bytes = field_value.view(np.uint8).tobytes()
-                else:
-                    raise ParamError(
-                        message="invalid input type for float16 vector. Expected an np.ndarray with dtype=float16"
-                    )
-
+                v_bytes = _convert_to_vector_bytes(field_value, DataType.FLOAT16_VECTOR)
                 field_data.vectors.dim = len(v_bytes) // 2
 
                 field_id = id(field_data)
@@ -600,20 +629,10 @@ def pack_field_value_to_field_data(
             if field_value is None:
                 if field_data.vectors.dim == 0:
                     field_data.vectors.dim = _get_dim(field_info)
+            elif _is_fp32_vector_value(field_value):
+                _pack_fp32_vector_value(field_value, field_data)
             else:
-                if isinstance(field_value, bytes):
-                    v_bytes = field_value
-                elif isinstance(field_value, np.ndarray):
-                    if field_value.dtype != "bfloat16":
-                        raise ParamError(
-                            message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
-                        )
-                    v_bytes = field_value.view(np.uint8).tobytes()
-                else:
-                    raise ParamError(
-                        message="invalid input type for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
-                    )
-
+                v_bytes = _convert_to_vector_bytes(field_value, DataType.BFLOAT16_VECTOR)
                 field_data.vectors.dim = len(v_bytes) // 2
 
                 field_id = id(field_data)
