@@ -4,6 +4,7 @@ import time
 import types
 from typing import Dict, List, Optional, Type, Union
 
+from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
@@ -22,7 +23,6 @@ from pymilvus.client.types import (
 )
 from pymilvus.client.utils import (
     convert_struct_fields_to_user_format,
-    is_vector_type,
 )
 from pymilvus.decorators import deprecated
 from pymilvus.exceptions import (
@@ -954,7 +954,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if is_vector_type(data_type) and not kwargs.get("nullable", False):
+        if type_info.is_vector_type(data_type) and not kwargs.get("nullable", False):
             raise ParamError(
                 message="Adding vector field to existing collection requires nullable=True"
             )
@@ -1923,7 +1923,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         vector_fields = {
             field["name"]
             for field in schema_dict.get("fields", [])
-            if is_vector_type(field.get("type"))
+            if type_info.is_vector_type(field.get("type"))
         }
 
         if not vector_fields:

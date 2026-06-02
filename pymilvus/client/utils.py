@@ -12,7 +12,6 @@ from pymilvus.exceptions import MilvusException, ParamError, SchemaMismatchRetry
 from pymilvus.grpc_gen import common_pb2
 from pymilvus.settings import Config
 
-from . import type_info
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
 
@@ -405,30 +404,6 @@ SparseMatrixInputType = Union[
     "csr_array",
     "spmatrix",
 ]
-
-
-def is_sparse_vector_type(data_type: DataType) -> bool:
-    return type_info.is_sparse_vector_type(data_type)
-
-
-def is_dense_float_vector_type(data_type: DataType) -> bool:
-    return type_info.is_dense_float_vector_type(data_type)
-
-
-def is_float_vector_type(data_type: DataType):
-    return type_info.is_float_vector_type(data_type)
-
-
-def is_binary_vector_type(data_type: DataType):
-    return type_info.is_binary_vector_type(data_type)
-
-
-def is_int_vector_type(data_type: DataType):
-    return type_info.is_int_vector_type(data_type)
-
-
-def is_vector_type(data_type: DataType):
-    return type_info.is_vector_type(data_type)
 
 
 # parses plain bytes to a sparse float vector(SparseRowOutputType)
