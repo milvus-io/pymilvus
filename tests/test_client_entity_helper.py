@@ -855,6 +855,50 @@ class TestNullableVectorSupport:
             actual_bytes = field_data.vectors.int8_vector[idx * 768 : (idx + 1) * 768]
             assert expected_bytes == actual_bytes, f"Vector {idx} data mismatch"
 
+    @pytest.mark.parametrize(
+        "dtype,value,expected",
+        [
+            (DataType.FLOAT16_VECTOR, [1.0, 2.0, 3.0, 4.0], [1.0, 2.0, 3.0, 4.0]),
+            (
+                DataType.FLOAT16_VECTOR,
+                np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+                [1.0, 2.0, 3.0, 4.0],
+            ),
+            (
+                DataType.BFLOAT16_VECTOR,
+                np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float64),
+                [1.0, 2.0, 3.0, 4.0],
+            ),
+        ],
+    )
+    def test_pack_field_value_to_field_data_fp16_bf16_float_input(self, dtype, value, expected):
+        field_data = schema_pb2.FieldData()
+        field_data.type = dtype
+        field_data.field_name = "vector"
+        field_info = {"name": "vector", "params": {"dim": 4}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        pack_field_value_to_field_data(value, field_data, field_info, vector_bytes_cache)
+
+        assert field_data.vectors.dim == 4
+        assert field_data.vectors.float_vector.data == expected
+        assert field_data.vectors.WhichOneof("data") == "float_vector"
+
+    def test_pack_field_value_to_field_data_fp16_invalid_numpy_dtype(self):
+        field_data = schema_pb2.FieldData()
+        field_data.type = DataType.FLOAT16_VECTOR
+        field_data.field_name = "vector"
+        field_info = {"name": "vector", "params": {"dim": 4}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+
+        with pytest.raises(ParamError, match=r"Expected an np\.ndarray with dtype=float16"):
+            pack_field_value_to_field_data(
+                np.array([1, 2, 3, 4], dtype=np.int32),
+                field_data,
+                field_info,
+                vector_bytes_cache,
+            )
+
     def test_pack_field_value_to_field_data_int8_vector_invalid_dtype(self):
         """Test error handling for invalid int8 vector dtype"""
         field_data = schema_pb2.FieldData()

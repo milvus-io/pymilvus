@@ -441,6 +441,23 @@ class TestBufferExtended:
             for f in files:
                 assert Path(f).exists()
 
+    def test_persist_npy_with_fp16_list_vectors(self):
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.NUMPY)
+        buffer.append_row({"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            vector_file = next(f for f in files if "float16_vector" in f)
+            arr = np.load(vector_file)
+
+        assert arr.dtype == np.float32
+        np.testing.assert_array_equal(arr, np.array([[1.0, 2.0, 3.0, 4.0]], dtype=np.float32))
+
     def test_persist_npy_with_none_values(self):
         """Test persisting None values in numpy format"""
         fields = [
@@ -489,6 +506,22 @@ class TestBufferExtended:
 
             with pytest.raises(MilvusException, match="Failed to persist file"):
                 buffer.persist(temp_dir)
+
+    def test_persist_json_with_float16_list_vectors(self):
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.JSON)
+        buffer.append_row({"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            with Path(files[0]).open("r") as f:
+                data = json.load(f)
+
+        assert data["rows"][0]["float16_vector"] == [1.0, 2.0, 3.0, 4.0]
 
     def test_persist_json_with_float16_vectors(self):
         """Test JSON persist with float16 vectors only"""
@@ -670,6 +703,40 @@ class TestBufferExtended:
             files = buffer.persist(temp_dir)
             assert len(files) == 1
             mock_to_csv.assert_called_once()
+
+    def test_persist_csv_with_float16_list_vectors(self):
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.CSV)
+        buffer.append_row({"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            with Path(files[0]).open(newline="") as csv_file:
+                rows = list(csv.reader(csv_file))
+
+        value_row = dict(zip(rows[0], rows[1]))
+        assert json.loads(value_row["float16_vector"]) == [1.0, 2.0, 3.0, 4.0]
+
+    @patch("pandas.DataFrame.to_parquet")
+    def test_persist_parquet_with_float16_list_vectors(self, mock_to_parquet):
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.PARQUET)
+        buffer.append_row({"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+
+        assert len(files) == 1
+        schema_arg = mock_to_parquet.call_args.kwargs["schema"]
+        assert schema_arg.field("float16_vector").type == pa.list_(pa.float32())
 
     def test_persist_csv_nullable_vectors_use_default_nullkey(self):
         """Test CSV persist keeps nullable vectors empty by default"""
