@@ -3,14 +3,18 @@ import struct
 import orjson
 import pytest
 from pymilvus.client.field_data_extractors import (
+    array_cell_length,
+    decode_array_value,
     decode_cell,
     decode_range,
+    decode_vector_array_value,
     dense_vector_width,
     get_field_data,
     physical_index,
+    vector_array_length,
 )
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen import schema_pb2
 
 
@@ -132,6 +136,73 @@ def test_decode_array_of_vector_cell_splits_rows():
     field.vectors.vector_array.data.append(vector)
 
     assert decode_cell(field, 0) == [[1.0, 2.0], [3.0, 4.0]]
+
+
+def test_array_cell_helpers_use_type_info_array_element_attrs():
+    array_cell = schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[10, 20]))
+
+    assert array_cell_length(array_cell) == 2
+    assert decode_array_value(array_cell, 1) == 20
+
+
+def test_array_cell_helpers_return_empty_for_unpopulated_cell():
+    array_cell = schema_pb2.ScalarField()
+
+    assert array_cell_length(array_cell) == 0
+    assert decode_array_value(array_cell, 0) is None
+
+
+@pytest.mark.parametrize(
+    ("dtype", "dim", "payload_attr", "payload", "expected"),
+    [
+        (DataType.FLOAT_VECTOR, 2, "float_vector", [1.0, 2.0, 3.0, 4.0], [3.0, 4.0]),
+        (DataType.FLOAT16_VECTOR, 2, "float16_vector", b"abcdefgh", b"efgh"),
+        (DataType.BFLOAT16_VECTOR, 2, "bfloat16_vector", b"ijklmnop", b"mnop"),
+        (DataType.INT8_VECTOR, 2, "int8_vector", b"qrst", b"st"),
+        (DataType.BINARY_VECTOR, 16, "binary_vector", b"uvwx", b"wx"),
+    ],
+)
+def test_vector_array_helpers_count_and_slice_type_info_widths(
+    dtype, dim, payload_attr, payload, expected
+):
+    vector = schema_pb2.VectorField(dim=dim)
+    if dtype == DataType.FLOAT_VECTOR:
+        getattr(vector, payload_attr).data.extend(payload)
+    else:
+        setattr(vector, payload_attr, payload)
+
+    assert vector_array_length(vector, dtype) == 2
+    assert decode_vector_array_value(vector, dtype, 1) == expected
+
+
+def test_vector_array_helpers_reject_unsupported_element_type():
+    vector = schema_pb2.VectorField(dim=2)
+    vector.sparse_float_vector.contents.append(b"bad")
+
+    with pytest.raises(ParamError, match="Unsupported vector array element type"):
+        vector_array_length(vector, DataType.SPARSE_FLOAT_VECTOR)
+
+    with pytest.raises(ParamError, match="Unsupported vector array element type"):
+        decode_vector_array_value(vector, DataType.SPARSE_FLOAT_VECTOR, 0)
+
+
+def test_vector_array_helpers_handle_empty_and_zero_width_rows():
+    empty = schema_pb2.VectorField()
+
+    assert vector_array_length(empty, DataType.NONE) == 0
+    assert decode_vector_array_value(empty, DataType.NONE, 0) is None
+
+    zero_dim = schema_pb2.VectorField(dim=0, float_vector=schema_pb2.FloatArray(data=[1.0]))
+
+    assert vector_array_length(zero_dim, DataType.FLOAT_VECTOR) == 0
+    assert decode_vector_array_value(zero_dim, DataType.FLOAT_VECTOR, 0) is None
+
+
+def test_decode_vector_array_value_returns_none_for_short_payload():
+    vector = schema_pb2.VectorField(dim=2)
+    vector.float_vector.data.extend([1.0])
+
+    assert decode_vector_array_value(vector, DataType.FLOAT_VECTOR, 0) is None
 
 
 def test_decode_unsupported_field_type_raises():

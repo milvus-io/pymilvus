@@ -53,6 +53,62 @@ def dense_vector_width(dtype: DataType, dim: int) -> Optional[int]:
     return type_info.row_width(dtype, dim)
 
 
+def array_cell_length(array_cell: Any) -> int:
+    """Return the populated length of one ScalarField array cell."""
+    attr = _populated_array_attr(array_cell)
+    if attr is None:
+        return 0
+    return len(getattr(array_cell, attr).data)
+
+
+def decode_array_value(array_cell: Any, index: int) -> Any:
+    """Decode one value from a ScalarField array cell."""
+    attr = _populated_array_attr(array_cell)
+    if attr is None:
+        return None
+    data = getattr(array_cell, attr).data
+    if len(data) <= index:
+        return None
+    return data[index]
+
+
+def vector_array_length(vector_data: Any, element_type: DataType) -> int:
+    """Return the number of vector values stored in one VectorArray row."""
+    element_type = _resolve_vector_array_element_type(vector_data, element_type)
+    if element_type == DataType.NONE:
+        return 0
+    if not type_info.is_dense_vector_type(element_type):
+        raise ParamError(message=f"Unsupported vector array element type: {element_type}")
+
+    width = dense_vector_width(element_type, vector_data.dim)
+    if not width:
+        return 0
+    payload = _vector_array_payload(vector_data, element_type)
+    return len(payload) // width
+
+
+def decode_vector_array_value(vector_data: Any, element_type: DataType, index: int) -> Any:
+    """Decode one vector value from a VectorArray row using TypeInfo width facts."""
+    element_type = _resolve_vector_array_element_type(vector_data, element_type)
+    if element_type == DataType.NONE:
+        return None
+    if not type_info.is_dense_vector_type(element_type):
+        raise ParamError(message=f"Unsupported vector array element type: {element_type}")
+
+    width = dense_vector_width(element_type, vector_data.dim)
+    if not width:
+        return None
+    payload = _vector_array_payload(vector_data, element_type)
+    start = index * width
+    end = start + width
+    if len(payload) < end:
+        return None
+    value = payload[start:end]
+    if element_type == DataType.FLOAT_VECTOR:
+        return list(value)
+    return value
+
+
 def decode_array_cell(field_data: Any, logical_index: int) -> Any:
     array_data = field_data.scalars.array_data
     if logical_index >= len(array_data.data):
@@ -74,21 +130,20 @@ def decode_vector_array_cell(
         return []
 
     vector_data = vector_array.data[logical_index]
-    dim = vector_data.dim
     element_type = vector_array.element_type
     if element_type == DataType.NONE:
-        element_type = _infer_vector_array_element_type(vector_data)
+        element_type = _resolve_vector_array_element_type(vector_data, element_type)
     if element_type == DataType.NONE:
         return []
 
-    data = _vector_array_payload(vector_data, element_type)
     if not split_vectors:
-        return data
+        return _vector_array_payload(vector_data, element_type)
 
-    width = dense_vector_width(element_type, dim)
-    if not width:
-        return []
-    return [data[start : start + width] for start in range(0, len(data) - len(data) % width, width)]
+    length = vector_array_length(vector_data, element_type)
+    return [
+        decode_vector_array_value(vector_data, element_type, vector_index)
+        for vector_index in range(length)
+    ]
 
 
 def decode_cell(
@@ -154,7 +209,9 @@ def decode_range(field_data: Any, start: int, end: int) -> List[Any]:
     return [decode_cell(field_data, index) for index in range(start, end)]
 
 
-def _infer_vector_array_element_type(vector_data: Any) -> DataType:
+def _resolve_vector_array_element_type(vector_data: Any, element_type: DataType) -> DataType:
+    if element_type != DataType.NONE:
+        return element_type
     if len(vector_data.float_vector.data) > 0:
         return DataType.FLOAT_VECTOR
     if len(vector_data.float16_vector) > 0:
@@ -166,6 +223,17 @@ def _infer_vector_array_element_type(vector_data: Any) -> DataType:
     if len(vector_data.int8_vector) > 0:
         return DataType.INT8_VECTOR
     return DataType.NONE
+
+
+def _populated_array_attr(array_cell: Any) -> Optional[str]:
+    for info in type_info.TYPE_INFO.values():
+        attr = info.array_element_attr
+        if attr is None:
+            continue
+        data = getattr(array_cell, attr, None)
+        if data is not None and len(data.data) > 0:
+            return attr
+    return None
 
 
 def _vector_array_payload(vector_data: Any, element_type: DataType) -> Any:
