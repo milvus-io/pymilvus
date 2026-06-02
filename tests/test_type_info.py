@@ -21,8 +21,12 @@ from pymilvus.client.type_info import (
     get_type_info,
     get_vector_attr,
     get_vector_type_for_numpy_dtype,
+    is_binary_vector_type,
     is_byte_vector_type,
+    is_dense_float_vector_type,
     is_dense_vector_type,
+    is_float_vector_type,
+    is_int_vector_type,
     is_scalar_type,
     is_sparse_vector_type,
     is_vector_type,
@@ -124,6 +128,28 @@ def test_type_predicates(dtype, scalar, dense, sparse, vector, byte_vector):
     assert is_sparse_vector_type(dtype) is sparse
     assert is_vector_type(dtype) is vector
     assert is_byte_vector_type(dtype) is byte_vector
+
+
+@pytest.mark.parametrize(
+    "dtype,dense_float,float_vector,binary_vector,int_vector",
+    [
+        (DataType.FLOAT_VECTOR, True, True, False, False),
+        (DataType.FLOAT16_VECTOR, True, True, False, False),
+        (DataType.BFLOAT16_VECTOR, True, True, False, False),
+        (DataType.SPARSE_FLOAT_VECTOR, False, True, False, False),
+        (DataType.BINARY_VECTOR, False, False, True, False),
+        (DataType.INT8_VECTOR, False, False, False, True),
+        (DataType.INT64, False, False, False, False),
+        (DataType.UNKNOWN, False, False, False, False),
+    ],
+)
+def test_legacy_vector_predicates_use_registry_facts(
+    dtype, dense_float, float_vector, binary_vector, int_vector
+):
+    assert is_dense_float_vector_type(dtype) is dense_float
+    assert is_float_vector_type(dtype) is float_vector
+    assert is_binary_vector_type(dtype) is binary_vector
+    assert is_int_vector_type(dtype) is int_vector
 
 
 @pytest.mark.parametrize(
