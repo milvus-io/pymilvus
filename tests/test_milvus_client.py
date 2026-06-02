@@ -15,6 +15,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
     PrimaryKeyException,
+    ServerVersionIncompatibleException,
 )
 from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
@@ -1211,6 +1212,35 @@ class TestMilvusClientSearchOps:
                 mock_v2.return_value = MagicMock()
                 client.search_iterator("col", data=[[0.1, 0.2]])
                 mock_v2.assert_called_once()
+
+    def test_search_iterator_v1_autodetects_single_vector_field(self):
+        schema = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "vector", "type": DataType.FLOAT_VECTOR},
+            ]
+        }
+        handler = _make_handler()
+        handler._get_schema.return_value = (schema, 100)
+        search_iterator = MagicMock()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with patch(
+                "pymilvus.milvus_client.milvus_client.SearchIteratorV2",
+                side_effect=ServerVersionIncompatibleException(message="fallback"),
+            ), patch(
+                "pymilvus.milvus_client.milvus_client.SearchIterator",
+                return_value=search_iterator,
+            ) as mock_v1:
+                result = client.search_iterator(
+                    "col",
+                    data=[[0.1, 0.2]],
+                    search_params={"metric_type": "L2"},
+                )
+
+        assert result is search_iterator
+        mock_v1.assert_called_once()
+        assert mock_v1.call_args.kwargs["ann_field"] == "vector"
 
 
 class TestMilvusClientSession:

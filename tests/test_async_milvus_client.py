@@ -392,6 +392,21 @@ class TestAsyncMilvusClientNewFeatures:
         assert isinstance(result, StructFieldSchema)
 
     @pytest.mark.asyncio
+    async def test_add_collection_field_vector_requires_nullable(self, client_and_handler):
+        client, _ = client_and_handler
+
+        with pytest.raises(
+            ParamError,
+            match="Adding vector field to existing collection requires nullable=True",
+        ):
+            await client.add_collection_field(
+                "test_collection",
+                "vector_field",
+                DataType.FLOAT_VECTOR,
+                dim=128,
+            )
+
+    @pytest.mark.asyncio
     async def test_add_collection_struct_field_requires_nullable(self, client_and_handler):
         """Test that adding struct field requires nullable=True."""
         client, _ = client_and_handler
