@@ -34,7 +34,7 @@ class TypeFamily(str, Enum):
 
     Attributes:
         SCALAR: Field data stored as scalar data, including scalar-shaped
-            complex payloads such as JSON and ARRAY.
+            payloads such as JSON.
         DENSE_VECTOR: Fixed-width vector rows whose row width can be derived
             from dimension metadata.
         SPARSE_VECTOR: Sparse vector rows whose storage is not fixed-width per
@@ -260,7 +260,7 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
         DataType.JSON: _scalar(DataType.JSON, "json_data", "str", ArrowLayout("string")),
         DataType.ARRAY: TypeInfo(
             dtype=DataType.ARRAY,
-            family=TypeFamily.SCALAR,
+            family=TypeFamily.COMPLEX,
             protobuf_slot=ProtobufSlot(ProtobufSlotKind.SCALAR, "array_data"),
             arrow_layout=ArrowLayout("unsupported"),
         ),
@@ -355,6 +355,28 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
             protobuf_slot=ProtobufSlot(ProtobufSlotKind.FIELD, "struct_arrays"),
             arrow_layout=ArrowLayout("unsupported"),
         ),
+    }
+)
+
+_ARRAY_ELEMENT_TYPES = frozenset(
+    {
+        DataType.BOOL,
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.INT64,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+        DataType.STRING,
+        DataType.VARCHAR,
+    }
+)
+
+_ARRAY_ELEMENT_TYPE_TO_ATTR: Mapping[DataType, str] = MappingProxyType(
+    {
+        dtype: TYPE_INFO[dtype].protobuf_slot.attr
+        for dtype in _ARRAY_ELEMENT_TYPES
+        if TYPE_INFO[dtype].protobuf_slot is not None
     }
 )
 
@@ -692,6 +714,26 @@ def get_scalar_attr(dtype: DataTypeLike) -> Optional[str]:
     if slot is not None and slot.kind == ProtobufSlotKind.SCALAR:
         return slot.attr
     return None
+
+
+def get_array_element_attr(dtype: DataTypeLike) -> Optional[str]:
+    """Return the scalar protobuf attr for a supported ARRAY element type.
+
+    Args:
+        dtype: ``DataType`` or raw enum integer to inspect as an array element.
+
+    Returns:
+        Scalar data attr for supported scalar array elements; otherwise
+        ``None``. Unsupported enum values are intentionally treated as
+        unsupported array elements so existing callers can decide whether to
+        raise or return ``None``.
+    """
+
+    try:
+        dtype = _coerce_dtype(dtype)
+    except ParamError:
+        return None
+    return _ARRAY_ELEMENT_TYPE_TO_ATTR.get(dtype)
 
 
 def get_vector_attr(dtype: DataTypeLike) -> Optional[str]:

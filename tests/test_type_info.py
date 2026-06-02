@@ -9,6 +9,7 @@ from pymilvus.client.type_info import (
     TypeCapability,
     TypeFamily,
     TypeInfo,
+    get_array_element_attr,
     get_arrow_layout,
     get_bulk_numpy_dtype,
     get_field_attr,
@@ -193,7 +194,7 @@ def test_vector_width_metadata_matches_family_extension_rules():
     [
         (DataType.BOOL, TypeFamily.SCALAR),
         (DataType.JSON, TypeFamily.SCALAR),
-        (DataType.ARRAY, TypeFamily.SCALAR),
+        (DataType.ARRAY, TypeFamily.COMPLEX),
         (DataType.GEOMETRY, TypeFamily.SCALAR),
         (DataType.TIMESTAMPTZ, TypeFamily.SCALAR),
         (DataType.FLOAT_VECTOR, TypeFamily.DENSE_VECTOR),
@@ -213,6 +214,7 @@ def test_type_family_metadata(dtype, expected_family):
     [
         (DataType.INT64, True, False, False, False, False),
         (DataType.JSON, True, False, False, False, False),
+        (DataType.ARRAY, False, False, False, False, False),
         (DataType.FLOAT_VECTOR, False, True, False, True, False),
         (DataType.BINARY_VECTOR, False, True, False, True, True),
         (DataType.FLOAT16_VECTOR, False, True, False, True, True),
@@ -255,6 +257,40 @@ def test_scalar_protobuf_attributes_match_existing_maps(dtype, attr):
     assert get_vector_attr(dtype) is None
     assert get_field_attr(dtype) is None
     assert get_protobuf_attr(dtype) == attr
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        DataType.BOOL,
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.INT64,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+        DataType.STRING,
+        DataType.VARCHAR,
+    ],
+)
+def test_supported_array_element_attrs_match_scalar_attrs(dtype):
+    assert get_array_element_attr(dtype) == get_scalar_attr(dtype)
+
+
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        DataType.TIMESTAMPTZ,
+        DataType.JSON,
+        DataType.ARRAY,
+        DataType.STRUCT,
+        DataType.UNKNOWN,
+        999,
+        123456,
+    ],
+)
+def test_unsupported_array_element_attrs_return_none(dtype):
+    assert get_array_element_attr(dtype) is None
 
 
 @pytest.mark.parametrize(
