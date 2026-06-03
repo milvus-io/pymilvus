@@ -3,7 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from pymilvus.client import entity_helper
-from pymilvus.client.entity_helper import convert_to_array, extract_array_row_data_no_validity
+from pymilvus.client.entity_helper import convert_to_array, extract_array_rows
 from pymilvus.client.search_result import extract_array_row_data as extract_search_array_row_data
 from pymilvus.client.type_info import get_array_element_attr
 from pymilvus.client.types import DataType
@@ -50,20 +50,13 @@ class TestLogicalTypeArrayHelpers:
         assert get_array_element_attr(DataType.TEXT) == "string_data"
         assert get_array_element_attr(DataType.TIMESTAMPTZ) is None
 
-    def test_extract_array_row_data_unsupported_element_returns_none(self):
-        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
-        field_data.scalars.array_data.element_type = 999
-        field_data.scalars.array_data.data.add()
-
-        assert entity_helper.extract_array_row_data(field_data, 0) is None
-
     def test_extract_array_rows_unsupported_element_raises_milvus_exception(self):
         field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
         field_data.scalars.array_data.element_type = 999
         field_data.scalars.array_data.data.add()
 
         with pytest.raises(MilvusException, match="Unsupported data type: 999"):
-            extract_array_row_data_no_validity(field_data, [{}], 1)
+            extract_array_rows(field_data, [{}], 1, has_valid=False)
 
     def test_extract_array_rows_supports_text_element_type(self):
         field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="text_arr")
@@ -73,7 +66,7 @@ class TestLogicalTypeArrayHelpers:
         )
 
         entity_rows = [{}]
-        extract_array_row_data_no_validity(field_data, entity_rows, 1)
+        extract_array_rows(field_data, entity_rows, 1, has_valid=False)
 
         assert entity_rows == [{"text_arr": ["alpha", "beta"]}]
 
@@ -87,7 +80,7 @@ class TestLogicalTypeArrayHelpers:
         )
 
         with pytest.raises(MilvusException, match="Unsupported data type"):
-            extract_array_row_data_no_validity(field_data, [{}], 1)
+            extract_array_rows(field_data, [{}], 1, has_valid=False)
 
     def test_search_result_array_extraction_uses_type_info(self):
         scalar = schema_types.ScalarField()

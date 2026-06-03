@@ -9,7 +9,6 @@ from pymilvus.client.entity_helper import (
     convert_to_json,
     entity_to_field_data,
     entity_to_json_arr,
-    extract_row_data_from_fields_data,
     extract_struct_array_from_column_data,
     pack_field_value_to_field_data,
 )
@@ -29,7 +28,6 @@ class TestEntityHelperEdgeCases:
     - TestJsonEdgeCases
     - TestPackExceptionsMock
     - TestSparseEdgeCases
-    - TestExtractRowDataV1Int8
     """
 
     # Tests from TestStructArrayTruncated
@@ -302,21 +300,6 @@ class TestEntityHelperEdgeCases:
 
         result = entity_helper.entity_is_sparse_matrix(BadIterator())
         assert result is False
-
-    # Tests from TestExtractRowDataV1Int8
-    def test_extract_v1_int8_vector(self):
-        """Test extraction of INT8 vectors in V1"""
-
-        fd = schema_types.FieldData()
-        fd.type = DataType.INT8_VECTOR
-        fd.field_name = "i8"
-        fd.vectors.dim = 2
-
-        fd.vectors.int8_vector = b"\x01\x02\x03\x04"
-
-        row0 = extract_row_data_from_fields_data([fd], 0)
-
-        assert row0["i8"] == [b"\x01\x02"]
 
 
 class TestEntityHelperCoverage:

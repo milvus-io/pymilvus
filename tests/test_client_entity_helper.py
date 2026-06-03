@@ -1,4 +1,3 @@
-import struct
 import time
 from typing import ClassVar, Dict, List
 from unittest.mock import patch
@@ -13,12 +12,9 @@ from pymilvus.client.entity_helper import (
     entity_to_field_data,
     entity_to_str_arr,
     entity_type_to_dtype,
-    extract_array_row_data_no_validity,
-    extract_array_row_data_with_validity,
+    extract_array_rows,
     extract_dynamic_field_from_result,
-    extract_row_data_from_fields_data,
     extract_row_data_from_fields_data_v2,
-    extract_vector_array_row_data,
     flush_vector_bytes,
     get_max_len_of_var_char,
     pack_field_value_to_field_data,
@@ -27,7 +23,7 @@ from pymilvus.client.entity_helper import (
 )
 from pymilvus.client.prepare import Prepare
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DataNotMatchException, MilvusException, ParamError
+from pymilvus.exceptions import DataNotMatchException, ParamError
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
@@ -676,65 +672,6 @@ class TestNullableVectorSupport:
         elif dtype == DataType.INT8_VECTOR:
             assert len(field_data.vectors.int8_vector) == 0
 
-    def test_extract_row_data_nullable_float_vector(self):
-        """Test extracting nullable float vector from field data"""
-
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.FLOAT_VECTOR
-        field_data.field_name = "nullable_vector"
-        field_data.vectors.dim = 4
-        field_data.vectors.float_vector.data.extend([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])
-        field_data.valid_data.extend([True, False, True])
-
-        result0 = extract_row_data_from_fields_data([field_data], 0)
-        assert result0["nullable_vector"] == [1.0, 2.0, 3.0, 4.0]
-
-        result1 = extract_row_data_from_fields_data([field_data], 1)
-        assert result1["nullable_vector"] is None
-
-        result2 = extract_row_data_from_fields_data([field_data], 2)
-        assert result2["nullable_vector"] == [5.0, 6.0, 7.0, 8.0]
-
-    def test_extract_row_data_nullable_sparse_vector(self):
-        """Test extracting nullable sparse vector from field data"""
-
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.SPARSE_FLOAT_VECTOR
-        field_data.field_name = "nullable_sparse"
-        vec1_data = struct.pack("I", 1) + struct.pack("f", 0.5)
-        vec2_data = struct.pack("I", 5) + struct.pack("f", 0.8)
-        field_data.vectors.sparse_float_vector.contents.extend([vec1_data, vec2_data])
-        field_data.valid_data.extend([True, False, True])
-
-        result0 = extract_row_data_from_fields_data([field_data], 0)
-        assert result0["nullable_sparse"] == pytest.approx({1: 0.5})
-
-        result1 = extract_row_data_from_fields_data([field_data], 1)
-        assert result1["nullable_sparse"] is None
-
-        result2 = extract_row_data_from_fields_data([field_data], 2)
-        assert result2["nullable_sparse"] == pytest.approx({5: 0.8})
-
-    def test_extract_row_data_non_nullable_vector_uses_logical_index(self):
-        """Test that non-nullable vectors still use logical index directly"""
-
-        field_data = schema_pb2.FieldData()
-        field_data.type = DataType.FLOAT_VECTOR
-        field_data.field_name = "regular_vector"
-        field_data.vectors.dim = 4
-        field_data.vectors.float_vector.data.extend(
-            [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]
-        )
-
-        result0 = extract_row_data_from_fields_data([field_data], 0)
-        assert result0["regular_vector"] == [1.0, 2.0, 3.0, 4.0]
-
-        result1 = extract_row_data_from_fields_data([field_data], 1)
-        assert result1["regular_vector"] == [5.0, 6.0, 7.0, 8.0]
-
-        result2 = extract_row_data_from_fields_data([field_data], 2)
-        assert result2["regular_vector"] == [9.0, 10.0, 11.0, 12.0]
-
     def test_pack_field_value_to_field_data_int8_vector(self):
         """Test packing int8 vector field values"""
         field_data = schema_pb2.FieldData()
@@ -1235,15 +1172,6 @@ class TestExtractRowDataV2:
         result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
         assert result is True
 
-    def test_legacy_extract_array_of_struct_raises(self):
-        """Test legacy row extraction rejects struct arrays."""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType._ARRAY_OF_STRUCT
-        field_data.field_name = "struct_field"
-
-        with pytest.raises(MilvusException, match="does not support ARRAY_OF_STRUCT"):
-            extract_row_data_from_fields_data([field_data], 0)
-
     def test_extract_nullable_struct_array_row(self):
         """Test nullable struct array row decodes null separately from empty array."""
         struct_arrays = schema_types.StructArrayField()
@@ -1273,104 +1201,6 @@ class TestExtractRowDataV2:
         entity_rows = [{}]
         result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
         assert result is True
-
-
-class TestExtractRowDataFromFieldsData:
-    """Test extract_row_data_from_fields_data function"""
-
-    @pytest.mark.parametrize("empty_data", [None, []])
-    def test_empty_fields_data(self, empty_data):
-        """Test with empty fields data returns empty dict"""
-        result = extract_row_data_from_fields_data(empty_data, 0)
-        assert result == {}
-
-    def test_extract_bool_field(self):
-        """Test extracting bool field"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.BOOL
-        field_data.field_name = "bool_field"
-        field_data.scalars.bool_data.data.extend([True, False, True])
-
-        result = extract_row_data_from_fields_data([field_data], 1)
-        assert result["bool_field"] is False
-
-    def test_extract_int_field(self):
-        """Test extracting int field"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.INT32
-        field_data.field_name = "int_field"
-        field_data.scalars.int_data.data.extend([10, 20, 30])
-
-        result = extract_row_data_from_fields_data([field_data], 2)
-        assert result["int_field"] == 30
-
-    def test_extract_with_validity(self):
-        """Test extracting with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.INT64
-        field_data.field_name = "int64_field"
-        field_data.scalars.long_data.data.extend([100, 200, 300])
-        field_data.valid_data.extend([True, False, True])
-
-        result = extract_row_data_from_fields_data([field_data], 1)
-        assert result["int64_field"] is None
-
-    def test_extract_geometry_field(self):
-        """Test extracting geometry field"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.GEOMETRY
-        field_data.field_name = "geo_field"
-        field_data.scalars.geometry_wkt_data.data.extend(["POINT(0 0)", "POINT(1 1)"])
-
-        result = extract_row_data_from_fields_data([field_data], 0)
-        assert result["geo_field"] == "POINT(0 0)"
-
-    def test_extract_text_field(self):
-        """Test extracting TEXT scalar field."""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.TEXT
-        field_data.field_name = "text_field"
-        field_data.scalars.string_data.data.extend(["hello", "world"])
-
-        result = extract_row_data_from_fields_data([field_data], 1)
-        assert result["text_field"] == "world"
-
-
-class TestExtractVectorArrayRowData:
-    """Test extract_vector_array_row_data function"""
-
-    def test_extract_float_vector_array(self):
-        """Test extracting FLOAT_VECTOR array"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType._ARRAY_OF_VECTOR
-
-        # Create vector array data
-        vector_data = schema_types.VectorField()
-        vector_data.float_vector.data.extend([1.0, 2.0, 3.0, 4.0])
-        field_data.vectors.vector_array.element_type = DataType.FLOAT_VECTOR
-        field_data.vectors.vector_array.data.append(vector_data)
-
-        result = extract_vector_array_row_data(field_data, 0)
-        assert len(result) == 4
-
-    def test_extract_binary_vector_array(self):
-        """Test extracting BINARY_VECTOR array"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType._ARRAY_OF_VECTOR
-
-        vector_data = schema_types.VectorField()
-        vector_data.binary_vector = b"\x01\x02"
-        field_data.vectors.vector_array.element_type = DataType.BINARY_VECTOR
-        field_data.vectors.vector_array.data.append(vector_data)
-
-        result = extract_vector_array_row_data(field_data, 0)
-        assert result == [b"\x01\x02"]
 
 
 class _NoBool:
@@ -1417,180 +1247,6 @@ class TestPackFieldValueErrors:
             entity_helper.pack_field_value_to_field_data(bad_value, field_data, field_info, {})
 
 
-class TestExtractRowDataV1Extended:
-    """Test extract_row_data_from_fields_data (V1) for missing coverage"""
-
-    def test_extract_v1_vectors(self):
-        """Test extracting vectors via V1 API"""
-
-        # Float Vector
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT_VECTOR
-        field_data.field_name = "fv"
-        field_data.vectors.dim = 2
-        field_data.vectors.float_vector.data.extend([1.0, 2.0, 3.0, 4.0])  # 2 vectors
-
-        # It extracts one row at a time key-value pairs
-        row0 = extract_row_data_from_fields_data([field_data], 0)
-        row1 = extract_row_data_from_fields_data([field_data], 1)
-
-        assert row0["fv"] == [1.0, 2.0]
-        assert row1["fv"] == [3.0, 4.0]
-
-    def test_extract_v1_binary_vector(self):
-        """Test binary vector V1 extraction"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.BINARY_VECTOR
-        field_data.field_name = "bv"
-        field_data.vectors.dim = 8
-        field_data.vectors.binary_vector = b"\x01\x02"  # 2 vectors (1 byte each)
-
-        row0 = extract_row_data_from_fields_data([field_data], 0)
-        row1 = extract_row_data_from_fields_data([field_data], 1)
-
-        # Binary vectors in V1 are returned as a list containing the bytes element
-        assert row0["bv"] == [b"\x01"]
-        assert row1["bv"] == [b"\x02"]
-
-    def test_extract_v1_float16(self):
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT16_VECTOR
-        field_data.field_name = "f16"
-        field_data.vectors.dim = 1
-        # 2 elements
-        field_data.vectors.float16_vector = b"\x00\x3c\x00\x3c"  # 1.0, 1.0 (approx)
-
-        row0 = extract_row_data_from_fields_data([field_data], 0)
-        row1 = extract_row_data_from_fields_data([field_data], 1)
-
-        assert len(row0["f16"]) == 1
-        assert len(row1["f16"]) == 1
-        assert isinstance(row0["f16"], list)
-
-
-class TestExtractRowDataV1Scalar:
-    """Test V1 extraction for scalars to cover lines 1047-1093 etc."""
-
-    def test_extract_v1_scalars(self):
-
-        # Create field data for various scalar types
-        types = [
-            (DataType.BOOL, "bool_data", [True, False], "bool_f"),
-            (DataType.INT32, "int_data", [1, 2], "int_f"),
-            (DataType.INT64, "long_data", [10, 20], "long_f"),
-            (DataType.FLOAT, "float_data", [1.1, 2.2], "float_f"),
-            (DataType.DOUBLE, "double_data", [3.3, 4.4], "double_f"),
-            (DataType.VARCHAR, "string_data", ["a", "b"], "str_f"),
-            (DataType.JSON, "json_data", [b'{"x": 1}', b'{"x": 2}'], "json_f"),
-        ]
-
-        fields_data_list = []
-        for dtype, attr, val, fname in types:
-            fd = schema_types.FieldData()
-            fd.type = dtype
-            fd.field_name = fname
-            getattr(fd.scalars, attr).data.extend(val)
-            fields_data_list.append(fd)
-
-        row0 = extract_row_data_from_fields_data(fields_data_list, 0)
-
-        assert row0["bool_f"] is True
-        assert row0["int_f"] == 1
-        assert row0["long_f"] == 10
-        assert row0["float_f"] == pytest.approx(1.1, rel=1e-4)  # float32 precision
-        assert row0["double_f"] == pytest.approx(3.3)
-        assert row0["str_f"] == "a"
-        assert row0["json_f"] == {"x": 1}
-
-    def test_extract_v1_json_dynamic(self):
-
-        fd = schema_types.FieldData()
-        fd.type = DataType.JSON
-        fd.field_name = "meta"
-        fd.is_dynamic = True
-        fd.scalars.json_data.data.append(b'{"dy": 100, "other": 200}')
-
-        # Extract, specifying 'dy' as dynamic field
-        # dynamic_output_fields argument
-        row0 = extract_row_data_from_fields_data([fd], 0, dynamic_output_fields=["dy"])
-
-        assert row0["dy"] == 100
-        assert "other" not in row0
-        # Wait, logic: row_data.update({k: v for k,v in json_dict.items() if k in dynamic_fields})
-        # So only 'dy' is updated into row_data.
-
-        # Test without dynamic_output_fields (None or empty) -> updates all
-        row0_all = extract_row_data_from_fields_data([fd], 0)
-        assert row0_all["dy"] == 100
-        assert row0_all["other"] == 200
-
-
-class TestExtractRowDataV1Validity:
-    """Test extract_row_data_from_fields_data (V1) validity and error handling"""
-
-    def test_json_validity_v1(self):
-
-        fd = schema_types.FieldData()
-        fd.type = DataType.JSON
-        fd.field_name = "j"
-        fd.scalars.json_data.data.append(b"{}")
-        fd.valid_data.append(False)  # Invalid
-
-        row0 = extract_row_data_from_fields_data([fd], 0)
-        assert row0["j"] is None
-
-    def test_json_invalid_bytes_v1(self):
-
-        fd = schema_types.FieldData()
-        fd.type = DataType.JSON
-        fd.field_name = "j"
-        fd.scalars.json_data.data.append(b"{invalid")
-
-        with pytest.raises(orjson.JSONDecodeError):
-            extract_row_data_from_fields_data([fd], 0)
-
-    def test_array_validity_v1(self):
-
-        fd = schema_types.FieldData()
-        fd.type = DataType.ARRAY
-        fd.field_name = "arr"
-        # We need to populate array_data.data to satisfy length check
-        fd.scalars.array_data.data.append(schema_types.ScalarField())
-        fd.valid_data.append(False)
-
-        row0 = extract_row_data_from_fields_data([fd], 0)
-        assert row0["arr"] is None
-
-    def test_vector_validity_v1(self):
-
-        # Test Float Vector validity
-        fd = schema_types.FieldData()
-        fd.type = DataType.FLOAT_VECTOR
-        fd.field_name = "fv"
-        fd.valid_data.append(False)
-
-        row0 = extract_row_data_from_fields_data([fd], 0)
-        assert row0["fv"] is None
-
-        # Test Binary Vector validity
-        fd = schema_types.FieldData()
-        fd.type = DataType.BINARY_VECTOR
-        fd.field_name = "bv"
-        fd.valid_data.append(False)
-        row0 = extract_row_data_from_fields_data([fd], 0)
-        assert row0["bv"] is None
-
-        # Test Float16 Vector validity
-        fd = schema_types.FieldData()
-        fd.type = DataType.FLOAT16_VECTOR
-        fd.field_name = "f16"
-        fd.valid_data.append(False)
-        row0 = extract_row_data_from_fields_data([fd], 0)
-        assert row0["f16"] is None
-
-
 class TestEmptyResultArrayField:
     """Tests for issue #3386: empty query result with ARRAY field crashes with
     'Unsupported data type: 0' because element_type is NONE (0) on empty results."""
@@ -1611,8 +1267,8 @@ class TestEmptyResultArrayField:
         # Must not raise MilvusException("Unsupported data type: 0")
         extract_row_data_from_fields_data_v2(fd, entity_rows)
 
-    def test_extract_array_no_validity_empty_result(self):
-        """extract_array_row_data_no_validity must not crash when row_count is 0."""
+    def test_extract_array_rows_empty_result_without_validity(self):
+        """extract_array_rows must not crash when row_count is 0."""
         fd = schema_types.FieldData()
         fd.type = DataType.ARRAY
         fd.field_name = "arr_field"
@@ -1620,10 +1276,10 @@ class TestEmptyResultArrayField:
 
         entity_rows: List[Dict] = []
         # Must not raise MilvusException("Unsupported data type: 0")
-        extract_array_row_data_no_validity(fd, entity_rows, 0)
+        extract_array_rows(fd, entity_rows, 0, has_valid=False)
 
-    def test_extract_array_with_validity_empty_result(self):
-        """extract_array_row_data_with_validity must not crash when row_count is 0."""
+    def test_extract_array_rows_empty_result_with_validity(self):
+        """extract_array_rows must not crash when row_count is 0."""
         fd = schema_types.FieldData()
         fd.type = DataType.ARRAY
         fd.field_name = "arr_field"
@@ -1631,7 +1287,7 @@ class TestEmptyResultArrayField:
 
         entity_rows: List[Dict] = []
         # Must not raise MilvusException("Unsupported data type: 0")
-        extract_array_row_data_with_validity(fd, entity_rows, 0)
+        extract_array_rows(fd, entity_rows, 0, has_valid=True)
 
 
 class TestLogicalTypeRowInsertPaths:
