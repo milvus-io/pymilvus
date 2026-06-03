@@ -3,7 +3,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 from pymilvus.client import entity_helper
-from pymilvus.client.entity_helper import convert_to_array, extract_array_row_data_no_validity
+from pymilvus.client.entity_helper import convert_to_array, extract_array_rows
 from pymilvus.client.search_result import extract_array_row_data as extract_search_array_row_data
 from pymilvus.client.type_info import get_array_element_attr
 from pymilvus.client.types import DataType
@@ -49,20 +49,13 @@ class TestLogicalTypeArrayHelpers:
         assert get_array_element_attr(DataType.VARCHAR) == "string_data"
         assert get_array_element_attr(DataType.TIMESTAMPTZ) is None
 
-    def test_extract_array_row_data_unsupported_element_returns_none(self):
-        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
-        field_data.scalars.array_data.element_type = 999
-        field_data.scalars.array_data.data.add()
-
-        assert entity_helper.extract_array_row_data(field_data, 0) is None
-
     def test_extract_array_rows_unsupported_element_raises_milvus_exception(self):
         field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr")
         field_data.scalars.array_data.element_type = 999
         field_data.scalars.array_data.data.add()
 
         with pytest.raises(MilvusException, match="Unsupported data type: 999"):
-            extract_array_row_data_no_validity(field_data, [{}], 1)
+            extract_array_rows(field_data, [{}], 1, has_valid=False)
 
     def test_entity_helper_rejects_timestamptz_array_element_type(self):
         field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="ts_arr")
@@ -74,7 +67,7 @@ class TestLogicalTypeArrayHelpers:
         )
 
         with pytest.raises(MilvusException, match="Unsupported data type"):
-            extract_array_row_data_no_validity(field_data, [{}], 1)
+            extract_array_rows(field_data, [{}], 1, has_valid=False)
 
     @pytest.mark.parametrize(
         "element_type",
