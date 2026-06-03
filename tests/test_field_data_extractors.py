@@ -127,6 +127,22 @@ def test_decode_sparse_vector_cell():
     assert decode_cell(field, 1) == {9: pytest.approx(1.5)}
 
 
+def test_decode_nullable_sparse_vector_cell_uses_physical_index():
+    sparse = schema_pb2.SparseFloatArray(
+        contents=[struct.pack("If", 1, 0.5), struct.pack("If", 5, 0.8)]
+    )
+    field = schema_pb2.FieldData(
+        type=DataType.SPARSE_FLOAT_VECTOR,
+        field_name="sparse",
+        vectors=schema_pb2.VectorField(sparse_float_vector=sparse),
+        valid_data=[True, False, True],
+    )
+
+    assert decode_cell(field, 0) == {1: pytest.approx(0.5)}
+    assert decode_cell(field, 1) is None
+    assert decode_cell(field, 2) == {5: pytest.approx(0.8)}
+
+
 def test_decode_array_of_vector_cell_splits_rows():
     field = schema_pb2.FieldData(type=DataType._ARRAY_OF_VECTOR, field_name="vectors")
     field.vectors.vector_array.element_type = DataType.FLOAT_VECTOR
