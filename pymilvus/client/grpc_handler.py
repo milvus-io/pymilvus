@@ -4,7 +4,7 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -160,6 +160,7 @@ class GrpcHandler:
     ) -> None:
         self._stub = None
         self._channel = channel
+        self._channel_swap_lock = threading.Lock()
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -221,8 +222,20 @@ class GrpcHandler:
     def __exit__(self: object, exc_type: object, exc_val: object, exc_tb: object):
         pass
 
-    def _wait_for_channel_ready(self, timeout: Optional[float] = 10):
-        if self._channel is None:
+    def _wait_for_channel_ready(
+        self,
+        timeout: Optional[float] = 10,
+        channel: Optional[grpc.Channel] = None,
+        final_channel: Optional[grpc.Channel] = None,
+        stub: Optional[milvus_pb2_grpc.MilvusServiceStub] = None,
+        address: Optional[str] = None,
+    ) -> Tuple[grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
+        update_self = channel is None
+        target_channel = channel if channel is not None else self._channel
+        target_final_channel = final_channel if final_channel is not None else self._final_channel
+        target_stub = stub if stub is not None else self._stub
+
+        if target_channel is None:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message="No channel in handler, please setup grpc channel first",
@@ -233,24 +246,57 @@ class GrpcHandler:
         # instead of hanging forever (mirrors async ensure_channel_ready behaviour).
         effective_timeout = timeout if timeout is not None else 10
 
+        setup_kwargs: Dict[str, Any] = {"timeout": effective_timeout}
+        if not update_self:
+            setup_kwargs.update(final_channel=target_final_channel, stub=target_stub)
+
         try:
-            grpc.channel_ready_future(self._channel).result(timeout=effective_timeout)
-            self._setup_identifier_interceptor(self._user, timeout=effective_timeout)
-        except grpc.FutureTimeoutError as e:
-            self.close()
+            target_final_channel, target_stub = self._setup_identifier_interceptor(
+                self._user, **setup_kwargs
+            )
+        except grpc.RpcError as e:
+            if update_self:
+                self.close()
+            target_address = address or self._address
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
-                message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
+                message=f"Fail connecting to server on {target_address}, illegal connection params or server unavailable",
             ) from e
         except Exception:
-            self.close()
+            if update_self:
+                self.close()
             raise
+        else:
+            return target_final_channel, target_stub
 
     def close(self):
-        self.deregister_state_change_callbacks()
-        if self._channel:
-            self._channel.close()
-        self._channel = None
+        with self._channel_swap_lock:
+            self.deregister_state_change_callbacks()
+            if self._channel:
+                self._channel.close()
+            self._channel = None
+
+    def _close_channel_safely(self, channel: Optional[grpc.Channel]):
+        if channel is None:
+            return
+        try:
+            channel.close()
+        except Exception as exc:
+            logger.warning("failed to close retired grpc channel: %s", exc)
+
+    def _move_state_change_callbacks(
+        self, old_channel: Optional[grpc.Channel], new_channel: grpc.Channel
+    ):
+        for callback in self.callbacks:
+            if old_channel is not None:
+                try:
+                    old_channel.unsubscribe(callback)
+                except Exception as exc:
+                    logger.warning("failed to unsubscribe grpc channel callback: %s", exc)
+            try:
+                new_channel.subscribe(callback, try_to_connect=True)
+            except Exception as exc:
+                logger.warning("failed to subscribe grpc channel callback: %s", exc)
 
     def reconnect(self, address: Optional[str] = None, timeout: float = 10):
         """Reset the gRPC channel, reconnecting to the same or a new address.
@@ -262,15 +308,28 @@ class GrpcHandler:
             address: Optional new address to connect to.
             timeout: Connection timeout in seconds.
         """
+        target_address = address or self._address
+        new_channel = self._create_grpc_channel(target_address)
         try:
-            self.close()
+            new_final_channel, new_stub = self._setup_grpc_channel(channel=new_channel)
+            new_final_channel, new_stub = self._wait_for_channel_ready(
+                timeout=timeout,
+                channel=new_channel,
+                final_channel=new_final_channel,
+                stub=new_stub,
+                address=target_address,
+            )
         except Exception:
-            # Ensure channel is cleared even if close() fails
-            self._channel = None
-        if address:
-            self._address = address
-        self._setup_grpc_channel()
-        self._wait_for_channel_ready(timeout=timeout)
+            self._close_channel_safely(new_channel)
+            raise
+
+        with self._channel_swap_lock:
+            old_channel = self._channel
+            self._channel = new_channel
+            self._final_channel = new_final_channel
+            self._stub = new_stub
+            self._address = target_address
+            self._move_state_change_callbacks(old_channel, new_channel)
 
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
@@ -293,85 +352,111 @@ class GrpcHandler:
         if len(keys) > 0 and len(values) > 0:
             self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
 
-    def _setup_grpc_channel(self):
+    def _create_grpc_channel(self, address: Optional[str] = None):
         """Create a ddl grpc channel"""
-        if self._channel is None:
-            # Default gRPC options
-            default_opts = {
-                cygrpc.ChannelArgKey.max_send_message_length: -1,
-                cygrpc.ChannelArgKey.max_receive_message_length: -1,
-                "grpc.enable_retries": 1,
-                "grpc.keepalive_time_ms": 10000,
-                "grpc.keepalive_timeout_ms": 5000,
-                "grpc.keepalive_permit_without_calls": True,
-            }
-            # Merge user-provided options (user options override defaults)
-            default_opts.update(self._grpc_options)
-            opts = list(default_opts.items())
-            if not self._secure:
-                self._channel = grpc.insecure_channel(
-                    self._address,
-                    options=opts,
-                )
-            else:
-                if self._server_name != "":
-                    opts.append(("grpc.ssl_target_name_override", self._server_name))
+        default_opts = {
+            cygrpc.ChannelArgKey.max_send_message_length: -1,
+            cygrpc.ChannelArgKey.max_receive_message_length: -1,
+            "grpc.enable_retries": 1,
+            "grpc.keepalive_time_ms": 10000,
+            "grpc.keepalive_timeout_ms": 5000,
+            "grpc.keepalive_permit_without_calls": True,
+        }
+        # Merge user-provided options (user options override defaults)
+        default_opts.update(self._grpc_options)
+        opts = list(default_opts.items())
+        target_address = address or self._address
 
-                root_cert, private_k, cert_chain = None, None, None
-                if self._server_pem_path != "":
-                    with Path(self._server_pem_path).open("rb") as f:
-                        root_cert = f.read()
-                elif (
-                    self._client_pem_path != ""
-                    and self._client_key_path != ""
-                    and self._ca_pem_path != ""
-                ):
-                    with Path(self._ca_pem_path).open("rb") as f:
-                        root_cert = f.read()
-                    with Path(self._client_key_path).open("rb") as f:
-                        private_k = f.read()
-                    with Path(self._client_pem_path).open("rb") as f:
-                        cert_chain = f.read()
+        if not self._secure:
+            return grpc.insecure_channel(
+                target_address,
+                options=opts,
+            )
 
-                creds = grpc.ssl_channel_credentials(
-                    root_certificates=root_cert,
-                    private_key=private_k,
-                    certificate_chain=cert_chain,
-                )
-                self._channel = grpc.secure_channel(
-                    self._address,
-                    creds,
-                    options=opts,
-                )
+        if self._server_name != "":
+            opts.append(("grpc.ssl_target_name_override", self._server_name))
+
+        root_cert, private_k, cert_chain = None, None, None
+        if self._server_pem_path != "":
+            with Path(self._server_pem_path).open("rb") as f:
+                root_cert = f.read()
+        elif (
+            self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != ""
+        ):
+            with Path(self._ca_pem_path).open("rb") as f:
+                root_cert = f.read()
+            with Path(self._client_key_path).open("rb") as f:
+                private_k = f.read()
+            with Path(self._client_pem_path).open("rb") as f:
+                cert_chain = f.read()
+
+        creds = grpc.ssl_channel_credentials(
+            root_certificates=root_cert,
+            private_key=private_k,
+            certificate_chain=cert_chain,
+        )
+        return grpc.secure_channel(
+            target_address,
+            creds,
+            options=opts,
+        )
+
+    def _setup_grpc_channel(
+        self, channel: Optional[grpc.Channel] = None
+    ) -> Tuple[grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
+        update_self = channel is None
+        if update_self and self._channel is None:
+            self._channel = self._create_grpc_channel()
+
+        target_channel = channel if channel is not None else self._channel
 
         # avoid to add duplicate headers.
-        self._final_channel = self._channel
+        final_channel = target_channel
         if self._authorization_interceptor:
-            self._final_channel = grpc.intercept_channel(
-                self._final_channel, self._authorization_interceptor
-            )
+            final_channel = grpc.intercept_channel(final_channel, self._authorization_interceptor)
         if self._log_level:
             log_level_interceptor = interceptor.header_adder_interceptor(
                 ["log_level"], [self._log_level]
             )
-            self._final_channel = grpc.intercept_channel(self._final_channel, log_level_interceptor)
+            final_channel = grpc.intercept_channel(final_channel, log_level_interceptor)
             self._log_level = None
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
+        stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
+        if update_self:
+            self._final_channel = final_channel
+            self._stub = stub
+        return final_channel, stub
 
     def set_onetime_loglevel(self, log_level: str):
         self._log_level = log_level
         self._setup_grpc_channel()
 
-    def _setup_identifier_interceptor(self, user: str, timeout: int = 10):
+    def _setup_identifier_interceptor(
+        self,
+        user: str,
+        timeout: int = 10,
+        final_channel: Optional[grpc.Channel] = None,
+        stub: Optional[milvus_pb2_grpc.MilvusServiceStub] = None,
+    ) -> Tuple[grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
+        update_self = final_channel is None and stub is None
+        target_final_channel = final_channel if final_channel is not None else self._final_channel
+        target_stub = stub if stub is not None else self._stub
         host = socket.gethostname()
-        self._identifier = self.__internal_register(user, host, timeout=timeout)
-        self._identifier_interceptor = interceptor.header_adder_interceptor(
-            ["identifier"], [str(self._identifier)]
+        identifier = (
+            self.__internal_register(user, host, timeout=timeout)
+            if update_self
+            else self._internal_register(user, host, stub=target_stub, timeout=timeout)
         )
-        self._final_channel = grpc.intercept_channel(
-            self._final_channel, self._identifier_interceptor
+        identifier_interceptor = interceptor.header_adder_interceptor(
+            ["identifier"], [str(identifier)]
         )
-        self._stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
+        target_final_channel = grpc.intercept_channel(target_final_channel, identifier_interceptor)
+        target_stub = milvus_pb2_grpc.MilvusServiceStub(target_final_channel)
+        if update_self:
+            self._identifier = identifier
+            self._identifier_interceptor = identifier_interceptor
+            self._final_channel = target_final_channel
+            self._stub = target_stub
+        return target_final_channel, target_stub
 
     @property
     def server_address(self):
@@ -3028,13 +3113,23 @@ class GrpcHandler:
         _check()
         return None
 
+    def _internal_register(
+        self,
+        user: str,
+        host: str,
+        stub: Optional[milvus_pb2_grpc.MilvusServiceStub] = None,
+        **kwargs,
+    ) -> int:
+        target_stub = stub if stub is not None else self._stub
+        req = Prepare.register_request(user, host, **self._connect_reserved)
+        response = target_stub.Connect(request=req, timeout=kwargs.get("timeout"))
+        check_status(response.status)
+        return response.identifier
+
     @retry_on_rpc_failure()
     @upgrade_reminder
     def __internal_register(self, user: str, host: str, **kwargs) -> int:
-        req = Prepare.register_request(user, host, **self._connect_reserved)
-        response = self._stub.Connect(request=req)
-        check_status(response.status)
-        return response.identifier
+        return self._internal_register(user, host, **kwargs)
 
     @retry_on_rpc_failure()
     @ignore_unimplemented(0)
