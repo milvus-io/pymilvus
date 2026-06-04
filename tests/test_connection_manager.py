@@ -2205,7 +2205,7 @@ class TestHandlerReconnect:
     """Tests for GrpcHandler.reconnect() and AsyncGrpcHandler.reconnect().
 
     Exercises the real reconnect() implementations (not mocked) to cover
-    the close-then-recreate-channel logic.
+    the create-ready-switch-retire channel lifecycle.
     """
 
     @pytest.mark.parametrize(
@@ -2217,34 +2217,42 @@ class TestHandlerReconnect:
         ids=["keep_address", "change_address"],
     )
     def test_sync_reconnect_address_handling(self, new_address, expected_address):
-        """reconnect() keeps or updates address, closes old channel, creates new one."""
+        """reconnect() keeps or updates address, creates a new channel, then retires old one."""
         handler = _make_real_sync_handler()
         old_channel = handler._channel
 
+        def wait_for_new_channel(**kwargs):
+            return kwargs["final_channel"], kwargs["stub"]
+
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel") as mock_ch, patch.object(
-            handler, "_wait_for_channel_ready"
+            handler, "_wait_for_channel_ready", side_effect=wait_for_new_channel
         ):
             new_channel = Mock()
             mock_ch.return_value = new_channel
             handler.reconnect(address=new_address)
 
-        old_channel.close.assert_called_once()
+        old_channel.close.assert_not_called()
         assert handler._channel is new_channel
         assert handler._address == expected_address
 
-    def test_sync_reconnect_close_failure_recovers(self):
-        """When close() raises, channel is cleared and a new one is created."""
+    def test_sync_reconnect_does_not_hard_close_retired_channel(self):
+        """Retired sync channels are not hard-closed during reconnect."""
         handler = _make_real_sync_handler()
-        handler._channel.close = Mock(side_effect=RuntimeError("broken"))
+        old_channel = handler._channel
+        old_channel.close = Mock(side_effect=RuntimeError("broken"))
+
+        def wait_for_new_channel(**kwargs):
+            return kwargs["final_channel"], kwargs["stub"]
 
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel") as mock_ch, patch.object(
-            handler, "_wait_for_channel_ready"
+            handler, "_wait_for_channel_ready", side_effect=wait_for_new_channel
         ):
             new_channel = Mock()
             mock_ch.return_value = new_channel
             handler.reconnect()
 
         assert handler._channel is new_channel
+        old_channel.close.assert_not_called()
 
     def test_sync_reconnect_passes_timeout(self):
         """reconnect() forwards timeout to _wait_for_channel_ready."""
@@ -2253,9 +2261,12 @@ class TestHandlerReconnect:
         with patch(
             "pymilvus.client.grpc_handler.grpc.insecure_channel", return_value=Mock()
         ), patch.object(handler, "_wait_for_channel_ready") as mock_wait:
+            mock_wait.side_effect = lambda **kwargs: (kwargs["final_channel"], kwargs["stub"])
             handler.reconnect(timeout=30)
 
-        mock_wait.assert_called_once_with(timeout=30)
+        assert mock_wait.call_args.kwargs["timeout"] == 30
+        assert "channel" in mock_wait.call_args.kwargs
+        assert "stub" in mock_wait.call_args.kwargs
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
