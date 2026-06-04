@@ -1,5 +1,6 @@
 """Regression tests for pymilvus issues."""
 
+import asyncio
 import gc
 import logging
 import threading
@@ -10,10 +11,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pymilvus import AnnSearchRequest, WeightedRanker
 from pymilvus.client.abstract import CollectionSchema
+from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.client.types import ConsistencyLevel
 from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.milvus_client.milvus_client import MilvusClient
 
 log = logging.getLogger(__name__)
@@ -269,3 +273,90 @@ class TestIssue2985:
                 f"Expected name '{name}' for level {level}, got "
                 f"{d.get('consistency_level_name')!r}"
             )
+
+
+class _Issue3541FakeAsyncChannel:
+    def __init__(self, name):
+        self.name = name
+        self.closed = False
+        self.close_grace = None
+        self.close_started = asyncio.Event()
+        self.closed_event = asyncio.Event()
+        self.release_close = asyncio.Event()
+        self._unary_unary_interceptors = []
+
+    async def close(self, grace=None):
+        self.close_grace = grace
+        self.close_started.set()
+        if grace is None:
+            self.closed = True
+            self.closed_event.set()
+            return
+        await self.release_close.wait()
+        self.closed = True
+        self.closed_event.set()
+
+    async def channel_ready(self):
+        return None
+
+
+class _Issue3541AsyncStub:
+    def __init__(self, channel, rpc_entered=None, release_rpc=None):
+        self.channel = channel
+        self.rpc_entered = rpc_entered
+        self.release_rpc = release_rpc
+
+    async def DescribeCollection(self, request, timeout=None, metadata=None):
+        if self.rpc_entered is not None:
+            self.rpc_entered.set()
+            await asyncio.wait_for(self.release_rpc.wait(), timeout=1)
+        if self.channel.closed:
+            raise ValueError("Cannot invoke RPC on closed channel!")
+        return milvus_types.DescribeCollectionResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success)
+        )
+
+    async def Connect(self, request, timeout=None):
+        return milvus_types.ConnectResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            identifier=1,
+        )
+
+
+class TestIssue3541:
+    @pytest.mark.asyncio
+    async def test_async_reconnect_gracefully_retires_in_flight_channel(self):
+        old_channel = _Issue3541FakeAsyncChannel("old")
+        new_channel = _Issue3541FakeAsyncChannel("new")
+        rpc_entered = asyncio.Event()
+        release_rpc = asyncio.Event()
+
+        def stub_factory(channel):
+            if channel is old_channel:
+                return _Issue3541AsyncStub(channel, rpc_entered, release_rpc)
+            return _Issue3541AsyncStub(channel)
+
+        with patch(
+            "pymilvus.client.async_grpc_handler.milvus_pb2_grpc.MilvusServiceStub",
+            side_effect=stub_factory,
+        ), patch(
+            "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel",
+            return_value=new_channel,
+        ):
+            handler = AsyncGrpcHandler(uri="http://localhost:19530", channel=old_channel)
+
+            rpc_task = asyncio.create_task(handler.has_collection("c"))
+            await asyncio.wait_for(rpc_entered.wait(), timeout=1)
+
+            await handler.reconnect(timeout=1)
+
+            try:
+                await asyncio.wait_for(old_channel.close_started.wait(), timeout=1)
+                assert old_channel.close_grace == 1
+                assert old_channel.closed is False
+            finally:
+                release_rpc.set()
+                assert await asyncio.wait_for(rpc_task, timeout=1) is True
+                old_channel.release_close.set()
+                await asyncio.wait_for(old_channel.closed_event.wait(), timeout=1)
+                assert old_channel.closed is True
