@@ -385,6 +385,62 @@ class Prepare:
         return schema
 
     @classmethod
+    def alter_collection_schema_request(
+        cls,
+        collection_name: str,
+        field_schema: Optional[FieldSchema] = None,
+        func: Optional[Function] = None,
+        drop_field_name: Optional[str] = None,
+        drop_field_id: Optional[int] = None,
+    ) -> milvus_types.AlterCollectionSchemaRequest:
+        is_drop = drop_field_name is not None or (drop_field_id is not None and drop_field_id > 0)
+        is_add = field_schema is not None or func is not None
+
+        if is_drop and is_add:
+            raise ParamError(
+                message="Cannot perform both Add and Drop operations in a single request"
+            )
+        if not is_drop and not is_add:
+            raise ParamError(
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+            )
+
+        if is_drop:
+            drop_request = milvus_types.AlterCollectionSchemaRequest.DropRequest()
+            if drop_field_name is not None:
+                drop_request.field_name = drop_field_name
+            else:
+                drop_request.field_id = drop_field_id
+
+            action = milvus_types.AlterCollectionSchemaRequest.Action(drop_request=drop_request)
+        else:
+            field_infos = []
+            func_schemas = []
+
+            if field_schema is not None:
+                field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
+
+                field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
+                    field_schema=field_schema_proto,
+                )
+                field_infos.append(field_info)
+
+            if func is not None:
+                func_schemas.append(cls.convert_function_to_function_schema(func))
+
+            add_request = milvus_types.AlterCollectionSchemaRequest.AddRequest(
+                field_infos=field_infos,
+                func_schema=func_schemas,
+            )
+
+            action = milvus_types.AlterCollectionSchemaRequest.Action(add_request=add_request)
+
+        return milvus_types.AlterCollectionSchemaRequest(
+            collection_name=collection_name,
+            action=action,
+        )
+
+    @classmethod
     def drop_collection_request(cls, collection_name: str) -> milvus_types.DropCollectionRequest:
         return milvus_types.DropCollectionRequest(collection_name=collection_name)
 

@@ -1,5 +1,7 @@
 """Tests for collection-related Prepare methods."""
 
+import inspect
+
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema, Function, FunctionType
 from pymilvus.client.prepare import Prepare
@@ -378,3 +380,71 @@ class TestAddCollectionFieldRequest:
 
         assert params["mmap.enabled"] == "true"
         assert params["warmup"] == '{"policy":"async"}'
+
+
+class TestAlterCollectionSchemaRequest:
+    """Tests for alter_collection_schema_request."""
+
+    def test_request_builder_signature_excludes_physical_backfill(self):
+        signature = inspect.signature(Prepare.alter_collection_schema_request)
+        assert "do_physical_backfill" not in signature.parameters
+
+    def test_add_with_field_and_function(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        func = Function(
+            name="bm25",
+            function_type=FunctionType.BM25,
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+        )
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            field_schema=field,
+            func=func,
+        )
+        assert req.collection_name == "coll"
+        assert req.action.HasField("add_request")
+        assert len(req.action.add_request.field_infos) == 1
+        assert req.action.add_request.field_infos[0].index_name == ""
+        assert len(req.action.add_request.field_infos[0].extra_params) == 0
+        assert len(req.action.add_request.func_schema) == 1
+
+    def test_add_with_field_only(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            field_schema=field,
+        )
+        assert req.action.HasField("add_request")
+        assert len(req.action.add_request.field_infos) == 1
+        assert len(req.action.add_request.func_schema) == 0
+
+    def test_drop_by_field_name(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_field_name="old_field",
+        )
+        assert req.collection_name == "coll"
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.field_name == "old_field"
+
+    def test_drop_by_field_id(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_field_id=42,
+        )
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.field_id == 42
+
+    def test_error_on_both_add_and_drop(self):
+        field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
+        with pytest.raises(ParamError, match="Cannot perform both"):
+            Prepare.alter_collection_schema_request(
+                collection_name="coll",
+                field_schema=field,
+                drop_field_name="old",
+            )
+
+    def test_error_on_neither_add_nor_drop(self):
+        with pytest.raises(ParamError, match="Must specify"):
+            Prepare.alter_collection_schema_request(collection_name="coll")
