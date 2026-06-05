@@ -1,10 +1,17 @@
 """Test cases for AsyncMilvusClient new features"""
 
+import inspect
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
-from pymilvus import AsyncMilvusClient, DataType
+from pymilvus import (
+    AsyncMilvusClient,
+    DataType,
+    FieldSchema,
+    Function,
+    FunctionType,
+)
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.connection_manager import AsyncConnectionManager
 from pymilvus.client.types import (
@@ -16,7 +23,6 @@ from pymilvus.client.types import (
 )
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession
-from pymilvus.orm.collection import Function
 from pymilvus.orm.schema import StructFieldSchema
 
 
@@ -1340,3 +1346,99 @@ class TestAsyncMilvusClientGetReplicateInfo:
 
         assert result == expected
         mock_handler.get_replicate_info.assert_called_once()
+
+
+class TestAsyncAlterCollectionSchema:
+    def test_signature_excludes_physical_backfill(self):
+        assert not hasattr(AsyncMilvusClient, "alter_collection_schema")
+        assert (
+            "do_physical_backfill"
+            not in inspect.signature(AsyncMilvusClient._alter_collection_schema).parameters
+        )
+
+    @pytest.mark.asyncio
+    async def test_private_add_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = MagicMock()
+        func = MagicMock()
+        await client._alter_collection_schema("col", field_schema=field, func=func)
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_private_drop_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        await client._alter_collection_schema("col", drop_field_name="old")
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_private_rejects_both_add_and_drop(self, client_and_handler):
+        client, _ = client_and_handler
+
+        with pytest.raises(ParamError, match="Cannot perform both"):
+            await client._alter_collection_schema(
+                "col", field_schema=MagicMock(), drop_field_name="old"
+            )
+
+    @pytest.mark.asyncio
+    async def test_private_rejects_neither_add_nor_drop(self, client_and_handler):
+        client, _ = client_and_handler
+
+        with pytest.raises(ParamError, match="Must specify"):
+            await client._alter_collection_schema("col")
+
+    @pytest.mark.asyncio
+    async def test_private_add_requires_field_and_func(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        func = Function("bm25", FunctionType.BM25, ["text"], ["sparse"])
+
+        with pytest.raises(ParamError, match="func is required"):
+            await client._alter_collection_schema("col", field_schema=field)
+        with pytest.raises(ParamError, match="field_schema is required"):
+            await client._alter_collection_schema("col", func=func)
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_drop_collection_field_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+
+        await client.drop_collection_field("col", field_name="old")
+
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_add_function_field_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        func = Function("bm25", FunctionType.BM25, ["text"], ["sparse"])
+
+        await client.add_function_field("col", field, func)
+
+        mock_handler.alter_collection_schema.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_add_function_field_rejects_unsupported_function_type(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        func = Function("embed", FunctionType.TEXTEMBEDDING, ["text"], ["sparse"])
+
+        with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
+            await client.add_function_field("col", field, func)
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_function_field_rejects_non_sparse_output(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
+        func = Function("bm25", FunctionType.BM25, ["text"], ["dense"])
+
+        with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
+            await client.add_function_field("col", field, func)
+        mock_handler.alter_collection_schema.assert_not_called()

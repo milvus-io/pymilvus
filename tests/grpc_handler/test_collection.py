@@ -1,9 +1,10 @@
 """Tests for GrpcHandler collection operations."""
 
+import inspect
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus import FieldSchema, StructFieldSchema
+from pymilvus import FieldSchema, Function, FunctionType, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import DescribeCollectionException
@@ -19,6 +20,10 @@ from .conftest import (
 
 class TestGrpcHandlerCollectionOps:
     """Tests for collection operations."""
+
+    def test_alter_collection_schema_signature_excludes_physical_backfill(self, handler):
+        signature = inspect.signature(handler.alter_collection_schema)
+        assert "do_physical_backfill" not in signature.parameters
 
     @pytest.mark.parametrize("coll_name,expected_error", COLLECTION_VALIDATION_CASES)
     def test_create_collection_validation(self, handler, coll_name, expected_error):
@@ -225,3 +230,57 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.DropCollectionFunction.return_value = make_status()
         handler.drop_collection_function("coll", "func")
         handler._stub.DropCollectionFunction.assert_called_once()
+
+    def test_drop_collection_field(self, handler):
+        response = MagicMock()
+        response.alter_status.code = 0
+        response.alter_status.error_code = 0
+        handler._stub.AlterCollectionSchema.return_value = response
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+        handler.drop_collection_field("coll", field_name="f")
+        handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
+
+    def test_alter_collection_schema_add(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        field = FieldSchema(name="new_field", dtype=DataType.FLOAT_VECTOR, dim=128)
+        func = Function(
+            name="bm25",
+            function_type=FunctionType.BM25,
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+        )
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+        handler.alter_collection_schema(
+            collection_name="coll",
+            field_schema=field,
+            func=func,
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
+
+    def test_alter_collection_schema_drop_by_name(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        handler.alter_collection_schema(
+            collection_name="coll",
+            drop_field_name="old_field",
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
+
+    def test_alter_collection_schema_drop_by_id(self, handler):
+        resp = MagicMock()
+        resp.alter_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = resp
+        handler.alter_collection_schema(
+            collection_name="coll",
+            drop_field_id=42,
+        )
+        handler._stub.AlterCollectionSchema.assert_called_once()
