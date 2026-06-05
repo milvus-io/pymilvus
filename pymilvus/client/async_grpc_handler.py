@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import logging
 import socket
 import time
 from pathlib import Path
@@ -70,6 +71,8 @@ from .utils import (
     len_of,
     replicate_checkpoint_to_dict,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AsyncGrpcHandler:
