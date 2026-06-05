@@ -24,6 +24,7 @@ from pymilvus.client.types import (
     SnapshotInfo,
 )
 from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession
 from pymilvus.orm.schema import StructFieldSchema
 
@@ -1486,3 +1487,98 @@ class TestAsyncAlterCollectionSchema:
         with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
             await client.add_function_field("col", field, func)
         mock_handler.alter_collection_schema.assert_not_called()
+
+
+class _FakeAsyncStream:
+    """Minimal async iterator over a list of prepared responses."""
+
+    def __init__(self, items):
+        self._it = iter(items)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        try:
+            return next(self._it)
+        except StopIteration:
+            raise StopAsyncIteration from None
+
+
+class TestAsyncGrpcHandlerDumpMessages:
+    """Tests for AsyncGrpcHandler.dump_messages stream shaping (handler layer)."""
+
+    _START = {"id": "start-1", "wal_name": "Pulsar"}
+
+    @staticmethod
+    def _msg_resp(mid="m1", payload=b"p"):
+        return milvus_pb2.DumpMessagesResponse(
+            message=common_pb2.ImmutableMessage(
+                id=common_pb2.MessageID(id=mid, WAL_name=common_pb2.WALName.Pulsar),
+                payload=payload,
+            )
+        )
+
+    @staticmethod
+    def _bare_handler(responses):
+        from pymilvus.client.async_grpc_handler import AsyncGrpcHandler  # noqa: PLC0415
+
+        h = AsyncGrpcHandler.__new__(AsyncGrpcHandler)
+        h._async_stub = MagicMock()
+        h._async_stub.DumpMessages.return_value = _FakeAsyncStream(responses)
+        return h
+
+    @pytest.mark.asyncio
+    async def test_yields_message_dicts_in_order(self):
+        h = self._bare_handler([self._msg_resp("m1", b"p1"), self._msg_resp("m2", b"p2")])
+
+        result = [
+            m
+            async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        ]
+
+        assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
+        assert result[0]["payload"] == b"p1"
+
+    @pytest.mark.asyncio
+    async def test_error_status_raises_mid_stream(self):
+        err = milvus_pb2.DumpMessagesResponse(
+            status=common_pb2.Status(code=65535, reason="dump failed")
+        )
+        h = self._bare_handler([self._msg_resp("m1"), err])
+
+        gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        first = await gen.__anext__()
+        assert first["message_id"]["id"] == "m1"
+        with pytest.raises(MilvusException, match="dump failed"):
+            await gen.__anext__()
+
+    @pytest.mark.asyncio
+    async def test_success_status_mid_stream_is_skipped(self):
+        ok = milvus_pb2.DumpMessagesResponse(status=common_pb2.Status())
+        h = self._bare_handler([self._msg_resp("m1"), ok, self._msg_resp("m2")])
+
+        result = [
+            m
+            async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        ]
+
+        assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
+
+    @pytest.mark.asyncio
+    async def test_unset_oneof_raises(self):
+        empty = milvus_pb2.DumpMessagesResponse()
+        h = self._bare_handler([empty])
+
+        gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        with pytest.raises(MilvusException, match="oneof"):
+            await gen.__anext__()
+
+    @pytest.mark.asyncio
+    async def test_param_error_raised_eagerly_not_lazily(self):
+        h = self._bare_handler([])
+        # dump_messages is a regular method returning an async generator,
+        # so validation must raise at call time without any await.
+        with pytest.raises(ParamError):
+            h.dump_messages(pchannel="", start_message_id=self._START)
+        h._async_stub.DumpMessages.assert_not_called()

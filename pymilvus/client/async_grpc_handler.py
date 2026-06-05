@@ -67,6 +67,7 @@ from .utils import (
     check_invalid_binary_vector,
     check_status,
     get_server_type,
+    immutable_message_to_dict,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -2997,3 +2998,44 @@ class AsyncGrpcHandler:
                 resp.salvage_checkpoint if resp.HasField("salvage_checkpoint") else None
             ),
         }
+
+    # NOTE: no @retry_on_rpc_failure — retrying a streaming RPC would replay
+    # already-yielded messages, and errors surface during iteration, not at call time.
+    def dump_messages(
+        self,
+        pchannel: str,
+        start_message_id: Dict,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """Async version of GrpcHandler.dump_messages; returns an async generator.
+
+        Intentionally a regular method (not ``async def``) so parameter
+        validation raises ParamError eagerly at call time. See the sync
+        version for full docs.
+        """
+        request = Prepare.dump_messages_request(
+            pchannel=pchannel,
+            start_message_id=start_message_id,
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+        )
+        stream = self._async_stub.DumpMessages(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+
+        async def _message_generator():
+            async for resp in stream:
+                which = resp.WhichOneof("response")
+                if which == "status":
+                    check_status(resp.status)
+                elif which == "message":
+                    yield immutable_message_to_dict(resp.message)
+                else:
+                    msg = f"unexpected DumpMessagesResponse oneof arm: {which!r}"
+                    raise MilvusException(message=msg)
+
+        return _message_generator()
