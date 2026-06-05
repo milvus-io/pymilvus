@@ -6,7 +6,7 @@ import pytest
 from pymilvus.client import utils
 from pymilvus.client.constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from pymilvus.client.types import DataType
-from pymilvus.client.utils import replicate_checkpoint_to_dict
+from pymilvus.client.utils import immutable_message_to_dict, replicate_checkpoint_to_dict
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2
 
@@ -459,4 +459,35 @@ class TestReplicateCheckpointToDict:
             "pchannel": "",
             "message_id": {"id": "msg-1", "wal_name": "Pulsar"},
             "time_tick": 0,
+        }
+
+
+class TestImmutableMessageToDict:
+    """Tests for immutable_message_to_dict."""
+
+    def test_full_message(self):
+        msg = common_pb2.ImmutableMessage(
+            id=common_pb2.MessageID(id="msg-1", WAL_name=common_pb2.WALName.Pulsar),
+            payload=b"\x01\x02",
+            properties={"_t": "Insert"},
+        )
+        assert immutable_message_to_dict(msg) == {
+            "message_id": {"id": "msg-1", "wal_name": "Pulsar"},
+            "payload": b"\x01\x02",
+            "properties": {"_t": "Insert"},
+        }
+
+    def test_unset_id_returns_none_message_id(self):
+        msg = common_pb2.ImmutableMessage(payload=b"data")
+        result = immutable_message_to_dict(msg)
+        assert result["message_id"] is None
+        assert result["payload"] == b"data"
+        assert result["properties"] == {}
+
+    def test_empty_message(self):
+        msg = common_pb2.ImmutableMessage()
+        assert immutable_message_to_dict(msg) == {
+            "message_id": None,
+            "payload": b"",
+            "properties": {},
         }
