@@ -2821,6 +2821,40 @@ class Prepare:
             target_pchannel=target_pchannel,
         )
 
+    @classmethod
+    def dump_messages_request(
+        cls,
+        pchannel: Optional[str] = None,
+        start_message_id: Optional[Dict] = None,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+    ):
+        if not pchannel:
+            msg = "'pchannel' must be provided"
+            raise ParamError(message=msg)
+        if not start_message_id or not isinstance(start_message_id, dict):
+            msg = "'start_message_id' must be a non-empty dict with 'id' and 'wal_name' keys"
+            raise ParamError(message=msg)
+        if not start_message_id.get("id"):
+            msg = "'start_message_id.id' must be provided"
+            raise ParamError(message=msg)
+        wal_name = start_message_id.get("wal_name")
+        try:
+            wal_name_value = common_types.WALName.Value(wal_name)
+        except (ValueError, TypeError) as e:
+            valid = ", ".join(common_types.WALName.keys())
+            msg = f"'start_message_id.wal_name' must be one of [{valid}], got {wal_name!r}"
+            raise ParamError(message=msg) from e
+        return milvus_types.DumpMessagesRequest(
+            pchannel=pchannel,
+            start_message_id=common_types.MessageID(
+                id=start_message_id["id"],
+                WAL_name=wal_name_value,
+            ),
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+        )
+
     @staticmethod
     def convert_function_to_function_schema(f: Function) -> schema_types.FunctionSchema:
         function_schema = schema_types.FunctionSchema(
