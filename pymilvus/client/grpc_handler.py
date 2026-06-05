@@ -584,6 +584,7 @@ class GrpcHandler:
             collection_name=collection_name,
             drop_field_name=field_name,
             drop_field_id=field_id,
+            drop_function_name=function_name,
         )
         response = self._stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -619,13 +620,14 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.drop_collection_function_request(collection_name, function_name)
-
-        status = self._stub.DropCollectionFunction(
-            request, timeout=timeout, metadata=_api_level_md(context)
+        self._alter_collection_schema_drop(
+            collection_name,
+            function_name=function_name,
+            timeout=timeout,
+            context=context,
+            **kwargs,
         )
-        check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def add_collection_function(
@@ -674,6 +676,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
+        drop_function_name: Optional[str] = None,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -683,6 +686,7 @@ class GrpcHandler:
             func=func,
             drop_field_name=drop_field_name,
             drop_field_id=drop_field_id,
+            drop_function_name=drop_function_name,
         )
         response = self._stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)
