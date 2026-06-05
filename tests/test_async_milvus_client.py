@@ -1423,6 +1423,38 @@ class TestAsyncAlterCollectionSchema:
         mock_handler.alter_collection_schema.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_drop_collection_function_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        mock_handler.drop_collection_function = AsyncMock()
+
+        await client.drop_collection_function("col", "fn")
+
+        mock_handler.alter_collection_schema.assert_called_once()
+        assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+        mock_handler.drop_collection_function.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_drop_collection_field_rejects_missing_identifier(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+
+        with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+            await client.drop_collection_field("col")
+
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_drop_collection_field_rejects_multiple_identifiers(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+
+        with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+            await client.drop_collection_field("col", field_name="old", field_id=42)
+
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_add_function_field_delegates(self, client_and_handler):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()

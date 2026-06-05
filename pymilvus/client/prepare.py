@@ -392,8 +392,12 @@ class Prepare:
         func: Optional[Function] = None,
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
+        drop_function_name: Optional[str] = None,
     ) -> milvus_types.AlterCollectionSchemaRequest:
-        is_drop = drop_field_name is not None or (drop_field_id is not None and drop_field_id > 0)
+        is_drop = any(
+            identifier is not None
+            for identifier in (drop_field_name, drop_field_id, drop_function_name)
+        )
         is_add = field_schema is not None or func is not None
 
         if is_drop and is_add:
@@ -402,15 +406,27 @@ class Prepare:
             )
         if not is_drop and not is_add:
             raise ParamError(
-                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id/drop_function_name)"
             )
 
         if is_drop:
+            valid_drop_identifiers = [
+                drop_field_name is not None and drop_field_name != "",
+                drop_field_id is not None and drop_field_id > 0,
+                drop_function_name is not None and drop_function_name != "",
+            ]
+            if sum(valid_drop_identifiers) != 1:
+                raise ParamError(
+                    message="Must specify exactly one valid Drop identifier (drop_field_name/drop_field_id/drop_function_name)"
+                )
+
             drop_request = milvus_types.AlterCollectionSchemaRequest.DropRequest()
-            if drop_field_name is not None:
+            if drop_field_name is not None and drop_field_name != "":
                 drop_request.field_name = drop_field_name
-            else:
+            elif drop_field_id is not None and drop_field_id > 0:
                 drop_request.field_id = drop_field_id
+            else:
+                drop_request.function_name = drop_function_name
 
             action = milvus_types.AlterCollectionSchemaRequest.Action(drop_request=drop_request)
         else:
