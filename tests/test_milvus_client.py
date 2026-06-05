@@ -2265,3 +2265,21 @@ class TestGrpcHandlerDumpMessages:
         assert request.start_message_id.id == "start-1"
         assert request.start_timetick == 100
         assert request.end_timetick == 200
+        assert h._stub.DumpMessages.call_args.kwargs["timeout"] is None
+        assert "metadata" in h._stub.DumpMessages.call_args.kwargs
+
+    def test_success_status_mid_stream_is_skipped(self):
+        ok = milvus_pb2.DumpMessagesResponse(status=common_pb2.Status())
+        h = self._bare_handler([self._msg_resp("m1"), ok, self._msg_resp("m2")])
+
+        result = list(h.dump_messages(pchannel="ch0", start_message_id=self._START))
+
+        assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
+
+    def test_unset_oneof_raises(self):
+        empty = milvus_pb2.DumpMessagesResponse()
+        h = self._bare_handler([empty])
+
+        gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        with pytest.raises(MilvusException, match="oneof"):
+            next(gen)

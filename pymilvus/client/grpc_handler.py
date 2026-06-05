@@ -3488,6 +3488,9 @@ class GrpcHandler:
                     check_status(resp.status)
                 elif which == "message":
                     yield immutable_message_to_dict(resp.message)
+                else:
+                    msg = f"unexpected DumpMessagesResponse oneof arm: {which!r}"
+                    raise MilvusException(message=msg)
 
         return _message_generator()
 
