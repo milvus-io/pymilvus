@@ -1415,6 +1415,7 @@ _SIMPLE_DELEGATION_CASES = [
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
     ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
     ("get_replicate_info", ("src", "ch0"), {}, "get_replicate_info"),
+    ("dump_messages", ("ch0", {"id": "m", "wal_name": "Pulsar"}), {}, "dump_messages"),
     ("alter_database_properties", ("mydb", {"key": "val"}), {}, "alter_database"),
     ("describe_alias", ("alias1",), {}, "describe_alias"),
     ("describe_resource_group", ("rg1",), {}, "describe_resource_group"),
