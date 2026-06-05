@@ -1582,3 +1582,60 @@ class TestAsyncGrpcHandlerDumpMessages:
         with pytest.raises(ParamError):
             h.dump_messages(pchannel="", start_message_id=self._START)
         h._async_stub.DumpMessages.assert_not_called()
+
+
+class TestAsyncMilvusClientDumpMessages:
+    """Tests for AsyncMilvusClient.dump_messages delegation."""
+
+    @pytest.mark.asyncio
+    async def test_streams_messages(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        expected = [
+            {"message_id": {"id": "m1", "wal_name": "Pulsar"}, "payload": b"p1", "properties": {}},
+            {"message_id": {"id": "m2", "wal_name": "Pulsar"}, "payload": b"p2", "properties": {}},
+        ]
+
+        async def _gen():
+            for m in expected:
+                yield m
+
+        mock_handler.dump_messages = MagicMock(return_value=_gen())
+
+        result = [
+            m
+            async for m in client.dump_messages(
+                pchannel="ch0",
+                start_message_id={"id": "s", "wal_name": "Pulsar"},
+                start_timetick=1,
+                end_timetick=2,
+            )
+        ]
+
+        assert result == expected
+        mock_handler.dump_messages.assert_called_once_with(
+            pchannel="ch0",
+            start_message_id={"id": "s", "wal_name": "Pulsar"},
+            start_timetick=1,
+            end_timetick=2,
+            timeout=None,
+            context=ANY,
+        )
+
+    @pytest.mark.asyncio
+    async def test_empty_stream(self, client_and_handler):
+        client, mock_handler = client_and_handler
+
+        async def _gen():
+            return
+            yield  # pragma: no cover — makes this an async generator
+
+        mock_handler.dump_messages = MagicMock(return_value=_gen())
+
+        result = [
+            m
+            async for m in client.dump_messages(
+                pchannel="ch0",
+                start_message_id={"id": "s", "wal_name": "Pulsar"},
+            )
+        ]
+        assert result == []
