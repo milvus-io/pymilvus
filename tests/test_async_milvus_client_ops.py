@@ -126,7 +126,7 @@ _SIMPLE_ASYNC_DELEGATION_CASES = [
         {},
         "alter_collection_field",
     ),
-    ("drop_collection_function", ("col", "fn"), {}, "drop_collection_function"),
+    ("drop_collection_function", ("col", "fn"), {}, "alter_collection_schema"),
     ("add_collection_function", ("col", MagicMock()), {}, "add_collection_function"),
     ("alter_collection_function", ("col", "fn", MagicMock()), {}, "alter_collection_function"),
     # Server ops

@@ -1566,7 +1566,9 @@ class TestMilvusClientCollectionMgmt:
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
             client.drop_collection_function("col", "fn")
-            handler.drop_collection_function.assert_called_once()
+            handler.alter_collection_schema.assert_called_once()
+            assert handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+            handler.drop_collection_function.assert_not_called()
 
     def test_drop_collection_field_delegates(self):
         handler = _make_handler()
@@ -1574,6 +1576,22 @@ class TestMilvusClientCollectionMgmt:
             client = MilvusClient()
             client.drop_collection_field("col", field_name="f")
             handler.alter_collection_schema.assert_called_once()
+
+    def test_drop_collection_field_rejects_missing_identifier(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+                client.drop_collection_field("col")
+            handler.alter_collection_schema.assert_not_called()
+
+    def test_drop_collection_field_rejects_multiple_identifiers(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+                client.drop_collection_field("col", field_name="f", field_id=42)
+            handler.alter_collection_schema.assert_not_called()
 
     def test_private_alter_collection_schema_add_delegates(self):
         handler = _make_handler()

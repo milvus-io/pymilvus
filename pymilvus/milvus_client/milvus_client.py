@@ -1354,12 +1354,10 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
-        conn = self._get_connection()
-        conn.drop_collection_function(
-            collection_name,
-            function_name,
+        self._alter_collection_schema(
+            collection_name=collection_name,
+            drop_function_name=function_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -1388,12 +1386,13 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
+        drop_function_name: Optional[str] = None,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
 
         For Add operation: provide field_schema and func
-        For Drop operation: provide either drop_field_name or drop_field_id
+        For Drop operation: provide either drop_field_name, drop_field_id, or drop_function_name
 
         Args:
             collection_name(``str``): The name of the collection.
@@ -1402,6 +1401,7 @@ class MilvusClient(BaseMilvusClient):
             timeout(``float``, optional): Timeout for the operation.
             drop_field_name(``str``, optional): Field name to drop.
             drop_field_id(``int``, optional): Field ID to drop.
+            drop_function_name(``str``, optional): Function name to drop.
             **kwargs(``dict``): Additional keyword arguments.
 
         Raises:
@@ -1411,7 +1411,10 @@ class MilvusClient(BaseMilvusClient):
         validate_param("collection_name", collection_name, str)
         conn = self._get_connection()
 
-        is_drop = drop_field_name is not None or drop_field_id is not None
+        is_drop = any(
+            identifier is not None
+            for identifier in (drop_field_name, drop_field_id, drop_function_name)
+        )
         is_add = field_schema is not None or func is not None
 
         if is_drop and is_add:
@@ -1420,7 +1423,7 @@ class MilvusClient(BaseMilvusClient):
             )
         if not is_drop and not is_add:
             raise ParamError(
-                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id)"
+                message="Must specify either Add operation (field_schema/func) or Drop operation (drop_field_name/drop_field_id/drop_function_name)"
             )
 
         if is_add:
@@ -1438,10 +1441,21 @@ class MilvusClient(BaseMilvusClient):
                 **kwargs,
             )
         else:
+            valid_drop_identifiers = [
+                drop_field_name is not None and drop_field_name != "",
+                drop_field_id is not None and drop_field_id > 0,
+                drop_function_name is not None and drop_function_name != "",
+            ]
+            if sum(valid_drop_identifiers) != 1:
+                raise ParamError(
+                    message="Must specify exactly one valid Drop identifier (drop_field_name/drop_field_id/drop_function_name)"
+                )
+
             conn.alter_collection_schema(
                 collection_name=collection_name,
                 drop_field_name=drop_field_name,
                 drop_field_id=drop_field_id,
+                drop_function_name=drop_function_name,
                 timeout=timeout,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,

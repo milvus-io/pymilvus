@@ -227,9 +227,18 @@ class TestGrpcHandlerCollectionProperties:
         GlobalCache._reset_for_testing()
 
     def test_drop_collection_function(self, handler):
-        handler._stub.DropCollectionFunction.return_value = make_status()
+        response = MagicMock()
+        response.alter_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = response
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"functions": []})
         handler.drop_collection_function("coll", "func")
-        handler._stub.DropCollectionFunction.assert_called_once()
+        handler._stub.AlterCollectionSchema.assert_called_once()
+        request = handler._stub.AlterCollectionSchema.call_args.args[0]
+        assert request.action.drop_request.function_name == "func"
+        handler._stub.DropCollectionFunction.assert_not_called()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_drop_collection_field(self, handler):
         response = MagicMock()
@@ -269,18 +278,26 @@ class TestGrpcHandlerCollectionProperties:
         resp = MagicMock()
         resp.alter_status = make_status()
         handler._stub.AlterCollectionSchema.return_value = resp
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.alter_collection_schema(
             collection_name="coll",
             drop_field_name="old_field",
         )
         handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_alter_collection_schema_drop_by_id(self, handler):
         resp = MagicMock()
         resp.alter_status = make_status()
         handler._stub.AlterCollectionSchema.return_value = resp
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.alter_collection_schema(
             collection_name="coll",
             drop_field_id=42,
         )
         handler._stub.AlterCollectionSchema.assert_called_once()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
