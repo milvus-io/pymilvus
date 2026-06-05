@@ -1,6 +1,7 @@
 """Test cases for AsyncMilvusClient new features"""
 
 import inspect
+from typing import ClassVar
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -1508,7 +1509,7 @@ class _FakeAsyncStream:
 class TestAsyncGrpcHandlerDumpMessages:
     """Tests for AsyncGrpcHandler.dump_messages stream shaping (handler layer)."""
 
-    _START = {"id": "start-1", "wal_name": "Pulsar"}
+    _START: ClassVar[dict] = {"id": "start-1", "wal_name": "Pulsar"}
 
     @staticmethod
     def _msg_resp(mid="m1", payload=b"p"):
@@ -1532,10 +1533,7 @@ class TestAsyncGrpcHandlerDumpMessages:
     async def test_yields_message_dicts_in_order(self):
         h = self._bare_handler([self._msg_resp("m1", b"p1"), self._msg_resp("m2", b"p2")])
 
-        result = [
-            m
-            async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)
-        ]
+        result = [m async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)]
 
         assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
         assert result[0]["payload"] == b"p1"
@@ -1558,10 +1556,7 @@ class TestAsyncGrpcHandlerDumpMessages:
         ok = milvus_pb2.DumpMessagesResponse(status=common_pb2.Status())
         h = self._bare_handler([self._msg_resp("m1"), ok, self._msg_resp("m2")])
 
-        result = [
-            m
-            async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)
-        ]
+        result = [m async for m in h.dump_messages(pchannel="ch0", start_message_id=self._START)]
 
         assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
 

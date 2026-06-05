@@ -1,5 +1,6 @@
 import inspect
 import logging
+from typing import ClassVar
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -2186,7 +2187,7 @@ class TestGrpcHandlerGetReplicateInfo:
 class TestGrpcHandlerDumpMessages:
     """Tests for GrpcHandler.dump_messages stream shaping (handler layer)."""
 
-    _START = {"id": "start-1", "wal_name": "Pulsar"}
+    _START: ClassVar[dict] = {"id": "start-1", "wal_name": "Pulsar"}
 
     @staticmethod
     def _msg_resp(mid="m1", payload=b"p", props=None):

@@ -1,5 +1,7 @@
 """Tests for advanced Prepare methods (bulk operations, replication, analyzers)."""
 
+from typing import ClassVar
+
 import pytest
 from pymilvus import Function, FunctionType
 from pymilvus.client.prepare import Prepare
@@ -364,7 +366,7 @@ class TestGetReplicateInfoRequest:
 class TestDumpMessagesRequest:
     """Tests for Prepare.dump_messages_request."""
 
-    _MSG_ID = {"id": "msg-1", "wal_name": "Pulsar"}
+    _MSG_ID: ClassVar[dict] = {"id": "msg-1", "wal_name": "Pulsar"}
 
     def test_builds_correct_request(self):
         req = Prepare.dump_messages_request(
@@ -408,10 +410,8 @@ class TestDumpMessagesRequest:
             Prepare.dump_messages_request(pchannel="ch0", start_message_id="msg-1")
 
     def test_missing_id_key_raises(self):
-        with pytest.raises(ParamError, match="start_message_id.id"):
-            Prepare.dump_messages_request(
-                pchannel="ch0", start_message_id={"wal_name": "Pulsar"}
-            )
+        with pytest.raises(ParamError, match=r"start_message_id\.id"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id={"wal_name": "Pulsar"})
 
     def test_invalid_wal_name_raises(self):
         with pytest.raises(ParamError, match="wal_name"):
@@ -421,9 +421,7 @@ class TestDumpMessagesRequest:
 
     def test_missing_wal_name_raises(self):
         with pytest.raises(ParamError, match="wal_name"):
-            Prepare.dump_messages_request(
-                pchannel="ch0", start_message_id={"id": "m"}
-            )
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id={"id": "m"})
 
 
 class TestConvertFunctionToFunctionSchema:

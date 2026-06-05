@@ -493,7 +493,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         reply = await self._async_stub.DescribeCollection(
@@ -521,7 +520,6 @@ class AsyncGrpcHandler:
     async def list_collections(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> List[str]:
-
         request = Prepare.show_collections_request()
         response = await self._async_stub.ShowCollections(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -605,7 +603,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> Union[str, dict]:
-
         if detail:
             if self._server_info_cache is None:
                 req = Prepare.register_request("", "")
@@ -635,7 +632,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[ReplicaInfo]:
-
         collection_schema, _ = await self._get_schema(
             collection_name, timeout=timeout, context=context, **kwargs
         )
@@ -804,7 +800,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = await self._async_stub.GetPersistentSegmentInfo(
@@ -1407,7 +1402,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
@@ -1426,7 +1420,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[str]:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.show_partitions_request(collection_name)
         response = await self._async_stub.ShowPartitions(
@@ -1527,7 +1520,6 @@ class AsyncGrpcHandler:
     async def alloc_timestamp(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> int:
-
         request = milvus_types.AllocTimestampRequest()
         response = await self._async_stub.AllocTimestamp(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2564,7 +2556,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> int:
-
         request = Prepare.describe_collection_request(collection_name)
         response = await self._async_stub.DescribeCollection(
             request, timeout=timeout, metadata=_api_level_md(context)
