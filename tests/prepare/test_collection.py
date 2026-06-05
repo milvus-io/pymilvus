@@ -436,6 +436,14 @@ class TestAlterCollectionSchemaRequest:
         assert req.action.HasField("drop_request")
         assert req.action.drop_request.field_id == 42
 
+    def test_drop_by_function_name(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_function_name="bm25",
+        )
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.function_name == "bm25"
+
     def test_error_on_both_add_and_drop(self):
         field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
         with pytest.raises(ParamError, match="Cannot perform both"):
@@ -448,3 +456,27 @@ class TestAlterCollectionSchemaRequest:
     def test_error_on_neither_add_nor_drop(self):
         with pytest.raises(ParamError, match="Must specify"):
             Prepare.alter_collection_schema_request(collection_name="coll")
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"drop_field_name": ""},
+            {"drop_field_id": 0},
+            {"drop_function_name": ""},
+        ],
+    )
+    def test_error_on_empty_drop_identifier(self, kwargs):
+        with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+            Prepare.alter_collection_schema_request(collection_name="coll", **kwargs)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"drop_field_name": "old_field", "drop_field_id": 42},
+            {"drop_field_name": "old_field", "drop_function_name": "bm25"},
+            {"drop_field_id": 42, "drop_function_name": "bm25"},
+        ],
+    )
+    def test_error_on_multiple_drop_identifiers(self, kwargs):
+        with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
+            Prepare.alter_collection_schema_request(collection_name="coll", **kwargs)
