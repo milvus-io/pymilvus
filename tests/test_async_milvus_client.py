@@ -415,6 +415,28 @@ class TestAsyncMilvusClientNewFeatures:
             )
 
     @pytest.mark.asyncio
+    async def test_add_collection_field_forwards_external_field(self, client_and_handler):
+        """External field kwargs should reach the async handler FieldSchema."""
+        client, mock_handler = client_and_handler
+        mock_handler.add_collection_field = AsyncMock()
+
+        await client.add_collection_field(
+            "ext_coll",
+            "score",
+            DataType.DOUBLE,
+            nullable=True,
+            external_field="score",
+        )
+
+        mock_handler.add_collection_field.assert_awaited_once()
+        assert mock_handler.add_collection_field.call_args.args[0] == "ext_coll"
+        added_schema = mock_handler.add_collection_field.call_args.args[1]
+        assert added_schema.name == "score"
+        assert added_schema.dtype == DataType.DOUBLE
+        assert added_schema.nullable is True
+        assert added_schema.external_field == "score"
+
+    @pytest.mark.asyncio
     async def test_add_collection_struct_field_requires_nullable(self, client_and_handler):
         """Test that adding struct field requires nullable=True."""
         client, _ = client_and_handler
