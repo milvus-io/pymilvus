@@ -35,6 +35,25 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 19530
 
+_RECOVERABLE_MILVUS_EXCEPTION_MARKERS = (
+    "STREAMING_CODE_REPLICATE_VIOLATION",
+    "cannot invoke rpc on closed channel",
+    "no channel in handler",
+)
+
+
+def _is_recoverable_milvus_exception(error: MilvusException) -> bool:
+    message = str(error.message)
+    message_lower = message.lower()
+    return any(
+        (
+            marker in message
+            if marker == "STREAMING_CODE_REPLICATE_VIOLATION"
+            else marker in message_lower
+        )
+        for marker in _RECOVERABLE_MILVUS_EXCEPTION_MARKERS
+    )
+
 
 @dataclass
 class ConnectionConfig:
@@ -699,7 +718,7 @@ class ConnectionManager:
             if error.code() != grpc.StatusCode.UNAVAILABLE:
                 return False
         elif isinstance(error, MilvusException):
-            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
+            if not _is_recoverable_milvus_exception(error):
                 return False
         else:
             return False
@@ -1086,7 +1105,7 @@ class AsyncConnectionManager:
             if error.code() != grpc.StatusCode.UNAVAILABLE:
                 return False
         elif isinstance(error, MilvusException):
-            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
+            if not _is_recoverable_milvus_exception(error):
                 return False
         else:
             return False
