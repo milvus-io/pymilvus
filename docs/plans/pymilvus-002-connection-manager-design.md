@@ -1,7 +1,7 @@
 # Connection Manager Design & Implementation Plan
 
 - **Created:** 2026-02-03
-- **Updated:** 2026-02-13
+- **Updated:** 2026-06-08
 - **Author(s):** @XuanYang-cn
 
 ## Overview
@@ -221,13 +221,23 @@ Both strategies share the same recovery logic on UNAVAILABLE:
 
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Shared: ConnectionManager._recover()             │
-│  1. Close old handler via strategy.close()                       │
-│  2. Create new handler via strategy.create_handler()             │
-│  3. Register error callback on new handler                       │
-│  4. Wait for channel ready                                       │
-│  5. Update ManagedConnection.handler                             │
+│  1. Build a fresh Connection in local state                      │
+│     (channel and stub, plus auth/db metadata)                    │
+│  2. Register the error callback on the replacement connection    │
+│  3. Validate the replacement by waiting for channel readiness     │
+│  4. Atomically swap the handler's internal Connection reference   │
+│     so channel and stub move together                            │
+│  5. Retire the previous Connection after the swap                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+`_recover()` follows a build fresh -> validate -> atomically swap -> retire old
+sequence. The live Connection remains untouched while the replacement is being
+built and validated. If replacement validation fails, recovery raises and leaves
+the current Connection intact as a no-op on managed state. Handler object
+identity is preserved: `managed.handler` continues to reference the same handler
+object, and the swap happens inside that handler rather than by replacing
+`managed.handler`.
 
 **Key insight:** `_recover()` is shared logic in ConnectionManager. Strategies just decide WHEN to call it via the `on_unavailable() -> bool` return value:
 - **RegularStrategy**: Always returns `True` → always recover
@@ -250,7 +260,7 @@ Runs if connection idle > 30 seconds:
 
 1. Check `channel.check_connectivity_state()` != SHUTDOWN
 2. Call `handler.get_server_version(timeout=5.0)`
-3. If unhealthy → `_recover()` → return new handler
+3. If unhealthy → `_recover()` → return the same handler with a refreshed internal Connection
 
 ## Error Handling
 
@@ -282,13 +292,14 @@ async retry_decorator → await handler._on_rpc_error(e)  [async def]
 ```
 
 The async chain is fully async end-to-end, which means recovery can `await
-ensure_channel_ready()` on the new handler. This guarantees the handler is ready
-before it's stored in the managed connection, so individual RPC methods in
+ensure_channel_ready()` on the replacement connection before swapping it into the
+existing handler. This guarantees the handler's current connection is only
+changed after the replacement is ready, so individual RPC methods in
 `AsyncGrpcHandler` do **not** need to call `ensure_channel_ready()` themselves.
 
 Channel readiness is established at two points only:
 1. **Creation** — `_create_shared` / `_create_dedicated` await `ensure_channel_ready()`
-2. **Recovery** — `_recover` awaits `ensure_channel_ready()` on the replacement handler
+2. **Recovery** — `_recover` awaits `ensure_channel_ready()` on the replacement connection
 
 ### Legacy ORM Async Path
 
