@@ -328,6 +328,7 @@ class Prepare:
             nullable=nullable,
             default_value=field.get("default_value"),
             element_type=field.get("element_type"),
+            external_field=field.get("external_field", ""),
         )
 
         type_params = field.get("params", {})
