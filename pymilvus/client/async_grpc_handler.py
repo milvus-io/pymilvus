@@ -1,9 +1,10 @@
 import asyncio
 import base64
+import logging
 import socket
 import time
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -66,6 +67,8 @@ from .utils import (
     replicate_checkpoint_to_dict,
 )
 
+logger = logging.getLogger(__name__)
+
 
 class AsyncGrpcHandler:
     def __init__(
@@ -83,10 +86,13 @@ class AsyncGrpcHandler:
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
         self._log_level = None
         self._user = kwargs.get("user")
+        self._connect_reserved = kwargs.get("option", {})
         self._grpc_options = kwargs.get("grpc_options", {})
         self._set_authorization(**kwargs)
+        self._reconnect_lock = asyncio.Lock()
         self._setup_grpc_channel(**kwargs)
         self._is_channel_ready = False
+        self._retired_channel_close_tasks = set()
         self.callbacks = []  # Do nothing
         self._server_info_cache = None
 
@@ -120,8 +126,13 @@ class AsyncGrpcHandler:
         pass
 
     async def close(self):
-        await self._async_channel.close()
-        self._async_channel = None
+        async with self._reconnect_lock:
+            if self._async_channel:
+                await self._async_channel.close()
+            self._async_channel = None
+            self._final_channel = None
+            self._async_stub = None
+            self._is_channel_ready = False
 
     async def reconnect(self, address: Optional[str] = None, timeout: float = 10):
         """Reset the async gRPC channel, reconnecting to the same or a new address.
@@ -133,17 +144,54 @@ class AsyncGrpcHandler:
             address: Optional new address to connect to.
             timeout: Connection timeout in seconds (default 10).
         """
+        target_address = address or self._address
+        effective_timeout = timeout if timeout is not None else 10
+        new_channel = self._create_channel(target_address)
+        new_final_channel, new_stub = self._build_stub(new_channel)
         try:
-            await self.close()
+            (
+                new_identifier_interceptor,
+                new_final_channel,
+                new_stub,
+            ) = await self._setup_identifier_interceptor_for_channel(
+                new_final_channel,
+                new_stub,
+                self._user,
+                timeout=effective_timeout,
+            )
+        except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
+            await new_channel.close()
+            raise MilvusException(
+                code=Status.CONNECT_FAILED,
+                message=f"Fail connecting to server on {target_address}, illegal connection params or server unavailable",
+            ) from e
         except Exception:
-            self._async_channel = None
-        if address:
-            self._address = address
-        self._setup_grpc_channel()
-        self._is_channel_ready = False
-        await self.ensure_channel_ready(timeout=timeout)
+            await new_channel.close()
+            raise
 
-    def _setup_authorization_interceptor(self, user: str, password: str, token: str):
+        async with self._reconnect_lock:
+            old_channel = self._async_channel
+            self._address = target_address
+            self._async_channel = new_channel
+            self._final_channel = new_final_channel
+            self._async_stub = new_stub
+            self._async_identifier_interceptor = new_identifier_interceptor
+            self._is_channel_ready = True
+
+        if old_channel:
+            retire_task = asyncio.create_task(
+                self._close_retired_channel(old_channel, grace=effective_timeout)
+            )
+            self._retired_channel_close_tasks.add(retire_task)
+            retire_task.add_done_callback(self._retired_channel_close_tasks.discard)
+
+    async def _close_retired_channel(self, channel: Any, grace: float) -> None:
+        try:
+            await channel.close(grace=grace)
+        except Exception as e:
+            logger.warning("Failed to close retired async channel during reconnect: %s", e)
+
+    def _create_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
         values = []
         if token:
@@ -155,81 +203,88 @@ class AsyncGrpcHandler:
             keys.append("authorization")
             values.append(authorization)
         if len(keys) > 0 and len(values) > 0:
-            self._async_authorization_interceptor = async_header_adder_interceptor(keys, values)
-            self._final_channel._unary_unary_interceptors.append(
-                self._async_authorization_interceptor
+            return async_header_adder_interceptor(keys, values)
+        return None
+
+    def _setup_authorization_interceptor(self, user: str, password: str, token: str):
+        authorization_interceptor = self._create_authorization_interceptor(user, password, token)
+        if authorization_interceptor:
+            self._async_authorization_interceptor = authorization_interceptor
+            self._final_channel._unary_unary_interceptors.append(authorization_interceptor)
+
+    def _create_channel(self, address: str):
+        default_opts = {
+            cygrpc.ChannelArgKey.max_send_message_length: -1,
+            cygrpc.ChannelArgKey.max_receive_message_length: -1,
+            "grpc.enable_retries": 1,
+            "grpc.keepalive_time_ms": 10000,
+            "grpc.keepalive_timeout_ms": 5000,
+            "grpc.keepalive_permit_without_calls": True,
+        }
+        default_opts.update(self._grpc_options)
+        opts = list(default_opts.items())
+        if not self._secure:
+            return grpc.aio.insecure_channel(
+                address,
+                options=opts,
             )
 
-    def _setup_grpc_channel(self, **kwargs):
-        if self._async_channel is None:
-            # Default gRPC options
-            default_opts = {
-                cygrpc.ChannelArgKey.max_send_message_length: -1,
-                cygrpc.ChannelArgKey.max_receive_message_length: -1,
-                "grpc.enable_retries": 1,
-                "grpc.keepalive_time_ms": 10000,
-                "grpc.keepalive_timeout_ms": 5000,
-                "grpc.keepalive_permit_without_calls": True,
-            }
-            # Merge user-provided options (user options override defaults)
-            default_opts.update(self._grpc_options)
-            opts = list(default_opts.items())
-            if not self._secure:
-                self._async_channel = grpc.aio.insecure_channel(
-                    self._address,
-                    options=opts,
-                )
-            else:
-                if self._server_name != "":
-                    opts.append(("grpc.ssl_target_name_override", self._server_name))
+        if self._server_name != "":
+            opts.append(("grpc.ssl_target_name_override", self._server_name))
 
-                root_cert, private_k, cert_chain = None, None, None
-                if self._server_pem_path != "":
-                    with Path(self._server_pem_path).open("rb") as f:
-                        root_cert = f.read()
-                elif (
-                    self._client_pem_path != ""
-                    and self._client_key_path != ""
-                    and self._ca_pem_path != ""
-                ):
-                    with Path(self._ca_pem_path).open("rb") as f:
-                        root_cert = f.read()
-                    with Path(self._client_key_path).open("rb") as f:
-                        private_k = f.read()
-                    with Path(self._client_pem_path).open("rb") as f:
-                        cert_chain = f.read()
+        root_cert, private_k, cert_chain = None, None, None
+        if self._server_pem_path != "":
+            with Path(self._server_pem_path).open("rb") as f:
+                root_cert = f.read()
+        elif (
+            self._client_pem_path != "" and self._client_key_path != "" and self._ca_pem_path != ""
+        ):
+            with Path(self._ca_pem_path).open("rb") as f:
+                root_cert = f.read()
+            with Path(self._client_key_path).open("rb") as f:
+                private_k = f.read()
+            with Path(self._client_pem_path).open("rb") as f:
+                cert_chain = f.read()
 
-                creds = grpc.ssl_channel_credentials(
-                    root_certificates=root_cert,
-                    private_key=private_k,
-                    certificate_chain=cert_chain,
-                )
-                self._async_channel = grpc.aio.secure_channel(
-                    self._address,
-                    creds,
-                    options=opts,
-                )
+        creds = grpc.ssl_channel_credentials(
+            root_certificates=root_cert,
+            private_key=private_k,
+            certificate_chain=cert_chain,
+        )
+        return grpc.aio.secure_channel(
+            address,
+            creds,
+            options=opts,
+        )
 
-        # avoid to add duplicate headers.
-        self._final_channel = self._async_channel
+    def _build_stub(self, channel: Any, **kwargs: Any) -> Tuple[Any, Any]:
+        final_channel = channel
 
         if self._async_authorization_interceptor:
-            self._final_channel._unary_unary_interceptors.append(
-                self._async_authorization_interceptor
-            )
+            final_channel._unary_unary_interceptors.append(self._async_authorization_interceptor)
         else:
-            self._setup_authorization_interceptor(
+            authorization_interceptor = self._create_authorization_interceptor(
                 kwargs.get("user"),
                 kwargs.get("password"),
                 kwargs.get("token"),
             )
+            if authorization_interceptor:
+                self._async_authorization_interceptor = authorization_interceptor
+                final_channel._unary_unary_interceptors.append(authorization_interceptor)
         if self._log_level:
             async_log_level_interceptor = async_header_adder_interceptor(
                 ["log-level"], [self._log_level]
             )
-            self._final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
+            final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
             self._log_level = None
-        self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._final_channel)
+        return final_channel, milvus_pb2_grpc.MilvusServiceStub(final_channel)
+
+    def _setup_grpc_channel(self, **kwargs):
+        if self._async_channel is None:
+            self._async_channel = self._create_channel(self._address)
+
+        # avoid to add duplicate headers.
+        self._final_channel, self._async_stub = self._build_stub(self._async_channel, **kwargs)
 
     @property
     def server_address(self):
@@ -241,26 +296,45 @@ class AsyncGrpcHandler:
     async def ensure_channel_ready(self, timeout: Optional[float] = None):
         try:
             if not self._is_channel_ready:
-                # wait for channel ready, default 10s to match sync _wait_for_channel_ready
                 wait_timeout = timeout if timeout is not None else 10
-                await asyncio.wait_for(self._async_channel.channel_ready(), timeout=wait_timeout)
-                # set identifier interceptor
-                host = socket.gethostname()
-                req = Prepare.register_request(self._user, host)
-                response = await self._async_stub.Connect(request=req)
-                check_status(response.status)
-                _async_identifier_interceptor = async_header_adder_interceptor(
-                    ["identifier"], [str(response.identifier)]
+                (
+                    self._async_identifier_interceptor,
+                    self._final_channel,
+                    self._async_stub,
+                ) = await self._setup_identifier_interceptor_for_channel(
+                    self._final_channel,
+                    self._async_stub,
+                    self._user,
+                    timeout=wait_timeout,
                 )
-                self._async_channel._unary_unary_interceptors.append(_async_identifier_interceptor)
-                self._async_stub = milvus_pb2_grpc.MilvusServiceStub(self._async_channel)
 
                 self._is_channel_ready = True
-        except (grpc.FutureTimeoutError, asyncio.TimeoutError) as e:
+        except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
+
+    async def _register_identifier(self, stub: Any, user: str, timeout: float = 10) -> int:
+        host = socket.gethostname()
+        req = Prepare.register_request(user, host, **self._connect_reserved)
+        response = await asyncio.wait_for(
+            stub.Connect(request=req, timeout=timeout),
+            timeout=timeout,
+        )
+        check_status(response.status)
+        return response.identifier
+
+    async def _setup_identifier_interceptor_for_channel(
+        self, final_channel: Any, stub: Any, user: str, timeout: float = 10
+    ) -> Tuple[Any, Any, Any]:
+        identifier = await self._register_identifier(stub, user, timeout=timeout)
+        async_identifier_interceptor = async_header_adder_interceptor(
+            ["identifier"], [str(identifier)]
+        )
+        final_channel._unary_unary_interceptors.append(async_identifier_interceptor)
+        stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
+        return async_identifier_interceptor, final_channel, stub
 
     @retry_on_rpc_failure()
     async def create_collection(

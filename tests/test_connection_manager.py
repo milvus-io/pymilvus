@@ -2197,7 +2197,10 @@ def _make_real_sync_handler(address="localhost:19530"):
 def _make_real_async_handler(address="localhost:19530"):
     """Create a real AsyncGrpcHandler with mocked gRPC channel for reconnect testing."""
     with patch("pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel") as mock_ch:
-        mock_ch.return_value = AsyncMock()
+        channel = Mock()
+        channel._unary_unary_interceptors = []
+        channel.close = AsyncMock()
+        mock_ch.return_value = channel
         return AsyncGrpcHandler(uri=f"http://{address}", address=address)
 
 
@@ -2278,48 +2281,153 @@ class TestHandlerReconnect:
         ids=["keep_address", "change_address"],
     )
     async def test_async_reconnect_address_handling(self, new_address, expected_address):
-        """Async reconnect() keeps or updates address, closes old channel, creates new one."""
+        """Async reconnect() keeps or updates address and gracefully retires the old channel."""
         handler = _make_real_async_handler()
         old_channel = handler._async_channel
 
         with patch(
             "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel"
-        ) as mock_ch, patch.object(handler, "ensure_channel_ready", new_callable=AsyncMock):
-            new_channel = AsyncMock()
+        ) as mock_ch, patch.object(
+            handler, "_setup_identifier_interceptor_for_channel", new_callable=AsyncMock
+        ) as mock_validate:
+            new_channel = Mock()
+            new_channel._unary_unary_interceptors = []
+            new_channel.close = AsyncMock()
             mock_ch.return_value = new_channel
+            mock_validate.side_effect = lambda final_channel, stub, user, timeout=10: (
+                Mock(),
+                final_channel,
+                stub,
+            )
             await handler.reconnect(address=new_address)
+            await asyncio.sleep(0)
 
-        old_channel.close.assert_called_once()
+        old_channel.close.assert_awaited_once_with(grace=10)
         assert handler._async_channel is new_channel
         assert handler._address == expected_address
-        assert handler._is_channel_ready is False
+        assert handler._is_channel_ready is True
 
     @pytest.mark.asyncio
-    async def test_async_reconnect_close_failure_recovers(self):
-        """When async close() raises, channel is cleared and a new one is created."""
+    async def test_async_reconnect_validation_failure_keeps_current_channel(self):
+        """When async replacement validation fails, the current channel remains active."""
         handler = _make_real_async_handler()
-        handler._async_channel.close = AsyncMock(side_effect=RuntimeError("broken"))
+        old_channel = handler._async_channel
 
         with patch(
             "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel"
-        ) as mock_ch, patch.object(handler, "ensure_channel_ready", new_callable=AsyncMock):
-            new_channel = AsyncMock()
+        ) as mock_ch, patch.object(
+            handler,
+            "_setup_identifier_interceptor_for_channel",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("cannot connect"),
+        ):
+            new_channel = Mock()
+            new_channel._unary_unary_interceptors = []
+            new_channel.close = AsyncMock()
             mock_ch.return_value = new_channel
-            await handler.reconnect()
+            with pytest.raises(RuntimeError, match="cannot connect"):
+                await handler.reconnect()
 
-        assert handler._async_channel is new_channel
+        new_channel.close.assert_awaited_once()
+        old_channel.close.assert_not_called()
+        assert handler._async_channel is old_channel
+
+    @pytest.mark.asyncio
+    async def test_async_reconnect_rpc_failure_raises_connect_failed(self):
+        """Async reconnect() maps Connect RPC failures to a clear MilvusException."""
+        handler = _make_real_async_handler()
+        old_channel = handler._async_channel
+        old_stub = handler._async_stub
+
+        with patch(
+            "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel"
+        ) as mock_ch, patch.object(
+            handler,
+            "_setup_identifier_interceptor_for_channel",
+            new_callable=AsyncMock,
+            side_effect=_MockRpcError(),
+        ):
+            new_channel = Mock()
+            new_channel._unary_unary_interceptors = []
+            new_channel.close = AsyncMock()
+            mock_ch.return_value = new_channel
+            with pytest.raises(
+                MilvusException,
+                match="Fail connecting to server on deadhost:19530",
+            ):
+                await handler.reconnect(address="deadhost:19530")
+
+        new_channel.close.assert_awaited_once()
+        old_channel.close.assert_not_called()
+        assert handler._async_channel is old_channel
+        assert handler._async_stub is old_stub
+        assert handler._address == "localhost:19530"
 
     @pytest.mark.asyncio
     async def test_async_reconnect_passes_timeout(self):
-        """Async reconnect() forwards timeout to ensure_channel_ready."""
+        """Async reconnect() forwards timeout to Connect validation."""
         handler = _make_real_async_handler()
 
         with patch(
-            "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel", return_value=AsyncMock()
-        ), patch.object(handler, "ensure_channel_ready", new_callable=AsyncMock) as mock_ensure:
+            "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel"
+        ) as mock_ch, patch.object(
+            handler, "_setup_identifier_interceptor_for_channel", new_callable=AsyncMock
+        ) as mock_validate:
+            new_channel = Mock()
+            new_channel._unary_unary_interceptors = []
+            new_channel.close = AsyncMock()
+            mock_ch.return_value = new_channel
+            mock_validate.side_effect = lambda final_channel, stub, user, timeout=10: (
+                Mock(),
+                final_channel,
+                stub,
+            )
             await handler.reconnect(timeout=30)
 
-        mock_ensure.assert_called_once_with(timeout=30)
+        assert mock_validate.call_args.kwargs["timeout"] == 30
+
+    @pytest.mark.asyncio
+    async def test_async_concurrent_reconnect_keeps_channel_stub_coherent(self):
+        """Concurrent async reconnects leave the active channel and stub as a matching pair."""
+        handler = _make_real_async_handler()
+        original_channel = handler._async_channel
+        replacements = []
+
+        for _ in range(2):
+            channel = Mock()
+            channel._unary_unary_interceptors = []
+            channel.close = AsyncMock()
+            replacements.append(channel)
+
+        stub_by_channel = {}
+
+        async def validate(final_channel, stub, user, timeout=10):
+            stub_by_channel[final_channel] = stub
+            await asyncio.sleep(0)
+            return Mock(), final_channel, stub
+
+        with patch(
+            "pymilvus.client.async_grpc_handler.grpc.aio.insecure_channel",
+            side_effect=replacements,
+        ), patch.object(
+            handler,
+            "_setup_identifier_interceptor_for_channel",
+            side_effect=validate,
+        ):
+            await asyncio.gather(
+                handler.reconnect(address="first:19530"),
+                handler.reconnect(address="second:19530"),
+            )
+            await asyncio.sleep(0)
+
+        assert handler._async_channel in stub_by_channel
+        assert handler._async_stub is stub_by_channel[handler._async_channel]
+        assert handler._address in {"first:19530", "second:19530"}
+        assert handler._async_channel.close.await_count == 0
+        retired_close_count = sum(
+            channel.close.await_count for channel in [original_channel, *replacements]
+        )
+        assert retired_close_count == 2
 
 
 # =============================================================================
