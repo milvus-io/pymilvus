@@ -277,6 +277,34 @@ class TestMilvusClient:
             )
             mock_conn.add_collection_field.assert_called_once()
 
+    def test_add_collection_field_forwards_external_field(self):
+        """External field kwargs should reach the handler FieldSchema."""
+        mock_handler = MagicMock()
+        mock_handler.get_server_type.return_value = "milvus"
+        mock_handler._wait_for_channel_ready = MagicMock()
+        mock_conn = MagicMock()
+
+        with patch(
+            "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
+        ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
+            client = MilvusClient()
+
+            client.add_collection_field(
+                collection_name="ext_coll",
+                field_name="score",
+                data_type=DataType.DOUBLE,
+                nullable=True,
+                external_field="score",
+            )
+
+            mock_conn.add_collection_field.assert_called_once()
+            assert mock_conn.add_collection_field.call_args.args[0] == "ext_coll"
+            added_schema = mock_conn.add_collection_field.call_args.args[1]
+            assert added_schema.name == "score"
+            assert added_schema.dtype == DataType.DOUBLE
+            assert added_schema.nullable is True
+            assert added_schema.external_field == "score"
+
     def test_add_collection_struct_field_requires_nullable(self):
         """Test that adding struct field requires nullable=True."""
         mock_handler = MagicMock()
