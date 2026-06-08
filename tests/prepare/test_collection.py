@@ -6,6 +6,7 @@ import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema, Function, FunctionType
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import schema_pb2
 from pymilvus.orm.schema import StructFieldSchema
 
 
@@ -281,6 +282,24 @@ class TestGetFieldSchema:
         assert primary == "pk"
         assert auto_id == "pk"
 
+    def test_external_field_is_copied_to_proto(self):
+        """External field mapping should survive dict -> proto conversion."""
+        field_schema, primary, auto_id = Prepare.get_field_schema(
+            {
+                "name": "score",
+                "type": DataType.DOUBLE,
+                "nullable": True,
+                "external_field": "score",
+            }
+        )
+
+        assert field_schema.name == "score"
+        assert field_schema.data_type == DataType.DOUBLE
+        assert field_schema.nullable is True
+        assert field_schema.external_field == "score"
+        assert primary is None
+        assert auto_id is None
+
 
 class TestGetSchema:
     """Tests for get_schema."""
@@ -336,6 +355,25 @@ class TestAddCollectionFieldRequest:
         field = FieldSchema("new_field", DataType.VARCHAR, max_length=100)
         req = Prepare.add_collection_field_request("test_coll", field)
         assert req.collection_name == "test_coll"
+
+    def test_add_external_field_request_serializes_mapping(self):
+        """AddCollectionFieldRequest.schema should include external_field."""
+        field = FieldSchema(
+            "score",
+            DataType.DOUBLE,
+            nullable=True,
+            external_field="score",
+        )
+
+        req = Prepare.add_collection_field_request("ext_coll", field)
+        parsed = schema_pb2.FieldSchema()
+        parsed.ParseFromString(req.schema)
+
+        assert req.collection_name == "ext_coll"
+        assert parsed.name == "score"
+        assert parsed.data_type == DataType.DOUBLE
+        assert parsed.nullable is True
+        assert parsed.external_field == "score"
 
     def test_add_struct_field_request(self):
         """Test adding a nullable struct field to collection."""
