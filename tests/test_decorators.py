@@ -151,6 +151,17 @@ class TestDecorators:
 
         assert count == 1
 
+    def test_retry_decorators_unavailable_reports_grpc_status_code(self):
+        @retry_on_rpc_failure(retry_times=0)
+        def test_api(self):
+            raise MockUnavailableError
+
+        with pytest.raises(MilvusException) as exc_info:
+            test_api(self)
+
+        assert exc_info.value.code == grpc.StatusCode.UNAVAILABLE
+        assert not callable(exc_info.value.code)
+
     @pytest.mark.skip("Do not open this unless you have loads of time, get some coffee and wait")
     def test_retry_decorators_default_behaviour(self):
         count = 0

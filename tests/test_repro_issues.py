@@ -129,24 +129,38 @@ def test_issue_3541_sync_reconnect_swaps_without_waiting_for_paused_rpc():
     old_rpc = threading.Thread(target=lambda: old_results.append(handler.get_server_version()))
     old_rpc.start()
     assert old_rpc_started.wait(timeout=1)
+    reconnect_done = threading.Event()
+    reconnect_errors = []
 
     def wait_for_new_channel(timeout=10, **kwargs):
         assert timeout == 30
         return kwargs["final_channel"], new_stub
 
+    def run_reconnect():
+        try:
+            handler.reconnect(timeout=30)
+        except Exception as exc:
+            reconnect_errors.append(exc)
+        finally:
+            reconnect_done.set()
+
+    reconnect = None
     try:
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel", return_value=new_channel):
             with patch.object(handler, "_wait_for_channel_ready", side_effect=wait_for_new_channel):
-                reconnect = threading.Thread(target=lambda: handler.reconnect(timeout=30))
+                reconnect = threading.Thread(target=run_reconnect)
                 reconnect.start()
-                reconnect.join(timeout=0.2)
-                assert not reconnect.is_alive()
+                assert reconnect_done.wait(timeout=5)
+
+        assert reconnect_errors == []
 
         assert handler.get_server_version() == "new"
         assert old_channel.close_count == 0
     finally:
         release_old_rpc.set()
         old_rpc.join(timeout=1)
+        if reconnect is not None:
+            reconnect.join(timeout=1)
 
     assert old_results == ["old"]
     old_ref = weakref.ref(old_channel)
