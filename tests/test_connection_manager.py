@@ -1681,6 +1681,12 @@ class TestReplicateViolationRecovery:
             "cause: non-replicate message cannot be received in secondary role",
         )
 
+    def _make_closed_channel_error(self):
+        return MilvusException(
+            code=1,
+            message="Unexpected error, message=<Cannot invoke RPC on closed channel!>",
+        )
+
     def test_replicate_violation_triggers_recovery_for_global_strategy(self):
         """Test handle_error triggers recovery on REPLICATE_VIOLATION for global connections."""
         mgr = ConnectionManager.get_instance()
@@ -1728,6 +1734,22 @@ class TestReplicateViolationRecovery:
             assert isinstance(managed.strategy, RegularStrategy)
 
             result = mgr.handle_error(handler, self._make_replicate_error())
+            assert result is True
+            handler.reconnect.assert_called_once()
+
+    def test_closed_channel_exception_triggers_recovery_for_regular_strategy(self):
+        """Wrapped closed-channel MilvusExceptions should reconnect and retry."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            mock_handler = _make_sync_handler()
+            mock_handler_cls.return_value = mock_handler
+
+            handler = mgr.get_or_create(config)
+
+            result = mgr.handle_error(handler, self._make_closed_channel_error())
+
             assert result is True
             handler.reconnect.assert_called_once()
 
@@ -1802,6 +1824,23 @@ class TestReplicateViolationRecovery:
             handler.reconnect.assert_called_once()
             call_kwargs = handler.reconnect.call_args
             assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:19530"
+
+    @pytest.mark.asyncio
+    async def test_async_closed_channel_exception_triggers_recovery(self):
+        """Async wrapped closed-channel MilvusExceptions should reconnect and retry."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
+            handler = _make_async_handler()
+            mock_handler_cls.return_value = handler
+
+            await mgr.get_or_create(config)
+
+            result = await mgr.handle_error(handler, self._make_closed_channel_error())
+
+            assert result is True
+            handler.reconnect.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_async_unrelated_milvus_exception_not_retried(self):

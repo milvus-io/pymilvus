@@ -277,6 +277,21 @@ IGNORE_RETRY_CODES = (
     grpc.StatusCode.UNIMPLEMENTED,
 )
 
+_RECOVERABLE_CHANNEL_EXCEPTION_MARKERS = ("cannot invoke rpc on closed channel",)
+
+
+def _is_recoverable_channel_exception(error: Exception) -> bool:
+    message = str(error).lower()
+    return any(marker in message for marker in _RECOVERABLE_CHANNEL_EXCEPTION_MARKERS)
+
+
+def _unexpected_error_message(error: Exception) -> str:
+    return f"Unexpected error, message=<{error!s}>"
+
+
+def _recoverable_channel_milvus_exception(error: Exception) -> MilvusException:
+    return MilvusException(message=_unexpected_error_message(error))
+
 
 def retry_on_rpc_failure(
     *,
@@ -371,6 +386,20 @@ def retry_on_rpc_failure(
                     except asyncio.TimeoutError as e:
                         raise MilvusException(message=to_msg) from e
                     except Exception as e:
+                        if (
+                            _is_recoverable_channel_exception(e)
+                            and args
+                            and hasattr(args[0], "_on_rpc_error")
+                        ):
+                            if is_timeout(start_time):
+                                raise MilvusException(
+                                    message=f"{to_msg}, message={_unexpected_error_message(e)}"
+                                ) from e
+                            recoverable_error = _recoverable_channel_milvus_exception(e)
+                            if await args[0]._on_rpc_error(recoverable_error):
+                                await asyncio.sleep(back_off)
+                                back_off = min(back_off * back_off_multiplier, max_back_off)
+                                continue
                         raise e from e
                     finally:
                         counter += 1
@@ -455,6 +484,20 @@ def retry_on_rpc_failure(
                     else:
                         raise e from e
                 except Exception as e:
+                    if (
+                        _is_recoverable_channel_exception(e)
+                        and args
+                        and hasattr(args[0], "_on_rpc_error")
+                    ):
+                        if timeout(start_time):
+                            raise MilvusException(
+                                message=f"{to_msg}, message={_unexpected_error_message(e)}"
+                            ) from e
+                        recoverable_error = _recoverable_channel_milvus_exception(e)
+                        if args[0]._on_rpc_error(recoverable_error):
+                            time.sleep(back_off)
+                            back_off = min(back_off * back_off_multiplier, max_back_off)
+                            continue
                     raise e from e
                 finally:
                     counter += 1

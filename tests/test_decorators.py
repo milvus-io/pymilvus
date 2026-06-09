@@ -2,7 +2,7 @@ import asyncio
 import time
 import warnings
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
 import pytest
@@ -402,6 +402,86 @@ class TestRetryDecoratorEdgeCases:
         result = sometimes_failing_func(mock_self)
         assert result == "eventual_success"
         assert call_count == 3
+
+    def test_closed_channel_value_error_triggers_recovery_and_retry(self):
+        mock_self = MockSelfForTracing()
+        mock_self._on_rpc_error = MagicMock(return_value=True)
+        call_count = 0
+
+        @retry_on_rpc_failure(retry_times=1, initial_back_off=0.001)
+        def closed_channel_once(self_arg):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ValueError("Cannot invoke RPC on closed channel!")
+            return "eventual_success"
+
+        result = closed_channel_once(mock_self)
+
+        assert result == "eventual_success"
+        assert call_count == 2
+        mock_self._on_rpc_error.assert_called_once()
+        error = mock_self._on_rpc_error.call_args.args[0]
+        assert isinstance(error, MilvusException)
+        assert "Cannot invoke RPC on closed channel" in error.message
+
+    def test_generic_value_error_still_not_retried(self):
+        mock_self = MockSelfForTracing()
+        mock_self._on_rpc_error = MagicMock(return_value=True)
+        call_count = 0
+
+        @retry_on_rpc_failure(retry_times=1, initial_back_off=0.001)
+        def generic_value_error(self_arg):
+            nonlocal call_count
+            call_count += 1
+            raise ValueError("generic client bug")
+
+        with pytest.raises(MilvusException, match="generic client bug"):
+            generic_value_error(mock_self)
+
+        assert call_count == 1
+        mock_self._on_rpc_error.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_closed_channel_value_error_triggers_recovery_and_retry(self):
+        mock_self = MockSelfForTracing()
+        mock_self._on_rpc_error = AsyncMock(return_value=True)
+        call_count = 0
+
+        @retry_on_rpc_failure(retry_times=1, initial_back_off=0.001)
+        async def closed_channel_once(self_arg):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise ValueError("Cannot invoke RPC on closed channel!")
+            return "eventual_success"
+
+        result = await closed_channel_once(mock_self)
+
+        assert result == "eventual_success"
+        assert call_count == 2
+        mock_self._on_rpc_error.assert_awaited_once()
+        error = mock_self._on_rpc_error.await_args.args[0]
+        assert isinstance(error, MilvusException)
+        assert "Cannot invoke RPC on closed channel" in error.message
+
+    @pytest.mark.asyncio
+    async def test_async_generic_value_error_still_not_retried(self):
+        mock_self = MockSelfForTracing()
+        mock_self._on_rpc_error = AsyncMock(return_value=True)
+        call_count = 0
+
+        @retry_on_rpc_failure(retry_times=1, initial_back_off=0.001)
+        async def generic_value_error(self_arg):
+            nonlocal call_count
+            call_count += 1
+            raise ValueError("generic client bug")
+
+        with pytest.raises(MilvusException, match="generic client bug"):
+            await generic_value_error(mock_self)
+
+        assert call_count == 1
+        mock_self._on_rpc_error.assert_not_awaited()
 
     def test_deadline_exceeded_not_retried(self):
         mock_self = MockSelfForTracing()
