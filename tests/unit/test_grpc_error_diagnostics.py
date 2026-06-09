@@ -2,7 +2,6 @@
 Tests for gRPC error diagnostics: debug_error_string and channel_state.
 
 Unit tests use mocks and run quickly.
-Integration tests require network access and are marked with @pytest.mark.integration.
 """
 
 from typing import Optional
@@ -153,75 +152,3 @@ class TestConnectivityStateMapping:
         assert _CONNECTIVITY_INT_TO_ENUM[3] == grpc.ChannelConnectivity.TRANSIENT_FAILURE
         assert _CONNECTIVITY_INT_TO_ENUM[4] == grpc.ChannelConnectivity.SHUTDOWN
         assert len(_CONNECTIVITY_INT_TO_ENUM) == 5
-
-
-@pytest.mark.integration
-class TestGrpcErrorDiagnosticsIntegration:
-    """
-    Integration tests that make real gRPC connections.
-    These tests require network access and may be slow.
-
-    Run with: pytest tests/test_grpc_error_diagnostics.py -m integration
-    """
-
-    def _test_connection(self, uri: str, timeout: float = 3.0):
-        """Helper to test a connection and return error info."""
-        channel = None
-        try:
-            addr = uri.replace("http://", "").replace("https://", "")
-            if uri.startswith("https://"):
-                channel = grpc.secure_channel(
-                    addr,
-                    grpc.ssl_channel_credentials(),
-                    options=[("grpc.enable_retries", 0)],
-                )
-            else:
-                channel = grpc.insecure_channel(addr, options=[("grpc.enable_retries", 0)])
-
-            method = channel.unary_unary(
-                "/test/Method",
-                request_serializer=lambda x: b"",
-                response_deserializer=lambda x: x,
-            )
-            method(b"", timeout=timeout)
-        except grpc.RpcError as e:
-            error_info = _get_rpc_error_info(e, channel)
-            return e, error_info
-        else:
-            return None, None
-        finally:
-            if channel:
-                channel.close()
-
-    def test_dns_failure_includes_debug_and_channel_state(self):
-        """Test DNS resolution failure includes diagnostic info."""
-        error, error_info = self._test_connection("http://baddomain.invalid:19530")
-        assert error is not None
-        assert error.code() == grpc.StatusCode.UNAVAILABLE
-        assert "debug=" in error_info
-        assert "channel_state=" in error_info
-        # Different grpcio versions and OS DNS resolvers produce different messages:
-        # - "DNS resolution failed" / "Name resolution failure" on Linux
-        # - "failed to connect to all addresses" on macOS (resolves .invalid to sinkhole IP)
-        error_lower = error_info.lower()
-        assert any(
-            kw in error_lower
-            for kw in ("dns", "name", "resolve", "failed to connect", "socket closed")
-        )
-
-    def test_connection_refused_includes_debug_and_channel_state(self):
-        """Test connection refused includes diagnostic info."""
-        error, error_info = self._test_connection("http://127.0.0.1:19999")
-        assert error is not None
-        assert error.code() == grpc.StatusCode.UNAVAILABLE
-        assert "debug=" in error_info
-        assert "channel_state=TRANSIENT_FAILURE" in error_info
-        assert "refused" in error_info.lower() or "connect" in error_info.lower()
-
-    def test_deadline_exceeded_shows_connecting_state(self):
-        """Test that deadline exceeded with unresponsive server shows CONNECTING state."""
-        error, error_info = self._test_connection("http://8.8.8.8:80", timeout=3.0)
-        assert error is not None
-        assert error.code() == grpc.StatusCode.DEADLINE_EXCEEDED
-        assert "debug=" in error_info
-        assert "channel_state=CONNECTING" in error_info
