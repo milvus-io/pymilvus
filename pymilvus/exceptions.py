@@ -206,6 +206,8 @@ class ExceptionsMessage:
     PartitionKeyFieldType = "Param partition_key_field must be str type."
     PartitionKeyFieldNotExist = "the specified partition key field {%s} not exist"
     IsPartitionKeyType = "Param is_partition_key must be bool type."
+    IsDynamicType = "Param is_dynamic must be bool type."
+    NullableType = "Param nullable must be bool type."
     DataTypeInconsistent = (
         "The Input data type is inconsistent with defined schema, please check it."
     )
