@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pymilvus import DataType
 from pymilvus.client.connection_manager import ConnectionManager
-from pymilvus.client.types import LoadState
+from pymilvus.client.types import LoadState, Status
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
     MilvusException,
@@ -16,6 +16,8 @@ from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
+
+from helpers import UnavailableRpcError
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +31,17 @@ def reset_connection_manager():
 
 
 class TestMilvusClient:
+    def test_milvus_client_connect_rpc_failure_reports_connect_failed(self):
+        with patch(
+            "pymilvus.client.grpc_handler.GrpcHandler._internal_register",
+            side_effect=UnavailableRpcError(),
+        ):
+            with pytest.raises(MilvusException) as exc_info:
+                MilvusClient(uri="http://localhost:19530", timeout=0)
+
+        assert exc_info.value.code == Status.CONNECT_FAILED
+        assert "illegal connection params or server unavailable" in exc_info.value.message
+
     @pytest.mark.parametrize("index_params", [None, {}, "str", MilvusClient.prepare_index_params()])
     def test_create_index_invalid_params(self, index_params):
         mock_handler = MagicMock()
