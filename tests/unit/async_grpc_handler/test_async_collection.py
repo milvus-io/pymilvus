@@ -699,6 +699,7 @@ class TestAsyncGrpcHandlerCollectionProperties:
                 drop_field_name="",
                 drop_field_id=0,
                 drop_function_name="func1",
+                drop_function_output_fields=False,
             )
             mock_stub.AlterCollectionSchema.assert_called_once()
             mock_stub.DropCollectionFunction.assert_not_called()

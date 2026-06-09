@@ -651,6 +651,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.RestoreSnapshotRequest.SerializeToString,
                 response_deserializer=milvus__pb2.RestoreSnapshotResponse.FromString,
                 _registered_method=True)
+        self.RestoreExternalSnapshot = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/RestoreExternalSnapshot',
+                request_serializer=milvus__pb2.RestoreExternalSnapshotRequest.SerializeToString,
+                response_deserializer=milvus__pb2.RestoreExternalSnapshotResponse.FromString,
+                _registered_method=True)
+        self.ExportSnapshot = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ExportSnapshot',
+                request_serializer=milvus__pb2.ExportSnapshotRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ExportSnapshotResponse.FromString,
+                _registered_method=True)
         self.GetRestoreSnapshotState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetRestoreSnapshotState',
                 request_serializer=milvus__pb2.GetRestoreSnapshotStateRequest.SerializeToString,
@@ -1483,6 +1493,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def RestoreExternalSnapshot(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ExportSnapshot(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetRestoreSnapshotState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -2155,6 +2177,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.RestoreSnapshot,
                     request_deserializer=milvus__pb2.RestoreSnapshotRequest.FromString,
                     response_serializer=milvus__pb2.RestoreSnapshotResponse.SerializeToString,
+            ),
+            'RestoreExternalSnapshot': grpc.unary_unary_rpc_method_handler(
+                    servicer.RestoreExternalSnapshot,
+                    request_deserializer=milvus__pb2.RestoreExternalSnapshotRequest.FromString,
+                    response_serializer=milvus__pb2.RestoreExternalSnapshotResponse.SerializeToString,
+            ),
+            'ExportSnapshot': grpc.unary_unary_rpc_method_handler(
+                    servicer.ExportSnapshot,
+                    request_deserializer=milvus__pb2.ExportSnapshotRequest.FromString,
+                    response_serializer=milvus__pb2.ExportSnapshotResponse.SerializeToString,
             ),
             'GetRestoreSnapshotState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetRestoreSnapshotState,
@@ -5523,6 +5555,60 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/RestoreSnapshot',
             milvus__pb2.RestoreSnapshotRequest.SerializeToString,
             milvus__pb2.RestoreSnapshotResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def RestoreExternalSnapshot(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/RestoreExternalSnapshot',
+            milvus__pb2.RestoreExternalSnapshotRequest.SerializeToString,
+            milvus__pb2.RestoreExternalSnapshotResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ExportSnapshot(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ExportSnapshot',
+            milvus__pb2.ExportSnapshotRequest.SerializeToString,
+            milvus__pb2.ExportSnapshotResponse.FromString,
             options,
             channel_credentials,
             insecure,

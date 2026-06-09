@@ -236,6 +236,7 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.AlterCollectionSchema.assert_called_once()
         request = handler._stub.AlterCollectionSchema.call_args.args[0]
         assert request.action.drop_request.function_name == "func"
+        assert not request.action.drop_request.drop_function_output_fields
         handler._stub.DropCollectionFunction.assert_not_called()
         assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
         GlobalCache._reset_for_testing()
