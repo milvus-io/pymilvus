@@ -1088,6 +1088,18 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def drop_function_field(
+        self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a function and its output field from the collection."""
+        await self._alter_collection_schema(
+            collection_name=collection_name,
+            drop_function_name=function_name,
+            drop_function_output_fields=True,
+            timeout=timeout,
+            **kwargs,
+        )
+
     async def drop_collection_field(
         self,
         collection_name: str,
@@ -1114,6 +1126,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
+        drop_function_output_fields: bool = False,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
@@ -1183,6 +1196,7 @@ class AsyncMilvusClient(BaseMilvusClient):
                 drop_field_name=drop_field_name,
                 drop_field_id=drop_field_id,
                 drop_function_name=drop_function_name,
+                drop_function_output_fields=drop_function_output_fields,
                 timeout=timeout,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,
