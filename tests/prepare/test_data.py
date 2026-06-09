@@ -137,6 +137,56 @@ class TestRowInsertParam:
             4.0,
         ]
 
+    def test_insert_nullable_struct_none_omits_vector_subfield_payload(self):
+        """Test nullable struct None row does not partially populate vector sub-fields."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        struct_fields_info = [
+            {
+                "name": "clips",
+                "type": DataType._ARRAY_OF_STRUCT,
+                "nullable": True,
+                "fields": [
+                    {
+                        "name": "score",
+                        "type": DataType.ARRAY,
+                        "element_type": DataType.FLOAT,
+                        "nullable": True,
+                        "params": {"max_capacity": 16},
+                    },
+                    {
+                        "name": "embedding",
+                        "type": DataType._ARRAY_OF_VECTOR,
+                        "element_type": DataType.FLOAT_VECTOR,
+                        "nullable": True,
+                        "params": {"max_capacity": 16, "dim": 2},
+                    },
+                ],
+            }
+        ]
+        rows = [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0], "clips": None}]
+
+        req = Prepare.row_insert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=struct_fields_info,
+        )
+
+        struct_data = next(field for field in req.fields_data if field.field_name == "clips")
+        score_data = struct_data.struct_arrays.fields[0]
+        embedding_data = struct_data.struct_arrays.fields[1]
+
+        assert list(score_data.valid_data) == [False]
+        assert score_data.WhichOneof("field") is None
+        assert list(embedding_data.valid_data) == [False]
+        assert embedding_data.WhichOneof("field") is None
+
     def test_insert_non_nullable_struct_none_or_missing_raises(self):
         """Test non-nullable struct cannot be None or missing."""
         schema = CollectionSchema(
