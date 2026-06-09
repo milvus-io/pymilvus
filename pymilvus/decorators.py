@@ -10,7 +10,6 @@ from typing import Any, Callable, Optional, Set
 
 import grpc
 
-from .client.types import Status
 from .exceptions import (
     DataNotMatchException,
     ErrorCode,
@@ -339,8 +338,7 @@ def retry_on_rpc_failure(
                             await args[0]._on_rpc_error(e)
                         if is_timeout(start_time):
                             raise MilvusException(
-                                Status.CONNECT_FAILED,
-                                f"{to_msg}, {_get_rpc_error_info(e, channel)}",
+                                e.code(), f"{to_msg}, {_get_rpc_error_info(e, channel)}"
                             ) from e
 
                         if counter > 3:
@@ -427,8 +425,7 @@ def retry_on_rpc_failure(
                         args[0]._on_rpc_error(e)
                     if timeout(start_time):
                         raise MilvusException(
-                            Status.CONNECT_FAILED,
-                            f"{to_msg}, {_get_rpc_error_info(e, channel)}",
+                            e.code(), f"{to_msg}, {_get_rpc_error_info(e, channel)}"
                         ) from e
 
                     if counter > 3:

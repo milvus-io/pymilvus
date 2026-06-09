@@ -8,16 +8,7 @@ from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.client.types import Status
 from pymilvus.exceptions import MilvusException, ParamError
 
-
-class _UnavailableRpcError(grpc.RpcError):
-    def code(self):
-        return grpc.StatusCode.UNAVAILABLE
-
-    def details(self):
-        return "connection refused"
-
-    def debug_error_string(self):
-        return "debug unavailable"
+from helpers import UnavailableRpcError
 
 
 def _connect_response(identifier=42):
@@ -425,14 +416,12 @@ class TestGrpcHandlerConnectionMgmt:
         handler._stub.Connect.assert_called_once()
         assert handler._stub.Connect.call_args.kwargs["timeout"] == 0.25
 
-    def test_internal_register_rpc_error_reports_numeric_connect_failed(self):
+    def test_wait_for_channel_ready_register_rpc_error_reports_connect_failed(self):
         handler = GrpcHandler(channel=MagicMock())
-        handler._stub = MagicMock()
-        handler._stub.Connect.side_effect = _UnavailableRpcError()
+        handler._stub.Connect.side_effect = UnavailableRpcError()
 
         with pytest.raises(MilvusException) as exc_info:
-            handler._GrpcHandler__internal_register("user", "host", timeout=0)
+            handler._wait_for_channel_ready(timeout=0)
 
         assert exc_info.value.code == Status.CONNECT_FAILED
-        assert "StatusCode.UNAVAILABLE" in exc_info.value.message
-        assert "connection refused" in exc_info.value.message
+        assert "illegal connection params or server unavailable" in exc_info.value.message
