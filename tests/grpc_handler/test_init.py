@@ -5,7 +5,19 @@ from unittest.mock import MagicMock, patch
 import grpc
 import pytest
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
+from pymilvus.client.types import Status
 from pymilvus.exceptions import MilvusException, ParamError
+
+
+class _UnavailableRpcError(grpc.RpcError):
+    def code(self):
+        return grpc.StatusCode.UNAVAILABLE
+
+    def details(self):
+        return "connection refused"
+
+    def debug_error_string(self):
+        return "debug unavailable"
 
 
 def _connect_response(identifier=42):
@@ -412,3 +424,15 @@ class TestGrpcHandlerConnectionMgmt:
         assert handler._internal_register("user", "host", timeout=0.25) == 42
         handler._stub.Connect.assert_called_once()
         assert handler._stub.Connect.call_args.kwargs["timeout"] == 0.25
+
+    def test_internal_register_rpc_error_reports_numeric_connect_failed(self):
+        handler = GrpcHandler(channel=MagicMock())
+        handler._stub = MagicMock()
+        handler._stub.Connect.side_effect = _UnavailableRpcError()
+
+        with pytest.raises(MilvusException) as exc_info:
+            handler._GrpcHandler__internal_register("user", "host", timeout=0)
+
+        assert exc_info.value.code == Status.CONNECT_FAILED
+        assert "StatusCode.UNAVAILABLE" in exc_info.value.message
+        assert "connection refused" in exc_info.value.message
