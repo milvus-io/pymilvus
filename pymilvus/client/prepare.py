@@ -863,9 +863,6 @@ class Prepare:
                 for field in struct_field_info["fields"]:
                     field_name = field["name"]
                     field_data = schema_types.FieldData(field_name=field_name, type=field["type"])
-                    if field["type"] == DataType._ARRAY_OF_VECTOR:
-                        field_data.vectors.vector_array.dim = Prepare._get_dim_value(field)
-                        field_data.vectors.vector_array.element_type = field["element_type"]
                     struct_sub_fields_data[struct_name][field_name] = field_data
                     struct_sub_field_info[struct_name][field_name] = field
 
