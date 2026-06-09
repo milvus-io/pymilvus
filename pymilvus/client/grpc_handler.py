@@ -3193,7 +3193,6 @@ class GrpcHandler:
         check_status(response.status)
         return response.identifier
 
-    @retry_on_rpc_failure()
     @upgrade_reminder
     def __internal_register(self, user: str, host: str, **kwargs) -> int:
         return self._internal_register(user, host, **kwargs)

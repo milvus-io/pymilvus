@@ -16,6 +16,7 @@ from pymilvus.client.types import (
     RefreshExternalCollectionJobInfo,
     RestoreSnapshotJobInfo,
     SnapshotInfo,
+    Status,
 )
 from pymilvus.exceptions import (
     DataTypeNotMatchException,
@@ -29,6 +30,8 @@ from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient, MilvusClientSession
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
 
+from helpers import UnavailableRpcError
+
 log = logging.getLogger(__name__)
 
 
@@ -41,6 +44,17 @@ def reset_connection_manager():
 
 
 class TestMilvusClient:
+    def test_milvus_client_connect_rpc_failure_reports_connect_failed(self):
+        with patch(
+            "pymilvus.client.grpc_handler.GrpcHandler._internal_register",
+            side_effect=UnavailableRpcError(),
+        ):
+            with pytest.raises(MilvusException) as exc_info:
+                MilvusClient(uri="http://localhost:19530", timeout=0)
+
+        assert exc_info.value.code == Status.CONNECT_FAILED
+        assert "illegal connection params or server unavailable" in exc_info.value.message
+
     def test_schema_extension_signatures_exclude_physical_backfill(self):
         assert not hasattr(MilvusClient, "alter_collection_schema")
         assert (
