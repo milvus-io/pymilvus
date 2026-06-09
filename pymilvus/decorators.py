@@ -425,7 +425,7 @@ def retry_on_rpc_failure(
                         args[0]._on_rpc_error(e)
                     if timeout(start_time):
                         raise MilvusException(
-                            e.code, f"{to_msg}, {_get_rpc_error_info(e, channel)}"
+                            e.code(), f"{to_msg}, {_get_rpc_error_info(e, channel)}"
                         ) from e
 
                     if counter > 3:
