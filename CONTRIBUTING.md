@@ -49,7 +49,11 @@ Note: the problems, features, and questions mentioned here are not limited to Py
 
 `pymilvus/`: Contains PyMilvus source codes.
 
-`tests/`: Contains unit tests.
+`tests/unit/`: Contains deterministic unit tests.
+
+`tests/integration/lite/`: Contains embedded Milvus Lite integration tests.
+
+`tests/benchmark/`: Contains benchmark workloads.
 
 `CONTRIBUTING.md`: Contributing guidelines.
 

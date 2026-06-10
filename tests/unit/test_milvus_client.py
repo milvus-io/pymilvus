@@ -4,6 +4,7 @@ from typing import ClassVar
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from helpers import UnavailableRpcError
 from pymilvus import (
     DataType,
     FieldSchema,
@@ -32,8 +33,6 @@ from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient, MilvusClientSession
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
-
-from helpers import UnavailableRpcError
 
 log = logging.getLogger(__name__)
 
