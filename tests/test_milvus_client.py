@@ -1,5 +1,6 @@
 import inspect
 import logging
+from typing import ClassVar
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -1446,6 +1447,7 @@ _SIMPLE_DELEGATION_CASES = [
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
     ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
     ("get_replicate_info", ("src", "ch0"), {}, "get_replicate_info"),
+    ("dump_messages", ("ch0", {"id": "m", "wal_name": "Pulsar"}), {}, "dump_messages"),
     ("alter_database_properties", ("mydb", {"key": "val"}), {}, "alter_database"),
     ("describe_alias", ("alias1",), {}, "describe_alias"),
     ("describe_resource_group", ("rg1",), {}, "describe_resource_group"),
@@ -2211,3 +2213,106 @@ class TestGrpcHandlerGetReplicateInfo:
 
         assert result["checkpoint"]["time_tick"] == 300
         assert result["salvage_checkpoint"] is None
+
+
+class TestGrpcHandlerDumpMessages:
+    """Tests for GrpcHandler.dump_messages stream shaping (handler layer)."""
+
+    _START: ClassVar[dict] = {"id": "start-1", "wal_name": "Pulsar"}
+
+    @staticmethod
+    def _msg_resp(mid="m1", payload=b"p", props=None):
+        return milvus_pb2.DumpMessagesResponse(
+            message=common_pb2.ImmutableMessage(
+                id=common_pb2.MessageID(id=mid, WAL_name=common_pb2.WALName.Pulsar),
+                payload=payload,
+                properties=props or {},
+            )
+        )
+
+    @staticmethod
+    def _bare_handler(responses):
+        """Construct a GrpcHandler without running __init__; attach a mocked stub."""
+        from pymilvus.client.grpc_handler import GrpcHandler  # noqa: PLC0415
+
+        h = GrpcHandler.__new__(GrpcHandler)
+        h._stub = MagicMock()
+        h._stub.DumpMessages.return_value = iter(responses)
+        return h
+
+    def test_yields_message_dicts_in_order(self):
+        h = self._bare_handler(
+            [self._msg_resp("m1", b"p1", {"_t": "Insert"}), self._msg_resp("m2", b"p2")]
+        )
+
+        result = list(h.dump_messages(pchannel="ch0", start_message_id=self._START))
+
+        assert result == [
+            {
+                "message_id": {"id": "m1", "wal_name": "Pulsar"},
+                "payload": b"p1",
+                "properties": {"_t": "Insert"},
+            },
+            {
+                "message_id": {"id": "m2", "wal_name": "Pulsar"},
+                "payload": b"p2",
+                "properties": {},
+            },
+        ]
+        h._stub.DumpMessages.assert_called_once()
+
+    def test_error_status_raises_mid_stream(self):
+        err = milvus_pb2.DumpMessagesResponse(
+            status=common_pb2.Status(code=65535, reason="dump failed")
+        )
+        h = self._bare_handler([self._msg_resp("m1"), err])
+
+        gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        assert next(gen)["message_id"]["id"] == "m1"
+        with pytest.raises(MilvusException, match="dump failed"):
+            next(gen)
+
+    def test_empty_stream_yields_nothing(self):
+        h = self._bare_handler([])
+        assert list(h.dump_messages(pchannel="ch0", start_message_id=self._START)) == []
+
+    def test_param_error_raised_eagerly_not_lazily(self):
+        h = self._bare_handler([])
+        # Must raise at call time, before any iteration happens.
+        with pytest.raises(ParamError):
+            h.dump_messages(pchannel="", start_message_id=self._START)
+        h._stub.DumpMessages.assert_not_called()
+
+    def test_request_fields_forwarded(self):
+        h = self._bare_handler([])
+        list(
+            h.dump_messages(
+                pchannel="ch0",
+                start_message_id=self._START,
+                start_timetick=100,
+                end_timetick=200,
+            )
+        )
+        request = h._stub.DumpMessages.call_args[0][0]
+        assert request.pchannel == "ch0"
+        assert request.start_message_id.id == "start-1"
+        assert request.start_timetick == 100
+        assert request.end_timetick == 200
+        assert h._stub.DumpMessages.call_args.kwargs["timeout"] is None
+        assert "metadata" in h._stub.DumpMessages.call_args.kwargs
+
+    def test_success_status_mid_stream_is_skipped(self):
+        ok = milvus_pb2.DumpMessagesResponse(status=common_pb2.Status())
+        h = self._bare_handler([self._msg_resp("m1"), ok, self._msg_resp("m2")])
+
+        result = list(h.dump_messages(pchannel="ch0", start_message_id=self._START))
+
+        assert [m["message_id"]["id"] for m in result] == ["m1", "m2"]
+
+    def test_unset_oneof_raises(self):
+        empty = milvus_pb2.DumpMessagesResponse()
+        h = self._bare_handler([empty])
+
+        gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
+        with pytest.raises(MilvusException, match="oneof"):
+            next(gen)

@@ -1,9 +1,12 @@
 """Tests for advanced Prepare methods (bulk operations, replication, analyzers)."""
 
+from typing import ClassVar
+
 import pytest
 from pymilvus import Function, FunctionType
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import common_pb2
 
 
 class TestBulkInsertRequests:
@@ -358,6 +361,67 @@ class TestGetReplicateInfoRequest:
                 source_cluster_id="src",
                 target_pchannel=None,
             )
+
+
+class TestDumpMessagesRequest:
+    """Tests for Prepare.dump_messages_request."""
+
+    _MSG_ID: ClassVar[dict] = {"id": "msg-1", "wal_name": "Pulsar"}
+
+    def test_builds_correct_request(self):
+        req = Prepare.dump_messages_request(
+            pchannel="by-dev-rootcoord-dml_0",
+            start_message_id=self._MSG_ID,
+            start_timetick=100,
+            end_timetick=200,
+        )
+        assert req.pchannel == "by-dev-rootcoord-dml_0"
+        assert req.start_message_id.id == "msg-1"
+        assert req.start_message_id.WAL_name == common_pb2.WALName.Pulsar
+        assert req.start_timetick == 100
+        assert req.end_timetick == 200
+
+    def test_timeticks_default_to_zero(self):
+        req = Prepare.dump_messages_request(
+            pchannel="ch0",
+            start_message_id=self._MSG_ID,
+        )
+        assert req.start_timetick == 0
+        assert req.end_timetick == 0
+
+    def test_missing_pchannel_raises(self):
+        with pytest.raises(ParamError, match="pchannel"):
+            Prepare.dump_messages_request(pchannel="", start_message_id=self._MSG_ID)
+
+    def test_none_pchannel_raises(self):
+        with pytest.raises(ParamError, match="pchannel"):
+            Prepare.dump_messages_request(pchannel=None, start_message_id=self._MSG_ID)
+
+    def test_missing_start_message_id_raises(self):
+        with pytest.raises(ParamError, match="start_message_id"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id=None)
+
+    def test_empty_start_message_id_raises(self):
+        with pytest.raises(ParamError, match="start_message_id"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id={})
+
+    def test_non_dict_start_message_id_raises(self):
+        with pytest.raises(ParamError, match="start_message_id"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id="msg-1")
+
+    def test_missing_id_key_raises(self):
+        with pytest.raises(ParamError, match=r"start_message_id\.id"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id={"wal_name": "Pulsar"})
+
+    def test_invalid_wal_name_raises(self):
+        with pytest.raises(ParamError, match="wal_name"):
+            Prepare.dump_messages_request(
+                pchannel="ch0", start_message_id={"id": "m", "wal_name": "NotAWal"}
+            )
+
+    def test_missing_wal_name_raises(self):
+        with pytest.raises(ParamError, match="wal_name"):
+            Prepare.dump_messages_request(pchannel="ch0", start_message_id={"id": "m"})
 
 
 class TestConvertFunctionToFunctionSchema:
