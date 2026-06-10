@@ -5,12 +5,14 @@ import pytest
 from pymilvus.exceptions import ConnectionConfigException
 from pymilvus.milvus_client import MilvusClient
 
-milvus_lite = pytest.importorskip("milvus_lite", reason="milvus-lite not installed")
-
-
-@pytest.mark.skipif(
+pytestmark = pytest.mark.skipif(
     sys.platform.startswith("win"), reason="Milvus Lite is not supported on Windows"
 )
+
+if not sys.platform.startswith("win"):
+    pytest.importorskip("milvus_lite", reason="milvus-lite not installed")
+
+
 class TestMilvusLite:
     def test_milvus_client_with_local_db_path(self, tmp_path):
         """MilvusClient("./test.db") should connect via Milvus Lite.

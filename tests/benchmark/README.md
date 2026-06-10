@@ -36,7 +36,7 @@ uv sync --group dev
 
 ```bash
 # Run all benchmarks
-pytest tests/benchmark/ --benchmark-only
+make benchmark
 
 # Run specific benchmark
 pytest tests/benchmark/test_search_bench.py::TestSearchBench::test_search_float32_varying_output_fields --benchmark-only
