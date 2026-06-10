@@ -1,4 +1,4 @@
-# tests/test_connection_manager.py
+# tests/unit/test_connection_manager.py
 """Tests for ConnectionManager and related classes."""
 
 import asyncio

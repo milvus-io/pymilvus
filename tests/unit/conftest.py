@@ -11,7 +11,10 @@ from pymilvus.client.types import DataType
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 
 logging.getLogger("faker").setLevel(logging.WARNING)
-sys.path.append(Path(__file__).absolute().parent.parent)
+UNIT_TEST_ROOT = Path(__file__).absolute().parent
+REPO_ROOT = UNIT_TEST_ROOT.parents[1]
+sys.path.append(str(UNIT_TEST_ROOT))
+sys.path.append(str(REPO_ROOT))
 
 
 # ============================================================

@@ -1,12 +1,20 @@
 UV ?= uv
 UV_RUN_DEV = $(UV) run --group dev
 UV_RUN_DEV_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_DEV)
+UV_RUN_LITE = $(UV) run --group dev --extra milvus-lite
+UV_RUN_LITE_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_LITE)
 
 sync:
 	$(UV) sync --group dev
 
 unittest:
-	$(UV_RUN_DEV_PYTHONPATH) pytest tests --ignore=tests/benchmark --cov=pymilvus -v
+	$(UV_RUN_DEV_PYTHONPATH) pytest tests/unit --cov=pymilvus -v
+
+integration-lite:
+	$(UV_RUN_LITE_PYTHONPATH) pytest tests/integration/lite -v
+
+benchmark:
+	$(UV_RUN_DEV_PYTHONPATH) pytest tests/benchmark --benchmark-only
 
 lint:
 	$(UV_RUN_DEV_PYTHONPATH) black pymilvus tests --check --diff
@@ -17,7 +25,7 @@ format:
 	$(UV_RUN_DEV_PYTHONPATH) ruff check pymilvus tests --fix
 
 coverage:
-	$(UV_RUN_DEV_PYTHONPATH) pytest --cov=pymilvus --ignore=tests/benchmark tests --cov-report=xml
+	$(UV_RUN_DEV_PYTHONPATH) pytest tests/unit --cov=pymilvus --cov-report=xml -v
 
 example:
 	$(UV_RUN_DEV_PYTHONPATH) python examples/example.py

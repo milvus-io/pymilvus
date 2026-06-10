@@ -2,6 +2,7 @@ import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from helpers import UnavailableRpcError
 from pymilvus import DataType
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.types import LoadState, Status
@@ -16,8 +17,6 @@ from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.index import IndexParams
 from pymilvus.milvus_client.milvus_client import MilvusClient
 from pymilvus.milvus_client.optimize_task import OptimizeResult, OptimizeTask
-
-from helpers import UnavailableRpcError
 
 log = logging.getLogger(__name__)
 

@@ -4,11 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import grpc
 import pytest
+from helpers import UnavailableRpcError
 from pymilvus.client.grpc_handler import GrpcHandler, ReconnectHandler
 from pymilvus.client.types import Status
 from pymilvus.exceptions import MilvusException, ParamError
-
-from helpers import UnavailableRpcError
 
 
 def _connect_response(identifier=42):
