@@ -476,6 +476,27 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
     return converted_fields
 
 
+def immutable_message_to_dict(msg: common_pb2.ImmutableMessage) -> Dict:
+    """Convert a common_pb2.ImmutableMessage proto to a plain dict.
+
+    Returns {"message_id": {"id": str, "wal_name": str} or None,
+    "payload": bytes, "properties": dict}, where wal_name is the WALName
+    enum name ("Unknown" | "RocksMQ" | "Pulsar" | "Kafka" | "WoodPecker" | "Test").
+    Returns message_id=None when the proto's id field is unset.
+    """
+    message_id = None
+    if msg.HasField("id"):
+        message_id = {
+            "id": msg.id.id,
+            "wal_name": common_pb2.WALName.Name(msg.id.WAL_name),
+        }
+    return {
+        "message_id": message_id,
+        "payload": msg.payload,
+        "properties": dict(msg.properties),
+    }
+
+
 def replicate_checkpoint_to_dict(cp: Optional[common_pb2.ReplicateCheckpoint]) -> Optional[Dict]:
     """Convert a common_pb2.ReplicateCheckpoint proto to a plain dict, or None if empty.
 

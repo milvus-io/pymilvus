@@ -62,6 +62,7 @@ from .utils import (
     check_invalid_binary_vector,
     check_status,
     get_server_type,
+    immutable_message_to_dict,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -487,7 +488,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.describe_collection_request(collection_name)
         reply = await self._async_stub.DescribeCollection(
@@ -515,7 +515,6 @@ class AsyncGrpcHandler:
     async def list_collections(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> List[str]:
-
         request = Prepare.show_collections_request()
         response = await self._async_stub.ShowCollections(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -599,7 +598,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> Union[str, dict]:
-
         if detail:
             if self._server_info_cache is None:
                 req = Prepare.register_request("", "")
@@ -797,7 +795,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         req = Prepare.get_persistent_segment_info_request(collection_name)
         response = await self._async_stub.GetPersistentSegmentInfo(
@@ -1394,7 +1391,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> bool:
-
         check_pass_param(
             collection_name=collection_name, partition_name=partition_name, timeout=timeout
         )
@@ -1413,7 +1409,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[str]:
-
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.show_partitions_request(collection_name)
         response = await self._async_stub.ShowPartitions(
@@ -1492,7 +1487,6 @@ class AsyncGrpcHandler:
     async def alloc_timestamp(
         self, timeout: Optional[float] = None, context: Optional[CallContext] = None, **kwargs
     ) -> int:
-
         request = milvus_types.AllocTimestampRequest()
         response = await self._async_stub.AllocTimestamp(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2439,7 +2433,6 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> int:
-
         request = Prepare.describe_collection_request(collection_name)
         response = await self._async_stub.DescribeCollection(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2563,3 +2556,44 @@ class AsyncGrpcHandler:
                 resp.salvage_checkpoint if resp.HasField("salvage_checkpoint") else None
             ),
         }
+
+    # NOTE: no @retry_on_rpc_failure — retrying a streaming RPC would replay
+    # already-yielded messages, and errors surface during iteration, not at call time.
+    def dump_messages(
+        self,
+        pchannel: str,
+        start_message_id: Dict,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """Async version of GrpcHandler.dump_messages; returns an async generator.
+
+        Intentionally a regular method (not ``async def``) so parameter
+        validation raises ParamError eagerly at call time. See the sync
+        version for full docs.
+        """
+        request = Prepare.dump_messages_request(
+            pchannel=pchannel,
+            start_message_id=start_message_id,
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+        )
+        stream = self._async_stub.DumpMessages(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+
+        async def _message_generator():
+            async for resp in stream:
+                which = resp.WhichOneof("response")
+                if which == "status":
+                    check_status(resp.status)
+                elif which == "message":
+                    yield immutable_message_to_dict(resp.message)
+                else:
+                    msg = f"unexpected DumpMessagesResponse oneof arm: {which!r}"
+                    raise MilvusException(message=msg)
+
+        return _message_generator()
