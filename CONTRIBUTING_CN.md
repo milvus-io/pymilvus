@@ -57,7 +57,11 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 
 `pymilvus/`：PyMilvus 的源码目录。
 
-`tests/`: 单元测试目录。
+`tests/unit/`: 确定性单元测试目录。
+
+`tests/integration/lite/`: 嵌入式 Milvus Lite 集成测试目录。
+
+`tests/benchmark/`: 基准测试目录。
 
 `CONTRIBUTING.md`: 本文档。
 
@@ -94,7 +98,6 @@ PyMilvus 的 Github issue 列表中，打上了 [good-first-issue](https://githu
 ## 恭喜你！你已经成为了 Milvus 社区的贡献者！
 
 除了和代码、机器打交道，你还可以和 Milvus 社区中的人交流。社区中每天都有很多新面孔加入，当他们遇到的困难正好是你所了解的地方，请尽情的帮助这些人。回想你初次接触 Milvus 接受过的帮助，你也可以将这样的交流互助精神不断传递下去，我们一起共创一个协作、开源、开放、包容的社区。
-
 
 
 

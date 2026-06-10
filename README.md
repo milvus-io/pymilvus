@@ -97,12 +97,13 @@ $ uv tool install pre-commit
 $ pre-commit install
 ```
 
-Q7. How to run unittests?
+Q7. How to run the maintained test suites?
 
 A7
 ```shell
 $ uv sync --group dev
 $ make unittest
+$ make integration-lite
 ```
 
 Q8. `zsh: no matches found: pymilvus[model]`, how do I solve this?
