@@ -2034,6 +2034,46 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def dump_messages(
+        self,
+        pchannel: str,
+        start_message_id: Dict,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Dump messages from a WAL range for data salvage (server-streaming RPC).
+
+        Async generator version — iterate with ``async for``. See
+        MilvusClient.dump_messages for full parameter and return-value docs.
+
+        Note:
+            Because this is an async generator, parameter validation errors
+            (ParamError) surface at the first iteration step, not at call time.
+
+        Examples:
+            async for msg in client.dump_messages(
+                pchannel="by-dev-rootcoord-dml_0",
+                start_message_id=ckpt["message_id"],
+                start_timetick=ckpt["time_tick"],
+                end_timetick=end_tt,
+            ):
+                print(msg["message_id"], len(msg["payload"]))
+        """
+        conn = await self._get_connection()
+        async for msg in conn.dump_messages(
+            pchannel=pchannel,
+            start_message_id=start_message_id,
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        ):
+            yield msg
+
     async def _is_collection_loaded(
         self, collection_name: str, timeout: Optional[float] = None
     ) -> bool:

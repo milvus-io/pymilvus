@@ -2542,6 +2542,67 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def dump_messages(
+        self,
+        pchannel: str,
+        start_message_id: Dict,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """
+        Dump messages from a WAL range for data salvage (server-streaming RPC).
+
+        Typically used after a force failover: call get_replicate_info() on the
+        old primary to obtain the salvage_checkpoint, then dump the messages that
+        were not yet synchronized to the new primary.
+
+        Args:
+            pchannel (str): Physical channel name to dump from.
+            start_message_id (Dict): Start position in WAL, {"id": str, "wal_name": str}.
+                Accepts get_replicate_info()["salvage_checkpoint"]["message_id"] directly.
+            start_timetick (int, optional): Only dump messages with timetick >=
+                start_timetick. 0 means no lower bound.
+            end_timetick (int, optional): Only dump messages with timetick <=
+                end_timetick. 0 means no limit — the server keeps streaming until
+                the RPC is cancelled; combined with no timeout, iteration blocks
+                indefinitely.
+            timeout (float, optional): Timeout in seconds applied to the entire stream.
+
+        Returns:
+            Generator yielding one dict per message:
+            {"message_id": {"id": str, "wal_name": str} or None,
+             "payload": bytes, "properties": dict}.
+
+        Raises:
+            ParamError: If pchannel or start_message_id is missing/invalid (at call time).
+            MilvusException: If the server reports an error (during iteration).
+
+        Examples:
+            info = client.get_replicate_info(
+                source_cluster_id="primary",
+                target_pchannel="by-dev-rootcoord-dml_0",
+            )
+            ckpt = info["salvage_checkpoint"]
+            for msg in client.dump_messages(
+                pchannel="by-dev-rootcoord-dml_0",
+                start_message_id=ckpt["message_id"],
+                start_timetick=ckpt["time_tick"],
+                end_timetick=end_tt,
+            ):
+                print(msg["message_id"], len(msg["payload"]))
+        """
+        return self._get_connection().dump_messages(
+            pchannel=pchannel,
+            start_message_id=start_message_id,
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
     def flush_all(self, timeout: Optional[float] = None, **kwargs) -> None:
         """Flush all collections.
 

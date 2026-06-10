@@ -89,6 +89,7 @@ from .utils import (
     check_invalid_binary_vector,
     check_status,
     get_server_type,
+    immutable_message_to_dict,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -3437,6 +3438,60 @@ class GrpcHandler:
                 resp.salvage_checkpoint if resp.HasField("salvage_checkpoint") else None
             ),
         }
+
+    # NOTE: no @retry_on_rpc_failure — retrying a streaming RPC would replay
+    # already-yielded messages, and errors surface during iteration, not at call time.
+    def dump_messages(
+        self,
+        pchannel: str,
+        start_message_id: Dict,
+        start_timetick: int = 0,
+        end_timetick: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        """
+        Dump messages from a WAL range for data salvage (server-streaming RPC).
+
+        Args:
+            pchannel: Physical channel name to dump from.
+            start_message_id: Start position in WAL, a dict {"id": str, "wal_name": str}.
+                Accepts get_replicate_info()["salvage_checkpoint"]["message_id"] directly.
+            start_timetick: Only dump messages with timetick >= start_timetick. 0 = no filter.
+            end_timetick: Only dump messages with timetick <= end_timetick.
+                0 = no limit; the server streams until the RPC is cancelled.
+            timeout: Optional timeout in seconds applied to the entire stream.
+
+        Returns:
+            A generator yielding one dict per message:
+            {"message_id": {"id": str, "wal_name": str} or None,
+             "payload": bytes, "properties": dict}.
+
+        Raises:
+            ParamError: If pchannel or start_message_id is missing/invalid (at call time).
+            MilvusException: If the server reports an error (during iteration).
+        """
+        request = Prepare.dump_messages_request(
+            pchannel=pchannel,
+            start_message_id=start_message_id,
+            start_timetick=start_timetick,
+            end_timetick=end_timetick,
+        )
+        stream = self._stub.DumpMessages(request, timeout=timeout, metadata=_api_level_md(context))
+
+        def _message_generator():
+            for resp in stream:
+                which = resp.WhichOneof("response")
+                if which == "status":
+                    check_status(resp.status)
+                elif which == "message":
+                    yield immutable_message_to_dict(resp.message)
+                else:
+                    msg = f"unexpected DumpMessagesResponse oneof arm: {which!r}"
+                    raise MilvusException(message=msg)
+
+        return _message_generator()
 
     @retry_on_rpc_failure()
     def create_snapshot(
