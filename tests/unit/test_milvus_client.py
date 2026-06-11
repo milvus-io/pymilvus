@@ -1600,6 +1600,19 @@ class TestMilvusClientCollectionMgmt:
             client.drop_collection_function("col", "fn")
             handler.alter_collection_schema.assert_called_once()
             assert handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+            assert not handler.alter_collection_schema.call_args.kwargs[
+                "drop_function_output_fields"
+            ]
+            handler.drop_collection_function.assert_not_called()
+
+    def test_drop_function_field_delegates(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.drop_function_field("col", "fn")
+            handler.alter_collection_schema.assert_called_once()
+            assert handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+            assert handler.alter_collection_schema.call_args.kwargs["drop_function_output_fields"]
             handler.drop_collection_function.assert_not_called()
 
     def test_drop_collection_field_delegates(self):

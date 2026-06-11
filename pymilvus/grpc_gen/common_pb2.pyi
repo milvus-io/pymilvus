@@ -253,6 +253,8 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ListRestoreSnapshotJobs: _ClassVar[MsgType]
     PinSnapshotData: _ClassVar[MsgType]
     UnpinSnapshotData: _ClassVar[MsgType]
+    RestoreExternalSnapshot: _ClassVar[MsgType]
+    ExportSnapshot: _ClassVar[MsgType]
     AlterCollectionSchema: _ClassVar[MsgType]
     RefreshExternalCollection: _ClassVar[MsgType]
     GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
@@ -381,6 +383,8 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeRefreshExternalCollection: _ClassVar[ObjectPrivilege]
     PrivilegePinSnapshotData: _ClassVar[ObjectPrivilege]
     PrivilegeUnpinSnapshotData: _ClassVar[ObjectPrivilege]
+    PrivilegeRestoreExternalSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeExportSnapshot: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -644,6 +648,8 @@ GetRestoreSnapshotState: MsgType
 ListRestoreSnapshotJobs: MsgType
 PinSnapshotData: MsgType
 UnpinSnapshotData: MsgType
+RestoreExternalSnapshot: MsgType
+ExportSnapshot: MsgType
 AlterCollectionSchema: MsgType
 RefreshExternalCollection: MsgType
 GetRefreshExternalCollectionProgress: MsgType
@@ -754,6 +760,8 @@ PrivilegeGetReplicateConfiguration: ObjectPrivilege
 PrivilegeRefreshExternalCollection: ObjectPrivilege
 PrivilegePinSnapshotData: ObjectPrivilege
 PrivilegeUnpinSnapshotData: ObjectPrivilege
+PrivilegeRestoreExternalSnapshot: ObjectPrivilege
+PrivilegeExportSnapshot: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

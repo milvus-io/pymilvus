@@ -481,6 +481,17 @@ class TestAlterCollectionSchemaRequest:
         )
         assert req.action.HasField("drop_request")
         assert req.action.drop_request.function_name == "bm25"
+        assert not req.action.drop_request.drop_function_output_fields
+
+    def test_drop_by_function_name_with_output_fields(self):
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            drop_function_name="bm25",
+            drop_function_output_fields=True,
+        )
+        assert req.action.HasField("drop_request")
+        assert req.action.drop_request.function_name == "bm25"
+        assert req.action.drop_request.drop_function_output_fields
 
     def test_error_on_both_add_and_drop(self):
         field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
