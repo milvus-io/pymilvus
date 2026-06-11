@@ -1456,6 +1456,22 @@ class TestAsyncAlterCollectionSchema:
 
         mock_handler.alter_collection_schema.assert_called_once()
         assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+        assert not mock_handler.alter_collection_schema.call_args.kwargs[
+            "drop_function_output_fields"
+        ]
+        mock_handler.drop_collection_function.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_drop_function_field_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.alter_collection_schema = AsyncMock()
+        mock_handler.drop_collection_function = AsyncMock()
+
+        await client.drop_function_field("col", "fn")
+
+        mock_handler.alter_collection_schema.assert_called_once()
+        assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
+        assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_output_fields"]
         mock_handler.drop_collection_function.assert_not_called()
 
     @pytest.mark.asyncio

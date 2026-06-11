@@ -575,6 +575,7 @@ class GrpcHandler:
         field_name: str = "",
         field_id: int = 0,
         function_name: str = "",
+        drop_function_output_fields: bool = False,
         db_name: str = "",
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
@@ -586,6 +587,7 @@ class GrpcHandler:
             drop_field_name=field_name,
             drop_field_id=field_id,
             drop_function_name=function_name,
+            drop_function_output_fields=drop_function_output_fields,
         )
         response = self._stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -678,6 +680,7 @@ class GrpcHandler:
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
+        drop_function_output_fields: bool = False,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -688,6 +691,7 @@ class GrpcHandler:
             drop_field_name=drop_field_name,
             drop_field_id=drop_field_id,
             drop_function_name=drop_function_name,
+            drop_function_output_fields=drop_function_output_fields,
         )
         response = self._stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)

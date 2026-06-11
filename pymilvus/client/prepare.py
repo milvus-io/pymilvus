@@ -394,6 +394,7 @@ class Prepare:
         drop_field_name: Optional[str] = None,
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
+        drop_function_output_fields: bool = False,
     ) -> milvus_types.AlterCollectionSchemaRequest:
         is_drop = any(
             identifier is not None
@@ -428,6 +429,7 @@ class Prepare:
                 drop_request.field_id = drop_field_id
             else:
                 drop_request.function_name = drop_function_name
+                drop_request.drop_function_output_fields = drop_function_output_fields
 
             action = milvus_types.AlterCollectionSchemaRequest.Action(drop_request=drop_request)
         else:
