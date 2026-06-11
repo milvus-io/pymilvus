@@ -1,125 +1,98 @@
-from pymilvus import (
-    DataType,
-    MilvusClient,
-    AsyncMilvusClient,
-    AnnSearchRequest,
-    RRFRanker,
-)
-import numpy as np
 import asyncio
-import time
-import random
 
-fmt = "\n=== {:30} ===\n"
-num_entities, dim = 100, 8
-default_limit = 3
-collection_name = "hello_milvus"
+import numpy as np
+
+from pymilvus import AsyncMilvusClient
+
+MILVUS_URI = "http://localhost:19530"
+COLLECTION_NAME = "async_example_collection"
+DIMENSION = 8
+INITIAL_ROWS = 1000
+PARALLEL_INSERT_TASKS = 5
+ROWS_PER_TASK = 50
+PARALLEL_SEARCH_TASKS = 10
+SEARCH_LIMIT = 5
+
 rng = np.random.default_rng(seed=19530)
 
-milvus_client = MilvusClient("example.db")
-async_milvus_client = AsyncMilvusClient("example.db")
 
-loop = asyncio.get_event_loop()
+def build_rows(count: int):
+    vectors = rng.random((count, DIMENSION)).astype("float32")
+    return [{"vector": vector.tolist()} for vector in vectors]
 
-schema = milvus_client.create_schema(auto_id=False, description="hello_milvus is the simplest demo to introduce the APIs")
-schema.add_field("pk", DataType.VARCHAR, is_primary=True, max_length=100)
-schema.add_field("random", DataType.DOUBLE)
-schema.add_field("embeddings", DataType.FLOAT_VECTOR, dim=dim)
-schema.add_field("embeddings2", DataType.FLOAT_VECTOR, dim=dim)
 
-index_params = milvus_client.prepare_index_params()
-index_params.add_index(field_name = "embeddings", index_type = "HNSW", metric_type="L2", nlist=128)
-index_params.add_index(field_name = "embeddings2",index_type = "HNSW", metric_type="L2", nlist=128)
+async def insert_parallel(
+    client: AsyncMilvusClient,
+    collection_name: str,
+    num_tasks: int = PARALLEL_INSERT_TASKS,
+    rows_per_task: int = ROWS_PER_TASK,
+) -> None:
+    async def insert_batch(batch_id: int) -> None:
+        result = await client.insert(collection_name, build_rows(rows_per_task))
+        print(f"Batch {batch_id}: inserted {result['insert_count']} entities")
 
-# Always use `await` when you want to guarantee the execution order of tasks.
-async def recreate_collection():
-    print(fmt.format("Start dropping collection"))
-    await async_milvus_client.drop_collection(collection_name)
-    print(fmt.format("Dropping collection done"))
-    print(fmt.format("Start creating collection"))
-    await async_milvus_client.create_collection(collection_name, schema=schema, index_params=index_params, consistency_level="Strong")
-    print(fmt.format("Creating collection done"))
+    await asyncio.gather(*(insert_batch(i) for i in range(num_tasks)))
+    print(f"Total parallel inserts completed: {num_tasks * rows_per_task} entities")
 
-has_collection = milvus_client.has_collection(collection_name, timeout=5)
-if has_collection:
-    loop.run_until_complete(recreate_collection())
-else:
-    print(fmt.format("Start creating collection"))
-    loop.run_until_complete(async_milvus_client.create_collection(collection_name, schema=schema, index_params=index_params, consistency_level="Strong"))
-    print(fmt.format("Creating collection done"))
 
-print(fmt.format("    all collections    "))
-print(milvus_client.list_collections())
+async def search_parallel(
+    client: AsyncMilvusClient,
+    collection_name: str,
+    num_tasks: int = PARALLEL_SEARCH_TASKS,
+) -> None:
+    async def search_once(task_id: int) -> None:
+        query_vector = rng.random((1, DIMENSION)).astype("float32").tolist()
+        search_params = {"metric_type": "COSINE", "params": {"nprobe": 16}}
+        result = await client.search(
+            collection_name,
+            data=query_vector,
+            anns_field="vector",
+            search_params=search_params,
+            limit=SEARCH_LIMIT,
+        )
+        print(f"Search {task_id}: found {len(result[0])} results")
 
-print(fmt.format(f"schema of collection {collection_name}"))
-print(milvus_client.describe_collection(collection_name))
+    await asyncio.gather(*(search_once(i) for i in range(num_tasks)))
+    print(f"Total parallel searches completed: {num_tasks}")
 
-async def async_insert(collection_name):
-    entities = [
-        # provide the pk field because `auto_id` is set to False
-        [str(i) for i in range(num_entities)],
-        rng.random(num_entities).tolist(),  # field random, only supports list
-        rng.random((num_entities, dim)),  # field embeddings, supports numpy.ndarray and list
-        rng.random((num_entities, dim)),  # field embeddings2, supports numpy.ndarray and list
-    ]
-    rows = [ {"pk": entities[0][i], "random": entities[1][i], "embeddings": entities[2][i], "embeddings2": entities[3][i]} for i in range (num_entities)]
-    print(fmt.format("Start async inserting entities"))
 
-    start_time = time.time()
-    tasks = []
-    for row in rows:
-        task = async_milvus_client.insert(collection_name, [row])
-        tasks.append(task)
-    await asyncio.gather(*tasks)
-    end_time = time.time()
-    print(fmt.format("Total time: {:.2f} seconds".format(end_time - start_time)))
-    print(fmt.format("Async inserting entities done"))
+async def main() -> None:
+    async with AsyncMilvusClient(uri=MILVUS_URI) as client:
+        if await client.has_collection(COLLECTION_NAME):
+            await client.drop_collection(COLLECTION_NAME)
 
-loop.run_until_complete(async_insert(collection_name))
+        try:
+            await client.create_collection(
+                COLLECTION_NAME,
+                dimension=DIMENSION,
+                auto_id=True,
+                metric_type="COSINE",
+            )
 
-async def other_async_task(collection_name):
-    tasks = []
-    # search
-    random_vector = rng.random((1, dim))
-    random_vector2 = rng.random((1, dim))
-    task = async_milvus_client.search(collection_name, random_vector, limit=default_limit, output_fields=["pk"], anns_field="embeddings")
-    tasks.append(task)
-    # hybrid search
-    search_param = {
-        "data": random_vector,
-        "anns_field": "embeddings",
-        "param": {"metric_type": "L2"},
-        "limit": default_limit,
-        "expr": "random > 0.5"}
-    req = AnnSearchRequest(**search_param)
-    task = async_milvus_client.hybrid_search(collection_name, [req], RRFRanker(), default_limit, output_fields=["pk"])
-    tasks.append(task)
-    # get
-    random_pk = random.randint(0, num_entities - 1)
-    task = async_milvus_client.get(collection_name=collection_name, ids=[random_pk])
-    tasks.append(task)
-    # query
-    task = async_milvus_client.query(collection_name=collection_name, filter="", limit=default_limit)
-    tasks.append(task)
-    # delete
-    task = async_milvus_client.delete(collection_name=collection_name, ids=[random_pk])
-    tasks.append(task)
-    # insert
-    task = async_milvus_client.insert(
-        collection_name=collection_name,
-        data=[{"pk": str(random_pk), "random": random_vector[0][0], "embeddings": random_vector[0], "embeddings2": random_vector[0]}],
-    )
-    tasks.append(task)
-    # upsert
-    task = async_milvus_client.upsert(
-        collection_name=collection_name,
-        data=[{"pk": str(random_pk), "random": random_vector2[0][0], "embeddings": random_vector2[0], "embeddings2": random_vector2[0]}],
-    )
-    tasks.append(task)
+            insert_result = await client.insert(COLLECTION_NAME, build_rows(INITIAL_ROWS))
+            print(f"Inserted {insert_result['insert_count']} entities")
 
-    results = await asyncio.gather(*tasks)
-    return results
+            query_vector = rng.random((1, DIMENSION)).astype("float32").tolist()
+            search_params = {"metric_type": "COSINE", "params": {"nprobe": 16}}
+            result = await client.search(
+                COLLECTION_NAME,
+                data=query_vector,
+                anns_field="vector",
+                search_params=search_params,
+                limit=SEARCH_LIMIT,
+            )
+            print("Search result IDs:", [hit["id"] for hit in result[0]])
 
-results = loop.run_until_complete(other_async_task(collection_name))
-for r in results:
-    print(r)
+            print("\n--- Testing parallel inserts ---")
+            await insert_parallel(client, COLLECTION_NAME)
+
+            print("\n--- Testing parallel searches ---")
+            await search_parallel(client, COLLECTION_NAME)
+        finally:
+            if await client.has_collection(COLLECTION_NAME):
+                await client.release_collection(COLLECTION_NAME)
+                await client.drop_collection(COLLECTION_NAME)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
