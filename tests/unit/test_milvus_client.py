@@ -1484,6 +1484,39 @@ class TestMilvusClientSimpleDelegation:
 # ============================================================
 
 
+class TestMilvusClientRoleDescription:
+    def test_create_role_forwards_description(self, mc):
+        client, handler = mc
+        client.create_role("role", description="reader role")
+        handler.create_role.assert_called_once_with(
+            "role", description="reader role", timeout=None, context=ANY
+        )
+
+    def test_alter_role_forwards_description(self, mc):
+        client, handler = mc
+        client.alter_role("role", "updated reader role")
+        handler.alter_role.assert_called_once_with(
+            "role", "updated reader role", timeout=None, context=ANY
+        )
+
+    def test_describe_role_includes_description_when_available(self, mc):
+        client, handler = mc
+        role_group = MagicMock()
+        role_group.description = "reader role"
+        role_info = MagicMock()
+        role_info.groups = [role_group]
+        grant_info = MagicMock()
+        grant_info.groups = []
+        handler.select_one_role.return_value = role_info
+        handler.select_grant_for_one_role.return_value = grant_info
+
+        result = client.describe_role("admin")
+
+        assert result["role"] == "admin"
+        assert result["description"] == "reader role"
+        assert result["privileges"] == []
+
+
 class TestMilvusClientCollectionMgmt:
     def test_alter_collection_field(self):
         handler = _make_handler()

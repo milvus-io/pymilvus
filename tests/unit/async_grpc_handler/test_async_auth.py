@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
 
 
 class TestAsyncGrpcHandlerUser:
@@ -160,9 +161,69 @@ class TestAsyncGrpcHandlerRole:
             mock_request = MagicMock()
             mock_prepare.create_role_request.return_value = mock_request
 
-            await handler.create_role("test_role", timeout=30)
+            await handler.create_role("test_role", description="reader role", timeout=30)
 
             mock_stub.CreateRole.assert_called_once()
+            mock_prepare.create_role_request.assert_called_once_with("test_role", "reader role")
+
+    @pytest.mark.asyncio
+    async def test_create_role_preserves_positional_context(self) -> None:
+        """Test create_role positional context compatibility"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.CreateRole = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        context = CallContext(db_name="db1", client_request_id="req1")
+        await handler.create_role("test_role", 30, context)
+
+        req = mock_stub.CreateRole.call_args.args[0]
+        kwargs = mock_stub.CreateRole.call_args.kwargs
+        assert req.entity.description == ""
+        assert kwargs["timeout"] == 30
+        assert ("dbname", "db1") in kwargs["metadata"]
+        assert ("client-request-id", "req1") in kwargs["metadata"]
+
+    @pytest.mark.asyncio
+    async def test_alter_role(self) -> None:
+        """Test alter_role async API"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.AlterRole = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            mock_request = MagicMock()
+            mock_prepare.alter_role_request.return_value = mock_request
+
+            await handler.alter_role("test_role", "updated reader role", timeout=30)
+
+            mock_stub.AlterRole.assert_called_once()
+            mock_prepare.alter_role_request.assert_called_once_with(
+                "test_role", "updated reader role"
+            )
 
     @pytest.mark.asyncio
     async def test_drop_role(self) -> None:

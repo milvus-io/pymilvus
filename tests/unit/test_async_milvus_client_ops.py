@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus import DataType
@@ -259,6 +259,42 @@ class TestAsyncClientRBACOps:
         handler.select_grant_for_one_role.return_value = res
         result = await client.describe_role("admin")
         assert result["role"] == "admin"
+        assert result["privileges"] == []
+
+    @pytest.mark.asyncio
+    async def test_create_role_forwards_description(self):
+        client, handler = _make_client()
+        await client.create_role("role", description="reader role")
+        handler.create_role.assert_awaited_once_with(
+            "role", description="reader role", timeout=None, context=ANY
+        )
+
+    @pytest.mark.asyncio
+    async def test_alter_role_forwards_description(self):
+        client, handler = _make_client()
+        await client.alter_role("role", "updated reader role")
+        handler.alter_role.assert_awaited_once_with(
+            "role", "updated reader role", timeout=None, context=ANY
+        )
+
+    @pytest.mark.asyncio
+    async def test_describe_role_includes_description_when_available(self):
+        client, handler = _make_client()
+        role_group = MagicMock()
+        role_group.description = "reader role"
+        role_info = MagicMock()
+        role_info.groups = [role_group]
+        grant_info = MagicMock()
+        grant_info.groups = []
+        handler.describe_role.return_value = MagicMock()
+        handler.select_grant_for_one_role.return_value = grant_info
+
+        with patch("pymilvus.milvus_client.async_milvus_client.RoleInfo") as mock_ri:
+            mock_ri.return_value = role_info
+            result = await client.describe_role("admin")
+
+        assert result["role"] == "admin"
+        assert result["description"] == "reader role"
         assert result["privileges"] == []
 
     @pytest.mark.asyncio

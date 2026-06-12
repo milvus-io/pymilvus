@@ -1709,10 +1709,28 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+    def create_role(
+        self, role_name: str, timeout: Optional[float] = None, description: str = "", **kwargs
+    ):
         conn = self._get_connection()
         conn.create_role(
-            role_name, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+            role_name,
+            timeout=timeout,
+            description=description,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    def alter_role(
+        self, role_name: str, description: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = self._get_connection()
+        conn.alter_role(
+            role_name,
+            description,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def drop_role(
@@ -1730,15 +1748,24 @@ class MilvusClient(BaseMilvusClient):
     def describe_role(self, role_name: str, timeout: Optional[float] = None, **kwargs) -> Dict:
         conn = self._get_connection()
         db_name = kwargs.pop("db_name", "")
+        context = self._generate_call_context(**kwargs)
+        role_info = conn.select_one_role(
+            role_name,
+            False,
+            timeout=timeout,
+            context=context,
+            **kwargs,
+        )
         res = conn.select_grant_for_one_role(
             role_name,
             db_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
+            context=context,
             **kwargs,
         )
         ret = {}
         ret["role"] = role_name
+        ret["description"] = role_info.groups[0].description if role_info.groups else ""
         ret["privileges"] = [dict(i) for i in res.groups]
         return ret
 

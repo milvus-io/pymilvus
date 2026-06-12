@@ -2177,10 +2177,26 @@ class AsyncGrpcHandler:
         role_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: str = "",
         **kwargs,
     ):
-        req = Prepare.create_role_request(role_name)
+        req = Prepare.create_role_request(role_name, description)
         resp = await self._async_stub.CreateRole(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def alter_role(
+        self,
+        role_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.alter_role_request(role_name, description)
+        resp = await self._async_stub.AlterRole(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)
