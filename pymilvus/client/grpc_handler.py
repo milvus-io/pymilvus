@@ -2684,10 +2684,29 @@ class GrpcHandler:
         role_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: str = "",
         **kwargs,
     ):
-        req = Prepare.create_role_request(role_name)
+        req = Prepare.create_role_request(role_name, description)
         resp = self._stub.CreateRole(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def alter_role(
+        self,
+        role_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.alter_role_request(role_name, description)
+        resp = self._stub.AlterRole(
             req,
             wait_for_ready=True,
             timeout=timeout,
