@@ -1415,14 +1415,23 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def create_user(
-        self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs
+        self,
+        user_name: str,
+        password: str,
+        timeout: Optional[float] = None,
+        description: Optional[str] = None,
+        **kwargs,
     ):
         conn = await self._get_connection()
+        extra_kwargs = {}
+        if description is not None:
+            extra_kwargs["description"] = description
         await conn.create_user(
             user_name,
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
+            **extra_kwargs,
             **kwargs,
         )
 
@@ -1438,13 +1447,36 @@ class AsyncMilvusClient(BaseMilvusClient):
         old_password: str,
         new_password: str,
         timeout: Optional[float] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         conn = await self._get_connection()
+        extra_kwargs = {}
+        if description is not None:
+            extra_kwargs["description"] = description
         await conn.update_password(
             user_name,
             old_password,
             new_password,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **extra_kwargs,
+            **kwargs,
+        )
+
+    async def update_user(
+        self,
+        user_name: str,
+        description: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        if description is None:
+            raise ParamError(message="description is required")
+        conn = await self._get_connection()
+        await conn.update_user(
+            user_name,
+            description=description,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1471,7 +1503,10 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_info = UserInfo(res.results)
             if user_info.groups:
                 item = user_info.groups[0]
-                return {"user_name": user_name, "roles": item.roles}
+                description = getattr(item, "description", "")
+                if not isinstance(description, str):
+                    description = ""
+                return {"user_name": user_name, "roles": item.roles, "description": description}
         return {}
 
     async def create_privilege_group(
