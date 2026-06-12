@@ -1002,12 +1002,15 @@ def create_user(
     password: str,
     using: str = "default",
     timeout: Optional[float] = None,
+    description: Optional[str] = None,
 ):
     """Create User using the given user and password.
     :param user: the user name.
     :type  user: str
     :param password: the password.
     :type  password: str
+    :param description: the user description.
+    :type  description: str
 
     :example:
         >>> from pymilvus import connections, utility
@@ -1017,7 +1020,10 @@ def create_user(
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).create_user(user, password, timeout=timeout)
+    kwargs = {"timeout": timeout}
+    if description is not None:
+        kwargs["description"] = description
+    return _get_connection(using).create_user(user, password, **kwargs)
 
 
 def update_password(
@@ -1026,6 +1032,7 @@ def update_password(
     new_password: str,
     using: str = "default",
     timeout: Optional[float] = None,
+    description: Optional[str] = None,
 ):
     """
         Update user password using the given user and password.
@@ -1039,6 +1046,8 @@ def update_password(
     :type  old_password: str
     :param new_password: the newly password of this user.
     :type  new_password: str
+    :param description: the user description.
+    :type  description: str
 
     :example:
         >>> from pymilvus import connections, utility
@@ -1048,7 +1057,10 @@ def update_password(
         >>> users = utility.list_usernames()
         >>> print(f"users in Milvus: {users}")
     """
-    return _get_connection(using).update_password(user, old_password, new_password, timeout=timeout)
+    kwargs = {"timeout": timeout}
+    if description is not None:
+        kwargs["description"] = description
+    return _get_connection(using).update_password(user, old_password, new_password, **kwargs)
 
 
 def delete_user(user: str, using: str = "default", timeout: Optional[float] = None):
