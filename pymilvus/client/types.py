@@ -833,8 +833,11 @@ class PrivilegeGroupInfo:
 
 
 class UserItem:
-    def __init__(self, username: str, entities: List[milvus_types.RoleEntity]) -> None:
+    def __init__(
+        self, username: str, entities: List[milvus_types.RoleEntity], description: str = ""
+    ) -> None:
         self._username = username
+        self._description = description
         roles = []
         for entity in entities:
             if isinstance(entity, milvus_types.RoleEntity):
@@ -852,6 +855,10 @@ class UserItem:
     def roles(self):
         return self._roles
 
+    @property
+    def description(self):
+        return self._description
+
 
 class UserInfo:
     """
@@ -863,7 +870,7 @@ class UserInfo:
         groups = []
         for result in results:
             if isinstance(result, milvus_types.UserResult):
-                groups.append(UserItem(result.user.name, result.roles))
+                groups.append(UserItem(result.user.name, result.roles, result.description))
 
         self._groups = groups
 

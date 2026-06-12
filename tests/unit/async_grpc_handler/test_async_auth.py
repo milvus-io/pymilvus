@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.exceptions import ParamError
 
 
 class TestAsyncGrpcHandlerUser:
@@ -39,6 +40,30 @@ class TestAsyncGrpcHandlerUser:
             await handler.create_user("test_user", "password123", timeout=30)
 
             mock_stub.CreateCredential.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_user_with_description(self) -> None:
+        """Test create_user async API with description."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.CreateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.create_user("test_user", "password123", description="reader account")
+
+            req = mock_stub.CreateCredential.call_args.args[0]
+            assert req.description == "reader account"
 
     @pytest.mark.asyncio
     async def test_drop_user(self) -> None:
@@ -83,6 +108,60 @@ class TestAsyncGrpcHandlerUser:
             mock_prepare.update_credential_request.return_value = MagicMock()
             await handler.update_password("user", "old_pass", "new_pass")
             mock_stub.UpdateCredential.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_password_with_description(self) -> None:
+        """Test update_password async API with description."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.UpdateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.update_password(
+                "user", "old_pass", "new_pass", description="updated account"
+            )
+            req = mock_stub.UpdateCredential.call_args.args[0]
+            assert req.username == "user"
+            assert req.description == "updated account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_description_only(self) -> None:
+        """Test update_user async API with description only."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.UpdateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.update_user("user", description="updated account")
+            req = mock_stub.UpdateCredential.call_args.args[0]
+            assert req.username == "user"
+            assert req.oldPassword == ""
+            assert req.newPassword == ""
+            assert req.description == "updated account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_requires_description(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        with pytest.raises(ParamError):
+            await handler.update_user("user")
 
     @pytest.mark.asyncio
     async def test_list_users(self) -> None:

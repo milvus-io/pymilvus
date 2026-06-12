@@ -233,6 +233,7 @@ class TestAsyncClientRBACOps:
         role.role_name = "admin"
         item = MagicMock()
         item.roles = ["admin"]
+        item.description = "owner account"
         group_info = MagicMock()
         group_info.groups = [item]
         res = MagicMock()
@@ -242,6 +243,36 @@ class TestAsyncClientRBACOps:
             mock_ui.return_value = group_info
             result = await client.describe_user("alice")
             assert result["user_name"] == "alice"
+            assert result["description"] == "owner account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_forwards_description(self):
+        client, handler = _make_client()
+        await client.update_user("alice", description="updated account", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("alice",)
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
+    async def test_update_user_requires_description(self):
+        client, handler = _make_client()
+        with pytest.raises(ParamError):
+            await client.update_user("alice")
+        handler.update_user.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_password_forwards_description(self):
+        client, handler = _make_client()
+        await client.update_password(
+            "alice", "old", "new", description="updated account", timeout=5
+        )
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("alice", "old", "new")
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
 
     @pytest.mark.asyncio
     async def test_describe_user_empty_results(self):

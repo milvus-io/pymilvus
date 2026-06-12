@@ -2102,10 +2102,11 @@ class AsyncGrpcHandler:
         password: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         check_pass_param(user=user, password=password, timeout=timeout)
-        req = Prepare.create_user_request(user, password)
+        req = Prepare.create_user_request(user, password, description=description)
         resp = await self._async_stub.CreateCredential(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2133,9 +2134,29 @@ class AsyncGrpcHandler:
         new_password: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
-        req = Prepare.update_password_request(user, old_password, new_password)
+        req = Prepare.update_password_request(
+            user, old_password, new_password, description=description
+        )
+        resp = await self._async_stub.UpdateCredential(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_user(
+        self,
+        user: str,
+        description: Optional[str] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        if description is None:
+            raise ParamError(message="description is required")
+        req = Prepare.update_password_request(user, "", "", description=description)
         resp = await self._async_stub.UpdateCredential(
             req, timeout=timeout, metadata=_api_level_md(context)
         )

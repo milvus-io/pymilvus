@@ -2426,22 +2426,34 @@ class Prepare:
         )
 
     @classmethod
-    def create_user_request(cls, user: str, password: str):
+    def create_user_request(cls, user: str, password: str, description: Optional[str] = None):
         check_pass_param(user=user, password=password)
-        return milvus_types.CreateCredentialRequest(
+        request = milvus_types.CreateCredentialRequest(
             username=user, password=base64.b64encode(password.encode("utf-8"))
         )
+        if description is not None:
+            request.description = description
+        return request
 
     @classmethod
-    def update_password_request(cls, user: str, old_password: str, new_password: str):
+    def update_password_request(
+        cls,
+        user: str,
+        old_password: str,
+        new_password: str,
+        description: Optional[str] = None,
+    ):
         check_pass_param(user=user)
         check_pass_param(password=old_password)
         check_pass_param(password=new_password)
-        return milvus_types.UpdateCredentialRequest(
+        request = milvus_types.UpdateCredentialRequest(
             username=user,
             oldPassword=base64.b64encode(old_password.encode("utf-8")),
             newPassword=base64.b64encode(new_password.encode("utf-8")),
         )
+        if description is not None:
+            request.description = description
+        return request
 
     @classmethod
     def delete_user_request(cls, user: str):
