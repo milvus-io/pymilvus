@@ -2454,9 +2454,16 @@ class Prepare:
         return milvus_types.ListCredUsersRequest()
 
     @classmethod
-    def create_role_request(cls, role_name: str):
+    def create_role_request(cls, role_name: str, description: str = ""):
         check_pass_param(role_name=role_name)
-        return milvus_types.CreateRoleRequest(entity=milvus_types.RoleEntity(name=role_name))
+        return milvus_types.CreateRoleRequest(
+            entity=milvus_types.RoleEntity(name=role_name, description=description)
+        )
+
+    @classmethod
+    def alter_role_request(cls, role_name: str, description: str):
+        check_pass_param(role_name=role_name)
+        return milvus_types.AlterRoleRequest(role_name=role_name, description=description)
 
     @classmethod
     def drop_role_request(cls, role_name: str, force_drop: bool = False):
