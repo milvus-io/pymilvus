@@ -3,10 +3,12 @@
 Coverage: User, role, privilege, grant, resource group operations.
 """
 
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
 
 
 class TestAsyncGrpcHandlerUser:
@@ -39,6 +41,30 @@ class TestAsyncGrpcHandlerUser:
             await handler.create_user("test_user", "password123", timeout=30)
 
             mock_stub.CreateCredential.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_create_user_with_description(self) -> None:
+        """Test create_user async API with description."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.CreateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.create_user("test_user", "password123", description="reader account")
+
+            req = mock_stub.CreateCredential.call_args.args[0]
+            assert req.description == "reader account"
 
     @pytest.mark.asyncio
     async def test_drop_user(self) -> None:
@@ -83,6 +109,57 @@ class TestAsyncGrpcHandlerUser:
             mock_prepare.update_credential_request.return_value = MagicMock()
             await handler.update_password("user", "old_pass", "new_pass")
             mock_stub.UpdateCredential.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_update_password_with_description(self) -> None:
+        """Test update_password async API with description."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.UpdateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.update_password(
+                "user", "old_pass", "new_pass", description="updated account"
+            )
+            req = mock_stub.UpdateCredential.call_args.args[0]
+            assert req.username == "user"
+            assert req.description == "updated account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_description_only(self) -> None:
+        """Test update_user async API with description only."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.UpdateCredential = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"):
+            await handler.update_user("user", description="updated account")
+            req = mock_stub.UpdateCredential.call_args.args[0]
+            assert req.username == "user"
+            assert req.oldPassword == ""
+            assert req.newPassword == ""
+            assert req.description == "updated account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_requires_description(self) -> None:
+        parameter = inspect.signature(AsyncGrpcHandler.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
 
     @pytest.mark.asyncio
     async def test_list_users(self) -> None:
@@ -160,9 +237,69 @@ class TestAsyncGrpcHandlerRole:
             mock_request = MagicMock()
             mock_prepare.create_role_request.return_value = mock_request
 
-            await handler.create_role("test_role", timeout=30)
+            await handler.create_role("test_role", description="reader role", timeout=30)
 
             mock_stub.CreateRole.assert_called_once()
+            mock_prepare.create_role_request.assert_called_once_with("test_role", "reader role")
+
+    @pytest.mark.asyncio
+    async def test_create_role_preserves_positional_context(self) -> None:
+        """Test create_role positional context compatibility"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.CreateRole = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        context = CallContext(db_name="db1", client_request_id="req1")
+        await handler.create_role("test_role", 30, context)
+
+        req = mock_stub.CreateRole.call_args.args[0]
+        kwargs = mock_stub.CreateRole.call_args.kwargs
+        assert req.entity.description == ""
+        assert kwargs["timeout"] == 30
+        assert ("dbname", "db1") in kwargs["metadata"]
+        assert ("client-request-id", "req1") in kwargs["metadata"]
+
+    @pytest.mark.asyncio
+    async def test_alter_role(self) -> None:
+        """Test alter_role async API"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.AlterRole = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            mock_request = MagicMock()
+            mock_prepare.alter_role_request.return_value = mock_request
+
+            await handler.alter_role("test_role", "updated reader role", timeout=30)
+
+            mock_stub.AlterRole.assert_called_once()
+            mock_prepare.alter_role_request.assert_called_once_with(
+                "test_role", "updated reader role"
+            )
 
     @pytest.mark.asyncio
     async def test_drop_role(self) -> None:

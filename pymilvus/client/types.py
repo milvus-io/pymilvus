@@ -833,8 +833,11 @@ class PrivilegeGroupInfo:
 
 
 class UserItem:
-    def __init__(self, username: str, entities: List[milvus_types.RoleEntity]) -> None:
+    def __init__(
+        self, username: str, entities: List[milvus_types.RoleEntity], description: str = ""
+    ) -> None:
         self._username = username
+        self._description = description
         roles = []
         for entity in entities:
             if isinstance(entity, milvus_types.RoleEntity):
@@ -852,6 +855,10 @@ class UserItem:
     def roles(self):
         return self._roles
 
+    @property
+    def description(self):
+        return self._description
+
 
 class UserInfo:
     """
@@ -863,7 +870,7 @@ class UserInfo:
         groups = []
         for result in results:
             if isinstance(result, milvus_types.UserResult):
-                groups.append(UserItem(result.user.name, result.roles))
+                groups.append(UserItem(result.user.name, result.roles, result.description))
 
         self._groups = groups
 
@@ -879,8 +886,11 @@ class UserInfo:
 
 
 class RoleItem:
-    def __init__(self, role_name: str, entities: List[milvus_types.UserEntity]):
+    def __init__(
+        self, role_name: str, entities: List[milvus_types.UserEntity], description: str = ""
+    ):
         self._role_name = role_name
+        self._description = description
         users = []
         for entity in entities:
             if isinstance(entity, milvus_types.UserEntity):
@@ -893,6 +903,10 @@ class RoleItem:
     @property
     def role_name(self):
         return self._role_name
+
+    @property
+    def description(self):
+        return self._description
 
     @property
     def users(self):
@@ -909,7 +923,13 @@ class RoleInfo:
         groups = []
         for result in results:
             if isinstance(result, milvus_types.RoleResult):
-                groups.append(RoleItem(result.role.name, result.users))
+                groups.append(
+                    RoleItem(
+                        result.role.name,
+                        result.users,
+                        result.role.description,
+                    )
+                )
 
         self._groups = groups
 

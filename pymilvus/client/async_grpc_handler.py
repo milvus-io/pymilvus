@@ -2097,10 +2097,11 @@ class AsyncGrpcHandler:
         password: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         check_pass_param(user=user, password=password, timeout=timeout)
-        req = Prepare.create_user_request(user, password)
+        req = Prepare.create_user_request(user, password, description=description)
         resp = await self._async_stub.CreateCredential(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2128,9 +2129,27 @@ class AsyncGrpcHandler:
         new_password: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
-        req = Prepare.update_password_request(user, old_password, new_password)
+        req = Prepare.update_password_request(
+            user, old_password, new_password, description=description
+        )
+        resp = await self._async_stub.UpdateCredential(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_user(
+        self,
+        user: str,
+        description: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.update_password_request(user, "", "", description=description)
         resp = await self._async_stub.UpdateCredential(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2172,10 +2191,26 @@ class AsyncGrpcHandler:
         role_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        description: str = "",
         **kwargs,
     ):
-        req = Prepare.create_role_request(role_name)
+        req = Prepare.create_role_request(role_name, description)
         resp = await self._async_stub.CreateRole(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def alter_role(
+        self,
+        role_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.alter_role_request(role_name, description)
+        resp = await self._async_stub.AlterRole(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp)

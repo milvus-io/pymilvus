@@ -1,4 +1,5 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+import inspect
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus import DataType
@@ -227,12 +228,23 @@ class TestAsyncClientAliasAndServerOps:
 
 class TestAsyncClientRBACOps:
     @pytest.mark.asyncio
+    async def test_create_user_forwards_description_none(self):
+        client, handler = _make_client()
+        await client.create_user("alice", "pass", timeout=5)
+        handler.create_user.assert_called_once()
+        args, kwargs = handler.create_user.call_args
+        assert args == ("alice", "pass")
+        assert kwargs["description"] is None
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
     async def test_describe_user_with_groups(self):
         client, handler = _make_client()
         role = MagicMock()
         role.role_name = "admin"
         item = MagicMock()
         item.roles = ["admin"]
+        item.description = "owner account"
         group_info = MagicMock()
         group_info.groups = [item]
         res = MagicMock()
@@ -242,6 +254,59 @@ class TestAsyncClientRBACOps:
             mock_ui.return_value = group_info
             result = await client.describe_user("alice")
             assert result["user_name"] == "alice"
+            assert result["description"] == "owner account"
+
+    @pytest.mark.asyncio
+    async def test_update_user_forwards_description(self):
+        client, handler = _make_client()
+        await client.update_user("alice", description="updated account", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("alice",)
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
+    async def test_update_user_forwards_empty_description(self):
+        client, handler = _make_client()
+        await client.update_user("alice", description="", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("alice",)
+        assert kwargs["description"] == ""
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
+    async def test_update_user_requires_description(self):
+        client, handler = _make_client()
+        parameter = inspect.signature(AsyncMilvusClient.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
+
+        with pytest.raises(TypeError):
+            client.update_user("alice")
+        handler.update_user.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_update_password_forwards_description(self):
+        client, handler = _make_client()
+        await client.update_password(
+            "alice", "old", "new", description="updated account", timeout=5
+        )
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("alice", "old", "new")
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
+    async def test_update_password_forwards_description_none(self):
+        client, handler = _make_client()
+        await client.update_password("alice", "old", "new", timeout=5)
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("alice", "old", "new")
+        assert kwargs["description"] is None
+        assert kwargs["timeout"] == 5
 
     @pytest.mark.asyncio
     async def test_describe_user_empty_results(self):
@@ -259,6 +324,42 @@ class TestAsyncClientRBACOps:
         handler.select_grant_for_one_role.return_value = res
         result = await client.describe_role("admin")
         assert result["role"] == "admin"
+        assert result["privileges"] == []
+
+    @pytest.mark.asyncio
+    async def test_create_role_forwards_description(self):
+        client, handler = _make_client()
+        await client.create_role("role", description="reader role")
+        handler.create_role.assert_awaited_once_with(
+            "role", description="reader role", timeout=None, context=ANY
+        )
+
+    @pytest.mark.asyncio
+    async def test_alter_role_forwards_description(self):
+        client, handler = _make_client()
+        await client.alter_role("role", "updated reader role")
+        handler.alter_role.assert_awaited_once_with(
+            "role", "updated reader role", timeout=None, context=ANY
+        )
+
+    @pytest.mark.asyncio
+    async def test_describe_role_includes_description_when_available(self):
+        client, handler = _make_client()
+        role_group = MagicMock()
+        role_group.description = "reader role"
+        role_info = MagicMock()
+        role_info.groups = [role_group]
+        grant_info = MagicMock()
+        grant_info.groups = []
+        handler.describe_role.return_value = MagicMock()
+        handler.select_grant_for_one_role.return_value = grant_info
+
+        with patch("pymilvus.milvus_client.async_milvus_client.RoleInfo") as mock_ri:
+            mock_ri.return_value = role_info
+            result = await client.describe_role("admin")
+
+        assert result["role"] == "admin"
+        assert result["description"] == "reader role"
         assert result["privileges"] == []
 
     @pytest.mark.asyncio

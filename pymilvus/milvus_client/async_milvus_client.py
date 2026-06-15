@@ -1412,7 +1412,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def create_user(
-        self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs
+        self,
+        user_name: str,
+        password: str,
+        timeout: Optional[float] = None,
+        description: Optional[str] = None,
+        **kwargs,
     ):
         conn = await self._get_connection()
         await conn.create_user(
@@ -1420,6 +1425,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
+            description=description,
             **kwargs,
         )
 
@@ -1435,6 +1441,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         old_password: str,
         new_password: str,
         timeout: Optional[float] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         conn = await self._get_connection()
@@ -1442,6 +1449,23 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_name,
             old_password,
             new_password,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            description=description,
+            **kwargs,
+        )
+
+    async def update_user(
+        self,
+        user_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = await self._get_connection()
+        await conn.update_user(
+            user_name,
+            description=description,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1468,7 +1492,11 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_info = UserInfo(res.results)
             if user_info.groups:
                 item = user_info.groups[0]
-                return {"user_name": user_name, "roles": item.roles}
+                return {
+                    "user_name": user_name,
+                    "roles": item.roles,
+                    "description": item.description,
+                }
         return {}
 
     async def create_privilege_group(
@@ -1542,10 +1570,28 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-    async def create_role(self, role_name: str, timeout: Optional[float] = None, **kwargs):
+    async def create_role(
+        self, role_name: str, timeout: Optional[float] = None, description: str = "", **kwargs
+    ):
         conn = await self._get_connection()
         await conn.create_role(
-            role_name, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+            role_name,
+            timeout=timeout,
+            description=description,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def alter_role(
+        self, role_name: str, description: str, timeout: Optional[float] = None, **kwargs
+    ):
+        conn = await self._get_connection()
+        await conn.alter_role(
+            role_name,
+            description,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     async def drop_role(
@@ -1674,11 +1720,15 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         context = self._generate_call_context(**kwargs)
         db_name = kwargs.pop("db_name", "")
+        role_info = RoleInfo(
+            await conn.describe_role(role_name, False, timeout=timeout, context=context, **kwargs)
+        )
         res = await conn.select_grant_for_one_role(
             role_name, db_name, timeout=timeout, context=context, **kwargs
         )
         ret = {}
         ret["role"] = role_name
+        ret["description"] = role_info.groups[0].description if role_info.groups else ""
         ret["privileges"] = [dict(i) for i in res.groups]
         return ret
 
