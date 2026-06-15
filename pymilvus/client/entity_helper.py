@@ -806,19 +806,19 @@ def _materialize_vector_array_value(element_type: DataType, value: Any) -> Any:
         return list(value)
     if element_type == DataType.BINARY_VECTOR:
         return [value]
-    try:
-        numpy_dtype = type_info.get_numpy_dtype(element_type)
-    except ParamError as exc:
-        raise ParamError(
-            message=f"Unimplemented type: {element_type} for vector array extraction"
-        ) from exc
-    if numpy_dtype is None:
+    if element_type not in (
+        DataType.FLOAT16_VECTOR,
+        DataType.BFLOAT16_VECTOR,
+        DataType.INT8_VECTOR,
+    ):
         raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
-    try:
-        dtype = np.dtype(numpy_dtype)
-    except TypeError:
+
+    numpy_dtype = type_info.require_numpy_dtype(element_type)
+    if element_type == DataType.BFLOAT16_VECTOR and not hasattr(np, "bfloat16"):
         # Preserve the current BF16 array-of-vector fallback; registry reconciliation is separate.
         dtype = np.uint16
+    else:
+        dtype = np.dtype(numpy_dtype)
     return list(np.frombuffer(value, dtype=dtype))
 
 

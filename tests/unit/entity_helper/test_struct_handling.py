@@ -145,32 +145,18 @@ class TestExtractStructArray:
         assert result[0]["int8"] == [1, 2]
 
     def test_materialize_vector_array_byte_vectors_use_numpy_dtype_fact(self, monkeypatch):
-        original_get_numpy_dtype = entity_helper.type_info.get_numpy_dtype
+        original_require_numpy_dtype = entity_helper.type_info.require_numpy_dtype
 
-        def get_numpy_dtype(dtype):
+        def require_numpy_dtype(dtype):
             if dtype == DataType.INT8_VECTOR:
                 return "uint8"
-            return original_get_numpy_dtype(dtype)
+            return original_require_numpy_dtype(dtype)
 
-        monkeypatch.setattr(entity_helper.type_info, "get_numpy_dtype", get_numpy_dtype)
+        monkeypatch.setattr(entity_helper.type_info, "require_numpy_dtype", require_numpy_dtype)
 
         result = entity_helper._materialize_vector_array_value(DataType.INT8_VECTOR, b"\xff")
 
         assert result == [255]
-
-    def test_materialize_vector_array_preserves_unknown_numpy_dtype_fallback(self, monkeypatch):
-        def get_numpy_dtype(dtype):
-            if dtype == DataType.BFLOAT16_VECTOR:
-                return "unknown_vector_dtype"
-            return None
-
-        monkeypatch.setattr(entity_helper.type_info, "get_numpy_dtype", get_numpy_dtype)
-
-        result = entity_helper._materialize_vector_array_value(
-            DataType.BFLOAT16_VECTOR, np.array([0x3C00], dtype=np.uint16).tobytes()
-        )
-
-        assert [int(value) for value in result] == [0x3C00]
 
     def test_materialize_vector_array_shapes_and_bf16_fallback(self):
         f16_bytes = np.array([1.0, 2.0], dtype=np.float16).tobytes()
@@ -200,15 +186,6 @@ class TestExtractStructArray:
     def test_materialize_vector_array_unsupported_type_raises(self):
         with pytest.raises(ParamError, match="Unimplemented type"):
             entity_helper._materialize_vector_array_value(DataType.SPARSE_FLOAT_VECTOR, b"")
-
-    def test_materialize_vector_array_raises_when_numpy_dtype_lookup_fails(self, monkeypatch):
-        def get_numpy_dtype(dtype):
-            raise ParamError(message=f"unsupported dtype: {dtype}")
-
-        monkeypatch.setattr(entity_helper.type_info, "get_numpy_dtype", get_numpy_dtype)
-
-        with pytest.raises(ParamError, match="Unimplemented type"):
-            entity_helper._materialize_vector_array_value(DataType.INT8_VECTOR, b"\x01")
 
     def test_extract_struct_array_unexpected_field_type(self):
         """Test error when struct contains unexpected field type"""
