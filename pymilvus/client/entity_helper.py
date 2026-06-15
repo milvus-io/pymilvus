@@ -759,49 +759,15 @@ def extract_row_data_from_fields_data_v2(
         else:
             [entity_rows[i].__setitem__(field_name, data[i]) for i in range(row_count)]
 
-    if field_data.type == DataType.BOOL:
-        data = field_data.scalars.bool_data.data
-        assign_scalar(data)
-        return False
+    if field_data.type == DataType.STRING:
+        raise MilvusException(message="Not support string yet")
 
-    if field_data.type in (DataType.INT8, DataType.INT16, DataType.INT32):
-        data = field_data.scalars.int_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.INT64:
-        data = field_data.scalars.long_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.FLOAT:
-        data = field_data.scalars.float_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.DOUBLE:
-        data = field_data.scalars.double_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.TIMESTAMPTZ:
-        data = field_data.scalars.string_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.VARCHAR:
-        data = field_data.scalars.string_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.TEXT:
-        data = field_data.scalars.string_data.data
-        assign_scalar(data)
-        return False
-
-    if field_data.type == DataType.GEOMETRY:
-        data = field_data.scalars.geometry_wkt_data.data
-        assign_scalar(data)
+    try:
+        scalar_attr = type_info.get_scalar_attr(field_data.type)
+    except ParamError:
+        scalar_attr = None
+    if scalar_attr is not None and field_data.type not in (DataType.JSON, DataType.ARRAY):
+        assign_scalar(getattr(field_data.scalars, scalar_attr).data)
         return False
 
     if field_data.type == DataType.JSON:
@@ -810,22 +776,10 @@ def extract_row_data_from_fields_data_v2(
     if field_data.type == DataType.ARRAY:
         extract_array_rows(field_data, entity_rows, row_count, has_valid)
         return False
-    if field_data.type in (
-        DataType.FLOAT_VECTOR,
-        DataType.FLOAT16_VECTOR,
-        DataType.BFLOAT16_VECTOR,
-        DataType.BINARY_VECTOR,
-        DataType.SPARSE_FLOAT_VECTOR,
-        DataType.INT8_VECTOR,
-    ):
-        return True
-    if field_data.type == DataType._ARRAY_OF_STRUCT:
-        return True
-    if field_data.type == DataType._ARRAY_OF_VECTOR:
-        return True
-    if field_data.type == DataType.STRING:
-        raise MilvusException(message="Not support string yet")
-    return False
+    return type_info.is_vector_type(field_data.type) or field_data.type in (
+        DataType._ARRAY_OF_STRUCT,
+        DataType._ARRAY_OF_VECTOR,
+    )
 
 
 def get_array_length(array_item: Any) -> int:
