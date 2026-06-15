@@ -371,6 +371,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.CreateRoleRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
+        self.AlterRole = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/AlterRole',
+                request_serializer=milvus__pb2.AlterRoleRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
         self.DropRole = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/DropRole',
                 request_serializer=milvus__pb2.DropRoleRequest.SerializeToString,
@@ -1026,6 +1031,12 @@ class MilvusServiceServicer(object):
     def CreateRole(self, request, context):
         """https://wiki.lfaidata.foundation/display/MIL/MEP+29+--+Support+Role-Based+Access+Control
         """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AlterRole(self, request, context):
+        """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -1696,6 +1707,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'CreateRole': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateRole,
                     request_deserializer=milvus__pb2.CreateRoleRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'AlterRole': grpc.unary_unary_rpc_method_handler(
+                    servicer.AlterRole,
+                    request_deserializer=milvus__pb2.AlterRoleRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
             'DropRole': grpc.unary_unary_rpc_method_handler(
@@ -3752,6 +3768,33 @@ class MilvusService(object):
             target,
             '/milvus.proto.milvus.MilvusService/CreateRole',
             milvus__pb2.CreateRoleRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AlterRole(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/AlterRole',
+            milvus__pb2.AlterRoleRequest.SerializeToString,
             common__pb2.Status.FromString,
             options,
             channel_credentials,

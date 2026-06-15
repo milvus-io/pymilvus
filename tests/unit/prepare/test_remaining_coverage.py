@@ -231,6 +231,23 @@ class TestRoleRequests:
         req = Prepare.create_role_request("test_role")
         assert req.entity.name == "test_role"
 
+    def test_create_role_with_description(self):
+        """Test create role request with description."""
+        req = Prepare.create_role_request("test_role", description="reader role")
+        assert req.entity.name == "test_role"
+        assert req.entity.description == "reader role"
+
+    def test_create_role_default_description(self):
+        """Test create role request keeps existing callers compatible."""
+        req = Prepare.create_role_request("test_role")
+        assert req.entity.description == ""
+
+    def test_alter_role(self):
+        """Test alter role request."""
+        req = Prepare.alter_role_request("test_role", "updated reader role")
+        assert req.role_name == "test_role"
+        assert req.description == "updated reader role"
+
     def test_drop_role(self):
         """Test drop role request."""
         req = Prepare.drop_role_request("test_role")

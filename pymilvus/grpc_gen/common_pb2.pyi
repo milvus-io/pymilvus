@@ -230,6 +230,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ListPrivilegeGroups: _ClassVar[MsgType]
     OperatePrivilegeGroup: _ClassVar[MsgType]
     OperatePrivilegeV2: _ClassVar[MsgType]
+    AlterRole: _ClassVar[MsgType]
     CreateResourceGroup: _ClassVar[MsgType]
     DropResourceGroup: _ClassVar[MsgType]
     ListResourceGroups: _ClassVar[MsgType]
@@ -599,6 +600,7 @@ DropPrivilegeGroup: MsgType
 ListPrivilegeGroups: MsgType
 OperatePrivilegeGroup: MsgType
 OperatePrivilegeV2: MsgType
+AlterRole: MsgType
 CreateResourceGroup: MsgType
 DropResourceGroup: MsgType
 ListResourceGroups: MsgType
