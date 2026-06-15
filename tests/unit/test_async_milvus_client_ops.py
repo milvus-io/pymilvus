@@ -227,6 +227,16 @@ class TestAsyncClientAliasAndServerOps:
 
 class TestAsyncClientRBACOps:
     @pytest.mark.asyncio
+    async def test_create_user_forwards_description_none(self):
+        client, handler = _make_client()
+        await client.create_user("alice", "pass", timeout=5)
+        handler.create_user.assert_called_once()
+        args, kwargs = handler.create_user.call_args
+        assert args == ("alice", "pass")
+        assert kwargs["description"] is None
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
     async def test_describe_user_with_groups(self):
         client, handler = _make_client()
         role = MagicMock()
@@ -272,6 +282,16 @@ class TestAsyncClientRBACOps:
         args, kwargs = handler.update_password.call_args
         assert args == ("alice", "old", "new")
         assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
+    async def test_update_password_forwards_description_none(self):
+        client, handler = _make_client()
+        await client.update_password("alice", "old", "new", timeout=5)
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("alice", "old", "new")
+        assert kwargs["description"] is None
         assert kwargs["timeout"] == 5
 
     @pytest.mark.asyncio

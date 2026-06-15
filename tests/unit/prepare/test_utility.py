@@ -340,12 +340,25 @@ class TestRbacRequests:
         """Test create user request with description."""
         req = Prepare.create_user_request("user", "pass", description="reader account")
         assert req.username == "user"
+        assert req.HasField("description")
         assert req.description == "reader account"
+
+    def test_create_user_with_empty_description(self):
+        """Test create user request with an explicitly empty description."""
+        req = Prepare.create_user_request("user", "pass", description="")
+        assert req.HasField("description")
+        assert req.description == ""
+
+    def test_create_user_without_description(self):
+        """Test create user request leaves description unset when omitted."""
+        req = Prepare.create_user_request("user", "pass", description=None)
+        assert not req.HasField("description")
 
     def test_update_password(self):
         """Test update password request."""
         req = Prepare.update_password_request("user", "old_pass", "new_pass")
         assert req.username == "user"
+        assert not req.HasField("description")
 
     def test_update_password_description_only(self):
         """Test update user description request without password change."""
@@ -353,7 +366,19 @@ class TestRbacRequests:
         assert req.username == "user"
         assert req.oldPassword == ""
         assert req.newPassword == ""
+        assert req.HasField("description")
         assert req.description == "updated account"
+
+    def test_update_password_with_empty_description(self):
+        """Test update password request with an explicitly empty description."""
+        req = Prepare.update_password_request("user", "", "", description="")
+        assert req.HasField("description")
+        assert req.description == ""
+
+    def test_update_password_without_description(self):
+        """Test update password request leaves description unset when omitted."""
+        req = Prepare.update_password_request("user", "old_pass", "new_pass", description=None)
+        assert not req.HasField("description")
 
     def test_delete_user_invalid_type(self):
         """Test delete user with non-string user."""

@@ -1638,15 +1638,12 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = self._get_connection()
-        extra_kwargs = {}
-        if description is not None:
-            extra_kwargs["description"] = description
         return conn.create_user(
             user_name,
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
-            **extra_kwargs,
+            description=description,
             **kwargs,
         )
 
@@ -1667,16 +1664,13 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = self._get_connection()
-        extra_kwargs = {}
-        if description is not None:
-            extra_kwargs["description"] = description
         conn.update_password(
             user_name,
             old_password,
             new_password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
-            **extra_kwargs,
+            description=description,
             **kwargs,
         )
         if reset_connection:
@@ -1718,10 +1712,7 @@ class MilvusClient(BaseMilvusClient):
         )
         if res.groups:
             item = res.groups[0]
-            description = getattr(item, "description", "")
-            if not isinstance(description, str):
-                description = ""
-            return {"user_name": user_name, "roles": item.roles, "description": description}
+            return {"user_name": user_name, "roles": item.roles, "description": item.description}
         return {}
 
     def grant_role(self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs):

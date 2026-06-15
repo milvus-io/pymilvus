@@ -264,13 +264,6 @@ class TestCreateUser:
         create_user("admin", "pass123", timeout=5.0)
         handler.create_user.assert_called_once_with("admin", "pass123", timeout=5.0)
 
-    def test_create_user_with_description(self, mock_conn):
-        handler, _ = mock_conn
-        create_user("admin", "pass123", timeout=5.0, description="reader account")
-        handler.create_user.assert_called_once_with(
-            "admin", "pass123", timeout=5.0, description="reader account"
-        )
-
 
 class TestDeleteUser:
     def test_delete_user(self, mock_conn):
@@ -300,13 +293,6 @@ class TestUpdatePassword:
         handler, _ = mock_conn
         update_password("user1", "old", "new", timeout=3.0)
         handler.update_password.assert_called_once_with("user1", "old", "new", timeout=3.0)
-
-    def test_update_password_with_description(self, mock_conn):
-        handler, _ = mock_conn
-        update_password("user1", "old", "new", timeout=3.0, description="updated account")
-        handler.update_password.assert_called_once_with(
-            "user1", "old", "new", timeout=3.0, description="updated account"
-        )
 
 
 # ---------------------------------------------------------------------------

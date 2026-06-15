@@ -1423,15 +1423,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = await self._get_connection()
-        extra_kwargs = {}
-        if description is not None:
-            extra_kwargs["description"] = description
         await conn.create_user(
             user_name,
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
-            **extra_kwargs,
+            description=description,
             **kwargs,
         )
 
@@ -1451,16 +1448,13 @@ class AsyncMilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         conn = await self._get_connection()
-        extra_kwargs = {}
-        if description is not None:
-            extra_kwargs["description"] = description
         await conn.update_password(
             user_name,
             old_password,
             new_password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
-            **extra_kwargs,
+            description=description,
             **kwargs,
         )
 
@@ -1503,10 +1497,11 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_info = UserInfo(res.results)
             if user_info.groups:
                 item = user_info.groups[0]
-                description = getattr(item, "description", "")
-                if not isinstance(description, str):
-                    description = ""
-                return {"user_name": user_name, "roles": item.roles, "description": description}
+                return {
+                    "user_name": user_name,
+                    "roles": item.roles,
+                    "description": item.description,
+                }
         return {}
 
     async def create_privilege_group(
