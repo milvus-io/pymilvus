@@ -1033,6 +1033,33 @@ class TestExtractRowDataV2:
         assert entity_rows[0]["geo_field"] == "POINT(1 2)"
         assert entity_rows[1]["geo_field"] is None
 
+    def test_extract_scalar_uses_type_info_attr_for_bulk_assignment(self, monkeypatch):
+        """Future scalar registry entries should not need a new branch here."""
+        original_get_scalar_attr = entity_helper.type_info.get_scalar_attr
+
+        def fake_get_scalar_attr(dtype):
+            if dtype == DataType.NONE:
+                return "string_data"
+            return original_get_scalar_attr(dtype)
+
+        monkeypatch.setattr(entity_helper.type_info, "get_scalar_attr", fake_get_scalar_attr)
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.NONE
+        field_data.field_name = "future_scalar"
+        field_data.scalars.string_data.data.extend(["first", "ignored", "third"])
+        field_data.valid_data.extend([True, False, True])
+
+        entity_rows = [{}, {}, {}]
+        result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
+
+        assert result is False
+        assert entity_rows == [
+            {"future_scalar": "first"},
+            {"future_scalar": None},
+            {"future_scalar": "third"},
+        ]
+
     def test_extract_json_returns_true(self):
         """Test extracting JSON data returns True for lazy processing"""
 
@@ -1043,6 +1070,27 @@ class TestExtractRowDataV2:
         entity_rows = [{}]
         result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
         assert result is True
+
+    def test_extract_vector_uses_type_info_family_for_defer(self, monkeypatch):
+        """Future vector registry entries should defer without a new allowlist entry."""
+        original_is_vector_type = entity_helper.type_info.is_vector_type
+
+        def fake_is_vector_type(dtype):
+            if dtype == DataType.NONE:
+                return True
+            return original_is_vector_type(dtype)
+
+        monkeypatch.setattr(entity_helper.type_info, "is_vector_type", fake_is_vector_type)
+
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.NONE
+        field_data.field_name = "future_vector"
+
+        entity_rows = [{}]
+        result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
+
+        assert result is True
+        assert entity_rows == [{}]
 
     def test_extract_vector_types_return_true(self):
         """Test vector data types return True for lazy processing"""
@@ -1086,6 +1134,15 @@ class TestExtractRowDataV2:
         entity_rows = [{}]
         result = extract_row_data_from_fields_data_v2(field_data, entity_rows)
         assert result is True
+
+    def test_extract_string_still_raises(self):
+        """STRING stays explicitly unsupported for result extraction."""
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.STRING
+        field_data.field_name = "string_field"
+
+        with pytest.raises(entity_helper.MilvusException, match="Not support string yet"):
+            extract_row_data_from_fields_data_v2(field_data, [{}])
 
 
 class _NoBool:
