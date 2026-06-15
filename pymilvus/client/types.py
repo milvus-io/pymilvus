@@ -920,7 +920,7 @@ class RoleInfo:
                     RoleItem(
                         result.role.name,
                         result.users,
-                        getattr(result.role, "description", ""),
+                        result.role.description,
                     )
                 )
 
