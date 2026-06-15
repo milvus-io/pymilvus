@@ -1790,34 +1790,38 @@ class ShardReplica(_message.Message):
     def __init__(self, leaderID: _Optional[int] = ..., leader_addr: _Optional[str] = ..., dm_channel_name: _Optional[str] = ..., node_ids: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class CreateCredentialRequest(_message.Message):
-    __slots__ = ("base", "username", "password", "created_utc_timestamps", "modified_utc_timestamps")
+    __slots__ = ("base", "username", "password", "created_utc_timestamps", "modified_utc_timestamps", "description")
     BASE_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
     PASSWORD_FIELD_NUMBER: _ClassVar[int]
     CREATED_UTC_TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
     MODIFIED_UTC_TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     username: str
     password: str
     created_utc_timestamps: int
     modified_utc_timestamps: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., created_utc_timestamps: _Optional[int] = ..., modified_utc_timestamps: _Optional[int] = ...) -> None: ...
+    description: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., password: _Optional[str] = ..., created_utc_timestamps: _Optional[int] = ..., modified_utc_timestamps: _Optional[int] = ..., description: _Optional[str] = ...) -> None: ...
 
 class UpdateCredentialRequest(_message.Message):
-    __slots__ = ("base", "username", "oldPassword", "newPassword", "created_utc_timestamps", "modified_utc_timestamps")
+    __slots__ = ("base", "username", "oldPassword", "newPassword", "created_utc_timestamps", "modified_utc_timestamps", "description")
     BASE_FIELD_NUMBER: _ClassVar[int]
     USERNAME_FIELD_NUMBER: _ClassVar[int]
     OLDPASSWORD_FIELD_NUMBER: _ClassVar[int]
     NEWPASSWORD_FIELD_NUMBER: _ClassVar[int]
     CREATED_UTC_TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
     MODIFIED_UTC_TIMESTAMPS_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     username: str
     oldPassword: str
     newPassword: str
     created_utc_timestamps: int
     modified_utc_timestamps: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., oldPassword: _Optional[str] = ..., newPassword: _Optional[str] = ..., created_utc_timestamps: _Optional[int] = ..., modified_utc_timestamps: _Optional[int] = ...) -> None: ...
+    description: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., username: _Optional[str] = ..., oldPassword: _Optional[str] = ..., newPassword: _Optional[str] = ..., created_utc_timestamps: _Optional[int] = ..., modified_utc_timestamps: _Optional[int] = ..., description: _Optional[str] = ...) -> None: ...
 
 class DeleteCredentialRequest(_message.Message):
     __slots__ = ("base", "username")
@@ -1842,10 +1846,12 @@ class ListCredUsersRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ...) -> None: ...
 
 class RoleEntity(_message.Message):
-    __slots__ = ("name",)
+    __slots__ = ("name", "description")
     NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     name: str
-    def __init__(self, name: _Optional[str] = ...) -> None: ...
+    description: str
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
 
 class UserEntity(_message.Message):
     __slots__ = ("name",)
@@ -1860,6 +1866,16 @@ class CreateRoleRequest(_message.Message):
     base: _common_pb2.MsgBase
     entity: RoleEntity
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., entity: _Optional[_Union[RoleEntity, _Mapping]] = ...) -> None: ...
+
+class AlterRoleRequest(_message.Message):
+    __slots__ = ("base", "role_name", "description")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    ROLE_NAME_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    role_name: str
+    description: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., role_name: _Optional[str] = ..., description: _Optional[str] = ...) -> None: ...
 
 class DropRoleRequest(_message.Message):
     __slots__ = ("base", "role_name", "force_drop")
@@ -1970,12 +1986,14 @@ class SelectUserRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., user: _Optional[_Union[UserEntity, _Mapping]] = ..., include_role_info: bool = ...) -> None: ...
 
 class UserResult(_message.Message):
-    __slots__ = ("user", "roles")
+    __slots__ = ("user", "roles", "description")
     USER_FIELD_NUMBER: _ClassVar[int]
     ROLES_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     user: UserEntity
     roles: _containers.RepeatedCompositeFieldContainer[RoleEntity]
-    def __init__(self, user: _Optional[_Union[UserEntity, _Mapping]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ...) -> None: ...
+    description: str
+    def __init__(self, user: _Optional[_Union[UserEntity, _Mapping]] = ..., roles: _Optional[_Iterable[_Union[RoleEntity, _Mapping]]] = ..., description: _Optional[str] = ...) -> None: ...
 
 class SelectUserResponse(_message.Message):
     __slots__ = ("status", "results")
