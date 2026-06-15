@@ -1415,7 +1415,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         )
 
     async def create_user(
-        self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs
+        self,
+        user_name: str,
+        password: str,
+        timeout: Optional[float] = None,
+        description: Optional[str] = None,
+        **kwargs,
     ):
         conn = await self._get_connection()
         await conn.create_user(
@@ -1423,6 +1428,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
+            description=description,
             **kwargs,
         )
 
@@ -1438,6 +1444,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         old_password: str,
         new_password: str,
         timeout: Optional[float] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         conn = await self._get_connection()
@@ -1445,6 +1452,23 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_name,
             old_password,
             new_password,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            description=description,
+            **kwargs,
+        )
+
+    async def update_user(
+        self,
+        user_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = await self._get_connection()
+        await conn.update_user(
+            user_name,
+            description=description,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1471,7 +1495,11 @@ class AsyncMilvusClient(BaseMilvusClient):
             user_info = UserInfo(res.results)
             if user_info.groups:
                 item = user_info.groups[0]
-                return {"user_name": user_name, "roles": item.roles}
+                return {
+                    "user_name": user_name,
+                    "roles": item.roles,
+                    "description": item.description,
+                }
         return {}
 
     async def create_privilege_group(

@@ -1629,13 +1629,21 @@ class MilvusClient(BaseMilvusClient):
             result["row_count"] = int(result["row_count"])
         return result
 
-    def create_user(self, user_name: str, password: str, timeout: Optional[float] = None, **kwargs):
+    def create_user(
+        self,
+        user_name: str,
+        password: str,
+        timeout: Optional[float] = None,
+        description: Optional[str] = None,
+        **kwargs,
+    ):
         conn = self._get_connection()
         return conn.create_user(
             user_name,
             password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
+            description=description,
             **kwargs,
         )
 
@@ -1652,6 +1660,7 @@ class MilvusClient(BaseMilvusClient):
         new_password: str,
         reset_connection: Optional[bool] = False,
         timeout: Optional[float] = None,
+        description: Optional[str] = None,
         **kwargs,
     ):
         conn = self._get_connection()
@@ -1661,11 +1670,28 @@ class MilvusClient(BaseMilvusClient):
             new_password,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
+            description=description,
             **kwargs,
         )
         if reset_connection:
             conn._setup_authorization_interceptor(user_name, new_password, None)
             conn._setup_grpc_channel()
+
+    def update_user(
+        self,
+        user_name: str,
+        description: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        conn = self._get_connection()
+        conn.update_user(
+            user_name,
+            description=description,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def list_users(self, timeout: Optional[float] = None, **kwargs):
         conn = self._get_connection()
@@ -1684,7 +1710,7 @@ class MilvusClient(BaseMilvusClient):
         )
         if res.groups:
             item = res.groups[0]
-            return {"user_name": user_name, "roles": item.roles}
+            return {"user_name": user_name, "roles": item.roles, "description": item.description}
         return {}
 
     def grant_role(self, user_name: str, role_name: str, timeout: Optional[float] = None, **kwargs):

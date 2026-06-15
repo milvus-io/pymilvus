@@ -75,12 +75,13 @@ def _make_mock_entity(**kwargs):
     return entity
 
 
-def _make_user_result(username, role_names):
+def _make_user_result(username, role_names, description=""):
     """Build a mock UserResult protobuf object."""
     role_mocks = [MagicMock(__class__=milvus_types.RoleEntity, name=n) for n in role_names]
     result = MagicMock(__class__=milvus_types.UserResult)
     result.user.name = username
     result.roles = role_mocks
+    result.description = description
     return result
 
 
@@ -980,8 +981,9 @@ class TestUserItem:
         return roles
 
     def test_user_item_init(self):
-        item = UserItem("testuser", self._roles("admin", "public"))
+        item = UserItem("testuser", self._roles("admin", "public"), "owner account")
         assert item.username == "testuser" and item.roles == ("admin", "public")
+        assert item.description == "owner account"
 
     def test_user_item_repr(self):
         r = repr(UserItem("myuser", self._roles("reader")))
@@ -990,8 +992,9 @@ class TestUserItem:
 
 class TestUserInfo:
     def test_user_info_init(self):
-        info = UserInfo([_make_user_result("root", ["admin"])])
+        info = UserInfo([_make_user_result("root", ["admin"], "owner account")])
         assert len(info.groups) == 1 and info.groups[0].username == "root"
+        assert info.groups[0].description == "owner account"
 
     def test_user_info_repr(self):
         assert "UserInfo groups" in repr(UserInfo([_make_user_result("user1", [])]))

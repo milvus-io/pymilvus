@@ -1,5 +1,6 @@
 """Tests for GrpcHandler authentication and authorization operations."""
 
+import inspect
 from unittest.mock import MagicMock
 
 from pymilvus.client.call_context import CallContext
@@ -16,6 +17,12 @@ class TestGrpcHandlerUserOps:
         handler.create_user("user", "pass")
         handler._stub.CreateCredential.assert_called_once()
 
+    def test_create_user_with_description(self, handler):
+        handler._stub.CreateCredential.return_value = make_status()
+        handler.create_user("user", "pass", description="reader account")
+        req = handler._stub.CreateCredential.call_args.args[0]
+        assert req.description == "reader account"
+
     def test_delete_user(self, handler):
         handler._stub.DeleteCredential.return_value = make_status()
         handler.delete_user("user")
@@ -25,6 +32,26 @@ class TestGrpcHandlerUserOps:
         handler._stub.UpdateCredential.return_value = make_status()
         handler.update_password("user", "old", "new")
         handler._stub.UpdateCredential.assert_called_once()
+
+    def test_update_password_with_description(self, handler):
+        handler._stub.UpdateCredential.return_value = make_status()
+        handler.update_password("user", "old", "new", description="updated account")
+        req = handler._stub.UpdateCredential.call_args.args[0]
+        assert req.username == "user"
+        assert req.description == "updated account"
+
+    def test_update_user_description_only(self, handler):
+        handler._stub.UpdateCredential.return_value = make_status()
+        handler.update_user("user", description="updated account")
+        req = handler._stub.UpdateCredential.call_args.args[0]
+        assert req.username == "user"
+        assert req.oldPassword == ""
+        assert req.newPassword == ""
+        assert req.description == "updated account"
+
+    def test_update_user_requires_description(self, handler):
+        parameter = inspect.signature(type(handler).update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
 
     def test_list_usernames(self, handler):
         handler._stub.ListCredUsers.return_value = make_response(usernames=["u1", "u2"])

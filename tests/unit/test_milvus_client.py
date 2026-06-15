@@ -1882,16 +1882,36 @@ class TestMilvusClientMiscOps:
 
 
 class TestMilvusClientRBACOps:
+    def test_create_user_forwards_description(self, mc):
+        client, handler = mc
+        client.create_user("user", "pass", description="reader account", timeout=5)
+        handler.create_user.assert_called_once()
+        args, kwargs = handler.create_user.call_args
+        assert args == ("user", "pass")
+        assert kwargs["description"] == "reader account"
+        assert kwargs["timeout"] == 5
+
+    def test_create_user_forwards_description_none(self, mc):
+        client, handler = mc
+        client.create_user("user", "pass", timeout=5)
+        handler.create_user.assert_called_once()
+        args, kwargs = handler.create_user.call_args
+        assert args == ("user", "pass")
+        assert kwargs["description"] is None
+        assert kwargs["timeout"] == 5
+
     def test_describe_user_with_groups(self, mc):
         client, handler = mc
         group = MagicMock()
         group.roles = ["admin"]
+        group.description = "owner account"
         res = MagicMock()
         res.groups = [group]
         handler.select_one_user.return_value = res
         result = client.describe_user("alice")
         assert result["user_name"] == "alice"
         assert result["roles"] == ["admin"]
+        assert result["description"] == "owner account"
 
     def test_describe_user_no_groups(self, mc):
         client, handler = mc
@@ -1942,6 +1962,51 @@ class TestMilvusClientRBACOps:
         handler.update_password.assert_called_once()
         handler._setup_authorization_interceptor.assert_called_once()
         handler._setup_grpc_channel.assert_called_once()
+
+    def test_update_password_forwards_description(self, mc):
+        client, handler = mc
+        client.update_password("user", "old", "new", description="updated account", timeout=5)
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("user", "old", "new")
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    def test_update_password_forwards_description_none(self, mc):
+        client, handler = mc
+        client.update_password("user", "old", "new", timeout=5)
+        handler.update_password.assert_called_once()
+        args, kwargs = handler.update_password.call_args
+        assert args == ("user", "old", "new")
+        assert kwargs["description"] is None
+        assert kwargs["timeout"] == 5
+
+    def test_update_user_forwards_description(self, mc):
+        client, handler = mc
+        client.update_user("user", description="updated account", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("user",)
+        assert kwargs["description"] == "updated account"
+        assert kwargs["timeout"] == 5
+
+    def test_update_user_forwards_empty_description(self, mc):
+        client, handler = mc
+        client.update_user("user", description="", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("user",)
+        assert kwargs["description"] == ""
+        assert kwargs["timeout"] == 5
+
+    def test_update_user_requires_description(self, mc):
+        client, handler = mc
+        parameter = inspect.signature(MilvusClient.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
+
+        with pytest.raises(TypeError):
+            client.update_user("user")
+        handler.update_user.assert_not_called()
 
     def test_list_privilege_groups(self, mc):
         client, handler = mc
