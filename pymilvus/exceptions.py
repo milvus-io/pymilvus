@@ -30,12 +30,17 @@ class MilvusException(Exception):
         code: int = ErrorCode.UNEXPECTED_ERROR,
         message: str = "",
         compatible_code: int = common_pb2.UnexpectedError,
+        *,
+        is_input_error: bool = False,
+        retriable: bool = False,
     ) -> None:
         super().__init__()
         self._code = code
         self._message = message
         # for compatibility, remove it after 2.4.0
         self._compatible_code = compatible_code
+        self._is_input_error = is_input_error
+        self._retriable = retriable
 
     @property
     def code(self):
@@ -48,6 +53,33 @@ class MilvusException(Exception):
     @property
     def compatible_code(self):
         return self._compatible_code
+
+    @property
+    def is_input_error(self) -> bool:
+        """Whether the server classified this as a caller-input error.
+
+        An input error means the request itself was malformed, so it is the
+        caller's responsibility to fix; the server never retries or fails it
+        over to another replica, and forces it non-retriable.
+        """
+        return self._is_input_error
+
+    @property
+    def retriable(self) -> bool:
+        """Whether blindly retrying the same request may succeed."""
+        return self._retriable
+
+    @classmethod
+    def from_status(cls, status: common_pb2.Status) -> "MilvusException":
+        """Build an exception from a server Status, carrying its error code and
+        the (is_input_error, retriable) classification."""
+        return cls(
+            status.code,
+            status.reason,
+            status.error_code,
+            is_input_error=status.extra_info.get("is_input_error") == "true",
+            retriable=status.retriable,
+        )
 
     def __str__(self) -> str:
         return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"

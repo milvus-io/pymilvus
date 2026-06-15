@@ -7,7 +7,7 @@ from pymilvus.client import utils
 from pymilvus.client.constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from pymilvus.client.types import DataType
 from pymilvus.client.utils import immutable_message_to_dict, replicate_checkpoint_to_dict
-from pymilvus.exceptions import MilvusException, ParamError
+from pymilvus.exceptions import DescribeCollectionException, MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2
 
 
@@ -491,3 +491,55 @@ class TestImmutableMessageToDict:
             "payload": b"",
             "properties": {},
         }
+
+
+class TestCheckStatusClassification:
+    def test_input_error_surfaced(self):
+        status = common_pb2.Status(
+            code=1100,
+            reason="invalid parameter",
+            error_code=common_pb2.IllegalArgument,
+            retriable=False,
+            extra_info={"is_input_error": "true"},
+        )
+        with pytest.raises(MilvusException) as exc_info:
+            utils.check_status(status)
+        e = exc_info.value
+        assert e.code == 1100
+        assert e.is_input_error is True
+        assert e.retriable is False
+
+    def test_system_error_retriable(self):
+        status = common_pb2.Status(
+            code=2,
+            reason="service unavailable",
+            retriable=True,
+        )
+        with pytest.raises(MilvusException) as exc_info:
+            utils.check_status(status)
+        e = exc_info.value
+        assert e.code == 2
+        assert e.is_input_error is False
+        assert e.retriable is True
+
+    def test_defaults_when_unset(self):
+        # A bare error status (no extra_info, no retriable) defaults to a
+        # non-input, non-retriable system error.
+        status = common_pb2.Status(code=500, reason="boom")
+        with pytest.raises(MilvusException) as exc_info:
+            utils.check_status(status)
+        e = exc_info.value
+        assert e.is_input_error is False
+        assert e.retriable is False
+
+    def test_from_status_preserves_subclass(self):
+        status = common_pb2.Status(
+            code=0,
+            reason="can't find collection",
+            error_code=common_pb2.CollectionNotExists,
+            extra_info={"is_input_error": "true"},
+        )
+        e = DescribeCollectionException.from_status(status)
+        assert isinstance(e, DescribeCollectionException)
+        assert e.is_input_error is True
+        assert e.compatible_code == common_pb2.CollectionNotExists
