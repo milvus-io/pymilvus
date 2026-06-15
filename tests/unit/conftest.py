@@ -218,6 +218,7 @@ def mock_grpc_stub():
 
     # Role operations
     stub.CreateRole = MagicMock(return_value=make_status())
+    stub.AlterRole = MagicMock(return_value=make_status())
     stub.DropRole = MagicMock(return_value=make_status())
     stub.SelectRole = MagicMock(return_value=make_response(results=[]))
     stub.OperateUserRole = MagicMock(return_value=make_status())
@@ -374,6 +375,7 @@ def mock_async_stub():
 
     # Role operations
     stub.CreateRole = AsyncMock(return_value=make_status())
+    stub.AlterRole = AsyncMock(return_value=make_status())
     stub.DropRole = AsyncMock(return_value=make_status())
     stub.SelectRole = AsyncMock(return_value=make_response(results=[]))
     stub.OperateUserRole = AsyncMock(return_value=make_status())

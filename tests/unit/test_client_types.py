@@ -84,11 +84,12 @@ def _make_user_result(username, role_names):
     return result
 
 
-def _make_role_result(role_name, user_names):
+def _make_role_result(role_name, user_names, description=""):
     """Build a mock RoleResult protobuf object."""
     user_mocks = [MagicMock(__class__=milvus_types.UserEntity, name=n) for n in user_names]
     result = MagicMock(__class__=milvus_types.RoleResult)
     result.role.name = role_name
+    result.role.description = description
     result.users = user_mocks
     return result
 
@@ -1007,6 +1008,14 @@ class TestRoleItem:
         item = RoleItem("admin", self._users("user1", "user2"))
         assert item.role_name == "admin" and item.users == ("user1", "user2")
 
+    def test_role_item_description_default(self):
+        item = RoleItem("admin", self._users("user1", "user2"))
+        assert item.description == ""
+
+    def test_role_item_init_with_description(self):
+        item = RoleItem("admin", self._users("user1", "user2"), "reader role")
+        assert item.description == "reader role"
+
     def test_role_item_repr(self):
         r = repr(RoleItem("superadmin", self._users("root")))
         assert "RoleItem" in r and "superadmin" in r and "root" in r
@@ -1016,6 +1025,10 @@ class TestRoleInfo:
     def test_role_info_init(self):
         info = RoleInfo([_make_role_result("admin", ["root"])])
         assert len(info.groups) == 1 and info.groups[0].role_name == "admin"
+
+    def test_role_info_passes_role_description(self):
+        info = RoleInfo([_make_role_result("admin", ["root"], "reader role")])
+        assert info.groups[0].description == "reader role"
 
     def test_role_info_repr(self):
         assert "RoleInfo groups" in repr(RoleInfo([_make_role_result("public", [])]))

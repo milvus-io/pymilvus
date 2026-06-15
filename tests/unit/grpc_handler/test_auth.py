@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.types import ResourceGroupConfig
 
 from .conftest import make_response, make_status
@@ -33,6 +34,31 @@ class TestGrpcHandlerUserOps:
         handler._stub.CreateRole.return_value = make_status()
         handler.create_role("role")
         handler._stub.CreateRole.assert_called_once()
+
+    def test_create_role_with_description(self, handler):
+        handler._stub.CreateRole.return_value = make_status()
+        handler.create_role("role", description="reader role")
+        req = handler._stub.CreateRole.call_args.args[0]
+        assert req.entity.name == "role"
+        assert req.entity.description == "reader role"
+
+    def test_create_role_preserves_positional_context(self, handler):
+        handler._stub.CreateRole.return_value = make_status()
+        context = CallContext(db_name="db1", client_request_id="req1")
+        handler.create_role("role", 30, context)
+        req = handler._stub.CreateRole.call_args.args[0]
+        kwargs = handler._stub.CreateRole.call_args.kwargs
+        assert req.entity.description == ""
+        assert kwargs["timeout"] == 30
+        assert ("dbname", "db1") in kwargs["metadata"]
+        assert ("client-request-id", "req1") in kwargs["metadata"]
+
+    def test_alter_role(self, handler):
+        handler._stub.AlterRole.return_value = make_status()
+        handler.alter_role("role", "updated reader role")
+        req = handler._stub.AlterRole.call_args.args[0]
+        assert req.role_name == "role"
+        assert req.description == "updated reader role"
 
     def test_drop_role(self, handler):
         handler._stub.DropRole.return_value = make_status()
