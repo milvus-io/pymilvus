@@ -14,14 +14,11 @@ from pymilvus.exceptions import ParamError
 
 
 def _get_registry_numpy_dtype(dtype: DataType) -> np.dtype:
-    numpy_dtype = require_numpy_dtype(dtype)
-    try:
-        return np.dtype(numpy_dtype)
-    except TypeError:
-        fallback_dtype = get_numpy_fallback_dtype(dtype)
-        if fallback_dtype is None:
-            raise
-        return np.dtype(fallback_dtype)
+    numpy_dtype = require_numpy_dtype(
+        dtype,
+        fallback_dtype=get_numpy_fallback_dtype(dtype),
+    )
+    return np.dtype(numpy_dtype)
 
 
 class EmbeddingList:

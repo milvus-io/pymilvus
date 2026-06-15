@@ -264,10 +264,11 @@ class TestEmbeddingListParseDtype:
     def test_parse_bfloat16_uses_registry_fallback(self):
         with patch(
             "pymilvus.client.embedding_list.require_numpy_dtype",
-            return_value="missing_bfloat16",
-        ):
+            return_value="float16",
+        ) as require_dtype:
             el = EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
 
+        require_dtype.assert_called_once_with(DataType.BFLOAT16_VECTOR, fallback_dtype="float16")
         assert el._dtype == np.dtype(np.float16)
 
     def test_parse_datatype_missing_registry_dtype_raises_param_error(self):

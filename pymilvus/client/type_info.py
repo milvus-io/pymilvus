@@ -25,6 +25,8 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Mapping, Optional, Union
 
+import numpy as np
+
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
 
@@ -748,14 +750,17 @@ def get_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
     return get_type_info(dtype).numpy_dtype
 
 
-def require_numpy_dtype(dtype: DataTypeLike) -> str:
+def require_numpy_dtype(dtype: DataTypeLike, *, fallback_dtype: Optional[str] = None) -> str:
     """Return runtime NumPy dtype metadata or raise when the fact is absent.
 
     Args:
         dtype: ``DataType`` or raw enum integer to look up.
+        fallback_dtype: Optional dtype to use when the primary dtype is not
+            available in the installed NumPy runtime.
 
     Returns:
-        Required symbolic NumPy dtype string.
+        Required symbolic NumPy dtype string, or ``fallback_dtype`` when the
+        primary dtype is unavailable and a fallback is provided.
 
     Raises:
         ParamError: If ``dtype`` is unsupported or has no runtime NumPy dtype
@@ -766,6 +771,12 @@ def require_numpy_dtype(dtype: DataTypeLike) -> str:
     numpy_dtype = get_numpy_dtype(coerced_dtype)
     if numpy_dtype is None:
         raise ParamError(message=f"Unsupported DataType: {coerced_dtype}")
+    if fallback_dtype is not None:
+        try:
+            np.dtype(numpy_dtype)
+        except TypeError:
+            np.dtype(fallback_dtype)
+            return fallback_dtype
     return numpy_dtype
 
 

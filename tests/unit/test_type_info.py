@@ -1,6 +1,7 @@
 from dataclasses import FrozenInstanceError, fields
 
 import pytest
+from pymilvus.client import type_info as type_info_module
 from pymilvus.client.type_info import (
     TYPE_INFO,
     ArrowLayout,
@@ -368,6 +369,19 @@ def test_numpy_metadata_matches_embedding_list_and_bulk_facts(
 )
 def test_require_numpy_dtype_returns_present_metadata(dtype, numpy_dtype):
     assert require_numpy_dtype(dtype) == numpy_dtype
+
+
+def test_require_numpy_dtype_uses_explicit_fallback_when_primary_unavailable(monkeypatch):
+    original_dtype = type_info_module.np.dtype
+
+    def dtype(dtype_name):
+        if dtype_name == "bfloat16":
+            raise TypeError("data type 'bfloat16' not understood")
+        return original_dtype(dtype_name)
+
+    monkeypatch.setattr(type_info_module.np, "dtype", dtype)
+
+    assert require_numpy_dtype(DataType.BFLOAT16_VECTOR, fallback_dtype="uint16") == "uint16"
 
 
 def test_require_numpy_dtype_rejects_missing_metadata():
