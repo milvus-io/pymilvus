@@ -750,17 +750,14 @@ def get_numpy_dtype(dtype: DataTypeLike) -> Optional[str]:
     return get_type_info(dtype).numpy_dtype
 
 
-def require_numpy_dtype(dtype: DataTypeLike, *, fallback_dtype: Optional[str] = None) -> str:
+def require_numpy_dtype(dtype: DataTypeLike) -> str:
     """Return runtime NumPy dtype metadata or raise when the fact is absent.
 
     Args:
         dtype: ``DataType`` or raw enum integer to look up.
-        fallback_dtype: Optional dtype to use when the primary dtype is not
-            available in the installed NumPy runtime.
 
     Returns:
-        Required symbolic NumPy dtype string, or ``fallback_dtype`` when the
-        primary dtype is unavailable and a fallback is provided.
+        Required symbolic NumPy dtype string.
 
     Raises:
         ParamError: If ``dtype`` is unsupported or has no runtime NumPy dtype
@@ -771,13 +768,25 @@ def require_numpy_dtype(dtype: DataTypeLike, *, fallback_dtype: Optional[str] = 
     numpy_dtype = get_numpy_dtype(coerced_dtype)
     if numpy_dtype is None:
         raise ParamError(message=f"Unsupported DataType: {coerced_dtype}")
-    if fallback_dtype is not None:
-        try:
-            np.dtype(numpy_dtype)
-        except TypeError:
-            np.dtype(fallback_dtype)
-            return fallback_dtype
     return numpy_dtype
+
+
+def resolve_numpy_dtype(dtype: DataTypeLike, *, fallback_dtype: Optional[str] = None) -> np.dtype:
+    """Return an installed NumPy dtype, using explicit or registry fallback metadata."""
+
+    coerced_dtype = _coerce_dtype(dtype)
+    numpy_dtype = require_numpy_dtype(coerced_dtype)
+    try:
+        return np.dtype(numpy_dtype)
+    except TypeError:
+        fallback = (
+            fallback_dtype
+            if fallback_dtype is not None
+            else get_numpy_fallback_dtype(coerced_dtype)
+        )
+        if fallback is None:
+            raise
+        return np.dtype(fallback)
 
 
 def get_numpy_fallback_dtype(dtype: DataTypeLike) -> Optional[str]:

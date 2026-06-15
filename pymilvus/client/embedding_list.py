@@ -4,21 +4,13 @@ from typing import Any, List, Optional, Union
 
 import numpy as np
 
-from pymilvus.client.type_info import (
-    get_numpy_fallback_dtype,
-    is_dense_vector_type,
-    require_numpy_dtype,
-)
+from pymilvus.client.type_info import is_dense_vector_type, resolve_numpy_dtype
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
 
 
 def _get_registry_numpy_dtype(dtype: DataType) -> np.dtype:
-    numpy_dtype = require_numpy_dtype(
-        dtype,
-        fallback_dtype=get_numpy_fallback_dtype(dtype),
-    )
-    return np.dtype(numpy_dtype)
+    return resolve_numpy_dtype(dtype)
 
 
 class EmbeddingList:
