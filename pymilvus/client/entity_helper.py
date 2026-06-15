@@ -806,6 +806,7 @@ def _materialize_vector_array_value(element_type: DataType, value: Any) -> Any:
         return list(value)
     if element_type == DataType.BINARY_VECTOR:
         return [value]
+    # Remaining vector-array payloads are byte slices decoded through TypeInfo dtype facts.
     if not type_info.is_byte_vector_type(element_type):
         raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
 
