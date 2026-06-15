@@ -3,12 +3,12 @@
 Coverage: User, role, privilege, grant, resource group operations.
 """
 
+import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.call_context import CallContext
-from pymilvus.exceptions import ParamError
 
 
 class TestAsyncGrpcHandlerUser:
@@ -158,11 +158,8 @@ class TestAsyncGrpcHandlerUser:
 
     @pytest.mark.asyncio
     async def test_update_user_requires_description(self) -> None:
-        mock_channel = MagicMock()
-        mock_channel._unary_unary_interceptors = []
-        handler = AsyncGrpcHandler(channel=mock_channel)
-        with pytest.raises(ParamError):
-            await handler.update_user("user")
+        parameter = inspect.signature(AsyncGrpcHandler.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
 
     @pytest.mark.asyncio
     async def test_list_users(self) -> None:

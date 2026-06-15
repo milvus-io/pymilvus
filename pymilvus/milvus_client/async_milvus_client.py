@@ -1461,12 +1461,10 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def update_user(
         self,
         user_name: str,
-        description: Optional[str] = None,
+        description: str,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if description is None:
-            raise ParamError(message="description is required")
         conn = await self._get_connection()
         await conn.update_user(
             user_name,

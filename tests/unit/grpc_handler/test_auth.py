@@ -1,11 +1,10 @@
 """Tests for GrpcHandler authentication and authorization operations."""
 
+import inspect
 from unittest.mock import MagicMock
 
-import pytest
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.types import ResourceGroupConfig
-from pymilvus.exceptions import ParamError
 
 from .conftest import make_response, make_status
 
@@ -51,8 +50,8 @@ class TestGrpcHandlerUserOps:
         assert req.description == "updated account"
 
     def test_update_user_requires_description(self, handler):
-        with pytest.raises(ParamError):
-            handler.update_user("user")
+        parameter = inspect.signature(type(handler).update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
 
     def test_list_usernames(self, handler):
         handler._stub.ListCredUsers.return_value = make_response(usernames=["u1", "u2"])

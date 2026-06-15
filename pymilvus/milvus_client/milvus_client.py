@@ -1680,12 +1680,10 @@ class MilvusClient(BaseMilvusClient):
     def update_user(
         self,
         user_name: str,
-        description: Optional[str] = None,
+        description: str,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        if description is None:
-            raise ParamError(message="description is required")
         conn = self._get_connection()
         conn.update_user(
             user_name,

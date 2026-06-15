@@ -2149,13 +2149,11 @@ class AsyncGrpcHandler:
     async def update_user(
         self,
         user: str,
-        description: Optional[str] = None,
+        description: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        if description is None:
-            raise ParamError(message="description is required")
         req = Prepare.update_password_request(user, "", "", description=description)
         resp = await self._async_stub.UpdateCredential(
             req, timeout=timeout, metadata=_api_level_md(context)

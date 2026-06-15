@@ -1,3 +1,4 @@
+import inspect
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
@@ -266,10 +267,23 @@ class TestAsyncClientRBACOps:
         assert kwargs["timeout"] == 5
 
     @pytest.mark.asyncio
+    async def test_update_user_forwards_empty_description(self):
+        client, handler = _make_client()
+        await client.update_user("alice", description="", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("alice",)
+        assert kwargs["description"] == ""
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.asyncio
     async def test_update_user_requires_description(self):
         client, handler = _make_client()
-        with pytest.raises(ParamError):
-            await client.update_user("alice")
+        parameter = inspect.signature(AsyncMilvusClient.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
+
+        with pytest.raises(TypeError):
+            client.update_user("alice")
         handler.update_user.assert_not_called()
 
     @pytest.mark.asyncio

@@ -1990,9 +1990,21 @@ class TestMilvusClientRBACOps:
         assert kwargs["description"] == "updated account"
         assert kwargs["timeout"] == 5
 
+    def test_update_user_forwards_empty_description(self, mc):
+        client, handler = mc
+        client.update_user("user", description="", timeout=5)
+        handler.update_user.assert_called_once()
+        args, kwargs = handler.update_user.call_args
+        assert args == ("user",)
+        assert kwargs["description"] == ""
+        assert kwargs["timeout"] == 5
+
     def test_update_user_requires_description(self, mc):
         client, handler = mc
-        with pytest.raises(ParamError):
+        parameter = inspect.signature(MilvusClient.update_user).parameters["description"]
+        assert parameter.default is inspect.Parameter.empty
+
+        with pytest.raises(TypeError):
             client.update_user("user")
         handler.update_user.assert_not_called()
 
