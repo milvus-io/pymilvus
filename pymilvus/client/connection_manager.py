@@ -182,6 +182,7 @@ class ManagedConnection:
         created_at: Unix timestamp when connection was created
         last_used_at: Unix timestamp when connection was last accessed
         clients: WeakSet of MilvusClient instances using this connection
+        connect_timeout: Timeout used for initial connection and later recovery
     """
 
     handler: "GrpcHandler"
@@ -191,6 +192,7 @@ class ManagedConnection:
     last_used_at: float = field(default_factory=time.time)
     clients: weakref.WeakSet = field(default_factory=weakref.WeakSet)
     recovery_gen: int = 0
+    connect_timeout: Optional[float] = None
 
     def touch(self) -> None:
         """Update last_used_at to current time."""
@@ -527,6 +529,7 @@ class ConnectionManager:
             handler=handler,
             config=config,
             strategy=strategy,
+            connect_timeout=timeout,
         )
         if client:
             managed.add_client(client)
@@ -552,6 +555,7 @@ class ConnectionManager:
             handler=handler,
             config=config,
             strategy=strategy,
+            connect_timeout=timeout,
         )
         if client:
             managed.add_client(client)
@@ -665,7 +669,7 @@ class ConnectionManager:
         """
         try:
             new_address = managed.strategy.get_recovery_address(managed)
-            managed.handler.reconnect(address=new_address)
+            managed.handler.reconnect(address=new_address, timeout=managed.connect_timeout)
             managed.recovery_gen += 1
             managed.touch()
         except Exception:
@@ -965,6 +969,7 @@ class AsyncConnectionManager:
             handler=handler,
             config=config,
             strategy=strategy,
+            connect_timeout=timeout,
         )
         if client:
             managed.add_client(client)
@@ -989,6 +994,7 @@ class AsyncConnectionManager:
             handler=handler,
             config=config,
             strategy=strategy,
+            connect_timeout=timeout,
         )
         if client:
             managed.add_client(client)
@@ -1121,7 +1127,7 @@ class AsyncConnectionManager:
         """
         try:
             new_address = managed.strategy.get_recovery_address(managed)
-            await managed.handler.reconnect(address=new_address)
+            await managed.handler.reconnect(address=new_address, timeout=managed.connect_timeout)
             managed.recovery_gen += 1
             managed.touch()
         except Exception:
