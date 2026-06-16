@@ -7,11 +7,13 @@ Merged and refactored from:
 """
 
 import copy
+from types import SimpleNamespace
 
-import numpy as np
 import pandas as pd
+import pymilvus.orm.schema as schema_module
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
+from pymilvus.client.type_info import TypeFamily, TypeInfo
 from pymilvus.client.types import HighlightType
 from pymilvus.exceptions import (
     AutoIDException,
@@ -1672,22 +1674,57 @@ class TestPrepareFieldsFromDataframe:
             prepare_fields_from_dataframe(empty_frame)
 
     @pytest.mark.parametrize(
-        "vec_data,expected_dtype",
+        "vec_data,expected_dtype,expected_dim",
         [
-            pytest.param(b"\x01\x02", DataType.BINARY_VECTOR, id="binary_vector"),
             pytest.param(
-                np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32),
+                b"\x01\x02",
+                DataType.BINARY_VECTOR,
+                16,
+                id="binary_vector",
+            ),
+            pytest.param(
+                [1.0, 2.0, 3.0, 4.0],
                 DataType.FLOAT_VECTOR,
+                4,
                 id="float_vector",
             ),
+            pytest.param(b"\x00" * 8, DataType.FLOAT16_VECTOR, 4, id="float16_vector"),
+            pytest.param(b"\x00" * 8, DataType.BFLOAT16_VECTOR, 4, id="bfloat16_vector"),
+            pytest.param(b"\x01\x02\x03\x04", DataType.INT8_VECTOR, 4, id="int8_vector"),
         ],
     )
-    def test_dataframe_with_vectors(self, vec_data, expected_dtype):
+    def test_dataframe_with_vectors(self, monkeypatch, vec_data, expected_dtype, expected_dim):
         """Test DataFrame with vector columns."""
+        monkeypatch.setattr(schema_module, "infer_dtype_bydata", lambda _: expected_dtype)
         vec_frame = pd.DataFrame({"id": [1], "vec": [vec_data]})
         _, data_types, params = prepare_fields_from_dataframe(vec_frame)
         assert expected_dtype in data_types
-        assert "vec" in params
+        assert params["vec"] == {"dim": expected_dim}
+
+    def test_dataframe_vector_dim_inference_uses_type_info_facts(self, monkeypatch):
+        """Test vector dim inference follows dense vector storage facts."""
+        dtype = DataType.FLOAT16_VECTOR
+        vector_facts = TypeInfo(
+            dtype=dtype,
+            family=TypeFamily.DENSE_VECTOR,
+            bytes_per_dim=4,
+            byte_storage=True,
+        )
+        monkeypatch.setattr(schema_module, "infer_dtype_bydata", lambda _: dtype)
+        monkeypatch.setattr(
+            schema_module,
+            "type_info",
+            SimpleNamespace(
+                get_type_info=lambda _: vector_facts,
+                is_dense_vector_type=lambda _: True,
+            ),
+            raising=False,
+        )
+
+        vec_frame = pd.DataFrame({"vec": [b"\x00" * 8]})
+        _, _, params = prepare_fields_from_dataframe(vec_frame)
+
+        assert params["vec"] == {"dim": 2}
 
 
 class TestInferDefaultValueByData:

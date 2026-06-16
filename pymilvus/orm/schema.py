@@ -17,6 +17,7 @@ import orjson
 import pandas as pd
 from pandas.api.types import is_list_like, is_scalar
 
+from pymilvus.client import type_info
 from pymilvus.client.types import FunctionType, HighlightType
 from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
@@ -1302,23 +1303,16 @@ def prepare_fields_from_dataframe(df: pd.DataFrame):
         for i, dtype in enumerate(data_types):
             if dtype == DataType.UNKNOWN:
                 new_dtype = infer_dtype_bydata(values[i])
-                if new_dtype in (
-                    DataType.BINARY_VECTOR,
-                    DataType.FLOAT_VECTOR,
-                    DataType.FLOAT16_VECTOR,
-                    DataType.BFLOAT16_VECTOR,
-                    DataType.INT8_VECTOR,
-                ):
-                    vector_type_params = {}
-                    if new_dtype == DataType.BINARY_VECTOR:
-                        vector_type_params["dim"] = len(values[i]) * 8
-                    elif new_dtype in (DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR):
-                        vector_type_params["dim"] = int(len(values[i]) // 2)
-                    elif new_dtype == DataType.INT8_VECTOR:
-                        vector_type_params["dim"] = len(values[i])
+                if type_info.is_dense_vector_type(new_dtype):
+                    info = type_info.get_type_info(new_dtype)
+                    sample_len = len(values[i])
+                    if not info.byte_storage:
+                        dim = sample_len
+                    elif info.binary_packed:
+                        dim = sample_len * 8
                     else:
-                        vector_type_params["dim"] = len(values[i])
-                    column_params_map[col_names[i]] = vector_type_params
+                        dim = sample_len // info.bytes_per_dim
+                    column_params_map[col_names[i]] = {"dim": int(dim)}
                 data_types[i] = new_dtype
 
     if DataType.UNKNOWN in data_types:
