@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import extract_struct_array_from_column_data
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
@@ -142,6 +143,49 @@ class TestExtractStructArray:
         result = extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
         assert len(result) == 1
         assert result[0]["int8"] == [1, 2]
+
+    def test_materialize_vector_array_byte_vectors_use_numpy_dtype_fact(self, monkeypatch):
+        original_require_numpy_dtype = entity_helper.type_info.require_numpy_dtype
+
+        def require_numpy_dtype(dtype):
+            if dtype == DataType.INT8_VECTOR:
+                return "uint8"
+            return original_require_numpy_dtype(dtype)
+
+        monkeypatch.setattr(entity_helper.type_info, "require_numpy_dtype", require_numpy_dtype)
+
+        result = entity_helper._materialize_vector_array_value(DataType.INT8_VECTOR, b"\xff")
+
+        assert result == [255]
+
+    def test_materialize_vector_array_shapes_and_bf16_fallback(self):
+        f16_bytes = np.array([1.0, 2.0], dtype=np.float16).tobytes()
+        bf16_bytes = np.array([0x3C00, 0x4000], dtype=np.uint16).tobytes()
+
+        assert entity_helper._materialize_vector_array_value(DataType.FLOAT_VECTOR, [1.0, 2.0]) == [
+            1.0,
+            2.0,
+        ]
+        assert entity_helper._materialize_vector_array_value(
+            DataType.FLOAT16_VECTOR, f16_bytes
+        ) == [np.float16(1.0), np.float16(2.0)]
+        assert [
+            int(value)
+            for value in entity_helper._materialize_vector_array_value(
+                DataType.BFLOAT16_VECTOR, bf16_bytes
+            )
+        ] == [0x3C00, 0x4000]
+        assert entity_helper._materialize_vector_array_value(DataType.INT8_VECTOR, b"\x01\x02") == [
+            1,
+            2,
+        ]
+        assert entity_helper._materialize_vector_array_value(DataType.BINARY_VECTOR, b"\x01") == [
+            b"\x01"
+        ]
+
+    def test_materialize_vector_array_unsupported_type_raises(self):
+        with pytest.raises(ParamError, match="Unimplemented type"):
+            entity_helper._materialize_vector_array_value(DataType.SPARSE_FLOAT_VECTOR, b"")
 
     def test_extract_struct_array_unexpected_field_type(self):
         """Test error when struct contains unexpected field type"""

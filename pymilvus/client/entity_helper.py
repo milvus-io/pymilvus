@@ -800,16 +800,15 @@ def _materialize_vector_array_value(element_type: DataType, value: Any) -> Any:
         return None
     if element_type == DataType.FLOAT_VECTOR:
         return list(value)
-    if element_type == DataType.FLOAT16_VECTOR:
-        return list(np.frombuffer(value, dtype=np.float16))
-    if element_type == DataType.BFLOAT16_VECTOR:
-        dtype = "bfloat16" if hasattr(np, "bfloat16") else np.uint16
-        return list(np.frombuffer(value, dtype=dtype))
-    if element_type == DataType.INT8_VECTOR:
-        return list(np.frombuffer(value, dtype=np.int8))
     if element_type == DataType.BINARY_VECTOR:
         return [value]
-    raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
+    if not type_info.is_byte_vector_type(element_type):
+        raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
+
+    numpy_dtype = type_info.require_numpy_dtype(element_type)
+    if element_type == DataType.BFLOAT16_VECTOR and not hasattr(np, "bfloat16"):
+        numpy_dtype = "uint16"
+    return list(np.frombuffer(value, dtype=numpy_dtype))
 
 
 def extract_struct_array_from_column_data(struct_arrays: Any, row_idx: int) -> List[Dict[str, Any]]:
