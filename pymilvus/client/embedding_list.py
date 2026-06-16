@@ -13,17 +13,6 @@ from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
 
 
-def _get_registry_numpy_dtype(dtype: DataType) -> np.dtype:
-    numpy_dtype = require_numpy_dtype(dtype)
-    try:
-        return np.dtype(numpy_dtype)
-    except TypeError:
-        fallback_dtype = get_numpy_fallback_dtype(dtype)
-        if fallback_dtype is None:
-            raise
-        return np.dtype(fallback_dtype)
-
-
 class EmbeddingList:
     """
     A container for multiple embeddings that can be used directly in Milvus searches.
@@ -106,7 +95,14 @@ class EmbeddingList:
             if not is_dense_vector_type(dtype):
                 msg = f"Unsupported DataType: {dtype}"
                 raise ParamError(message=msg)
-            return _get_registry_numpy_dtype(dtype)
+            numpy_dtype = require_numpy_dtype(dtype)
+            try:
+                return np.dtype(numpy_dtype)
+            except TypeError:
+                fallback_dtype = get_numpy_fallback_dtype(dtype)
+                if fallback_dtype is None:
+                    raise
+                return np.dtype(fallback_dtype)
         msg = f"dtype must be numpy dtype, string, or DataType, got {type(dtype)}"
         raise TypeError(msg)
 
