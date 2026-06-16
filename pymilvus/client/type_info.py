@@ -25,8 +25,6 @@ from enum import Enum
 from types import MappingProxyType
 from typing import Mapping, Optional, Union
 
-import numpy as np
-
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
 
@@ -769,24 +767,6 @@ def require_numpy_dtype(dtype: DataTypeLike) -> str:
     if numpy_dtype is None:
         raise ParamError(message=f"Unsupported DataType: {coerced_dtype}")
     return numpy_dtype
-
-
-def resolve_numpy_dtype(dtype: DataTypeLike, *, fallback_dtype: Optional[str] = None) -> np.dtype:
-    """Return an installed NumPy dtype, using explicit or registry fallback metadata."""
-
-    coerced_dtype = _coerce_dtype(dtype)
-    numpy_dtype = require_numpy_dtype(coerced_dtype)
-    try:
-        return np.dtype(numpy_dtype)
-    except TypeError:
-        fallback = (
-            fallback_dtype
-            if fallback_dtype is not None
-            else get_numpy_fallback_dtype(coerced_dtype)
-        )
-        if fallback is None:
-            raise
-        return np.dtype(fallback)
 
 
 def get_numpy_fallback_dtype(dtype: DataTypeLike) -> Optional[str]:

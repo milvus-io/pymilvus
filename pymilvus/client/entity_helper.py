@@ -806,16 +806,13 @@ def _materialize_vector_array_value(element_type: DataType, value: Any) -> Any:
         return list(value)
     if element_type == DataType.BINARY_VECTOR:
         return [value]
-    # decode_vector_array_value() validates dense vector-array elements; remaining payloads
-    # are byte slices decoded through TypeInfo dtype facts.
     if not type_info.is_byte_vector_type(element_type):
         raise ParamError(message=f"Unimplemented type: {element_type} for vector array extraction")
 
-    dtype = type_info.resolve_numpy_dtype(
-        element_type,
-        fallback_dtype="uint16" if element_type == DataType.BFLOAT16_VECTOR else None,
-    )
-    return list(np.frombuffer(value, dtype=dtype))
+    numpy_dtype = type_info.require_numpy_dtype(element_type)
+    if element_type == DataType.BFLOAT16_VECTOR and not hasattr(np, "bfloat16"):
+        numpy_dtype = "uint16"
+    return list(np.frombuffer(value, dtype=numpy_dtype))
 
 
 def _is_struct_array_row_null(struct_arrays: Any, row_idx: int) -> bool:

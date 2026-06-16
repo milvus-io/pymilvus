@@ -1,7 +1,6 @@
 from dataclasses import FrozenInstanceError, fields
 
 import pytest
-from pymilvus.client import type_info as type_info_module
 from pymilvus.client.type_info import (
     TYPE_INFO,
     ArrowLayout,
@@ -34,7 +33,6 @@ from pymilvus.client.type_info import (
     require_numpy_dtype,
     require_placeholder_type,
     require_vector_type_for_numpy_dtype,
-    resolve_numpy_dtype,
     row_width,
 )
 from pymilvus.client.types import DataType, PlaceholderType
@@ -370,34 +368,6 @@ def test_numpy_metadata_matches_embedding_list_and_bulk_facts(
 )
 def test_require_numpy_dtype_returns_present_metadata(dtype, numpy_dtype):
     assert require_numpy_dtype(dtype) == numpy_dtype
-
-
-def test_resolve_numpy_dtype_uses_registry_fallback_when_primary_unavailable(monkeypatch):
-    original_dtype = type_info_module.np.dtype
-
-    def dtype(dtype_name):
-        if dtype_name == "bfloat16":
-            raise TypeError("data type 'bfloat16' not understood")
-        return original_dtype(dtype_name)
-
-    monkeypatch.setattr(type_info_module.np, "dtype", dtype)
-
-    assert resolve_numpy_dtype(DataType.BFLOAT16_VECTOR) == original_dtype("float16")
-
-
-def test_resolve_numpy_dtype_uses_explicit_fallback_override(monkeypatch):
-    original_dtype = type_info_module.np.dtype
-
-    def dtype(dtype_name):
-        if dtype_name == "bfloat16":
-            raise TypeError("data type 'bfloat16' not understood")
-        return original_dtype(dtype_name)
-
-    monkeypatch.setattr(type_info_module.np, "dtype", dtype)
-
-    assert resolve_numpy_dtype(DataType.BFLOAT16_VECTOR, fallback_dtype="uint16") == original_dtype(
-        "uint16"
-    )
 
 
 def test_require_numpy_dtype_rejects_missing_metadata():

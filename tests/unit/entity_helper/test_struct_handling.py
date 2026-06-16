@@ -147,7 +147,7 @@ class TestExtractStructArray:
     def test_materialize_vector_array_byte_vectors_use_numpy_dtype_fact(self, monkeypatch):
         original_require_numpy_dtype = entity_helper.type_info.require_numpy_dtype
 
-        def require_numpy_dtype(dtype, *, fallback_dtype=None):
+        def require_numpy_dtype(dtype):
             if dtype == DataType.INT8_VECTOR:
                 return "uint8"
             return original_require_numpy_dtype(dtype)
