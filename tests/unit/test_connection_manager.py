@@ -1936,6 +1936,21 @@ class TestInPlaceRecovery:
             call_kwargs = handler.reconnect.call_args
             assert call_kwargs.kwargs.get("address") is None
 
+    def test_recovery_reuses_initial_connection_timeout(self):
+        """Recovery should reuse the timeout configured when the connection was created."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("https://remote.example.com:443", token="test")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            handler = _make_sync_handler()
+            mock_handler_cls.return_value = handler
+
+            mgr.get_or_create(config, timeout=60)
+            mgr.handle_error(handler, _MockRpcError())
+
+            call_kwargs = handler.reconnect.call_args
+            assert call_kwargs.kwargs["timeout"] == 60
+
     def test_global_recovery_warns_when_no_topology(self):
         """GlobalStrategy logs warning when get_recovery_address returns None.
 
