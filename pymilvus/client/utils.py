@@ -74,7 +74,7 @@ def check_status(status: common_pb2.Status):
     if status.code != 0 or status.error_code != 0:
         if status.error_code == common_pb2.SchemaMismatch:
             raise SchemaMismatchRetryableException(status.reason)
-        raise MilvusException(status.code, status.reason, status.error_code)
+        raise MilvusException.from_status(status)
 
 
 def is_successful(status: common_pb2.Status):
