@@ -1673,6 +1673,12 @@ class TestPrepareFieldsFromDataframe:
         with pytest.raises(CannotInferSchemaException):
             prepare_fields_from_dataframe(empty_frame)
 
+    def test_non_empty_dataframe_unknown_dtype(self):
+        """Test non-empty DataFrame with data that keeps an unknown dtype."""
+        unknown_frame = pd.DataFrame({"col": pd.Series([[object()]], dtype=object)})
+        with pytest.raises(CannotInferSchemaException):
+            prepare_fields_from_dataframe(unknown_frame)
+
     @pytest.mark.parametrize(
         "vec_data,expected_dtype,expected_dim",
         [
