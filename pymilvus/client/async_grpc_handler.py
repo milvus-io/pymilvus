@@ -483,7 +483,7 @@ class AsyncGrpcHandler:
         if is_successful(status):
             return CollectionSchema(raw=response).dict()
 
-        raise DescribeCollectionException(status.code, status.reason, status.error_code)
+        raise DescribeCollectionException.from_status(status)
 
     @retry_on_rpc_failure()
     async def has_collection(
@@ -514,7 +514,7 @@ class AsyncGrpcHandler:
         if reply.status.code == ErrorCode.COLLECTION_NOT_FOUND:
             return False
 
-        raise MilvusException(reply.status.code, reply.status.reason, reply.status.error_code)
+        raise MilvusException.from_status(reply.status)
 
     @retry_on_rpc_failure()
     async def list_collections(
@@ -1755,7 +1755,7 @@ class AsyncGrpcHandler:
             return response.index_descriptions
         if status.code == ErrorCode.INDEX_NOT_FOUND or status.error_code == Status.INDEX_NOT_EXIST:
             return []
-        raise MilvusException(status.code, status.reason, status.error_code)
+        raise MilvusException.from_status(status)
 
     @retry_on_rpc_failure()
     async def describe_index(
