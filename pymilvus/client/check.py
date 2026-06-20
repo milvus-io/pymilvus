@@ -74,7 +74,7 @@ def is_correct_date_str(param: str) -> bool:
     except ValueError:
         return False
 
-    return False
+    return True
 
 
 def is_legal_dimension(dim: Any) -> bool:
