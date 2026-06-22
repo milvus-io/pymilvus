@@ -143,7 +143,7 @@ def sparse_vector_validator(x: object):
         raise MilvusException(message="only accept dict for SPARSE_FLOAT_VECTOR type field")
 
     def check_pair(k: object, v: object):
-        if not isinstance(k, int):
+        if not isinstance(k, int) or isinstance(k, bool):
             raise MilvusException(message="sparse vector's index must be integer value")
         if not isinstance(v, float):
             raise MilvusException(message="sparse vector's value must be float value")
@@ -155,7 +155,7 @@ def sparse_vector_validator(x: object):
         if not isinstance(indices, list):
             raise MilvusException(message="indices of sparse vector must be a list of int")
         if not isinstance(values, list):
-            raise MilvusException(message="values of sparse vector must be a list of int")
+            raise MilvusException(message="values of sparse vector must be a list of float")
         if len(indices) != len(values):
             raise MilvusException(
                 message="length of indices and values of sparse vector must be equal"
