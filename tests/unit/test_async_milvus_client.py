@@ -1495,11 +1495,22 @@ class TestAsyncAlterCollectionSchema:
         mock_handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_add_function_field_delegates(self, client_and_handler):
+    @pytest.mark.parametrize(
+        ("field", "func"),
+        [
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function("bm25", FunctionType.BM25, ["text"], ["sparse"]),
+            ),
+            (
+                FieldSchema("minhash", DataType.BINARY_VECTOR, dim=512),
+                Function("minhash", FunctionType.MINHASH, ["text"], ["minhash"]),
+            ),
+        ],
+    )
+    async def test_add_function_field_delegates(self, client_and_handler, field, func):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
-        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
-        func = Function("bm25", FunctionType.BM25, ["text"], ["sparse"])
 
         await client.add_function_field("col", field, func)
 
@@ -1512,18 +1523,35 @@ class TestAsyncAlterCollectionSchema:
         field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
         func = Function("embed", FunctionType.TEXTEMBEDDING, ["text"], ["sparse"])
 
-        with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
+        with pytest.raises(
+            ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
+        ):
             await client.add_function_field("col", field, func)
         mock_handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_add_function_field_rejects_non_sparse_output(self, client_and_handler):
+    @pytest.mark.parametrize(
+        ("field", "func", "expected"),
+        [
+            (
+                FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8),
+                Function("bm25", FunctionType.BM25, ["text"], ["dense"]),
+                "requires SPARSE_FLOAT_VECTOR output field",
+            ),
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function("minhash", FunctionType.MINHASH, ["text"], ["sparse"]),
+                "requires BINARY_VECTOR output field",
+            ),
+        ],
+    )
+    async def test_add_function_field_rejects_invalid_output(
+        self, client_and_handler, field, func, expected
+    ):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
-        field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
-        func = Function("bm25", FunctionType.BM25, ["text"], ["dense"])
 
-        with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
+        with pytest.raises(ParamError, match=expected):
             await client.add_function_field("col", field, func)
         mock_handler.alter_collection_schema.assert_not_called()
 
