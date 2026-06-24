@@ -1486,9 +1486,10 @@ class MilvusClient(BaseMilvusClient):
         Args:
             collection_name(``str``): Name of the collection to modify.
             field_schema(``FieldSchema``): Schema of the new output field produced by
-                the function (e.g. a ``SPARSE_FLOAT_VECTOR`` field for BM25).
+                the function (e.g. a ``SPARSE_FLOAT_VECTOR`` field for BM25 or
+                a ``BINARY_VECTOR`` field for MinHash).
             func(``Function``): Function definition that generates the output field
-                (e.g. a ``FunctionType.BM25`` function).
+                (e.g. a ``FunctionType.BM25`` or ``FunctionType.MINHASH`` function).
             timeout(``float``, optional): Timeout in seconds for the schema-change RPC.
             **kwargs: Additional keyword arguments forwarded to the underlying calls.
 
@@ -1500,16 +1501,24 @@ class MilvusClient(BaseMilvusClient):
         validate_param("field_schema", field_schema, FieldSchema)
         validate_param("func", func, Function)
 
-        # Only BM25 + SPARSE_FLOAT_VECTOR is currently supported on the server side.
-        # The Proxy and RootCoord both enforce this; reject early here for a clearer
-        # error message before any RPC is sent.
-        if func.type != FunctionType.BM25:
+        supported_function_outputs = {
+            FunctionType.BM25: DataType.SPARSE_FLOAT_VECTOR,
+            FunctionType.MINHASH: DataType.BINARY_VECTOR,
+        }
+        expected_dtype = supported_function_outputs.get(func.type)
+        if expected_dtype is None:
             raise ParamError(
-                message=f"add_function_field only supports FunctionType.BM25 for now, got {func.type}"
+                message=(
+                    "add_function_field only supports FunctionType.BM25 with SPARSE_FLOAT_VECTOR "
+                    f"or FunctionType.MINHASH with BINARY_VECTOR for now, got {func.type}"
+                )
             )
-        if field_schema.dtype != DataType.SPARSE_FLOAT_VECTOR:
+        if field_schema.dtype != expected_dtype:
             raise ParamError(
-                message=f"add_function_field only supports SPARSE_FLOAT_VECTOR output field for now, got {field_schema.dtype}"
+                message=(
+                    f"add_function_field requires {expected_dtype.name} output field for {func.type}, "
+                    f"got {field_schema.dtype}"
+                )
             )
 
         self._alter_collection_schema(
