@@ -38,6 +38,7 @@ from pymilvus.exceptions import (
     PartitionAlreadyExistException,
     SchemaNotReadyException,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.settings import Config
 
@@ -729,6 +730,7 @@ class Collection:
         timeout: Optional[float] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
@@ -773,6 +775,8 @@ class Collection:
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
             ranker (``Function``, ``FunctionScore``, optional): The ranker to use for the search.
+            function_chains (``FunctionChain`` or ``List[FunctionChain]``, optional): Function chain
+                or function chains to apply to ordinary search. Mutually exclusive with ``ranker``.
             search_aggregation (``SearchAggregation``, optional): Hierarchical bucket aggregation
                 spec. Mutually exclusive with ``group_by_field``. When set, ``limit`` is ignored
                 and the root ``SearchAggregation.size`` controls top-level bucket count.
@@ -880,6 +884,7 @@ class Collection:
             timeout=timeout,
             schema=self._schema_dict,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             search_aggregation=search_aggregation,
             context=context,

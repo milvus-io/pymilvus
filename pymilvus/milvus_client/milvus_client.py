@@ -37,6 +37,7 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
 from pymilvus.orm.iterator import QueryIterator, SearchIterator
@@ -428,6 +429,7 @@ class MilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
@@ -447,6 +449,8 @@ class MilvusClient(BaseMilvusClient):
                 specified, only primary fields including distances will be returned.
             search_params (dict, optional): The search params to use for the search.
             ranker (Function, optional): The ranker to use for the search.
+            function_chains (FunctionChain or List[FunctionChain], optional): Function chain or
+                function chains to apply to ordinary search. Mutually exclusive with ranker.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
             ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
@@ -482,6 +486,7 @@ class MilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),

@@ -8,6 +8,7 @@ import numpy as np
 import orjson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.function_chain import FunctionChain, FunctionChainStage
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
@@ -1614,6 +1615,38 @@ class Prepare:
             expression_template_values[k] = add_data(v)
         return expression_template_values
 
+    @staticmethod
+    def function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+        ranker: Optional[Union[Function, FunctionScore]] = None,
+    ) -> List[schema_types.FunctionChain]:
+        if function_chains is None:
+            return []
+        if isinstance(function_chains, list) and len(function_chains) == 0:
+            return []
+        if ranker is not None:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if not isinstance(chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in chains
+        ):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+
+        for chain in chains:
+            if chain.stage != FunctionChainStage.L2_RERANK:
+                raise ParamError(message="Only L2_RERANK function chains are supported for search")
+        return [chain.to_proto() for chain in chains]
+
+    @staticmethod
+    def check_no_hybrid_function_chains(function_chains: Any) -> None:
+        if function_chains is not None:
+            raise ParamError(message="function_chains is not supported for hybrid_search yet")
+
     @classmethod
     def search_requests_with_expr(
         cls,
@@ -1628,6 +1661,7 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         use_default_consistency: bool = True,
         **kwargs,
@@ -1844,6 +1878,8 @@ class Prepare:
 
         if expr is not None:
             request.dsl = expr
+
+        request.function_chains.extend(Prepare.function_chains_schema(function_chains, ranker))
 
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
