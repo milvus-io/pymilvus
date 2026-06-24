@@ -1207,19 +1207,29 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        """Add a function-backed field (e.g. BM25 sparse vector) to an existing collection."""
+        """Add a function-backed field (e.g. BM25 sparse vector or MinHash binary vector)."""
         validate_param("collection_name", collection_name, str)
         validate_param("field_schema", field_schema, FieldSchema)
         validate_param("func", func, Function)
 
-        # Only BM25 + SPARSE_FLOAT_VECTOR is currently supported on the server side.
-        if func.type != FunctionType.BM25:
+        supported_function_outputs = {
+            FunctionType.BM25: DataType.SPARSE_FLOAT_VECTOR,
+            FunctionType.MINHASH: DataType.BINARY_VECTOR,
+        }
+        expected_dtype = supported_function_outputs.get(func.type)
+        if expected_dtype is None:
             raise ParamError(
-                message=f"add_function_field only supports FunctionType.BM25 for now, got {func.type}"
+                message=(
+                    "add_function_field only supports FunctionType.BM25 with SPARSE_FLOAT_VECTOR "
+                    f"or FunctionType.MINHASH with BINARY_VECTOR for now, got {func.type}"
+                )
             )
-        if field_schema.dtype != DataType.SPARSE_FLOAT_VECTOR:
+        if field_schema.dtype != expected_dtype:
             raise ParamError(
-                message=f"add_function_field only supports SPARSE_FLOAT_VECTOR output field for now, got {field_schema.dtype}"
+                message=(
+                    f"add_function_field requires {expected_dtype.name} output field for {func.type}, "
+                    f"got {field_schema.dtype}"
+                )
             )
 
         await self._alter_collection_schema(

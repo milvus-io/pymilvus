@@ -1712,17 +1712,33 @@ class TestMilvusClientCollectionMgmt:
             with pytest.raises(ParamError, match="field_schema is required"):
                 client._alter_collection_schema("col", func=MagicMock())
 
-    def test_add_function_field_delegates(self):
+    @pytest.mark.parametrize(
+        ("field", "func"),
+        [
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function(
+                    name="bm25",
+                    function_type=FunctionType.BM25,
+                    input_field_names=["text"],
+                    output_field_names=["sparse"],
+                ),
+            ),
+            (
+                FieldSchema("minhash", DataType.BINARY_VECTOR, dim=512),
+                Function(
+                    name="minhash",
+                    function_type=FunctionType.MINHASH,
+                    input_field_names=["text"],
+                    output_field_names=["minhash"],
+                ),
+            ),
+        ],
+    )
+    def test_add_function_field_delegates(self, field, func):
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
-            func = Function(
-                name="bm25",
-                function_type=FunctionType.BM25,
-                input_field_names=["text"],
-                output_field_names=["sparse"],
-            )
             client.add_function_field("col", field, func)
             handler.alter_collection_schema.assert_called_once()
 
@@ -1737,22 +1753,42 @@ class TestMilvusClientCollectionMgmt:
                 input_field_names=["text"],
                 output_field_names=["sparse"],
             )
-            with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
+            with pytest.raises(
+                ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
+            ):
                 client.add_function_field("col", field, func)
             handler.alter_collection_schema.assert_not_called()
 
-    def test_add_function_field_rejects_non_sparse_output(self):
+    @pytest.mark.parametrize(
+        ("field", "func", "expected"),
+        [
+            (
+                FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8),
+                Function(
+                    name="bm25",
+                    function_type=FunctionType.BM25,
+                    input_field_names=["text"],
+                    output_field_names=["dense"],
+                ),
+                "requires SPARSE_FLOAT_VECTOR output field",
+            ),
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function(
+                    name="minhash",
+                    function_type=FunctionType.MINHASH,
+                    input_field_names=["text"],
+                    output_field_names=["sparse"],
+                ),
+                "requires BINARY_VECTOR output field",
+            ),
+        ],
+    )
+    def test_add_function_field_rejects_invalid_output(self, field, func, expected):
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
-            func = Function(
-                name="bm25",
-                function_type=FunctionType.BM25,
-                input_field_names=["text"],
-                output_field_names=["dense"],
-            )
-            with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
+            with pytest.raises(ParamError, match=expected):
                 client.add_function_field("col", field, func)
             handler.alter_collection_schema.assert_not_called()
 
