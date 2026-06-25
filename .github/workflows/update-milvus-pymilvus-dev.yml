@@ -54,6 +54,12 @@ jobs:
       with:
         python-version: "3.11"
 
+    - name: Checkout pymilvus (repo root for workflow)
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ matrix.pymilvus_branch }}
+        persist-credentials: false
+
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
@@ -68,12 +74,6 @@ jobs:
         echo "Author email: ${{ secrets.GIT_AUTHOR_EMAIL }}"
         git config --global user.name "${{ secrets.GIT_AUTHOR_NAME }}"
         git config --global user.email "${{ secrets.GIT_AUTHOR_EMAIL }}"
-
-    - name: Checkout pymilvus (repo root for workflow)
-      uses: actions/checkout@v6
-      with:
-        ref: ${{ matrix.pymilvus_branch }}
-        persist-credentials: false
 
     - name: Get history and tags for SCM versioning
       run: |
@@ -92,7 +92,7 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
-        VERSION=$(uv run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" python -m hatchling version)
+        VERSION=$(make -s version)
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
 
