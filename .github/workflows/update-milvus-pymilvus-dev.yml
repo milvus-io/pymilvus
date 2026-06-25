@@ -92,7 +92,9 @@ jobs:
     - name: Determine latest dev version
       id: version
       run: |
-        VERSION=$(uv run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" python -m hatchling version)
+        # setuptools-scm 10 pulls in vcs-versioning 2.x, whose .dev0 handling keeps
+        # v3.0.1.dev0 on 3.0.1rcN instead of PyMilvus master's intended 3.1.0rcN.
+        VERSION=$(uv run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8,<10" python -m hatchling version)
         echo "latest=$VERSION" >> $GITHUB_OUTPUT
         echo "Detected version: $VERSION"
 

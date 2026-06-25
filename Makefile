@@ -46,7 +46,7 @@ check_proto_product: gen_proto
 	./check_proto_product.sh
 
 version:
-	$(UV) run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" python -m hatchling version
+	$(UV) run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8,<10" python -m hatchling version
 
 install:
 	$(UV) sync
