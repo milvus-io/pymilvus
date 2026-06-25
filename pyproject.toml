@@ -1,10 +1,10 @@
 [build-system]
 requires = [
   "hatchling>=1.27,<1.28",
-  # setuptools-scm 10 pulls in vcs-versioning 2.x, whose .dev0 handling keeps
-  # v3.0.1.dev0 on 3.0.1rcN instead of PyMilvus master's intended 3.1.0rcN.
-  # Keep <10 until pymilvus/_version.py owns that branch policy directly.
-  "setuptools_scm[toml]>=8,<10",
+  "setuptools_scm[toml]>=8",
+  # vcs-versioning 2.x changes .dev0 handling so v3.0.1.dev0 stays on
+  # 3.0.1rcN instead of PyMilvus master's intended 3.1.0rcN line.
+  "vcs-versioning<2",
 ]
 build-backend = "hatchling.build"
 
@@ -87,8 +87,9 @@ dev = [
     "pytest-timeout>=1.3.4",
     "pytest-asyncio",
     "Cython>=3.0.0",
-    # Keep dev tooling aligned with the build-system version cap above.
-    "setuptools_scm[toml]>=8,<10",
+    "setuptools_scm[toml]>=8",
+    # Keep dev version tooling aligned with the build-system cap above.
+    "vcs-versioning<2",
     "ruff>=0.12.9,<1",
     "black",
     # develop bulk_writer
