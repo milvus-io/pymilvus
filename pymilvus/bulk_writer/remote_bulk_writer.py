@@ -291,7 +291,7 @@ class RemoteBulkWriter(LocalBulkWriter):
 
             for file_path in file_list:
                 ext = Path(file_path).suffix
-                if ext not in [".json", ".npy", ".parquet", ".csv"]:
+                if ext not in [".json", ".jsonl", ".npy", ".parquet", ".csv"]:
                     continue
 
                 relative_file_path = str(file_path).replace(str(super().data_path), "")

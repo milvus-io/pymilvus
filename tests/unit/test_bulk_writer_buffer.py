@@ -60,7 +60,13 @@ class TestBuffer:
 
     @pytest.mark.parametrize(
         "file_type",
-        [BulkFileType.NUMPY, BulkFileType.JSON, BulkFileType.PARQUET, BulkFileType.CSV],
+        [
+            BulkFileType.NUMPY,
+            BulkFileType.JSON,
+            BulkFileType.JSONL,
+            BulkFileType.PARQUET,
+            BulkFileType.CSV,
+        ],
     )
     def test_buffer_init_file_types(self, simple_schema: CollectionSchema, file_type):
         buffer = Buffer(simple_schema, file_type)
@@ -201,6 +207,27 @@ class TestBuffer:
                 assert len(data["rows"]) == 1
                 assert data["rows"][0]["id"] == 1
 
+    def test_persist_json_lines(self, simple_schema):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = Buffer(simple_schema, BulkFileType.JSONL)
+            buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "first"})
+            buffer.append_row({"id": 2, "vector": np.array([2.0] * 128), "text": "second"})
+
+            files = buffer.persist(temp_dir)
+
+            assert len(files) == 1
+            assert files[0].endswith(".jsonl")
+            file = Path(files[0])
+            assert file.exists()
+            with file.open("r") as f:
+                rows = [json.loads(line) for line in f]
+
+            assert rows[0]["id"] == 1
+            assert rows[0]["text"] == "first"
+            assert rows[1]["id"] == 2
+            assert rows[1]["text"] == "second"
+            assert rows[1]["vector"] == [2.0] * 128
+
     @patch("pandas.DataFrame.to_parquet")
     def test_persist_parquet(self, mock_to_parquet, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
@@ -270,7 +297,6 @@ class TestBuffer:
         buffer.append_row(row)
         assert buffer.row_count == 1
 
-    @pytest.mark.xfail(reason='numpy.dtype("bfloat16") is not supported')
     def test_persist_json_with_special_vectors(self, complex_schema):
         with tempfile.TemporaryDirectory() as temp_dir:
             buffer = Buffer(complex_schema, BulkFileType.JSON)
@@ -647,7 +673,6 @@ class TestBufferExtended:
 
     def test_persist_csv_with_all_field_types(self):
         """Test CSV persist with common field types"""
-        # Skip bfloat16 due to numpy dtype issues
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
             FieldSchema(name="bool_field", dtype=DataType.BOOL),
@@ -668,6 +693,7 @@ class TestBufferExtended:
             FieldSchema(name="binary_vector", dtype=DataType.BINARY_VECTOR, dim=128),
             FieldSchema(name="sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
             FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=128),
+            FieldSchema(name="bfloat16_vector", dtype=DataType.BFLOAT16_VECTOR, dim=128),
             FieldSchema(name="int8_vector", dtype=DataType.INT8_VECTOR, dim=128),
         ]
         schema = CollectionSchema(fields=fields)
@@ -688,6 +714,7 @@ class TestBufferExtended:
             "binary_vector": [1] * 128,
             "sparse_vector": {1: 0.5},
             "float16_vector": np.array([1.0] * 128, dtype=np.float16).tobytes(),
+            "bfloat16_vector": np.array([1.0] * 128, dtype=np.dtype("bfloat16")).tobytes(),
             "int8_vector": [1] * 128,
         }
         buffer.append_row(row)
@@ -772,7 +799,9 @@ class TestBufferExtended:
                 "binary_vector": [255],
                 "sparse_vector": {1: 0.5},
                 "float16_vector": np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float16).tobytes(),
-                "bfloat16_vector": None,
+                "bfloat16_vector": np.array(
+                    [1.0, 2.0, 3.0, 4.0], dtype=np.dtype("bfloat16")
+                ).tobytes(),
                 "int8_vector": [1, 2, 3, 4],
             }
         )
@@ -797,6 +826,7 @@ class TestBufferExtended:
         assert json.loads(value_row["binary_vector"]) == [255]
         assert json.loads(value_row["sparse_vector"]) == {"1": 0.5}
         assert json.loads(value_row["float16_vector"]) == [1.0, 2.0, 3.0, 4.0]
+        assert json.loads(value_row["bfloat16_vector"]) == [1.0, 2.0, 3.0, 4.0]
         assert json.loads(value_row["int8_vector"]) == [1, 2, 3, 4]
 
     def test_persist_csv_nullable_vector_uses_custom_nullkey(self):
