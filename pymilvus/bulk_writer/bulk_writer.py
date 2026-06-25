@@ -23,6 +23,7 @@ from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema
 
 from .buffer import (
     Buffer,
+    _float16_vector_numpy_dtype,
 )
 from .constants import (
     NUMPY_TYPE_CREATOR,
@@ -310,6 +311,9 @@ class BulkWriter:
 
         if dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
             if self._file_type != BulkFileType.PARQUET:
+                if isinstance(origin_list, bytes):
+                    dt = _float16_vector_numpy_dtype(dtype)
+                    return np.frombuffer(origin_list, dtype=dt).tolist()
                 return origin_list
             if isinstance(origin_list, list):
                 values = np.asarray(origin_list, dtype=np.float32)
