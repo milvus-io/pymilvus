@@ -4523,6 +4523,8 @@ bulk-writer = [
     { name = "minio", version = "7.2.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version <= '3.8'" },
     { name = "minio", version = "7.2.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version > '3.8' and python_full_version < '3.9'" },
     { name = "minio", version = "7.2.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "ml-dtypes", version = "0.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "ml-dtypes", version = "0.5.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pyarrow", version = "17.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pyarrow", version = "21.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "pyarrow", version = "24.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -4600,6 +4602,7 @@ requires-dist = [
     { name = "grpcio", marker = "python_full_version >= '3.14'", specifier = ">=1.75.1" },
     { name = "milvus-lite", marker = "sys_platform != 'win32' and extra == 'milvus-lite'", specifier = ">=2.4.0" },
     { name = "minio", marker = "extra == 'bulk-writer'", specifier = ">=7.0.0" },
+    { name = "ml-dtypes", marker = "extra == 'bulk-writer'" },
     { name = "numpy", marker = "python_full_version < '3.9'", specifier = "<1.25.0" },
     { name = "orjson", specifier = ">=3.10.15" },
     { name = "pandas", specifier = ">=1.2.4" },
@@ -4611,7 +4614,7 @@ requires-dist = [
     { name = "requests", marker = "extra == 'bulk-writer'" },
     { name = "urllib3", marker = "extra == 'bulk-writer'" },
 ]
-provides-extras = ["bulk-writer", "model", "milvus-lite"]
+provides-extras = ["bulk-writer", "milvus-lite", "model"]
 
 [package.metadata.requires-dev]
 dev = [

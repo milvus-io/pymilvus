@@ -195,6 +195,85 @@ class TestLocalBulkWriter:
         assert writer._buffer._buffer["body"] == [long_text]
         assert writer._buffer._buffer["tags"] == [["short", long_text]]
 
+    @pytest.mark.parametrize(
+        ("vector_type", "dim"),
+        [
+            pytest.param(DataType.FLOAT_VECTOR, 4, id="float"),
+            pytest.param(DataType.FLOAT16_VECTOR, 4, id="float16"),
+            pytest.param(DataType.BFLOAT16_VECTOR, 4, id="bfloat16"),
+            pytest.param(DataType.INT8_VECTOR, 4, id="int8"),
+            pytest.param(DataType.BINARY_VECTOR, 8, id="binary"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "file_type",
+        [
+            pytest.param(BulkFileType.JSON, id="json"),
+            pytest.param(BulkFileType.JSONL, id="jsonl"),
+            pytest.param(BulkFileType.CSV, id="csv"),
+            pytest.param(BulkFileType.PARQUET, id="parquet"),
+        ],
+    )
+    def test_append_row_struct_vector_subfield_all_file_types(
+        self, temp_dir, file_type, vector_type, dim
+    ):
+        def vector_value():
+            if vector_type in {
+                DataType.FLOAT_VECTOR,
+                DataType.FLOAT16_VECTOR,
+                DataType.BFLOAT16_VECTOR,
+            }:
+                return [1.0, 2.0, 3.0, 4.0]
+            if vector_type == DataType.INT8_VECTOR:
+                return [-1, 0, 1, 2]
+            return [0, 1, 0, 1, 1, 0, 1, 0]
+
+        struct_schema = StructFieldSchema()
+        struct_schema.add_field("vector", vector_type, dim=dim)
+        schema = CollectionSchema(
+            fields=[
+                FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            ]
+        )
+        schema.add_field(
+            "chunks",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=2,
+        )
+        writer = LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=file_type,
+        )
+
+        writer.append_row(
+            {
+                "id": 1,
+                "chunks": [
+                    {"vector": vector_value()},
+                    {"vector": vector_value()},
+                ],
+            }
+        )
+        file_prefix = str(Path(temp_dir) / f"{file_type.name.lower()}_{vector_type.name.lower()}")
+
+        files = writer._buffer.persist(file_prefix)
+
+        assert files
+        expected_suffix = {
+            BulkFileType.JSON: ".json",
+            BulkFileType.JSONL: ".jsonl",
+            BulkFileType.CSV: ".csv",
+            BulkFileType.PARQUET: ".parquet",
+        }[file_type]
+        for file_path in files:
+            path = Path(file_path)
+            assert path.exists()
+            assert path.suffix == expected_suffix
+
     def test_append_row_text_rejects_non_string(self, temp_dir):
         schema = CollectionSchema(
             fields=[

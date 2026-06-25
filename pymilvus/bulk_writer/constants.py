@@ -121,6 +121,7 @@ class BulkFileType(IntEnum):
     JSON_RB = 2  # deprecated
     PARQUET = 3
     CSV = 4
+    JSONL = 5
 
 
 class ConnectType(Enum):
