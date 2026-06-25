@@ -1,6 +1,6 @@
 from importlib.util import find_spec
 
-expected_pkgs = ["minio", "azure", "requests", "pyarrow"]
+expected_pkgs = ["minio", "azure", "requests", "pyarrow", "ml_dtypes"]
 
 missing = [pkg for pkg in expected_pkgs if find_spec(pkg) is None]
 

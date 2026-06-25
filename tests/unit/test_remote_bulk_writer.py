@@ -1,5 +1,7 @@
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
+from pymilvus.bulk_writer.constants import BulkFileType
 from pymilvus.bulk_writer.remote_bulk_writer import RemoteBulkWriter
 from pymilvus.client.types import DataType
 from pymilvus.orm.schema import CollectionSchema, FieldSchema
@@ -90,3 +92,30 @@ class TestRemoteBulkWriter:
         assert kwargs["secure"] is True
         assert kwargs["session_token"] == "token"
         assert kwargs["region"] == "us-west-2"
+
+    def test_upload_jsonl_file(self, tmp_path):
+        writer = RemoteBulkWriter(
+            schema=self._simple_schema(),
+            remote_path="bulk/test",
+            connect_param=None,
+            file_type=BulkFileType.JSONL,
+            local_path=str(tmp_path),
+        )
+        jsonl_file = writer._local_path / "1.jsonl"
+        jsonl_file.write_text('{"id":1,"vector":[1.0,2.0,3.0,4.0]}\n')
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(writer, "_bucket_exists", return_value=True))
+            stack.enter_context(patch.object(writer, "_object_exists", return_value=False))
+            mock_upload_object = stack.enter_context(patch.object(writer, "_upload_object"))
+            mock_local_rm = stack.enter_context(patch.object(writer, "_local_rm"))
+            uploaded_files = writer._upload([str(jsonl_file)])
+
+        assert len(uploaded_files) == 1
+        assert uploaded_files[0].endswith(".jsonl")
+        mock_upload_object.assert_called_once()
+        _, kwargs = mock_upload_object.call_args
+        assert kwargs["file_path"].endswith(".jsonl")
+        assert kwargs["object_name"].endswith(".jsonl")
+        mock_local_rm.assert_called_once_with(str(jsonl_file))
+        assert writer.batch_files[0][0].endswith(".jsonl")
