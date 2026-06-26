@@ -41,6 +41,18 @@ def gen_float_vector(i):
     return [i / 4 for _ in range(DIM)]
 
 
+def gen_float16_vector(i):
+    return [(i + k) / 8 for k in range(DIM)]
+
+
+def gen_bfloat16_vector(i):
+    return [(i + k) / 16 for k in range(DIM)]
+
+
+def gen_int8_vector(i):
+    return [((i + k) % 256) - 128 for k in range(DIM)]
+
+
 def gen_binary_vector(i, to_numpy_arr: bool):
     raw_vector = [(i + k) % 2 for k in range(DIM)]
     if to_numpy_arr:
@@ -58,6 +70,45 @@ def gen_sparse_vector(i, indices_values: bool):
         for k in range(dim):
             raw_vector[i + k] = (i + k) / 8
     return raw_vector
+
+
+def to_float16_bytes(values):
+    if isinstance(values, bytes):
+        return values
+    if isinstance(values, np.ndarray) and values.dtype == np.float16:
+        return values.view(np.uint8).tobytes()
+    return np.asarray(values, dtype=np.float32).astype(np.float16).view(np.uint8).tobytes()
+
+
+def to_bfloat16_bytes(values):
+    if isinstance(values, bytes):
+        return values
+    float32_values = np.asarray(values, dtype=np.float32)
+    return (float32_values.view(np.uint32) >> 16).astype(np.uint16).view(np.uint8).tobytes()
+
+
+def to_binary_bytes(values):
+    if isinstance(values, bytes):
+        return values
+    if isinstance(values, np.ndarray):
+        return values.astype(np.uint8).tobytes()
+    return bytes(np.packbits(values, axis=-1).tolist())
+
+
+def normalize_struct_field_for_query(structs):
+    normalized = []
+    for struct in structs:
+        item = dict(struct)
+        item["struct_binary_vec"] = [to_binary_bytes(item["struct_binary_vec"])]
+        item["struct_float16_vec"] = list(
+            np.frombuffer(to_float16_bytes(item["struct_float16_vec"]), dtype=np.float16)
+        )
+        item["struct_bfloat16_vec"] = list(
+            np.frombuffer(to_bfloat16_bytes(item["struct_bfloat16_vec"]), dtype=np.uint16)
+        )
+        item["struct_int8_vec"] = list(np.asarray(item["struct_int8_vec"], dtype=np.int8))
+        normalized.append(item)
+    return normalized
 
 
 def build_schema():
@@ -88,6 +139,7 @@ def build_schema():
     schema.add_field(field_name="float_vector", datatype=DataType.FLOAT_VECTOR, dim=DIM)
     schema.add_field(field_name="sparse_vector", datatype=DataType.SPARSE_FLOAT_VECTOR)
     schema.add_field(field_name="binary_vector", datatype=DataType.BINARY_VECTOR, dim=DIM)
+    schema.add_field(field_name="bfloat16_vector", datatype=DataType.BFLOAT16_VECTOR, dim=DIM)
 
     struct_schema = MilvusClient.create_struct_field_schema()
     struct_schema.add_field("struct_bool", DataType.BOOL)
@@ -99,6 +151,10 @@ def build_schema():
     struct_schema.add_field("struct_double", DataType.DOUBLE)
     struct_schema.add_field("struct_varchar", DataType.VARCHAR, max_length=100)
     struct_schema.add_field("struct_float_vec", DataType.FLOAT_VECTOR, dim=DIM)
+    struct_schema.add_field("struct_binary_vec", DataType.BINARY_VECTOR, dim=DIM)
+    struct_schema.add_field("struct_float16_vec", DataType.FLOAT16_VECTOR, dim=DIM)
+    struct_schema.add_field("struct_bfloat16_vec", DataType.BFLOAT16_VECTOR, dim=DIM)
+    struct_schema.add_field("struct_int8_vec", DataType.INT8_VECTOR, dim=DIM)
     schema.add_field("struct_field", datatype=DataType.ARRAY, element_type=DataType.STRUCT,
                      struct_schema=struct_schema, max_capacity=1000)
     schema.verify()
@@ -123,11 +179,31 @@ def build_collection(schema: CollectionSchema):
 
     for struct_field in schema.struct_fields:
         for field in struct_field.fields:
-            if (field.dtype == DataType.FLOAT_VECTOR):
+            if field.dtype == DataType.FLOAT_VECTOR:
                 index_params.add_index(field_name=f"{struct_field.name}[{field.name}]",
                                        index_name=f"{struct_field.name}_{field.name}",
                                        index_type="HNSW",
                                        metric_type="MAX_SIM_COSINE")
+            elif field.dtype == DataType.BINARY_VECTOR:
+                index_params.add_index(field_name=f"{struct_field.name}[{field.name}]",
+                                       index_name=f"{struct_field.name}_{field.name}",
+                                       index_type="AUTOINDEX",
+                                       metric_type="HAMMING")
+            elif field.dtype == DataType.FLOAT16_VECTOR:
+                index_params.add_index(field_name=f"{struct_field.name}[{field.name}]",
+                                       index_name=f"{struct_field.name}_{field.name}",
+                                       index_type="AUTOINDEX",
+                                       metric_type="L2")
+            elif field.dtype == DataType.BFLOAT16_VECTOR:
+                index_params.add_index(field_name=f"{struct_field.name}[{field.name}]",
+                                       index_name=f"{struct_field.name}_{field.name}",
+                                       index_type="AUTOINDEX",
+                                       metric_type="L2")
+            elif field.dtype == DataType.INT8_VECTOR:
+                index_params.add_index(field_name=f"{struct_field.name}[{field.name}]",
+                                       index_name=f"{struct_field.name}_{field.name}",
+                                       index_type="AUTOINDEX",
+                                       metric_type="L2")
 
     print(f"Drop collection: {COLLECTION_NAME}")
     client.drop_collection(collection_name=COLLECTION_NAME)
@@ -148,6 +224,7 @@ def gen_row(i):
         "float_vector": gen_float_vector(i),
         "sparse_vector": gen_sparse_vector(i, False if i % 2 == 0 else True),
         "binary_vector": gen_binary_vector(i, False if i % 2 == 0 else True),
+        "bfloat16_vector": gen_bfloat16_vector(i),
         "bool": True,
         "int8": i % 128,
         "int16": i % 32768,
@@ -181,7 +258,11 @@ def gen_row(i):
                 "struct_float": i / 4,
                 "struct_double": i / 3,
                 "struct_varchar": f"aaa_{i}",
-                "struct_float_vec": gen_float_vector(i)
+                "struct_float_vec": gen_float_vector(i),
+                "struct_binary_vec": gen_binary_vector(i, False),
+                "struct_float16_vec": gen_float16_vector(i),
+                "struct_bfloat16_vec": gen_bfloat16_vector(i),
+                "struct_int8_vec": gen_int8_vector(i),
             },
             {
                 "struct_bool": False,
@@ -192,7 +273,11 @@ def gen_row(i):
                 "struct_float": -i / 4,
                 "struct_double": -i / 3,
                 "struct_varchar": f"aaa_{i * 1000}",
-                "struct_float_vec": gen_float_vector(i)
+                "struct_float_vec": gen_float_vector(i),
+                "struct_binary_vec": gen_binary_vector(i + 1, True),
+                "struct_float16_vec": np.array(gen_float16_vector(i + 1), dtype=np.float16),
+                "struct_bfloat16_vec": np.array(gen_bfloat16_vector(i + 1), dtype=np.float32),
+                "struct_int8_vec": np.array(gen_int8_vector(i + 1), dtype=np.int8),
             },
         ],
     }
@@ -300,9 +385,13 @@ def verify_imported_data():
             if key == "binary_vector":
                 # returned binary vector is wrapped by a list, this is a bug
                 original_row[key] = [bytes(gen_binary_vector(id, True).tolist())]
+            elif key == "bfloat16_vector":
+                original_row[key] = [to_bfloat16_bytes(original_row[key])]
             elif key == "sparse_vector":
                 # returned sparse vector is id-pair format
                 original_row[key] = gen_sparse_vector(id, False)
+            elif key == "struct_field":
+                original_row[key] = normalize_struct_field_for_query(original_row[key])
             elif key == "timestamp":
                 # TODO: compare the timestamp values
                 continue
