@@ -648,7 +648,6 @@ class Prepare:
             DeprecationWarning,
             stacklevel=2,
         )
-        return None
 
     @classmethod
     def register_link_request(cls):
