@@ -94,7 +94,7 @@ def entity_is_sparse_matrix(entity: Any):
             if SciPyHelper.is_scipy_sparse(item):
                 # Accept both 2D arrays with shape (1, N) and 1D arrays (single row
                 # from iterating a csr_array)
-                return getattr(item, 'ndim', None) == 1 or item.shape[0] == 1
+                return getattr(item, "ndim", None) == 1 or item.shape[0] == 1
             if not isinstance(item, dict) and not isinstance(item, list):
                 return False
             pairs = item.items() if isinstance(item, dict) else item
@@ -148,7 +148,7 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
                 # Accept 1D sparse arrays (from iterating a csr_array) by
                 # reshaping to (1, N) so downstream code handles them correctly
                 squeezed = row_data
-                if getattr(row_data, 'ndim', None) == 1:
+                if getattr(row_data, "ndim", None) == 1:
                     squeezed = row_data.reshape(1, -1)
                 if squeezed.shape[0] != 1:
                     raise ParamError(message="invalid input for sparse float vector: expect 1 row")
@@ -609,7 +609,7 @@ def _pack_sparse_vector_row(
 
         if not SciPyHelper.is_scipy_sparse(value):
             value = [value]
-        elif getattr(value, 'ndim', None) == 1:
+        elif getattr(value, "ndim", None) == 1:
             # 1D sparse array from iterating a csr_array — reshape to (1, N)
             # so the shape[0] == 1 check and protobuf conversion work correctly
             value = value.reshape(1, -1)
