@@ -92,7 +92,9 @@ def entity_is_sparse_matrix(entity: Any):
             return False
         for item in entity:
             if SciPyHelper.is_scipy_sparse(item):
-                return item.shape[0] == 1
+                # Accept both 2D arrays with shape (1, N) and 1D arrays (single row
+                # from iterating a csr_array)
+                return item.ndim == 1 or item.shape[0] == 1
             if not isinstance(item, dict) and not isinstance(item, list):
                 return False
             pairs = item.items() if isinstance(item, dict) else item
@@ -143,6 +145,10 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
         dim = 0
         for row_data in data:
             if SciPyHelper.is_scipy_sparse(row_data):
+                # Accept 1D sparse arrays (from iterating a csr_array) by
+                # reshaping to (1, N) so downstream code handles them correctly
+                if row_data.ndim == 1:
+                    row_data = row_data.reshape(1, -1)
                 if row_data.shape[0] != 1:
                     raise ParamError(message="invalid input for sparse float vector: expect 1 row")
                 dim = max(dim, row_data.shape[1])
@@ -602,6 +608,10 @@ def _pack_sparse_vector_row(
 
         if not SciPyHelper.is_scipy_sparse(value):
             value = [value]
+        elif value.ndim == 1:
+            # 1D sparse array from iterating a csr_array — reshape to (1, N)
+            # so the shape[0] == 1 check and protobuf conversion work correctly
+            value = value.reshape(1, -1)
         elif value.shape[0] != 1:
             raise ParamError(message="invalid input for sparse float vector: expect 1 row")
         if not entity_is_sparse_matrix(value):
