@@ -1916,9 +1916,13 @@ class AsyncMilvusClient(BaseMilvusClient):
             for subsequent state inquiries.
         """
         if target_size is not None:
-            if not isinstance(target_size, int):
+            if not isinstance(target_size, int) or isinstance(target_size, bool):
                 raise ParamError(
                     message=f"target_size must be an int, got {type(target_size).__name__}"
+                )
+            if target_size <= 0:
+                raise ParamError(
+                    message=f"target_size must be a positive integer, got {target_size}"
                 )
             target_size = parse_target_size(f"{target_size}{target_size_unit}")
 
