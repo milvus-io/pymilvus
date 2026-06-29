@@ -7,7 +7,7 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
-from pymilvus.client.search_iterator import SearchIteratorV2
+from pymilvus.client.search_iterator import HybridSearchIteratorV2, SearchIteratorV2
 from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
@@ -588,8 +588,10 @@ class MilvusClient(BaseMilvusClient):
 
         Args:
             collection_name (str): Name of the collection to search in.
-            data (Union[List[list], list]): Vector data to search with. For V2, only single vector
-                search is supported.
+            data (Union[List[list], list]): Vector data to search with. For V2, only a
+                single query is supported. To iterate an emb_list (array-of-vector)
+                field, pass that query's multiple vectors as one ``EmbeddingList`` in a
+                list: ``data=[EmbeddingList([vec1, vec2, ...])]``.
             batch_size (int, optional): Number of results to fetch per batch. Defaults to 1000.
                 Must be between 1 and MAX_BATCH_SIZE.
             filter (str, optional): Filtering expression to filter the results. Defaults to None.
@@ -618,6 +620,15 @@ class MilvusClient(BaseMilvusClient):
             >>> iterator = client.search_iterator(
             ...     collection_name="my_collection",
             ...     data=[[0.1, 0.2]],
+            ...     batch_size=100
+            ... )
+            >>> # Iterate an emb_list (array-of-vector) field: one query's vectors
+            >>> # are wrapped in a single EmbeddingList
+            >>> from pymilvus.client.embedding_list import EmbeddingList
+            >>> iterator = client.search_iterator(
+            ...     collection_name="my_collection",
+            ...     data=[EmbeddingList([[0.1, 0.2], [0.3, 0.4]])],
+            ...     anns_field="struct_field[struct_float_vec]",
             ...     batch_size=100
             ... )
         """
@@ -718,6 +729,65 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             round_decimal=round_decimal,
             schema=schema_dict,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    def hybrid_search_iterator(
+        self,
+        collection_name: str,
+        reqs: List[Union[AnnSearchRequest, dict]],
+        batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
+        rrf_k: int = 60,
+        output_fields: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        pk_name: str = "id",
+        **kwargs,
+    ) -> HybridSearchIteratorV2:
+        """Creates an iterator that fuses several per-modality searches with RRF.
+
+        Each request in ``reqs`` is run as its own stateless single-modality
+        search_iterator; the score-descending streams are fused client-side with
+        Reciprocal Rank Fusion via the NRA threshold algorithm (SPEC 6.6 / A.3).
+        One snapshot timestamp is pinned for the whole hybrid iterator.
+
+        Args:
+            collection_name (str): Name of the collection to search in.
+            reqs (List[Union[AnnSearchRequest, dict]]): Per-modality requests. Each is
+                an ``AnnSearchRequest`` or a dict with keys ``data``, ``anns_field``,
+                ``param`` (search params) and optional ``expr`` (filter). A request's
+                ``data`` may be an ``EmbeddingList`` for an emb_list (array-of-vector)
+                field. A per-request ``limit`` is not used -- the iterator streams in
+                ``batch_size`` chunks.
+            batch_size (int, optional): Fused results per batch. Defaults to 1000.
+            limit (int, optional): Total fused results to return. Defaults to UNLIMITED.
+            rrf_k (int, optional): RRF constant ``k``. Defaults to 60.
+            output_fields (List[str], optional): Entity fields to return. Forwarded to
+                every sub-iterator and carried back through the fusion onto each fused
+                hit's ``entity``.
+            timeout (float, optional): Timeout in seconds for each RPC call.
+            partition_names (List[str], optional): Partitions to search in.
+            pk_name (str, optional): Primary-key field name. Defaults to "id".
+
+        Returns:
+            HybridSearchIteratorV2: An iterator yielding RRF-fused batches. Each
+            ``next()`` returns a SearchPage of hits in RRF-descending order; the
+            emitted score is the NRA lower bound on the true RRF score (re-score if
+            an exact RRF score is required).
+        """
+        return HybridSearchIteratorV2(
+            connection=self._get_connection(),
+            collection_name=collection_name,
+            reqs=reqs,
+            batch_size=batch_size,
+            limit=limit,
+            rrf_k=rrf_k,
+            output_fields=output_fields,
+            timeout=timeout,
+            partition_names=partition_names,
+            pk_name=pk_name,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
