@@ -403,6 +403,24 @@ class TestRowUpsertParam:
         )
         assert req.num_rows == 1
 
+    def test_upsert_with_namespace(self):
+        """Test row upsert carries namespace."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}],
+            "",
+            fields_info=make_fields_info(schema),
+            namespace="tenant_a",
+        )
+        assert req.HasField("namespace")
+        assert req.namespace == "tenant_a"
+
     def test_upsert_non_nullable_struct_missing_raises(self):
         """Test upsert rejects missing non-nullable struct."""
         schema = CollectionSchema(
@@ -549,6 +567,20 @@ class TestBatchInsertParam:
         with pytest.raises(ParamError):
             Prepare.batch_insert_param("coll", entities, "", fields_info)
 
+    def test_batch_insert_with_namespace(self):
+        """Test batch insert carries namespace."""
+        entities = [
+            {"name": "id", "values": [1], "type": DataType.INT64},
+            {"name": "vector", "values": [[1.0, 2.0]], "type": DataType.FLOAT_VECTOR},
+        ]
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+        ]
+        req = Prepare.batch_insert_param("coll", entities, "", fields_info, namespace="tenant_a")
+        assert req.HasField("namespace")
+        assert req.namespace == "tenant_a"
+
 
 class TestBatchUpsertParam:
     """Tests for batch_upsert_param."""
@@ -573,6 +605,20 @@ class TestBatchUpsertParam:
         # This should work with partial_update=True
         req = Prepare.batch_upsert_param("coll", entities, "", fields_info, partial_update=True)
         assert req.partial_update is True
+
+    def test_batch_upsert_with_namespace(self):
+        """Test batch upsert carries namespace."""
+        entities = [
+            {"name": "id", "values": [1], "type": DataType.INT64},
+            {"name": "vector", "values": [[1.0, 2.0]], "type": DataType.FLOAT_VECTOR},
+        ]
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+        ]
+        req = Prepare.batch_upsert_param("coll", entities, "", fields_info, namespace="tenant_a")
+        assert req.HasField("namespace")
+        assert req.namespace == "tenant_a"
 
 
 class TestDeleteRequest:
@@ -613,6 +659,12 @@ class TestDeleteRequest:
         )
         assert req.collection_name == "coll"
         assert req.expr == "id in {ids}"
+
+    def test_delete_with_namespace(self):
+        """Test delete carries namespace."""
+        req = Prepare.delete_request("coll", "id > 0", None, 0, namespace="tenant_a")
+        assert req.HasField("namespace")
+        assert req.namespace == "tenant_a"
 
 
 class TestStructFieldProcessing:
