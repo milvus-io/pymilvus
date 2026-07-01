@@ -253,6 +253,31 @@ class TestPrepareIntegration:
         with pytest.raises(ParamError, match="mutually exclusive"):
             _prepare_search(search_aggregation=_basic_agg(), group_by_field="brand")
 
+    def test_mutex_with_group_by_fields(self):
+        # Plural group_by_fields must be rejected the same way as the singular form,
+        # instead of being silently dropped. See milvus-io/milvus#50960.
+        with pytest.raises(ParamError, match="mutually exclusive"):
+            _prepare_search(search_aggregation=_basic_agg(), group_by_fields=["brand"])
+
+    def test_group_by_fields_forwarded_without_aggregation(self):
+        # Without search_aggregation, group_by_fields must reach the proxy as a
+        # comma-joined search param rather than being ignored.
+        req = _prepare_search(group_by_fields=["brand", "color"])
+        params = {kv.key: kv.value for kv in req.search_params}
+        assert params["group_by_fields"] == "brand,color"
+
+    def test_group_by_fields_empty_list_is_noop(self):
+        # An empty list carries no group-by field, so it neither conflicts with
+        # search_aggregation nor emits a group_by_fields search param.
+        req = _prepare_search(search_aggregation=_basic_agg(), group_by_fields=[])
+        params = {kv.key: kv.value for kv in req.search_params}
+        assert "group_by_fields" not in params
+        assert req.HasField("search_aggregation")
+
+    def test_group_by_fields_wrong_type(self):
+        with pytest.raises(ParamError, match="group_by_fields must be a list"):
+            _prepare_search(group_by_fields="brand")
+
     def test_wrong_type(self):
         with pytest.raises(ParamError, match="SearchAggregation instance"):
             _prepare_search(search_aggregation={"fields": ["brand"], "size": 3})
