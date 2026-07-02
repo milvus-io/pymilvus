@@ -1268,6 +1268,7 @@ class Prepare:
         schema_timestamp: int = 0,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        namespace: Optional[str] = None,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1284,6 +1285,7 @@ class Prepare:
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
             partial_update=effective_partial_update,
+            namespace=namespace,
         )
 
         request = cls._parse_upsert_row_request(
@@ -1407,10 +1409,15 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Any,
+        namespace: Optional[str] = None,
     ):
         location = cls._pre_insert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
-        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+        request = milvus_types.InsertRequest(
+            collection_name=collection_name,
+            partition_name=tag,
+            namespace=namespace,
+        )
 
         return cls._parse_batch_request(
             request,
@@ -1428,6 +1435,7 @@ class Prepare:
         fields_info: Any,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        namespace: Optional[str] = None,
     ):
         ops = normalize_field_ops(field_ops)
         # Non-REPLACE ops imply partial_update semantics; auto-promote before
@@ -1440,6 +1448,7 @@ class Prepare:
             collection_name=collection_name,
             partition_name=tag,
             partial_update=effective_partial_update,
+            namespace=namespace,
         )
 
         request = cls._parse_batch_request(request, entities, fields_info, location)
@@ -1484,6 +1493,7 @@ class Prepare:
             expr=filter,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            namespace=kwargs.get("namespace"),
         )
 
     @classmethod
