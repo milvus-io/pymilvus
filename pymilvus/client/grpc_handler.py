@@ -26,6 +26,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.orm.schema import Function, FunctionScore, Highlighter, StructFieldSchema
@@ -1377,6 +1378,7 @@ class GrpcHandler:
         round_decimal: int = -1,
         timeout: Optional[float] = None,
         ranker: Union[Function, FunctionScore] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -1427,6 +1429,7 @@ class GrpcHandler:
             output_fields=output_fields,
             round_decimal=round_decimal,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             use_default_consistency=use_default_consistency,
             **kwargs,
@@ -1449,6 +1452,8 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
