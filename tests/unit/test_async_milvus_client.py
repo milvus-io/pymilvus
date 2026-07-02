@@ -11,6 +11,8 @@ from pymilvus import (
     DataType,
     FieldSchema,
     Function,
+    FunctionChain,
+    FunctionChainStage,
     FunctionType,
     SearchAggregation,
     TopHits,
@@ -244,6 +246,16 @@ class TestAsyncMilvusClientNewFeatures:
         await client.search("test_collection", data=[[0.1, 0.2]], group_by_fields=["brand"])
 
         assert mock_handler.search.call_args.kwargs["group_by_fields"] == ["brand"]
+
+    @pytest.mark.asyncio
+    async def test_search_passes_function_chains(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+        chain = FunctionChain(FunctionChainStage.L2_RERANK, name="score_rerank")
+
+        await client.search("test_collection", data=[[0.1, 0.2]], function_chains=chain)
+
+        assert mock_handler.search.call_args.kwargs["function_chains"] is chain
 
     @pytest.mark.asyncio
     async def test_hybrid_search_with_function_ranker(self, client_and_handler):

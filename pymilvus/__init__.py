@@ -45,6 +45,7 @@ from .exceptions import (
     MilvusException,
     MilvusUnavailableException,
 )
+from .function_chain import FunctionChain, FunctionChainStage
 from .milvus_client import AsyncMilvusClient, MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
@@ -109,6 +110,8 @@ __all__ = [
     "FieldOpType",
     "FieldSchema",
     "Function",
+    "FunctionChain",
+    "FunctionChainStage",
     "FunctionScore",
     "FunctionType",
     "Group",

@@ -9,6 +9,8 @@ from pymilvus import (
     DataType,
     FieldSchema,
     Function,
+    FunctionChain,
+    FunctionChainStage,
     FunctionType,
     SearchAggregation,
     StructFieldSchema,
@@ -894,6 +896,15 @@ class TestMilvusClientCRUD:
         client.search("test_collection", data=[[0.1, 0.2]], search_aggregation=agg)
 
         assert handler.search.call_args.kwargs["search_aggregation"] is agg
+
+    def test_search_passes_function_chains(self, mc):
+        client, handler = mc
+        handler.search.return_value = [[{"id": 1, "distance": 0.1}]]
+        chain = FunctionChain(FunctionChainStage.L2_RERANK, name="score_rerank")
+
+        client.search("test_collection", data=[[0.1, 0.2]], function_chains=chain)
+
+        assert handler.search.call_args.kwargs["function_chains"] is chain
 
     def test_insert_dict_converts_to_list(self):
         result = MagicMock()

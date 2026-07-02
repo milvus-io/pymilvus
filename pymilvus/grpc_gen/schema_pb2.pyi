@@ -51,6 +51,16 @@ class FieldState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FieldCreating: _ClassVar[FieldState]
     FieldDropping: _ClassVar[FieldState]
     FieldDropped: _ClassVar[FieldState]
+
+class FunctionChainStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FunctionChainStageUnspecified: _ClassVar[FunctionChainStage]
+    FunctionChainStageIngestion: _ClassVar[FunctionChainStage]
+    FunctionChainStagePreProcess: _ClassVar[FunctionChainStage]
+    FunctionChainStageL0Rerank: _ClassVar[FunctionChainStage]
+    FunctionChainStageL1Rerank: _ClassVar[FunctionChainStage]
+    FunctionChainStageL2Rerank: _ClassVar[FunctionChainStage]
+    FunctionChainStagePostProcess: _ClassVar[FunctionChainStage]
 None: DataType
 Bool: DataType
 Int8: DataType
@@ -86,6 +96,13 @@ FieldCreated: FieldState
 FieldCreating: FieldState
 FieldDropping: FieldState
 FieldDropped: FieldState
+FunctionChainStageUnspecified: FunctionChainStage
+FunctionChainStageIngestion: FunctionChainStage
+FunctionChainStagePreProcess: FunctionChainStage
+FunctionChainStageL0Rerank: FunctionChainStage
+FunctionChainStageL1Rerank: FunctionChainStage
+FunctionChainStageL2Rerank: FunctionChainStage
+FunctionChainStagePostProcess: FunctionChainStage
 
 class FieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "is_primary_key", "description", "data_type", "type_params", "index_params", "autoID", "state", "element_type", "default_value", "is_dynamic", "is_partition_key", "is_clustering_key", "nullable", "is_function_output", "external_field")
@@ -154,6 +171,105 @@ class FunctionScore(_message.Message):
     functions: _containers.RepeatedCompositeFieldContainer[FunctionSchema]
     params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
+class FunctionChain(_message.Message):
+    __slots__ = ("name", "stage", "ops")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    STAGE_FIELD_NUMBER: _ClassVar[int]
+    OPS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    stage: FunctionChainStage
+    ops: _containers.RepeatedCompositeFieldContainer[FunctionChainOp]
+    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ...) -> None: ...
+
+class FunctionChainOp(_message.Message):
+    __slots__ = ("op", "expr", "inputs", "outputs", "params")
+    class ParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: FunctionParamValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[FunctionParamValue, _Mapping]] = ...) -> None: ...
+    OP_FIELD_NUMBER: _ClassVar[int]
+    EXPR_FIELD_NUMBER: _ClassVar[int]
+    INPUTS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUTS_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    op: str
+    expr: FunctionChainExpr
+    inputs: _containers.RepeatedScalarFieldContainer[str]
+    outputs: _containers.RepeatedScalarFieldContainer[str]
+    params: _containers.MessageMap[str, FunctionParamValue]
+    def __init__(self, op: _Optional[str] = ..., expr: _Optional[_Union[FunctionChainExpr, _Mapping]] = ..., inputs: _Optional[_Iterable[str]] = ..., outputs: _Optional[_Iterable[str]] = ..., params: _Optional[_Mapping[str, FunctionParamValue]] = ...) -> None: ...
+
+class FunctionChainExpr(_message.Message):
+    __slots__ = ("name", "args", "params")
+    class ParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: FunctionParamValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[FunctionParamValue, _Mapping]] = ...) -> None: ...
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    ARGS_FIELD_NUMBER: _ClassVar[int]
+    PARAMS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    args: _containers.RepeatedCompositeFieldContainer[FunctionChainExprArg]
+    params: _containers.MessageMap[str, FunctionParamValue]
+    def __init__(self, name: _Optional[str] = ..., args: _Optional[_Iterable[_Union[FunctionChainExprArg, _Mapping]]] = ..., params: _Optional[_Mapping[str, FunctionParamValue]] = ...) -> None: ...
+
+class FunctionChainExprArg(_message.Message):
+    __slots__ = ("column", "literal")
+    COLUMN_FIELD_NUMBER: _ClassVar[int]
+    LITERAL_FIELD_NUMBER: _ClassVar[int]
+    column: FunctionChainColumnArg
+    literal: FunctionParamValue
+    def __init__(self, column: _Optional[_Union[FunctionChainColumnArg, _Mapping]] = ..., literal: _Optional[_Union[FunctionParamValue, _Mapping]] = ...) -> None: ...
+
+class FunctionChainColumnArg(_message.Message):
+    __slots__ = ("name",)
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    def __init__(self, name: _Optional[str] = ...) -> None: ...
+
+class FunctionParamValue(_message.Message):
+    __slots__ = ("bool_value", "int64_value", "double_value", "string_value", "array_value", "object_value", "bytes_value")
+    BOOL_VALUE_FIELD_NUMBER: _ClassVar[int]
+    INT64_VALUE_FIELD_NUMBER: _ClassVar[int]
+    DOUBLE_VALUE_FIELD_NUMBER: _ClassVar[int]
+    STRING_VALUE_FIELD_NUMBER: _ClassVar[int]
+    ARRAY_VALUE_FIELD_NUMBER: _ClassVar[int]
+    OBJECT_VALUE_FIELD_NUMBER: _ClassVar[int]
+    BYTES_VALUE_FIELD_NUMBER: _ClassVar[int]
+    bool_value: bool
+    int64_value: int
+    double_value: float
+    string_value: str
+    array_value: FunctionParamArray
+    object_value: FunctionParamObject
+    bytes_value: bytes
+    def __init__(self, bool_value: bool = ..., int64_value: _Optional[int] = ..., double_value: _Optional[float] = ..., string_value: _Optional[str] = ..., array_value: _Optional[_Union[FunctionParamArray, _Mapping]] = ..., object_value: _Optional[_Union[FunctionParamObject, _Mapping]] = ..., bytes_value: _Optional[bytes] = ...) -> None: ...
+
+class FunctionParamArray(_message.Message):
+    __slots__ = ("values",)
+    VALUES_FIELD_NUMBER: _ClassVar[int]
+    values: _containers.RepeatedCompositeFieldContainer[FunctionParamValue]
+    def __init__(self, values: _Optional[_Iterable[_Union[FunctionParamValue, _Mapping]]] = ...) -> None: ...
+
+class FunctionParamObject(_message.Message):
+    __slots__ = ("fields",)
+    class FieldsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: FunctionParamValue
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[FunctionParamValue, _Mapping]] = ...) -> None: ...
+    FIELDS_FIELD_NUMBER: _ClassVar[int]
+    fields: _containers.MessageMap[str, FunctionParamValue]
+    def __init__(self, fields: _Optional[_Mapping[str, FunctionParamValue]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
     __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace")
