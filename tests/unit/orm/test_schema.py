@@ -628,6 +628,30 @@ class TestCollectionSchemaAddField:
         assert field.max_length == 256
         assert field.nullable is True
 
+    def test_add_field_updates_key_field_metadata(self):
+        """Test adding key fields updates schema metadata for incremental schema building."""
+        schema = CollectionSchema(
+            [],
+            check_fields=False,
+            auto_id=True,
+            primary_field="id",
+            partition_key_field="category",
+            clustering_key_field="timestamp",
+        )
+        schema.add_field("id", DataType.INT64)
+        schema.add_field("category", DataType.VARCHAR, max_length=256)
+        schema.add_field("timestamp", DataType.INT64)
+        schema.add_field("vec", DataType.FLOAT_VECTOR, dim=128)
+
+        assert schema.primary_field.name == "id"
+        assert schema.primary_field.is_primary is True
+        assert schema.primary_field.auto_id is True
+        assert schema.auto_id is True
+        assert schema.partition_key_field.name == "category"
+        assert schema.partition_key_field.is_partition_key is True
+        assert schema._clustering_key_field.name == "timestamp"
+        assert schema._clustering_key_field.is_clustering_key is True
+
     def test_add_struct_field_missing_struct_schema(self):
         """Test adding struct field without struct_schema raises error."""
         schema = CollectionSchema(
