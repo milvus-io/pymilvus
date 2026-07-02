@@ -223,6 +223,17 @@ class TestAsyncMilvusClientNewFeatures:
         assert call_args.kwargs.get("ranker") == mock_ranker
 
     @pytest.mark.asyncio
+    async def test_search_passes_group_by_fields(self, client_and_handler):
+        # group_by_fields must be forwarded to the handler, not dropped at the
+        # high-level client boundary. See milvus-io/milvus#50960.
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+
+        await client.search("test_collection", data=[[0.1, 0.2]], group_by_fields=["brand"])
+
+        assert mock_handler.search.call_args.kwargs["group_by_fields"] == ["brand"]
+
+    @pytest.mark.asyncio
     async def test_hybrid_search_with_function_ranker(self, client_and_handler):
         """Test hybrid_search accepts Function type ranker"""
         client, mock_handler = client_and_handler

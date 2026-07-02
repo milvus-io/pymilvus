@@ -1698,6 +1698,16 @@ class Prepare:
         if group_by_field is not None:
             search_params[GROUP_BY_FIELD] = group_by_field
 
+        # Plural group_by_fields must not be silently dropped on the search path.
+        # Forward the value so the proxy's group_by_fields validation and
+        # group-by search apply. See milvus-io/milvus#50960.
+        group_by_fields = kwargs.get(QUERY_GROUP_BY_FIELDS)
+        if group_by_fields is not None:
+            if not isinstance(group_by_fields, list):
+                raise ParamError(message="group_by_fields must be a list")
+            if len(group_by_fields) > 0:
+                search_params[QUERY_GROUP_BY_FIELDS] = ",".join(group_by_fields)
+
         group_size = kwargs.get(GROUP_SIZE)
         if group_size is not None:
             search_params[GROUP_SIZE] = group_size
