@@ -32,6 +32,7 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
@@ -574,6 +575,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
@@ -594,6 +596,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            function_chains=function_chains,
             search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
             **kwargs,
