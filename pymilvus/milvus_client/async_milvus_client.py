@@ -8,6 +8,7 @@ from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     ExceptionsMessage,
     FunctionType,
@@ -574,6 +575,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
+        search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
     ) -> List[List[dict]]:
         validate_param("collection_name", collection_name, str)
@@ -592,6 +594,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )

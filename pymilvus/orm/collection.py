@@ -19,6 +19,7 @@ import pandas as pd
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import (
     CompactionPlans,
@@ -729,6 +730,7 @@ class Collection:
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
         highlighter: Optional[Highlighter] = None,
+        search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
     ):
         """Conducts a vector similarity search with an optional boolean expression as filter.
@@ -771,6 +773,9 @@ class Collection:
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
             ranker (``Function``, ``FunctionScore``, optional): The ranker to use for the search.
+            search_aggregation (``SearchAggregation``, optional): Hierarchical bucket aggregation
+                spec. Mutually exclusive with ``group_by_field``. When set, ``limit`` is ignored
+                and the root ``SearchAggregation.size`` controls top-level bucket count.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)
@@ -876,6 +881,7 @@ class Collection:
             schema=self._schema_dict,
             ranker=ranker,
             highlighter=highlighter,
+            search_aggregation=search_aggregation,
             context=context,
             **kwargs,
         )

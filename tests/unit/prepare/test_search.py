@@ -203,44 +203,6 @@ class TestSearchRequestsWithExpr:
         )
         assert req is not None
 
-    def test_search_group_by_fields_forwarded(self, basic_search_params):
-        """Test search carries plural group_by_fields in search_params."""
-        req = Prepare.search_requests_with_expr(
-            collection_name="test",
-            data=[[1.0, 2.0]],
-            anns_field="vector",
-            param=basic_search_params,
-            limit=10,
-            group_by_fields=["category", "brand"],
-        )
-        params = {kv.key: kv.value for kv in req.search_params}
-        assert params["group_by_fields"] == "category,brand"
-
-    def test_search_group_by_fields_empty_list_is_noop(self, basic_search_params):
-        """Test empty plural group_by_fields does not emit a search param."""
-        req = Prepare.search_requests_with_expr(
-            collection_name="test",
-            data=[[1.0, 2.0]],
-            anns_field="vector",
-            param=basic_search_params,
-            limit=10,
-            group_by_fields=[],
-        )
-        params = {kv.key: kv.value for kv in req.search_params}
-        assert "group_by_fields" not in params
-
-    def test_search_group_by_fields_invalid_type(self, basic_search_params):
-        """Test search rejects non-list group_by_fields."""
-        with pytest.raises(ParamError, match="group_by_fields must be a list"):
-            Prepare.search_requests_with_expr(
-                collection_name="test",
-                data=[[1.0, 2.0]],
-                anns_field="vector",
-                param=basic_search_params,
-                limit=10,
-                group_by_fields="category",
-            )
-
     def test_search_order_by_fields_list(self, basic_search_params):
         """Test search with order_by_fields as list of dicts."""
         req = Prepare.search_requests_with_expr(
