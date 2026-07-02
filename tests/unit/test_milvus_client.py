@@ -10,7 +10,9 @@ from pymilvus import (
     FieldSchema,
     Function,
     FunctionType,
+    SearchAggregation,
     StructFieldSchema,
+    TopHits,
 )
 from pymilvus.client.connection_manager import ConnectionManager
 from pymilvus.client.types import (
@@ -884,6 +886,15 @@ class TestMilvusClientCreateCollection:
 
 
 class TestMilvusClientCRUD:
+    def test_search_passes_search_aggregation(self, mc):
+        client, handler = mc
+        handler.search.return_value = [[{"id": 1, "distance": 0.1}]]
+        agg = SearchAggregation(fields=["brand"], size=3, top_hits=TopHits(size=1))
+
+        client.search("test_collection", data=[[0.1, 0.2]], search_aggregation=agg)
+
+        assert handler.search.call_args.kwargs["search_aggregation"] is agg
+
     def test_insert_dict_converts_to_list(self):
         result = MagicMock()
         result.insert_count = 1

@@ -8,6 +8,7 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     CompactionPlans,
@@ -429,6 +430,7 @@ class MilvusClient(BaseMilvusClient):
         ranker: Optional[Union[Function, FunctionScore]] = None,
         highlighter: Optional[Highlighter] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
+        search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Search for a query vector/vectors.
@@ -449,6 +451,9 @@ class MilvusClient(BaseMilvusClient):
                 Defaults to None.
             ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
                 Defaults to None.
+            search_aggregation (SearchAggregation, optional): Hierarchical bucket aggregation spec.
+                Mutually exclusive with group_by_field. When set, `limit` is ignored and the root
+                SearchAggregation.size controls top-level bucket count.
         Raises:
             ValueError: The collection being searched doesnt exist. Need to insert data first.
 
@@ -478,6 +483,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             ranker=ranker,
             highlighter=highlighter,
+            search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
