@@ -720,21 +720,15 @@ def extract_array_rows(field_data: Any, entity_rows: List[Dict], row_count: int,
     if row_count == 0:
         return
     field_name = field_data.field_name
-    array_data = field_data.scalars.array_data
-    data = array_data.data
-    element_type = array_data.element_type
-
-    attr = type_info.get_array_element_attr(element_type)
-    if attr is None:
-        raise MilvusException(message=f"Unsupported data type: {element_type}")
-
     valid_data = field_data.valid_data
     if has_valid:
         for i in range(row_count):
-            entity_rows[i][field_name] = getattr(data[i], attr).data if valid_data[i] else None
+            entity_rows[i][field_name] = (
+                field_data_extractors.decode_array_cell(field_data, i) if valid_data[i] else None
+            )
     else:
         for i in range(row_count):
-            entity_rows[i][field_name] = getattr(data[i], attr).data
+            entity_rows[i][field_name] = field_data_extractors.decode_array_cell(field_data, i)
 
 
 def extract_row_data_from_fields_data_v2(

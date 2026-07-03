@@ -72,7 +72,9 @@ def test_decode_scalar_json_and_array_cells():
     assert get_field_data(scalar) == ["a", "b"]
     assert decode_range(scalar, 0, 2) == ["a", None]
     assert decode_cell(json_field, 0) == {"x": 1}
-    assert decode_cell(array_field, 0) == [1, 2]
+    decoded_array = decode_cell(array_field, 0)
+    assert decoded_array == [1, 2]
+    assert isinstance(decoded_array, list)
 
 
 @pytest.mark.parametrize(
