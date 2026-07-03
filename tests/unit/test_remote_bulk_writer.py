@@ -112,10 +112,13 @@ class TestRemoteBulkWriter:
             uploaded_files = writer._upload([str(jsonl_file)])
 
         assert len(uploaded_files) == 1
-        assert uploaded_files[0].endswith(".jsonl")
+        assert uploaded_files[0].endswith("/1.jsonl")
         mock_upload_object.assert_called_once()
         _, kwargs = mock_upload_object.call_args
         assert kwargs["file_path"].endswith(".jsonl")
-        assert kwargs["object_name"].endswith(".jsonl")
+        assert kwargs["object_name"] == uploaded_files[0]
+        assert kwargs["object_name"].endswith("/1.jsonl")
+        assert "bulk/test/" in kwargs["object_name"]
+        assert "\\" not in kwargs["object_name"]
         mock_local_rm.assert_called_once_with(str(jsonl_file))
-        assert writer.batch_files[0][0].endswith(".jsonl")
+        assert writer.batch_files[0][0] == uploaded_files[0]
