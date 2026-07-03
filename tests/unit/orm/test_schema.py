@@ -652,6 +652,49 @@ class TestCollectionSchemaAddField:
         assert schema._clustering_key_field.name == "timestamp"
         assert schema._clustering_key_field.is_clustering_key is True
 
+    @pytest.mark.parametrize(
+        "fields,field_name,datatype,kwargs,error_type",
+        [
+            pytest.param(
+                [FieldSchema("id1", DataType.INT64, is_primary=True)],
+                "id2",
+                DataType.INT64,
+                {"is_primary": True},
+                PrimaryKeyException,
+                id="primary",
+            ),
+            pytest.param(
+                [
+                    FieldSchema("id", DataType.INT64, is_primary=True),
+                    FieldSchema("cat1", DataType.VARCHAR, max_length=100, is_partition_key=True),
+                ],
+                "cat2",
+                DataType.VARCHAR,
+                {"max_length": 100, "is_partition_key": True},
+                PartitionKeyException,
+                id="partition_key",
+            ),
+            pytest.param(
+                [
+                    FieldSchema("id", DataType.INT64, is_primary=True),
+                    FieldSchema("ts1", DataType.INT64, is_clustering_key=True),
+                ],
+                "ts2",
+                DataType.INT64,
+                {"is_clustering_key": True},
+                ClusteringKeyException,
+                id="clustering_key",
+            ),
+        ],
+    )
+    def test_add_field_rejects_multiple_key_fields(
+        self, fields, field_name, datatype, kwargs, error_type
+    ):
+        """Test add_field rejects adding a second key field of the same kind."""
+        schema = CollectionSchema(fields)
+        with pytest.raises(error_type, match="only one"):
+            schema.add_field(field_name, datatype, **kwargs)
+
     def test_add_struct_field_missing_struct_schema(self):
         """Test adding struct field without struct_schema raises error."""
         schema = CollectionSchema(
