@@ -857,8 +857,28 @@ class TestVolumeBulkWriter:
 
     def test_init(self, volume_bulk_writer: VolumeBulkWriter) -> None:
         assert volume_bulk_writer._remote_path.endswith("/")
+        assert volume_bulk_writer._remote_path.startswith("test/data/")
+        assert "\\" not in volume_bulk_writer._remote_path
         assert volume_bulk_writer._volume_name == "test_volume"
         assert isinstance(volume_bulk_writer._volume_file_manager, MagicMock)
+
+    def test_init_normalizes_windows_remote_path(
+        self, simple_schema: CollectionSchema
+    ) -> None:
+        with patch("pymilvus.bulk_writer.volume_bulk_writer.VolumeFileManager"):
+            writer = VolumeBulkWriter(
+                schema=simple_schema,
+                remote_path=r"test\data",
+                cloud_endpoint="https://api.cloud.zilliz.com",
+                api_key="test_api_key",
+                volume_name="test_volume",
+                chunk_size=1024,
+                file_type=BulkFileType.PARQUET,
+            )
+
+        assert writer._remote_path.startswith("test/data/")
+        assert writer._remote_path.endswith("/")
+        assert "\\" not in writer._remote_path
 
     def test_append_row(self, volume_bulk_writer: VolumeBulkWriter) -> None:
         volume_bulk_writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test text"})
@@ -887,6 +907,7 @@ class TestVolumeBulkWriter:
         result = volume_bulk_writer.get_volume_upload_result()
         assert result["volume_name"] == "test_volume"
         assert "path" in result
+        assert "\\" not in result["path"]
 
     @patch("pymilvus.bulk_writer.volume_bulk_writer.Path")
     def test_local_rm(self, mock_path: Mock, volume_bulk_writer: VolumeBulkWriter) -> None:
@@ -911,15 +932,19 @@ class TestVolumeBulkWriter:
         result = volume_bulk_writer._upload(["test_file.parquet"])
         assert len(result) == 1
         mock_upload_object.assert_called_once()
+        _, kwargs = mock_upload_object.call_args
+        assert kwargs["object_name"].endswith("/test.parquet")
+        assert "\\" not in kwargs["object_name"]
         assert mock_rm.called
 
     @patch.object(VolumeFileManager, "upload_file_to_volume")
     def test_upload_object(
         self, mock_upload_to_volume: Mock, volume_bulk_writer: VolumeBulkWriter
     ) -> None:
-        volume_bulk_writer._upload_object("local_file.parquet", "remote_file.parquet")
+        object_name = f"{volume_bulk_writer._remote_path}1/local_file.parquet"
+        volume_bulk_writer._upload_object("local_file.parquet", object_name)
         volume_bulk_writer._volume_file_manager.upload_file_to_volume.assert_called_once_with(
-            "local_file.parquet", volume_bulk_writer._remote_path
+            "local_file.parquet", f"{volume_bulk_writer._remote_path.rstrip('/')}/1"
         )
 
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:

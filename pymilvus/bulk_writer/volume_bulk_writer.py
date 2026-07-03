@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional
 
 from pymilvus.bulk_writer.volume_file_manager import VolumeFileManager
@@ -30,8 +30,8 @@ class VolumeBulkWriter(LocalBulkWriter):
         local_path = Path.cwd() / "bulk_writer"
         super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
 
-        remote_dir_path = Path(remote_path) / super().uuid
-        self._remote_path = str(remote_dir_path) + "/"
+        remote_dir_path = PurePosixPath(remote_path.replace("\\", "/").strip("/")) / super().uuid
+        self._remote_path = f"{remote_dir_path.as_posix()}/"
         self._remote_files: List[List[str]] = []
         self._volume_name = volume_name
         self._volume_file_manager = VolumeFileManager(
@@ -110,5 +110,8 @@ class VolumeBulkWriter(LocalBulkWriter):
 
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
-        self._volume_file_manager.upload_file_to_volume(file_path, self._remote_path)
+        target_volume_path = PurePosixPath(object_name).parent.as_posix()
+        if target_volume_path == ".":
+            target_volume_path = self._remote_path.rstrip("/")
+        self._volume_file_manager.upload_file_to_volume(file_path, target_volume_path)
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")
