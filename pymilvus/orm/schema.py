@@ -265,11 +265,15 @@ class CollectionSchema:
 
     @classmethod
     def construct_from_dict(cls, raw: Dict):
-        fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
+        fields = []
+        struct_fields = []
+        for field_raw in raw["fields"]:
+            if cls._is_struct_array_field_dict(field_raw):
+                struct_fields.append(StructFieldSchema.construct_from_dict(field_raw))
+            else:
+                fields.append(FieldSchema.construct_from_dict(field_raw))
 
-        struct_fields = None
         if raw.get("struct_fields"):
-            struct_fields = []
             for struct_field_raw in raw["struct_fields"]:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_raw))
 
@@ -277,7 +281,6 @@ class CollectionSchema:
             converted_struct_fields = convert_struct_fields_to_user_format(
                 raw["struct_array_fields"]
             )
-            struct_fields = []
             for struct_field_dict in converted_struct_fields:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_dict))
 
@@ -298,6 +301,23 @@ class CollectionSchema:
             enable_namespace=enable_namespace,
             external_source=raw.get("external_source", ""),
             external_spec=raw.get("external_spec", ""),
+        )
+
+    @staticmethod
+    def _is_struct_array_field_dict(field_raw: Any):
+        if not isinstance(field_raw, dict):
+            return False
+
+        try:
+            field_type = DataType(field_raw.get("type"))
+            element_type = DataType(field_raw.get("element_type"))
+        except (TypeError, ValueError):
+            return False
+
+        return (
+            field_type == DataType.ARRAY
+            and element_type == DataType.STRUCT
+            and "struct_fields" in field_raw
         )
 
     @property
