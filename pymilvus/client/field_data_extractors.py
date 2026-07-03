@@ -116,7 +116,7 @@ def decode_array_cell(field_data: Any, logical_index: int) -> Any:
     attr = type_info.get_array_element_attr(array_data.element_type)
     if attr is None:
         raise MilvusException(message=f"Unsupported data type: {array_data.element_type}")
-    return getattr(array_data.data[logical_index], attr).data
+    return list(getattr(array_data.data[logical_index], attr).data)
 
 
 def decode_vector_array_cell(
