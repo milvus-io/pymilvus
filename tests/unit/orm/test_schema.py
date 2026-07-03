@@ -763,6 +763,48 @@ class TestCollectionSchemaToDict:
         schema = CollectionSchema.construct_from_dict(d)
         assert len(schema.struct_fields) == 1
 
+    def test_construct_with_user_struct_array_field_format(self):
+        """Test constructing schema from MilvusClient.describe_collection struct array format."""
+        d = {
+            "description": "",
+            "fields": [
+                {"name": "id", "type": DataType.INT64, "is_primary": True},
+                {
+                    "field_id": 100,
+                    "name": "metadata",
+                    "description": "struct values",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.STRUCT,
+                    "nullable": True,
+                    "params": {"max_capacity": 10, "mmap_enabled": True},
+                    "struct_fields": [
+                        {"field_id": 101, "name": "score", "type": DataType.FLOAT},
+                        {
+                            "field_id": 102,
+                            "name": "embedding",
+                            "type": DataType.FLOAT_VECTOR,
+                            "params": {"dim": 4},
+                        },
+                    ],
+                },
+            ],
+        }
+
+        schema = CollectionSchema.construct_from_dict(d)
+
+        assert [field.name for field in schema.fields] == ["id"]
+        assert schema.primary_field.name == "id"
+        assert len(schema.struct_fields) == 1
+        struct = schema.struct_fields[0]
+        assert struct.name == "metadata"
+        assert struct.description == "struct values"
+        assert struct.nullable is True
+        assert struct.max_capacity == 10
+        assert struct.params["mmap_enabled"] is True
+        assert [field.name for field in struct.fields] == ["score", "embedding"]
+        assert struct.fields[1].dtype == DataType.FLOAT_VECTOR
+        assert struct.fields[1].params["dim"] == 4
+
 
 class TestCollectionSchemaProperties:
     """Tests for CollectionSchema properties."""
