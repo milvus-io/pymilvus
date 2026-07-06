@@ -330,6 +330,18 @@ class TestSparseVectorValidator:
         with pytest.raises(MilvusException, match="values of sparse vector must be a list"):
             sparse_vector_validator(data)
 
+    def test_bool_index_in_dict_format(self):
+        """Test dict with bool index (True/False should be rejected)"""
+        data = {True: 0.5, 2: 0.3}
+        with pytest.raises(MilvusException, match="index must be integer"):
+            sparse_vector_validator(data)
+
+    def test_bool_index_in_indices_format(self):
+        """Test indices/values format with bool index"""
+        data = {"indices": [True, 2], "values": [0.1, 0.2]}
+        with pytest.raises(MilvusException, match="index must be integer"):
+            sparse_vector_validator(data)
+
     def test_mismatched_indices_values_length(self):
         """Test with mismatched indices and values length"""
         data = {"indices": [1, 2, 3], "values": [0.1, 0.2]}
