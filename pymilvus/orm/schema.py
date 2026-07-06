@@ -259,11 +259,15 @@ class CollectionSchema:
 
     @classmethod
     def construct_from_dict(cls, raw: Dict):
-        fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
+        fields = []
+        struct_fields = []
+        for field_raw in raw["fields"]:
+            if cls._is_struct_array_field_dict(field_raw):
+                struct_fields.append(StructFieldSchema.construct_from_dict(field_raw))
+            else:
+                fields.append(FieldSchema.construct_from_dict(field_raw))
 
-        struct_fields = None
         if raw.get("struct_fields"):
-            struct_fields = []
             for struct_field_raw in raw["struct_fields"]:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_raw))
 
@@ -271,7 +275,6 @@ class CollectionSchema:
             converted_struct_fields = convert_struct_fields_to_user_format(
                 raw["struct_array_fields"]
             )
-            struct_fields = []
             for struct_field_dict in converted_struct_fields:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_dict))
 
@@ -290,6 +293,23 @@ class CollectionSchema:
             functions=functions,
             enable_dynamic_field=enable_dynamic_field,
             enable_namespace=enable_namespace,
+        )
+
+    @staticmethod
+    def _is_struct_array_field_dict(field_raw: Any):
+        if not isinstance(field_raw, dict):
+            return False
+
+        try:
+            field_type = DataType(field_raw.get("type"))
+            element_type = DataType(field_raw.get("element_type"))
+        except (TypeError, ValueError):
+            return False
+
+        return (
+            field_type == DataType.ARRAY
+            and element_type == DataType.STRUCT
+            and "struct_fields" in field_raw
         )
 
     @property
@@ -417,9 +437,13 @@ class CollectionSchema:
                 raise ParamError(message="Param struct_schema is required when datatype is STRUCT")
             struct_schema = copy.deepcopy(kwargs.pop("struct_schema"))
             struct_schema.name = field_name
+            struct_schema._nullable = kwargs.get("nullable", False)
             if "max_capacity" not in kwargs:
                 raise ParamError(message="Param max_capacity is required when datatype is STRUCT")
             struct_schema.max_capacity = kwargs["max_capacity"]
+
+            if "description" in kwargs:
+                struct_schema._description = kwargs["description"]
 
             if "mmap_enabled" in kwargs:
                 struct_schema._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
@@ -652,12 +676,17 @@ def isVectorDataType(datatype: DataType) -> bool:
 
 
 class StructFieldSchema:
-    def __init__(self):
+    def __init__(self, nullable: bool = False, description: str = ""):
+        if not isinstance(nullable, bool):
+            raise ParamError(message="nullable must be boolean")
+        if not isinstance(description, str):
+            raise ParamError(message="description must be string")
         self.name = ""
         self._kwargs = {}
         self._fields = []
-        self._description = ""
+        self._description = description
         self._type_params = {}
+        self._nullable = nullable
         # max_capacity will be set when added to CollectionSchema
         self.max_capacity = None
 
@@ -732,6 +761,10 @@ class StructFieldSchema:
         return self._description
 
     @property
+    def nullable(self):
+        return self._nullable
+
+    @property
     def params(self):
         return self._type_params
 
@@ -746,6 +779,8 @@ class StructFieldSchema:
             "description": self._description,
             "fields": [field.to_dict() for field in self._fields],
         }
+        if self.nullable:
+            struct_dict["nullable"] = self.nullable
         # Include max_capacity if it's set
         if self.max_capacity is not None:
             struct_dict["max_capacity"] = self.max_capacity
@@ -768,6 +803,7 @@ class StructFieldSchema:
         # Set name and description
         instance.name = raw.get("name", "")
         instance._description = raw.get("description", "")
+        instance._nullable = raw.get("nullable", False)
 
         # Extract max_capacity if present
         if "max_capacity" in raw:

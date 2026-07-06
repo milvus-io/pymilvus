@@ -72,6 +72,45 @@ class TestLocalBulkWriter:
         )
         assert w._chunk_size == 256 * MB
 
+    def test_init_with_describe_collection_struct_array_schema(self, temp_dir):
+        raw_schema = {
+            "description": "",
+            "fields": [
+                {"name": "id", "type": DataType.INT64, "is_primary": True},
+                {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+                {
+                    "name": "metadata",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.STRUCT,
+                    "params": {"max_capacity": 2},
+                    "struct_fields": [
+                        {"name": "score", "type": DataType.FLOAT},
+                        {"name": "embedding", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+                    ],
+                },
+            ],
+        }
+        schema = CollectionSchema.construct_from_dict(raw_schema)
+        writer = LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=BulkFileType.PARQUET,
+        )
+
+        writer.append_row(
+            {
+                "id": 1,
+                "vector": [0.1, 0.2],
+                "metadata": [
+                    {"score": 1.0, "embedding": [0.3, 0.4]},
+                    {"score": 2.0, "embedding": [0.5, 0.6]},
+                ],
+            }
+        )
+
+        assert writer._buffer.row_count == 1
+
     def test_context_manager(self, simple_schema, temp_dir):
         with LocalBulkWriter(
             schema=simple_schema,

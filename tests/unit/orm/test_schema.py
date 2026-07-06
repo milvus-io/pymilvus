@@ -763,6 +763,48 @@ class TestCollectionSchemaToDict:
         schema = CollectionSchema.construct_from_dict(d)
         assert len(schema.struct_fields) == 1
 
+    def test_construct_with_user_struct_array_field_format(self):
+        """Test constructing schema from MilvusClient.describe_collection struct array format."""
+        d = {
+            "description": "",
+            "fields": [
+                {"name": "id", "type": DataType.INT64, "is_primary": True},
+                {
+                    "field_id": 100,
+                    "name": "metadata",
+                    "description": "struct values",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.STRUCT,
+                    "nullable": True,
+                    "params": {"max_capacity": 10, "mmap_enabled": True},
+                    "struct_fields": [
+                        {"field_id": 101, "name": "score", "type": DataType.FLOAT},
+                        {
+                            "field_id": 102,
+                            "name": "embedding",
+                            "type": DataType.FLOAT_VECTOR,
+                            "params": {"dim": 4},
+                        },
+                    ],
+                },
+            ],
+        }
+
+        schema = CollectionSchema.construct_from_dict(d)
+
+        assert [field.name for field in schema.fields] == ["id"]
+        assert schema.primary_field.name == "id"
+        assert len(schema.struct_fields) == 1
+        struct = schema.struct_fields[0]
+        assert struct.name == "metadata"
+        assert struct.description == "struct values"
+        assert struct.nullable is True
+        assert struct.max_capacity == 10
+        assert struct.params["mmap_enabled"] is True
+        assert [field.name for field in struct.fields] == ["score", "embedding"]
+        assert struct.fields[1].dtype == DataType.FLOAT_VECTOR
+        assert struct.fields[1].params["dim"] == 4
+
 
 class TestCollectionSchemaProperties:
     """Tests for CollectionSchema properties."""
@@ -1127,9 +1169,27 @@ class TestStructFieldSchemaCreation:
         struct = StructFieldSchema()
         assert struct.dtype == DataType.STRUCT
 
+    def test_create_nullable_struct_schema(self):
+        """Test creating nullable StructFieldSchema."""
+        struct = StructFieldSchema(nullable=True, description="desc")
+        assert struct.nullable is True
+        assert struct.description == "desc"
+
 
 class TestStructFieldSchemaValidation:
     """Tests for StructFieldSchema validation."""
+
+    @pytest.mark.parametrize(
+        "kwargs,error_match",
+        [
+            pytest.param({"nullable": "true"}, "nullable must be boolean", id="nullable"),
+            pytest.param({"description": 1}, "description must be string", id="description"),
+        ],
+    )
+    def test_create_struct_schema_invalid_options(self, kwargs, error_match):
+        """Test invalid StructFieldSchema options."""
+        with pytest.raises(ParamError, match=error_match):
+            StructFieldSchema(**kwargs)
 
     def test_check_fields_empty(self):
         """Test struct with no fields raises error."""
@@ -1179,13 +1239,14 @@ class TestStructFieldSchemaToDict:
 
     def test_to_dict(self):
         """Test StructFieldSchema.to_dict."""
-        struct = StructFieldSchema()
+        struct = StructFieldSchema(nullable=True)
         struct.name = "test_struct"
         struct.max_capacity = 10
         struct.add_field("score", DataType.FLOAT)
 
         result = struct.to_dict()
         assert result["name"] == "test_struct"
+        assert result["nullable"] is True
         assert result["max_capacity"] == 10
         assert len(result["fields"]) == 1
 
@@ -1195,6 +1256,7 @@ class TestStructFieldSchemaToDict:
             pytest.param(
                 {
                     "name": "test",
+                    "nullable": True,
                     "max_capacity": 5,
                     "fields": [{"name": "score", "type": DataType.FLOAT, "description": ""}],
                 },
@@ -1222,6 +1284,7 @@ class TestStructFieldSchemaToDict:
         """Test StructFieldSchema.construct_from_dict."""
         struct = StructFieldSchema.construct_from_dict(d)
         assert struct.name == d["name"]
+        assert struct.nullable == d.get("nullable", False)
         assert len(struct.fields) >= 1
 
     def test_reused_struct_schema(self):
@@ -1242,6 +1305,8 @@ class TestStructFieldSchemaToDict:
             element_type=DataType.STRUCT,
             struct_schema=struct_schema,
             max_capacity=10,
+            nullable=True,
+            description="field one",
         )
         schema.add_field(
             "field2",
@@ -1253,7 +1318,10 @@ class TestStructFieldSchemaToDict:
 
         assert len(schema.struct_fields) == 2
         assert schema.struct_fields[0].name == "field1"
+        assert schema.struct_fields[0].nullable is True
+        assert schema.struct_fields[0].description == "field one"
         assert schema.struct_fields[1].name == "field2"
+        assert schema.struct_fields[1].nullable is False
         # Original not modified
         assert struct_schema.name == ""
 
