@@ -1638,8 +1638,10 @@ class Prepare:
             )
 
         for chain in chains:
-            if chain.stage != FunctionChainStage.L2_RERANK:
-                raise ParamError(message="Only L2_RERANK function chains are supported for search")
+            if chain.stage == FunctionChainStage.UNSPECIFIED:
+                raise ParamError(
+                    message="UNSPECIFIED function chain stage is not supported for search"
+                )
         return [chain.to_proto() for chain in chains]
 
     @staticmethod
