@@ -514,6 +514,6 @@ class TestEmptyMethod:
     """Tests for deprecated empty method."""
 
     def test_empty_raises_deprecation_warning(self):
-        """Test that empty method raises DeprecationWarning."""
-        with pytest.raises(DeprecationWarning):
+        """Test that empty method emits DeprecationWarning."""
+        with pytest.warns(DeprecationWarning, match="deprecated"):
             Prepare.empty()

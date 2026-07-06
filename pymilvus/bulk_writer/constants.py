@@ -46,10 +46,16 @@ TYPE_SIZE = {
 
 TYPE_VALIDATOR = {
     DataType.BOOL.name: lambda x: isinstance(x, bool),
-    DataType.INT8.name: lambda x: isinstance(x, int) and -128 <= x <= 127,
-    DataType.INT16.name: lambda x: isinstance(x, int) and -32768 <= x <= 32767,
-    DataType.INT32.name: lambda x: isinstance(x, int) and -2147483648 <= x <= 2147483647,
-    DataType.INT64.name: lambda x: isinstance(x, int),
+    DataType.INT8.name: lambda x: isinstance(x, int)
+    and not isinstance(x, bool)
+    and -128 <= x <= 127,
+    DataType.INT16.name: lambda x: isinstance(x, int)
+    and not isinstance(x, bool)
+    and -32768 <= x <= 32767,
+    DataType.INT32.name: lambda x: isinstance(x, int)
+    and not isinstance(x, bool)
+    and -2147483648 <= x <= 2147483647,
+    DataType.INT64.name: lambda x: isinstance(x, int) and not isinstance(x, bool),
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,

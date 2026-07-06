@@ -318,8 +318,11 @@ class TestMiscValidators:
     def test_int_or_str_str(self):
         assert int_or_str("hello") == "hello"
 
-    def test_is_correct_date_str_always_false(self):
-        assert is_correct_date_str("2024-01-01") is False
+    def test_is_correct_date_str_valid(self):
+        assert is_correct_date_str("2024-01-01") is True
+
+    def test_is_correct_date_str_invalid(self):
+        assert is_correct_date_str("not-a-date") is False
 
     def test_is_legal_cmd_valid(self):
         assert is_legal_cmd("status") is True
