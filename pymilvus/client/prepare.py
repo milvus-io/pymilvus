@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import warnings
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
 
 import numpy as np
@@ -545,8 +546,11 @@ class Prepare:
 
     @classmethod
     def empty(cls):
-        msg = "no empty request later"
-        raise DeprecationWarning(msg)
+        warnings.warn(
+            "Prepare.empty() is deprecated and will be removed in a future version.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     @classmethod
     def register_link_request(cls):
