@@ -254,10 +254,26 @@ class TestFunctionChain:
         with pytest.raises(ParamError):
             call()
 
-    def test_bad_stage_for_search(self):
-        chain = FunctionChain(FunctionChainStage.L1_RERANK)
-        with pytest.raises(ParamError, match="L2_RERANK"):
+    def test_prepare_search_rejects_unspecified_stage(self):
+        chain = FunctionChain(FunctionChainStage.UNSPECIFIED)
+        with pytest.raises(ParamError, match="UNSPECIFIED"):
             _prepare_search(function_chains=[chain])
+
+    @pytest.mark.parametrize(
+        "stage",
+        [
+            FunctionChainStage.INGESTION,
+            FunctionChainStage.PRE_PROCESS,
+            FunctionChainStage.L0_RERANK,
+            FunctionChainStage.L1_RERANK,
+            FunctionChainStage.L2_RERANK,
+            FunctionChainStage.POST_PROCESS,
+        ],
+    )
+    def test_prepare_search_allows_all_specified_function_chain_stages(self, stage):
+        chain = FunctionChain(stage)
+        request = _prepare_search(function_chains=[chain])
+        assert request.function_chains[0].stage == stage
 
 
 class TestSearchIntegration:
