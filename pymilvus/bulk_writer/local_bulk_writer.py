@@ -63,6 +63,9 @@ class LocalBulkWriter(BulkWriter):
         self._exit()
 
     def _exit(self):
+        if not hasattr(self, "_working_thread"):
+            return
+
         # wait flush thread
         if len(self._working_thread) > 0:
             for k, th in self._working_thread.items():

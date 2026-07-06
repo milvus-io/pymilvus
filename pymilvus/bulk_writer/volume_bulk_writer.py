@@ -12,7 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize_volume_remote_path(remote_path: str) -> str:
-    posix_path = remote_path.replace("\\", "/").strip("/")
+    if "\\" in remote_path:
+        msg = "remote_path must be a POSIX path and must not contain backslashes"
+        raise ValueError(msg)
+
+    posix_path = remote_path.strip("/")
     if any(part in {".", ".."} for part in posix_path.split("/")):
         msg = "remote_path must not contain '.' or '..' segments"
         raise ValueError(msg)
@@ -120,7 +124,5 @@ class VolumeBulkWriter(LocalBulkWriter):
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
         target_volume_path = PurePosixPath(object_name).parent.as_posix()
-        if target_volume_path == ".":
-            target_volume_path = self._remote_path.rstrip("/")
         self._volume_file_manager.upload_file_to_volume(file_path, target_volume_path)
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")

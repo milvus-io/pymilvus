@@ -862,9 +862,9 @@ class TestVolumeBulkWriter:
         assert volume_bulk_writer._volume_name == "test_volume"
         assert isinstance(volume_bulk_writer._volume_file_manager, MagicMock)
 
-    def test_init_normalizes_windows_remote_path(self, simple_schema: CollectionSchema) -> None:
-        with patch("pymilvus.bulk_writer.volume_bulk_writer.VolumeFileManager"):
-            writer = VolumeBulkWriter(
+    def test_init_rejects_windows_remote_path(self, simple_schema: CollectionSchema) -> None:
+        with pytest.raises(ValueError, match="remote_path must be a POSIX path"):
+            VolumeBulkWriter(
                 schema=simple_schema,
                 remote_path=r"test\data",
                 cloud_endpoint="https://api.cloud.zilliz.com",
@@ -873,10 +873,6 @@ class TestVolumeBulkWriter:
                 chunk_size=1024,
                 file_type=BulkFileType.PARQUET,
             )
-
-        assert writer._remote_path.startswith("test/data/")
-        assert writer._remote_path.endswith("/")
-        assert "\\" not in writer._remote_path
 
     @pytest.mark.parametrize("remote_path", ["test/../data", "test/./data"])
     def test_init_rejects_dot_segments(
@@ -958,14 +954,6 @@ class TestVolumeBulkWriter:
         volume_bulk_writer._upload_object("local_file.parquet", object_name)
         volume_bulk_writer._volume_file_manager.upload_file_to_volume.assert_called_once_with(
             "local_file.parquet", f"{volume_bulk_writer._remote_path.rstrip('/')}/1"
-        )
-
-    def test_upload_object_uses_remote_path_for_bare_file_name(
-        self, volume_bulk_writer: VolumeBulkWriter
-    ) -> None:
-        volume_bulk_writer._upload_object("local_file.parquet", "remote_file.parquet")
-        volume_bulk_writer._volume_file_manager.upload_file_to_volume.assert_called_once_with(
-            "local_file.parquet", volume_bulk_writer._remote_path.rstrip("/")
         )
 
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:
