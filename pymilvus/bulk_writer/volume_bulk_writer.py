@@ -11,6 +11,14 @@ from .local_bulk_writer import LocalBulkWriter
 logger = logging.getLogger(__name__)
 
 
+def _normalize_volume_remote_path(remote_path: str) -> str:
+    posix_path = remote_path.replace("\\", "/").strip("/")
+    if any(part in {".", ".."} for part in posix_path.split("/")):
+        msg = "remote_path must not contain '.' or '..' segments"
+        raise ValueError(msg)
+    return PurePosixPath(posix_path).as_posix()
+
+
 class VolumeBulkWriter(LocalBulkWriter):
     """VolumeBulkWriter handles writing local bulk files to a remote volume."""
 
@@ -27,10 +35,11 @@ class VolumeBulkWriter(LocalBulkWriter):
         connect_type: ConnectType = ConnectType.AUTO,
         **kwargs,
     ):
+        remote_base_path = _normalize_volume_remote_path(remote_path)
         local_path = Path.cwd() / "bulk_writer"
         super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
 
-        remote_dir_path = PurePosixPath(remote_path.replace("\\", "/").strip("/")) / super().uuid
+        remote_dir_path = PurePosixPath(remote_base_path) / super().uuid
         self._remote_path = f"{remote_dir_path.as_posix()}/"
         self._remote_files: List[List[str]] = []
         self._volume_name = volume_name
