@@ -295,11 +295,12 @@ class RemoteBulkWriter(LocalBulkWriter):
                     continue
 
                 relative_file_path = (
-                    Path(file_path).resolve().relative_to(super().data_path).as_posix()
+                    Path(file_path)
+                    .resolve()
+                    .relative_to(Path(super().data_path).resolve())
+                    .as_posix()
                 )
-                minio_file_path = (
-                    f"{self._remote_path.as_posix().strip('/')}/{relative_file_path}"
-                )
+                minio_file_path = f"{self._remote_path.as_posix().strip('/')}/{relative_file_path}"
 
                 if self._object_exists(minio_file_path):
                     logger.info(
