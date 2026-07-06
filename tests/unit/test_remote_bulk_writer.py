@@ -1,4 +1,5 @@
 from contextlib import ExitStack
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from pymilvus.bulk_writer.constants import BulkFileType
@@ -112,10 +113,41 @@ class TestRemoteBulkWriter:
             uploaded_files = writer._upload([str(jsonl_file)])
 
         assert len(uploaded_files) == 1
-        assert uploaded_files[0].endswith(".jsonl")
+        assert uploaded_files[0].endswith("/1.jsonl")
         mock_upload_object.assert_called_once()
         _, kwargs = mock_upload_object.call_args
         assert kwargs["file_path"].endswith(".jsonl")
-        assert kwargs["object_name"].endswith(".jsonl")
+        assert kwargs["object_name"] == uploaded_files[0]
+        assert kwargs["object_name"].endswith("/1.jsonl")
+        assert "bulk/test/" in kwargs["object_name"]
+        assert "\\" not in kwargs["object_name"]
         mock_local_rm.assert_called_once_with(str(jsonl_file))
-        assert writer.batch_files[0][0].endswith(".jsonl")
+        assert writer.batch_files[0][0] == uploaded_files[0]
+
+    def test_upload_jsonl_file_with_relative_local_path(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        relative_local_path = Path("relative-bulk")
+
+        writer = RemoteBulkWriter(
+            schema=self._simple_schema(),
+            remote_path="bulk/test",
+            connect_param=None,
+            file_type=BulkFileType.JSONL,
+            local_path=str(relative_local_path),
+        )
+        jsonl_file = writer._local_path / "1.jsonl"
+        jsonl_file.write_text('{"id":1,"vector":[1.0,2.0,3.0,4.0]}\n')
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(writer, "_bucket_exists", return_value=True))
+            stack.enter_context(patch.object(writer, "_object_exists", return_value=False))
+            mock_upload_object = stack.enter_context(patch.object(writer, "_upload_object"))
+            stack.enter_context(patch.object(writer, "_local_rm"))
+            uploaded_files = writer._upload([str(jsonl_file)])
+
+        assert len(uploaded_files) == 1
+        _, kwargs = mock_upload_object.call_args
+        assert kwargs["object_name"] == uploaded_files[0]
+        assert kwargs["object_name"].endswith("/1.jsonl")
+        assert "bulk/test/" in kwargs["object_name"]
+        assert "\\" not in kwargs["object_name"]
