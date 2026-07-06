@@ -211,50 +211,62 @@ class CollectionSchema:
             raise ParamError(message="External collections do not support auto_id")
 
     def _update_key_field_metadata(self, field: Any):
+        primary_field = self._primary_field
+        partition_key_field = self._partition_key_field
+        clustering_key_field = self._clustering_key_field
         primary_field_name = self._kwargs.get("primary_field", None)
         partition_key_field_name = self._kwargs.get("partition_key_field", None)
         clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
 
-        if primary_field_name and primary_field_name == field.name:
-            field.is_primary = True
+        try:
+            if primary_field_name and primary_field_name == field.name:
+                field.is_primary = True
 
-        if partition_key_field_name and partition_key_field_name == field.name:
-            field.is_partition_key = True
+            if partition_key_field_name and partition_key_field_name == field.name:
+                field.is_partition_key = True
 
-        if clustering_key_field_name and clustering_key_field_name == field.name:
-            field.is_clustering_key = True
+            if clustering_key_field_name and clustering_key_field_name == field.name:
+                field.is_clustering_key = True
 
-        if field.is_primary:
-            if self._primary_field is not None and self._primary_field.name != field.name:
-                msg = ExceptionsMessage.PrimaryKeyOnlyOne % (self._primary_field.name, field.name)
-                raise PrimaryKeyException(message=msg)
-            self._primary_field = field
-            if self._kwargs.get("auto_id", False):
-                self._primary_field.auto_id = True
+            if field.is_primary:
+                if self._primary_field is not None and self._primary_field.name != field.name:
+                    msg = ExceptionsMessage.PrimaryKeyOnlyOne % (
+                        self._primary_field.name,
+                        field.name,
+                    )
+                    raise PrimaryKeyException(message=msg)
+                self._primary_field = field
+                if self._kwargs.get("auto_id", False):
+                    self._primary_field.auto_id = True
 
-        if field.is_partition_key:
-            if (
-                self._partition_key_field is not None
-                and self._partition_key_field.name != field.name
-            ):
-                msg = ExceptionsMessage.PartitionKeyOnlyOne % (
-                    self._partition_key_field.name,
-                    field.name,
-                )
-                raise PartitionKeyException(message=msg)
-            self._partition_key_field = field
+            if field.is_partition_key:
+                if (
+                    self._partition_key_field is not None
+                    and self._partition_key_field.name != field.name
+                ):
+                    msg = ExceptionsMessage.PartitionKeyOnlyOne % (
+                        self._partition_key_field.name,
+                        field.name,
+                    )
+                    raise PartitionKeyException(message=msg)
+                self._partition_key_field = field
 
-        if field.is_clustering_key:
-            if (
-                self._clustering_key_field is not None
-                and self._clustering_key_field.name != field.name
-            ):
-                msg = ExceptionsMessage.ClusteringKeyOnlyOne % (
-                    self._clustering_key_field.name,
-                    field.name,
-                )
-                raise ClusteringKeyException(message=msg)
-            self._clustering_key_field = field
+            if field.is_clustering_key:
+                if (
+                    self._clustering_key_field is not None
+                    and self._clustering_key_field.name != field.name
+                ):
+                    msg = ExceptionsMessage.ClusteringKeyOnlyOne % (
+                        self._clustering_key_field.name,
+                        field.name,
+                    )
+                    raise ClusteringKeyException(message=msg)
+                self._clustering_key_field = field
+        except Exception:
+            self._primary_field = primary_field
+            self._partition_key_field = partition_key_field
+            self._clustering_key_field = clustering_key_field
+            raise
 
     def _check_functions(self):
         for function in self._functions:
@@ -529,8 +541,8 @@ class CollectionSchema:
             return self
 
         field = FieldSchema(field_name, datatype, **kwargs)
-        self._fields.append(field)
         self._update_key_field_metadata(field)
+        self._fields.append(field)
         self._mark_output_fields()
         return self
 

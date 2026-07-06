@@ -692,8 +692,35 @@ class TestCollectionSchemaAddField:
     ):
         """Test add_field rejects adding a second key field of the same kind."""
         schema = CollectionSchema(fields)
+        fields_before = [field.to_dict() for field in schema.fields]
+        key_fields_before = (
+            schema.primary_field.name if schema.primary_field else None,
+            schema.partition_key_field.name if schema.partition_key_field else None,
+            schema._clustering_key_field.name if schema._clustering_key_field else None,
+        )
+
         with pytest.raises(error_type, match="only one"):
             schema.add_field(field_name, datatype, **kwargs)
+
+        assert [field.to_dict() for field in schema.fields] == fields_before
+        assert (
+            schema.primary_field.name if schema.primary_field else None,
+            schema.partition_key_field.name if schema.partition_key_field else None,
+            schema._clustering_key_field.name if schema._clustering_key_field else None,
+        ) == key_fields_before
+
+    def test_add_field_rolls_back_key_metadata_when_later_validation_fails(self):
+        """Test a failed add_field leaves fields and key metadata unchanged."""
+        schema = CollectionSchema([], check_fields=False)
+        schema.add_field("category", DataType.VARCHAR, max_length=100, is_partition_key=True)
+        fields_before = [field.to_dict() for field in schema.fields]
+
+        with pytest.raises(PartitionKeyException, match="only one"):
+            schema.add_field("id", DataType.INT64, is_primary=True, is_partition_key=True)
+
+        assert [field.to_dict() for field in schema.fields] == fields_before
+        assert schema.primary_field is None
+        assert schema.partition_key_field.name == "category"
 
     def test_add_struct_field_missing_struct_schema(self):
         """Test adding struct field without struct_schema raises error."""
