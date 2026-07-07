@@ -8,6 +8,7 @@ import pytest
 from pymilvus.bulk_writer.constants import MB, BulkFileType
 from pymilvus.bulk_writer.local_bulk_writer import LocalBulkWriter
 from pymilvus.client.types import DataType
+from pymilvus.milvus_client import MilvusClient
 from pymilvus.orm.schema import CollectionSchema, FieldSchema
 
 
@@ -110,6 +111,37 @@ class TestLocalBulkWriter:
         )
 
         assert writer._buffer.row_count == 1
+
+    def test_init_with_milvus_client_schema(self, temp_dir):
+        schema = MilvusClient.create_schema(auto_id=False)
+        struct_schema = MilvusClient.create_struct_field_schema()
+        struct_schema.add_field("score", DataType.FLOAT)
+        schema.add_field(
+            "chunks",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct_schema,
+            max_capacity=2,
+        )
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("vector", DataType.FLOAT_VECTOR, dim=4)
+
+        with LocalBulkWriter(
+            schema=schema,
+            local_path=temp_dir,
+            chunk_size=128 * MB,
+            file_type=BulkFileType.PARQUET,
+        ) as writer:
+            writer.append_row(
+                {
+                    "id": 1,
+                    "vector": [0.1, 0.2, 0.3, 0.4],
+                    "chunks": [{"score": 0.9}],
+                }
+            )
+            writer.commit()
+
+            assert writer.batch_files
 
     def test_context_manager(self, simple_schema, temp_dir):
         with LocalBulkWriter(
