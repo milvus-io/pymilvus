@@ -1756,6 +1756,18 @@ class TestCheckInsertSchema:
         with pytest.raises(DataNotMatchException, match="auto_id"):
             check_insert_schema(schema, insert_data)
 
+    def test_check_insert_schema_auto_id_with_null_pk_column(self):
+        """Test auto_id DataFrame inserts tolerate an all-null pk column."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True, auto_id=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=2),
+            ]
+        )
+        insert_data = pd.DataFrame({"id": [None, None], "vec": [[1.0, 2.0], [3.0, 4.0]]})
+
+        check_insert_schema(schema, insert_data)
+
 
 class TestCheckUpsertSchema:
     """Tests for check_upsert_schema function."""
