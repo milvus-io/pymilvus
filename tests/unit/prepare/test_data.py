@@ -436,8 +436,8 @@ class TestRowUpsertParam:
                 struct_fields_info=struct_fields_info,
             )
 
-    def test_upsert_partial_update_struct_not_supported(self):
-        """Test partial update with struct fields raises error."""
+    def test_upsert_partial_update_with_struct_schema_omits_struct_field(self):
+        """Test partial update works when schema has struct fields but payload omits them."""
         struct_field = StructFieldSchema()
         struct_field.name = "metadata"
         struct_field.add_field("score", DataType.FLOAT)
@@ -452,7 +452,70 @@ class TestRowUpsertParam:
         schema.add_struct_field(struct_field)
 
         rows = [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}]
-        with pytest.raises(ParamError, match="Struct fields are not supported"):
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            partial_update=True,
+        )
+
+        assert req.partial_update is True
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == ["pk", "vector"]
+
+    def test_upsert_partial_update_struct_array_field(self):
+        """Test partial update supports whole struct array fields."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        schema.add_struct_field(struct_field)
+
+        rows = [{"pk": 1, "metadata": [{"score": 1.0}, {"score": 2.0}]}]
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            partial_update=True,
+        )
+
+        assert req.partial_update is True
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == ["pk", "metadata"]
+        metadata = req.fields_data[1]
+        assert metadata.type == DataType._ARRAY_OF_STRUCT
+        score_data = metadata.struct_arrays.fields[0]
+        assert score_data.field_name == "score"
+        assert list(score_data.scalars.array_data.data[0].float_data.data) == [1.0, 2.0]
+
+    def test_upsert_partial_update_struct_array_field_len_inconsistent(self):
+        """Test partial update rejects rows with inconsistent struct array field presence."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        schema.add_struct_field(struct_field)
+
+        rows = [{"pk": 1, "metadata": [{"score": 1.0}]}, {"pk": 2}]
+        with pytest.raises(DataNotMatchException, match="inconsistent"):
             Prepare.row_upsert_param(
                 "test_coll",
                 rows,

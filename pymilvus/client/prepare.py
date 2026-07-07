@@ -842,12 +842,25 @@ class Prepare:
             for struct_field_info in struct_fields_info:
                 struct_name = struct_field_info["name"]
                 normalized_struct = dict(struct_field_info)
+                normalized_struct["type"] = normalized_struct.get("type", DataType._ARRAY_OF_STRUCT)
                 normalized_fields = []
                 for field in struct_field_info["fields"]:
                     normalized_field = dict(field)
                     normalized_field["name"] = Prepare._strip_struct_sub_field_name(
                         struct_name, field["name"]
                     )
+                    field_type = normalized_field["type"]
+                    if field_type not in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR}:
+                        normalized_field["element_type"] = field_type
+                        normalized_field["type"] = (
+                            DataType._ARRAY_OF_VECTOR
+                            if isVectorDataType(field_type)
+                            else DataType.ARRAY
+                        )
+                    params = dict(normalized_field.get("params", {}) or {})
+                    if "max_capacity" not in params and "max_capacity" in normalized_struct:
+                        params["max_capacity"] = normalized_struct["max_capacity"]
+                    normalized_field["params"] = params
                     normalized_fields.append(normalized_field)
                 normalized_struct["fields"] = normalized_fields
                 normalized_struct_fields_info.append(normalized_struct)
@@ -1047,10 +1060,6 @@ class Prepare:
         entities: List,
         partial_update: bool = False,
     ):
-        # For partial update, struct fields are not supported
-        if partial_update and struct_fields_info:
-            raise ParamError(message="Struct fields are not supported in partial update")
-
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=True)
         ]
@@ -1066,21 +1075,15 @@ class Prepare:
         # key: field_data object id, value: list of bytes
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
-        # Use common struct data setup (only if not partial update)
-        if partial_update:
-            struct_fields_data = {}
-            struct_info_map = {}
-            struct_sub_fields_data = {}
-            struct_sub_field_info = {}
-            input_struct_field_info = []
-        else:
-            (
-                struct_fields_data,
-                struct_info_map,
-                struct_sub_fields_data,
-                struct_sub_field_info,
-                input_struct_field_info,
-            ) = Prepare._setup_struct_data_structures(struct_fields_info)
+        (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        ) = Prepare._setup_struct_data_structures(struct_fields_info)
+        for struct in input_struct_field_info:
+            field_len[struct["name"]] = 0
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -1131,6 +1134,7 @@ class Prepare:
                             raise DataNotMatchException(
                                 message=f"{ExceptionsMessage.FieldDataInconsistent % (k, 'struct array', type(v))} Detail: {e!s}"
                             ) from e
+                        field_len[k] += 1
                 for field in input_fields_info:
                     key = field["name"]
                     if key in entity:
@@ -1194,10 +1198,21 @@ class Prepare:
 
         request.fields_data.extend(fields_data.values())
 
-        if struct_fields_data:
+        if partial_update:
+            struct_field_names = [
+                struct["name"]
+                for struct in input_struct_field_info
+                if field_len[struct["name"]] > 0
+            ]
+        else:
+            struct_field_names = [struct["name"] for struct in input_struct_field_info]
+
+        if struct_field_names:
             # reconstruct the struct array fields data (same as in insert)
             for struct in input_struct_field_info:
                 struct_name = struct["name"]
+                if struct_name not in struct_field_names:
+                    continue
                 struct_field_data = struct_fields_data[struct_name]
                 for field_info in struct["fields"]:
                     # Use two-level map to get the correct sub-field data
@@ -1205,7 +1220,9 @@ class Prepare:
                     struct_field_data.struct_arrays.fields.append(
                         struct_sub_fields_data[struct_name][field_name]
                     )
-            request.fields_data.extend(struct_fields_data.values())
+            request.fields_data.extend(
+                struct_fields_data[struct_name] for struct_name in struct_field_names
+            )
 
         for field in input_fields_info:
             is_dynamic = False
