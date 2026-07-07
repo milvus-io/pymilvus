@@ -1759,10 +1759,14 @@ class TestMilvusClientCollectionMgmt:
     )
     def test_add_function_field_delegates(self, field, func):
         handler = _make_handler()
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(field_name=field.name, index_type="SPARSE_INVERTED_INDEX")
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            client.add_function_field("col", field, func)
+            client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_called_once()
+            call_kwargs = handler.alter_collection_schema.call_args.kwargs
+            assert call_kwargs["index_extra_params"]["index_type"] == "SPARSE_INVERTED_INDEX"
 
     def test_add_function_field_rejects_unsupported_function_type(self):
         handler = _make_handler()
@@ -1775,10 +1779,12 @@ class TestMilvusClientCollectionMgmt:
                 input_field_names=["text"],
                 output_field_names=["sparse"],
             )
+            index_params = MilvusClient.prepare_index_params()
+            index_params.add_index(field_name="sparse", index_type="SPARSE_INVERTED_INDEX")
             with pytest.raises(
                 ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
             ):
-                client.add_function_field("col", field, func)
+                client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -1808,10 +1814,12 @@ class TestMilvusClientCollectionMgmt:
     )
     def test_add_function_field_rejects_invalid_output(self, field, func, expected):
         handler = _make_handler()
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(field_name="", index_type="SPARSE_INVERTED_INDEX")
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
             with pytest.raises(ParamError, match=expected):
-                client.add_function_field("col", field, func)
+                client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_not_called()
 
 
