@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 
 from pymilvus.exceptions import ParamError
 
@@ -96,3 +96,40 @@ class IndexParams(list):
     def add_index(self, field_name: str, index_type: str = "", index_name: str = "", **kwargs):
         index_param = IndexParam(field_name, index_type, index_name, **kwargs)
         super().append(index_param)
+
+
+def extract_bound_index_param(
+    output_field_name: str, index_params: "IndexParams"
+) -> Tuple[str, Dict]:
+    """Validate the bound index of a function output field and extract it.
+
+    The bound index meta is mandatory for add_function_field: without it,
+    backfill compaction of the new vector output field would stall on a
+    missing index. Rejects invalid input before any RPC (the server enforces
+    the same rules) and returns ``(index_name, index_configs)``.
+    """
+    if not isinstance(index_params, IndexParams):
+        raise ParamError(
+            message=(
+                "wrong type of argument index_params, "
+                f"expected: IndexParams, got: {type(index_params).__name__}"
+            )
+        )
+    if len(index_params) != 1:
+        raise ParamError(
+            message="index_params must contain exactly one index for the function output field"
+        )
+    index_param = index_params[0]
+    if index_param.field_name not in ("", output_field_name):
+        raise ParamError(
+            message=(
+                f"index_params field_name {index_param.field_name!r} does not match "
+                f"the function output field {output_field_name!r}"
+            )
+        )
+    if not index_param.index_type:
+        raise ParamError(
+            message="an explicit index_type is required for the bound index of the function output field"
+        )
+    # Copy: get_index_configs() exposes IndexParam's internal dict.
+    return index_param.index_name, dict(index_param.get_index_configs())

@@ -40,7 +40,7 @@ from pymilvus.orm.types import DataType
 from .async_optimize_task import AsyncOptimizeTask
 from .base import BaseMilvusClient
 from .check import validate_param
-from .index import IndexParam, IndexParams
+from .index import IndexParam, IndexParams, extract_bound_index_param
 from .optimize_task import OptimizeResult, ProgressStage, parse_target_size
 
 
@@ -1130,6 +1130,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
@@ -1180,6 +1182,8 @@ class AsyncMilvusClient(BaseMilvusClient):
                 field_schema=field_schema,
                 func=func,
                 timeout=timeout,
+                index_name=index_name,
+                index_extra_params=index_extra_params,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,
             )
@@ -1210,6 +1214,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         collection_name: str,
         field_schema: FieldSchema,
         func: Function,
+        index_params: IndexParams,
         timeout: Optional[float] = None,
         **kwargs,
     ):
@@ -1238,11 +1243,17 @@ class AsyncMilvusClient(BaseMilvusClient):
                 )
             )
 
+        bound_index_name, bound_index_extra_params = extract_bound_index_param(
+            field_schema.name, index_params
+        )
+
         await self._alter_collection_schema(
             collection_name=collection_name,
             field_schema=field_schema,
             func=func,
             timeout=timeout,
+            index_name=bound_index_name,
+            index_extra_params=bound_index_extra_params,
             **kwargs,
         )
 

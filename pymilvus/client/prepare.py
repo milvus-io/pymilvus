@@ -397,6 +397,8 @@ class Prepare:
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
     ) -> milvus_types.AlterCollectionSchemaRequest:
         is_drop = any(
             identifier is not None
@@ -443,7 +445,14 @@ class Prepare:
 
                 field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
                     field_schema=field_schema_proto,
+                    index_name=index_name,
                 )
+                if index_extra_params:
+                    for tk, tv in index_extra_params.items():
+                        if tv is not None:
+                            field_info.extra_params.append(
+                                common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
+                            )
                 field_infos.append(field_info)
 
             if func is not None:
