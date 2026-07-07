@@ -26,6 +26,7 @@ dependencies=[
     "pandas>=1.2.4",
     "cachetools>=5.0.0",
     "requests>=2.20.0",
+    "dnspython>=2.0.0", # SRV record resolution for global cluster topology discovery
 ]
 
 classifiers=[
