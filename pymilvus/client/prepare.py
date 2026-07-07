@@ -818,6 +818,34 @@ class Prepare:
         return field_name
 
     @staticmethod
+    def _match_struct_sub_field_name(
+        field_name: str, struct_sub_field_info: Dict[str, Dict[str, Dict]]
+    ) -> Optional[str]:
+        """Return the parent struct when field_name uses known struct[sub-field] storage form."""
+        m = _STRUCT_FIELD_RE.match(field_name)
+        if m:
+            struct_name, sub_field_name = m.groups()
+            if sub_field_name in struct_sub_field_info.get(struct_name, {}):
+                return struct_name
+        return None
+
+    @staticmethod
+    def _raise_struct_sub_field_update_error(
+        field_name: str, struct_name: str, partial_update: bool
+    ) -> None:
+        if partial_update:
+            msg = (
+                f"Partial struct update is unsupported for struct sub-field `{field_name}`; "
+                f"update the whole struct field `{struct_name}` instead"
+            )
+        else:
+            msg = (
+                f"Struct sub-field `{field_name}` cannot be used as a top-level field; "
+                f"write the whole struct field `{struct_name}` instead"
+            )
+        raise DataNotMatchException(message=msg)
+
+    @staticmethod
     def _setup_struct_data_structures(struct_fields_info: Optional[List[Dict]]):
         """Setup common data structures for struct field processing.
 
@@ -1103,6 +1131,12 @@ class Prepare:
                         if k in function_output_field_names:
                             raise DataNotMatchException(
                                 message=ExceptionsMessage.InsertUnexpectedFunctionOutputField % k
+                            )
+
+                        struct_name = Prepare._match_struct_sub_field_name(k, struct_sub_field_info)
+                        if struct_name is not None:
+                            Prepare._raise_struct_sub_field_update_error(
+                                k, struct_name, partial_update
                             )
 
                         if not enable_dynamic:
