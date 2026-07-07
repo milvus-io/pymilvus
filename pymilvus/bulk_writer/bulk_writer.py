@@ -23,6 +23,7 @@ from pymilvus.orm.schema import CollectionSchema, FieldSchema, StructFieldSchema
 
 from .buffer import (
     Buffer,
+    _float16_vector_numpy_dtype,
 )
 from .constants import (
     NUMPY_TYPE_CREATOR,
@@ -294,6 +295,19 @@ class BulkWriter:
 
         return row_size
 
+    def _normalize_struct_vector(self, origin_list: object, dtype: DataType):
+        if dtype == DataType.FLOAT_VECTOR:
+            return np.array(origin_list, dtype=NUMPY_TYPE_CREATOR[DataType.FLOAT.name])
+
+        if dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
+            if self._file_type != BulkFileType.PARQUET and isinstance(origin_list, bytes):
+                dt = _float16_vector_numpy_dtype(dtype)
+                return np.frombuffer(origin_list, dtype=dt).tolist()
+            if self._file_type == BulkFileType.PARQUET and isinstance(origin_list, bytes):
+                return list(origin_list)
+
+        return origin_list
+
     def _verify_struct(self, x: object, field: StructFieldSchema):
         validator = TYPE_VALIDATOR[DataType.STRUCT.name]
         if not validator(x, field.max_capacity):
@@ -309,11 +323,15 @@ class BulkWriter:
                     self._throw(
                         f"Sub field '{sub_field.name}' of struct field '{field.name}' is missed"
                     )
-                if sub_dtype == DataType.FLOAT_VECTOR:
+                if sub_dtype in {
+                    DataType.BINARY_VECTOR,
+                    DataType.FLOAT_VECTOR,
+                    DataType.FLOAT16_VECTOR,
+                    DataType.BFLOAT16_VECTOR,
+                    DataType.INT8_VECTOR,
+                }:
                     origin_list, byte_len = self._verify_vector(obj[sub_field.name], sub_field)
-                    obj[sub_field.name] = np.array(
-                        origin_list, dtype=NUMPY_TYPE_CREATOR[DataType.FLOAT.name]
-                    )
+                    obj[sub_field.name] = self._normalize_struct_vector(origin_list, sub_dtype)
                     struct_size = struct_size + byte_len
                 elif sub_dtype == DataType.VARCHAR:
                     struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
