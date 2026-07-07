@@ -1534,10 +1534,14 @@ class TestAsyncAlterCollectionSchema:
     async def test_add_function_field_delegates(self, client_and_handler, field, func):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name=field.name, index_type="SPARSE_INVERTED_INDEX")
 
-        await client.add_function_field("col", field, func)
+        await client.add_function_field("col", field, func, index_params=index_params)
 
         mock_handler.alter_collection_schema.assert_called_once()
+        call_kwargs = mock_handler.alter_collection_schema.call_args.kwargs
+        assert call_kwargs["index_extra_params"]["index_type"] == "SPARSE_INVERTED_INDEX"
 
     @pytest.mark.asyncio
     async def test_add_function_field_rejects_unsupported_function_type(self, client_and_handler):
@@ -1546,10 +1550,12 @@ class TestAsyncAlterCollectionSchema:
         field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
         func = Function("embed", FunctionType.TEXTEMBEDDING, ["text"], ["sparse"])
 
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name="sparse", index_type="SPARSE_INVERTED_INDEX")
         with pytest.raises(
             ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
         ):
-            await client.add_function_field("col", field, func)
+            await client.add_function_field("col", field, func, index_params=index_params)
         mock_handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.asyncio
@@ -1573,9 +1579,11 @@ class TestAsyncAlterCollectionSchema:
     ):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name="", index_type="SPARSE_INVERTED_INDEX")
 
         with pytest.raises(ParamError, match=expected):
-            await client.add_function_field("col", field, func)
+            await client.add_function_field("col", field, func, index_params=index_params)
         mock_handler.alter_collection_schema.assert_not_called()
 
 

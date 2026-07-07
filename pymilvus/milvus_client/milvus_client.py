@@ -46,7 +46,7 @@ from pymilvus.orm.types import DataType
 
 from .base import BaseMilvusClient
 from .check import validate_param
-from .index import IndexParam, IndexParams
+from .index import IndexParam, IndexParams, extract_bound_index_param
 from .optimize_task import OptimizeResult, OptimizeTask, ProgressStage, parse_target_size
 
 logger = logging.getLogger(__name__)
@@ -1405,6 +1405,8 @@ class MilvusClient(BaseMilvusClient):
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
@@ -1455,6 +1457,8 @@ class MilvusClient(BaseMilvusClient):
                 field_schema=field_schema,
                 func=func,
                 timeout=timeout,
+                index_name=index_name,
+                index_extra_params=index_extra_params,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,
             )
@@ -1485,14 +1489,19 @@ class MilvusClient(BaseMilvusClient):
         collection_name: str,
         field_schema: FieldSchema,
         func: Function,
+        index_params: IndexParams,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         """Add a function-backed field (e.g. BM25 sparse vector) to an existing collection.
 
         This is a high-level convenience wrapper that commits the schema change
-        (new output field + function definition). Create indexes separately with
-        ``create_index`` after the schema change succeeds.
+        (new output field + function definition) together with the index meta bound
+        to the new output field. The server creates the index meta atomically with
+        the schema change, so backfill compaction is never blocked on a missing
+        vector index. ``index_params`` must contain exactly one entry with an
+        explicit ``index_type`` for the output field; the server rejects vector
+        output fields without bound index params.
 
         Args:
             collection_name(``str``): Name of the collection to modify.
@@ -1501,6 +1510,9 @@ class MilvusClient(BaseMilvusClient):
                 a ``BINARY_VECTOR`` field for MinHash).
             func(``Function``): Function definition that generates the output field
                 (e.g. a ``FunctionType.BM25`` or ``FunctionType.MINHASH`` function).
+            index_params(``IndexParams``): Index definition bound to the new output
+                field, exactly one entry with an explicit ``index_type``
+                (e.g. ``SPARSE_INVERTED_INDEX``/``BM25`` or ``MINHASH_LSH``/``MHJACCARD``).
             timeout(``float``, optional): Timeout in seconds for the schema-change RPC.
             **kwargs: Additional keyword arguments forwarded to the underlying calls.
 
@@ -1532,11 +1544,17 @@ class MilvusClient(BaseMilvusClient):
                 )
             )
 
+        bound_index_name, bound_index_extra_params = extract_bound_index_param(
+            field_schema.name, index_params
+        )
+
         self._alter_collection_schema(
             collection_name=collection_name,
             field_schema=field_schema,
             func=func,
             timeout=timeout,
+            index_name=bound_index_name,
+            index_extra_params=bound_index_extra_params,
             **kwargs,
         )
 
