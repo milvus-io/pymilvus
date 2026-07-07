@@ -327,7 +327,9 @@ class _GlobalStrategyMixin:
         Returns:
             The fetched GlobalTopology (caller uses it to connect to primary).
         """
-        topology = fetch_topology(config.uri, config.token)
+        topology = fetch_topology(
+            config.uri, config.token, on_topology_change=self._on_topology_change
+        )
 
         with self._lock:
             self._topology = topology
@@ -338,6 +340,7 @@ class _GlobalStrategyMixin:
             token=config.token,
             topology=topology,
             on_topology_change=self._on_topology_change,
+            get_current=self.get_topology,
         )
         self._refresher.start()
         return topology
@@ -353,11 +356,16 @@ class _GlobalStrategyMixin:
             return True  # No config, trigger recovery
 
         with self._lock:
-            old_primary = self._topology.primary.endpoint if self._topology else None
+            old_topology = self._topology
+            old_primary = old_topology.primary.endpoint if old_topology else None
 
         # Fetch fresh topology
         try:
-            new_topology = fetch_topology(self._config.uri, self._config.token)
+            new_topology = fetch_topology(
+                self._config.uri,
+                self._config.token,
+                cached_version=old_topology.version if old_topology else None,
+            )
         except Exception:
             logger.warning("Failed to refresh topology on UNAVAILABLE", exc_info=True)
             return True  # Error fetching, trigger recovery anyway

@@ -4,7 +4,7 @@
 import asyncio
 import threading
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import grpc
 import pytest
@@ -467,7 +467,9 @@ class TestGlobalStrategy:
         strategy = GlobalStrategy()
         handler = strategy.create_handler(config)
 
-        mock_fetch.assert_called_once_with("https://global-cluster.example.com:19530", "mytoken")
+        mock_fetch.assert_called_once_with(
+            "https://global-cluster.example.com:19530", "mytoken", on_topology_change=ANY
+        )
         mock_handler_cls.assert_called_once_with(
             uri="https://primary:19530",
             token="mytoken",
