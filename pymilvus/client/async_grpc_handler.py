@@ -1728,6 +1728,8 @@ class AsyncGrpcHandler:
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -1739,6 +1741,8 @@ class AsyncGrpcHandler:
             drop_field_id=drop_field_id,
             drop_function_name=drop_function_name,
             drop_function_output_fields=drop_function_output_fields,
+            index_name=index_name,
+            index_extra_params=index_extra_params,
         )
         response = await self._async_stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)

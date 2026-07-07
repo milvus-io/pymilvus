@@ -506,6 +506,32 @@ class TestAlterCollectionSchemaRequest:
         with pytest.raises(ParamError, match="Must specify"):
             Prepare.alter_collection_schema_request(collection_name="coll")
 
+    def test_add_with_bound_index_params(self):
+        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
+        func = Function(
+            name="bm25",
+            function_type=FunctionType.BM25,
+            input_field_names=["text"],
+            output_field_names=["sparse"],
+        )
+        req = Prepare.alter_collection_schema_request(
+            collection_name="coll",
+            field_schema=field,
+            func=func,
+            index_name="sparse_idx",
+            index_extra_params={
+                "index_type": "SPARSE_INVERTED_INDEX",
+                "metric_type": "BM25",
+                "params": {"bm25_k1": 1.2},
+            },
+        )
+        field_info = req.action.add_request.field_infos[0]
+        assert field_info.index_name == "sparse_idx"
+        extra = {kv.key: kv.value for kv in field_info.extra_params}
+        assert extra["index_type"] == "SPARSE_INVERTED_INDEX"
+        assert extra["metric_type"] == "BM25"
+        assert extra["params"] == '{"bm25_k1":1.2}'
+
     @pytest.mark.parametrize(
         "kwargs",
         [
