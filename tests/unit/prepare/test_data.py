@@ -13,6 +13,29 @@ from pymilvus.orm.schema import StructFieldSchema
 from .conftest import make_fields_info, make_struct_fields_info
 
 
+def _make_metadata_struct_schema(
+    field_name: str = "score",
+    datatype: DataType = DataType.FLOAT,
+    *,
+    enable_dynamic_field: bool = False,
+    **field_kwargs,
+):
+    struct_field = StructFieldSchema()
+    struct_field.name = "metadata"
+    struct_field.add_field(field_name, datatype, **field_kwargs)
+    struct_field.max_capacity = 10
+
+    schema = CollectionSchema(
+        [
+            FieldSchema("pk", DataType.INT64, is_primary=True),
+            FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+        ],
+        enable_dynamic_field=enable_dynamic_field,
+    )
+    schema.add_struct_field(struct_field)
+    return schema
+
+
 class TestRowInsertParam:
     """Tests for row_insert_param."""
 
@@ -247,18 +270,7 @@ class TestRowUpsertParam:
 
     def test_upsert_partial_update_with_struct_schema_omits_struct_field(self):
         """Test partial update works when schema has struct fields but payload omits them."""
-        struct_field = StructFieldSchema()
-        struct_field.name = "metadata"
-        struct_field.add_field("score", DataType.FLOAT)
-        struct_field.max_capacity = 10
-
-        schema = CollectionSchema(
-            [
-                FieldSchema("pk", DataType.INT64, is_primary=True),
-                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
-            ]
-        )
-        schema.add_struct_field(struct_field)
+        schema = _make_metadata_struct_schema()
 
         rows = [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}]
         req = Prepare.row_upsert_param(
@@ -276,18 +288,7 @@ class TestRowUpsertParam:
 
     def test_upsert_partial_update_struct_array_field(self):
         """Test partial update supports whole struct array fields."""
-        struct_field = StructFieldSchema()
-        struct_field.name = "metadata"
-        struct_field.add_field("score", DataType.FLOAT)
-        struct_field.max_capacity = 10
-
-        schema = CollectionSchema(
-            [
-                FieldSchema("pk", DataType.INT64, is_primary=True),
-                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
-            ]
-        )
-        schema.add_struct_field(struct_field)
+        schema = _make_metadata_struct_schema()
 
         rows = [{"pk": 1, "metadata": [{"score": 1.0}, {"score": 2.0}]}]
         req = Prepare.row_upsert_param(
@@ -307,6 +308,38 @@ class TestRowUpsertParam:
         score_data = metadata.struct_arrays.fields[0]
         assert score_data.field_name == "score"
         assert list(score_data.scalars.array_data.data[0].float_data.data) == [1.0, 2.0]
+
+    @pytest.mark.parametrize(
+        "metadata",
+        [
+            pytest.param(
+                [{"embedding": [1.0, 2.0, 3.0, 4.0]}, {"embedding": [5.0, 6.0, 7.0, 8.0]}],
+                id="non_empty",
+            ),
+            pytest.param([], id="empty"),
+        ],
+    )
+    def test_upsert_partial_update_struct_array_vector_field_sets_element_type(self, metadata):
+        """Test partial update preserves vector sub-field element type metadata."""
+        schema = _make_metadata_struct_schema("embedding", DataType.FLOAT_VECTOR, dim=4)
+
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            [{"pk": 1, "metadata": metadata}],
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            partial_update=True,
+        )
+
+        field_names = [field.field_name for field in req.fields_data]
+        assert field_names == ["pk", "metadata"]
+        metadata_data = req.fields_data[1]
+        embedding_data = metadata_data.struct_arrays.fields[0]
+        assert embedding_data.field_name == "embedding"
+        assert embedding_data.type == DataType._ARRAY_OF_VECTOR
+        assert embedding_data.vectors.vector_array.dim == 4
+        assert embedding_data.vectors.vector_array.element_type == DataType.FLOAT_VECTOR
 
     @pytest.mark.parametrize(
         "partial_update,row,error_match",
@@ -334,19 +367,7 @@ class TestRowUpsertParam:
         self, partial_update, row, error_match
     ):
         """Struct sub-field syntax must not fall back to the dynamic field."""
-        struct_field = StructFieldSchema()
-        struct_field.name = "metadata"
-        struct_field.add_field("score", DataType.FLOAT)
-        struct_field.max_capacity = 10
-
-        schema = CollectionSchema(
-            [
-                FieldSchema("pk", DataType.INT64, is_primary=True),
-                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
-            ],
-            enable_dynamic_field=True,
-        )
-        schema.add_struct_field(struct_field)
+        schema = _make_metadata_struct_schema(enable_dynamic_field=True)
 
         with pytest.raises(DataNotMatchException, match=error_match):
             Prepare.row_upsert_param(
@@ -381,19 +402,7 @@ class TestRowUpsertParam:
     )
     def test_upsert_dynamic_field_can_share_struct_sub_field_short_name(self, partial_update, row):
         """A top-level short name remains dynamic when dynamic fields are enabled."""
-        struct_field = StructFieldSchema()
-        struct_field.name = "metadata"
-        struct_field.add_field("score", DataType.FLOAT)
-        struct_field.max_capacity = 10
-
-        schema = CollectionSchema(
-            [
-                FieldSchema("pk", DataType.INT64, is_primary=True),
-                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
-            ],
-            enable_dynamic_field=True,
-        )
-        schema.add_struct_field(struct_field)
+        schema = _make_metadata_struct_schema(enable_dynamic_field=True)
 
         req = Prepare.row_upsert_param(
             "test_coll",
@@ -412,18 +421,7 @@ class TestRowUpsertParam:
 
     def test_upsert_partial_update_struct_array_field_len_inconsistent(self):
         """Test partial update rejects rows with inconsistent struct array field presence."""
-        struct_field = StructFieldSchema()
-        struct_field.name = "metadata"
-        struct_field.add_field("score", DataType.FLOAT)
-        struct_field.max_capacity = 10
-
-        schema = CollectionSchema(
-            [
-                FieldSchema("pk", DataType.INT64, is_primary=True),
-                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
-            ]
-        )
-        schema.add_struct_field(struct_field)
+        schema = _make_metadata_struct_schema()
 
         rows = [{"pk": 1, "metadata": [{"score": 1.0}]}, {"pk": 2}]
         with pytest.raises(DataNotMatchException, match="inconsistent"):

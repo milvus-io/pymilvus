@@ -638,6 +638,7 @@ class Prepare:
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector([], field_info)
                 )
@@ -690,6 +691,7 @@ class Prepare:
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector(values, field_info)
                 )
