@@ -1,8 +1,11 @@
 """Tests for data operation Prepare methods (insert, upsert, delete)."""
 
+import json
+
 import numpy as np
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
+from pymilvus.client.constants import DYNAMIC_FIELD_NAME
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import DataNotMatchException, ParamError
 from pymilvus.orm.schema import StructFieldSchema
@@ -436,8 +439,8 @@ class TestRowUpsertParam:
                 struct_fields_info=struct_fields_info,
             )
 
-    def test_upsert_partial_update_struct_not_supported(self):
-        """Test partial update with struct fields raises error."""
+    def test_upsert_partial_update_with_struct_schema_omits_struct_field(self):
+        """Test partial update works when schema has struct fields but payload omits them."""
         struct_field = StructFieldSchema()
         struct_field.name = "metadata"
         struct_field.add_field("score", DataType.FLOAT)
@@ -452,7 +455,172 @@ class TestRowUpsertParam:
         schema.add_struct_field(struct_field)
 
         rows = [{"pk": 1, "vector": [1.0, 2.0, 3.0, 4.0]}]
-        with pytest.raises(ParamError, match="Struct fields are not supported"):
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            partial_update=True,
+        )
+
+        assert req.partial_update is True
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == ["pk", "vector"]
+
+    def test_upsert_partial_update_struct_array_field(self):
+        """Test partial update supports whole struct array fields."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        schema.add_struct_field(struct_field)
+
+        rows = [{"pk": 1, "metadata": [{"score": 1.0}, {"score": 2.0}]}]
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            rows,
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            partial_update=True,
+        )
+
+        assert req.partial_update is True
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == ["pk", "metadata"]
+        metadata = req.fields_data[1]
+        assert metadata.type == DataType._ARRAY_OF_STRUCT
+        score_data = metadata.struct_arrays.fields[0]
+        assert score_data.field_name == "score"
+        assert list(score_data.scalars.array_data.data[0].float_data.data) == [1.0, 2.0]
+
+    @pytest.mark.parametrize(
+        "partial_update,row,error_match",
+        [
+            pytest.param(
+                False,
+                {
+                    "pk": 1,
+                    "vector": [1.0, 2.0, 3.0, 4.0],
+                    "metadata": [{"score": 1.0}],
+                    "metadata[score]": [1.0],
+                },
+                "cannot be used as a top-level field",
+                id="full_upsert",
+            ),
+            pytest.param(
+                True,
+                {"pk": 1, "metadata[score]": [1.0, 2.0]},
+                "Partial struct update is unsupported",
+                id="partial_update",
+            ),
+        ],
+    )
+    def test_upsert_rejects_struct_storage_sub_field_with_dynamic(
+        self, partial_update, row, error_match
+    ):
+        """Struct sub-field syntax must not fall back to the dynamic field."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ],
+            enable_dynamic_field=True,
+        )
+        schema.add_struct_field(struct_field)
+
+        with pytest.raises(DataNotMatchException, match=error_match):
+            Prepare.row_upsert_param(
+                "test_coll",
+                [row],
+                "",
+                fields_info=make_fields_info(schema),
+                struct_fields_info=make_struct_fields_info(schema),
+                enable_dynamic=True,
+                partial_update=partial_update,
+            )
+
+    @pytest.mark.parametrize(
+        "partial_update,row",
+        [
+            pytest.param(
+                False,
+                {
+                    "pk": 1,
+                    "vector": [1.0, 2.0, 3.0, 4.0],
+                    "metadata": [{"score": 1.0}],
+                    "score": "dynamic-value",
+                },
+                id="full_upsert",
+            ),
+            pytest.param(
+                True,
+                {"pk": 1, "score": "dynamic-value"},
+                id="partial_update",
+            ),
+        ],
+    )
+    def test_upsert_dynamic_field_can_share_struct_sub_field_short_name(self, partial_update, row):
+        """A top-level short name remains dynamic when dynamic fields are enabled."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ],
+            enable_dynamic_field=True,
+        )
+        schema.add_struct_field(struct_field)
+
+        req = Prepare.row_upsert_param(
+            "test_coll",
+            [row],
+            "",
+            fields_info=make_fields_info(schema),
+            struct_fields_info=make_struct_fields_info(schema),
+            enable_dynamic=True,
+            partial_update=partial_update,
+        )
+
+        dynamic_data = next(
+            field for field in req.fields_data if field.field_name == DYNAMIC_FIELD_NAME
+        )
+        assert json.loads(dynamic_data.scalars.json_data.data[0]) == {"score": "dynamic-value"}
+
+    def test_upsert_partial_update_struct_array_field_len_inconsistent(self):
+        """Test partial update rejects rows with inconsistent struct array field presence."""
+        struct_field = StructFieldSchema()
+        struct_field.name = "metadata"
+        struct_field.add_field("score", DataType.FLOAT)
+        struct_field.max_capacity = 10
+
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                FieldSchema("vector", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        schema.add_struct_field(struct_field)
+
+        rows = [{"pk": 1, "metadata": [{"score": 1.0}]}, {"pk": 2}]
+        with pytest.raises(DataNotMatchException, match="inconsistent"):
             Prepare.row_upsert_param(
                 "test_coll",
                 rows,
