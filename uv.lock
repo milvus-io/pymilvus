@@ -4544,6 +4544,10 @@ model = [
 ]
 
 [package.dev-dependencies]
+codegen = [
+    { name = "grpcio", version = "1.66.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
+    { name = "grpcio-tools", marker = "python_full_version < '3.14'" },
+]
 dev = [
     { name = "azure-storage-blob", version = "12.26.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "azure-storage-blob", version = "12.29.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
@@ -4551,8 +4555,6 @@ dev = [
     { name = "black", version = "25.11.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "black", version = "26.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "cython" },
-    { name = "grpcio", version = "1.66.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
-    { name = "grpcio-tools", marker = "python_full_version < '3.14'" },
     { name = "memray", marker = "sys_platform != 'win32'" },
     { name = "minio", version = "7.2.7", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version <= '3.8'" },
     { name = "minio", version = "7.2.10", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version > '3.8' and python_full_version < '3.9'" },
@@ -4619,12 +4621,14 @@ requires-dist = [
 provides-extras = ["bulk-writer", "milvus-lite", "model"]
 
 [package.metadata.requires-dev]
+codegen = [
+    { name = "grpcio", marker = "python_full_version >= '3.8' and python_full_version < '3.14'", specifier = "==1.66.2" },
+    { name = "grpcio-tools", marker = "python_full_version >= '3.8' and python_full_version < '3.14'", specifier = "==1.66.2" },
+]
 dev = [
     { name = "azure-storage-blob" },
     { name = "black" },
     { name = "cython", specifier = ">=3.0.0" },
-    { name = "grpcio", marker = "python_full_version < '3.14'", specifier = "==1.66.2" },
-    { name = "grpcio-tools", marker = "python_full_version < '3.14'", specifier = "==1.66.2" },
     { name = "memray", marker = "sys_platform != 'win32'" },
     { name = "minio", specifier = ">=7.0.0" },
     { name = "ml-dtypes" },
