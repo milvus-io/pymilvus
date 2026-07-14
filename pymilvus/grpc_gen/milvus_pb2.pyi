@@ -2778,16 +2778,18 @@ class ReplicateResponse(_message.Message):
     def __init__(self, replicate_confirmed_message_info: _Optional[_Union[ReplicateConfirmedMessageInfo, _Mapping]] = ...) -> None: ...
 
 class DumpMessagesRequest(_message.Message):
-    __slots__ = ("pchannel", "start_message_id", "start_timetick", "end_timetick")
+    __slots__ = ("pchannel", "start_message_id", "start_timetick", "end_timetick", "include_start_message")
     PCHANNEL_FIELD_NUMBER: _ClassVar[int]
     START_MESSAGE_ID_FIELD_NUMBER: _ClassVar[int]
     START_TIMETICK_FIELD_NUMBER: _ClassVar[int]
     END_TIMETICK_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_START_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     pchannel: str
     start_message_id: _common_pb2.MessageID
     start_timetick: int
     end_timetick: int
-    def __init__(self, pchannel: _Optional[str] = ..., start_message_id: _Optional[_Union[_common_pb2.MessageID, _Mapping]] = ..., start_timetick: _Optional[int] = ..., end_timetick: _Optional[int] = ...) -> None: ...
+    include_start_message: bool
+    def __init__(self, pchannel: _Optional[str] = ..., start_message_id: _Optional[_Union[_common_pb2.MessageID, _Mapping]] = ..., start_timetick: _Optional[int] = ..., end_timetick: _Optional[int] = ..., include_start_message: bool = ...) -> None: ...
 
 class DumpMessagesResponse(_message.Message):
     __slots__ = ("status", "message")
