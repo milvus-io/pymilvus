@@ -502,7 +502,7 @@ class TestAsyncClientOptimize:
         handler.get_compaction_state.return_value = state
         handler.get_load_state.return_value = LoadState.NotLoad
         schema = {"fields": [{"name": "id", "type": DataType.INT64}]}
-        handler._get_schema.return_value = schema
+        handler._get_schema.return_value = (schema, 0)
         handler.list_indexes.return_value = []
         task = MagicMock()
         task.check_cancelled = MagicMock()
@@ -521,7 +521,7 @@ class TestAsyncClientOptimize:
         handler.get_compaction_state.return_value = state
         handler.get_load_state.return_value = LoadState.NotLoad
         schema = {"fields": [{"name": "id", "type": DataType.INT64}]}
-        handler._get_schema.return_value = schema
+        handler._get_schema.return_value = (schema, 0)
         handler.list_indexes.return_value = []
         result = await client.optimize("col", wait=True)
         assert isinstance(result, OptimizeResult)
