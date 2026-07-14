@@ -51,6 +51,7 @@ class TestFnHelpers:
         [
             lambda: fn.num_combine(col("a")),
             lambda: fn.num_combine(col("a"), col("b"), mode="unknown"),
+            lambda: fn.num_combine(col("a"), col("b"), mode=[]),
             lambda: fn.num_combine(col("a"), col("b"), mode="weighted"),
             lambda: fn.num_combine(col("a"), col("b"), mode="sum", weights=[1.0, 2.0]),
         ],
@@ -87,6 +88,7 @@ class TestFnHelpers:
         [
             lambda: fn.decay("ts", function="linear", origin=100, scale=10),
             lambda: fn.decay(col("ts"), function="unknown", origin=100, scale=10),
+            lambda: fn.decay(col("ts"), function=[], origin=100, scale=10),
             lambda: fn.decay(col("ts"), function="linear", origin=True, scale=10),
             lambda: fn.decay(col("ts"), function="linear", origin=100, scale="10"),
         ],
@@ -109,6 +111,38 @@ class TestFnHelpers:
     def test_bad_round_decimal_column(self):
         with pytest.raises(ParamError):
             fn.round_decimal("$score", decimal=3)
+
+    def test_xgboost_default(self):
+        expr = fn.xgboost(col("feature_1"), col("feature_2"), model_resource="xgb_model")
+        proto = expr.to_proto()
+        assert proto.name == "xgboost"
+        assert [arg.column.name for arg in proto.args] == ["feature_1", "feature_2"]
+        assert proto.params["model_resource"].string_value == "xgb_model"
+        assert proto.params["output"].string_value == "default"
+
+    def test_xgboost_raw(self):
+        expr = fn.xgboost(col("feature"), model_resource="xgb_model", output="raw")
+        proto = expr.to_proto()
+        assert proto.name == "xgboost"
+        assert proto.args[0].column.name == "feature"
+        assert proto.params["model_resource"].string_value == "xgb_model"
+        assert proto.params["output"].string_value == "raw"
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda: fn.xgboost(model_resource="xgb_model"),
+            lambda: fn.xgboost("feature", model_resource="xgb_model"),
+            lambda: fn.xgboost(col("feature"), model_resource=""),
+            lambda: fn.xgboost(col("feature"), model_resource=1),
+            lambda: fn.xgboost(col("feature"), model_resource="xgb_model", output="prob"),
+            lambda: fn.xgboost(col("feature"), model_resource="xgb_model", output=1),
+            lambda: fn.xgboost(col("feature"), model_resource="xgb_model", output=[]),
+        ],
+    )
+    def test_bad_xgboost(self, call):
+        with pytest.raises(ParamError):
+            call()
 
     def test_rerank_model(self):
         expr = fn.rerank_model(

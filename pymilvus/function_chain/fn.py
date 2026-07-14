@@ -6,6 +6,7 @@ from .chain import ColumnRef, FunctionChainExpr
 
 _NUM_COMBINE_MODES = {"multiply", "sum", "max", "min", "avg", "weighted"}
 _DECAY_FUNCTIONS = {"gauss", "exp", "linear"}
+_XGBOOST_OUTPUTS = {"default", "raw"}
 
 
 def _check_column_ref(value: Any, param_name: str) -> None:
@@ -77,7 +78,7 @@ def num_combine(
         raise ParamError(message="fn.num_combine requires at least two columns")
     for value in cols:
         _check_column_ref(value, "fn.num_combine argument")
-    if mode not in _NUM_COMBINE_MODES:
+    if not isinstance(mode, str) or mode not in _NUM_COMBINE_MODES:
         raise ParamError(
             message=f"Unsupported num_combine mode: {mode}, expected one of {sorted(_NUM_COMBINE_MODES)}"
         )
@@ -146,7 +147,7 @@ def decay(
             unsupported, or any numeric parameter is not an int or float.
     """
     _check_column_ref(value, "fn.decay value")
-    if function not in _DECAY_FUNCTIONS:
+    if not isinstance(function, str) or function not in _DECAY_FUNCTIONS:
         raise ParamError(
             message=f"Unsupported decay function: {function}, expected one of {sorted(_DECAY_FUNCTIONS)}"
         )
@@ -202,6 +203,76 @@ def round_decimal(value: ColumnRef, *, decimal: int) -> FunctionChainExpr:
     if isinstance(decimal, bool) or not isinstance(decimal, int) or decimal < 0 or decimal > 6:
         raise ParamError(message="round_decimal decimal must be an integer in [0, 6]")
     return FunctionChainExpr("round_decimal", args=(value,), params={"decimal": decimal})
+
+
+def xgboost(
+    *features: ColumnRef,
+    model_resource: str,
+    output: str = "default",
+) -> FunctionChainExpr:
+    """Build an expression that scores feature columns with an XGBoost model.
+
+    Use this helper in a function chain to evaluate an XGBoost model stored as
+    a Milvus FileResource. Feature columns are positional: the order passed here
+    is the feature order sent to XGBoost. The referenced model resource must
+    point to a server-side UBJ XGBoost model.
+
+    Example:
+        >>> from pymilvus import FunctionChain, FunctionChainStage, MilvusClient
+        >>> from pymilvus.function_chain import col, fn
+        >>> client = MilvusClient("http://localhost:19530")
+        >>> # Upload/register the UBJ model with client.add_file_resource(...)
+        >>> # before referencing it as model_resource in fn.xgboost.
+        >>> chain = FunctionChain(FunctionChainStage.L0_RERANK, name="xgb_rerank").map(
+        ...     "$score",
+        ...     fn.xgboost(
+        ...         col("price"),
+        ...         col("popularity"),
+        ...         model_resource="xgb_ranker",
+        ...         output="raw",
+        ...     ),
+        ... )
+        >>> client.search(
+        ...     collection_name="products",
+        ...     data=[[0.1, 0.2, 0.3, 0.4]],
+        ...     anns_field="embedding",
+        ...     search_params={"metric_type": "L2"},
+        ...     limit=100,
+        ...     output_fields=["price", "popularity"],
+        ...     function_chains=chain,
+        ... )
+
+    Args:
+        *features: One or more feature columns created by ``col(...)``.
+        model_resource: Name of the Milvus FileResource that contains the UBJ
+            XGBoost model.
+        output: Prediction output mode. ``"default"`` applies the model
+            objective transform when supported; ``"raw"`` returns raw margin.
+
+    Returns:
+        A ``FunctionChainExpr`` that can be passed to ``FunctionChain.map``.
+
+    Raises:
+        ParamError: If no feature columns are provided, any feature is not a
+            ``ColumnRef``, ``model_resource`` is empty or not a string, or
+            ``output`` is not one of ``"default"`` or ``"raw"``.
+    """
+    if not features:
+        raise ParamError(message="fn.xgboost requires at least one feature column")
+    for value in features:
+        _check_column_ref(value, "fn.xgboost feature")
+    if not isinstance(model_resource, str) or not model_resource:
+        raise ParamError(message="xgboost model_resource must be a non-empty string")
+    if not isinstance(output, str) or output not in _XGBOOST_OUTPUTS:
+        raise ParamError(
+            message=f"Unsupported xgboost output: {output}, expected one of {sorted(_XGBOOST_OUTPUTS)}"
+        )
+
+    return FunctionChainExpr(
+        "xgboost",
+        args=features,
+        params={"model_resource": model_resource, "output": output},
+    )
 
 
 def rerank_model(
