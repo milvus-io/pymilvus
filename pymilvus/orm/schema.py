@@ -1285,7 +1285,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
             msg = f"Expect no data for auto_id primary field: {schema.primary_field.name}"
             raise DataNotMatchException(message=msg)
         columns = list(data.columns)
-        columns.remove(schema.primary_field)
+        columns.remove(schema.primary_field.name)
         data = data[columns]
 
     tmp_fields = list(
