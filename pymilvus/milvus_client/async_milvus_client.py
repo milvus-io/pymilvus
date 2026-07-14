@@ -1951,7 +1951,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         conn = await self._get_connection()
-        schema_dict = await conn._get_schema(
+        schema_dict, _ = await conn._get_schema(
             collection_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
