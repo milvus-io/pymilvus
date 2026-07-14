@@ -1672,6 +1672,9 @@ class Prepare:
             if dtype in (schema_types.Array,):
                 data.array_val.CopyFrom(add_array_data(v))
                 return data
+            if isinstance(v, bytes):
+                data.bytes_val = v
+                return data
             raise ParamError(message=f"Unsupported element type: {dtype}")
 
         expression_template_values = {}
