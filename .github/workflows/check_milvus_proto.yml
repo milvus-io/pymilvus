@@ -7,11 +7,15 @@ on:
 
 jobs:
   build:
-    name: Run Check Proto
+    name: Run Check Proto (${{ matrix.lane }})
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.8, 3.13, 3.14]
+        include:
+          - lane: minimum
+            python-version: "3.8"
+          - lane: latest
+            python-version: "3.14"
     steps:
     - uses: actions/checkout@v6
     - name: Set up Python ${{ matrix.python-version }}
@@ -30,12 +34,9 @@ jobs:
         enable-cache: true
         cache-dependency-glob: uv.lock
 
-    - name: Try generate proto
+    - name: Generate and check proto without a project environment
       run: |
         git submodule update --init
-        assert_no_project_env() { test ! -e .venv; }
-        assert_no_project_env
         make gen_proto
-        assert_no_project_env
         make check_proto_product
-        assert_no_project_env
+        test ! -e .venv
