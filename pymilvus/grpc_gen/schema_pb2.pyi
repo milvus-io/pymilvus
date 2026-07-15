@@ -26,6 +26,8 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Text: _ClassVar[DataType]
     Timestamptz: _ClassVar[DataType]
     Mol: _ClassVar[DataType]
+    Date: _ClassVar[DataType]
+    Time: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -77,6 +79,8 @@ Geometry: DataType
 Text: DataType
 Timestamptz: DataType
 Mol: DataType
+Date: DataType
+Time: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
@@ -389,6 +393,18 @@ class TimestamptzArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, data: _Optional[_Iterable[int]] = ...) -> None: ...
 
+class DateArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, data: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class TimeArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, data: _Optional[_Iterable[int]] = ...) -> None: ...
+
 class GeometryWktArray(_message.Message):
     __slots__ = ("data",)
     DATA_FIELD_NUMBER: _ClassVar[int]
@@ -408,7 +424,7 @@ class MolSmilesArray(_message.Message):
     def __init__(self, data: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ValueField(_message.Message):
-    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "timestamptz_data")
+    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "timestamptz_data", "date_data", "time_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -417,6 +433,8 @@ class ValueField(_message.Message):
     STRING_DATA_FIELD_NUMBER: _ClassVar[int]
     BYTES_DATA_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMPTZ_DATA_FIELD_NUMBER: _ClassVar[int]
+    DATE_DATA_FIELD_NUMBER: _ClassVar[int]
+    TIME_DATA_FIELD_NUMBER: _ClassVar[int]
     bool_data: bool
     int_data: int
     long_data: int
@@ -425,10 +443,12 @@ class ValueField(_message.Message):
     string_data: str
     bytes_data: bytes
     timestamptz_data: int
-    def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ..., timestamptz_data: _Optional[int] = ...) -> None: ...
+    date_data: int
+    time_data: int
+    def __init__(self, bool_data: bool = ..., int_data: _Optional[int] = ..., long_data: _Optional[int] = ..., float_data: _Optional[float] = ..., double_data: _Optional[float] = ..., string_data: _Optional[str] = ..., bytes_data: _Optional[bytes] = ..., timestamptz_data: _Optional[int] = ..., date_data: _Optional[int] = ..., time_data: _Optional[int] = ...) -> None: ...
 
 class ScalarField(_message.Message):
-    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geometry_data", "timestamptz_data", "geometry_wkt_data", "mol_data", "mol_smiles_data")
+    __slots__ = ("bool_data", "int_data", "long_data", "float_data", "double_data", "string_data", "bytes_data", "array_data", "json_data", "geometry_data", "timestamptz_data", "geometry_wkt_data", "mol_data", "mol_smiles_data", "date_data", "time_data")
     BOOL_DATA_FIELD_NUMBER: _ClassVar[int]
     INT_DATA_FIELD_NUMBER: _ClassVar[int]
     LONG_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -443,6 +463,8 @@ class ScalarField(_message.Message):
     GEOMETRY_WKT_DATA_FIELD_NUMBER: _ClassVar[int]
     MOL_DATA_FIELD_NUMBER: _ClassVar[int]
     MOL_SMILES_DATA_FIELD_NUMBER: _ClassVar[int]
+    DATE_DATA_FIELD_NUMBER: _ClassVar[int]
+    TIME_DATA_FIELD_NUMBER: _ClassVar[int]
     bool_data: BoolArray
     int_data: IntArray
     long_data: LongArray
@@ -457,7 +479,9 @@ class ScalarField(_message.Message):
     geometry_wkt_data: GeometryWktArray
     mol_data: MolArray
     mol_smiles_data: MolSmilesArray
-    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geometry_data: _Optional[_Union[GeometryArray, _Mapping]] = ..., timestamptz_data: _Optional[_Union[TimestamptzArray, _Mapping]] = ..., geometry_wkt_data: _Optional[_Union[GeometryWktArray, _Mapping]] = ..., mol_data: _Optional[_Union[MolArray, _Mapping]] = ..., mol_smiles_data: _Optional[_Union[MolSmilesArray, _Mapping]] = ...) -> None: ...
+    date_data: DateArray
+    time_data: TimeArray
+    def __init__(self, bool_data: _Optional[_Union[BoolArray, _Mapping]] = ..., int_data: _Optional[_Union[IntArray, _Mapping]] = ..., long_data: _Optional[_Union[LongArray, _Mapping]] = ..., float_data: _Optional[_Union[FloatArray, _Mapping]] = ..., double_data: _Optional[_Union[DoubleArray, _Mapping]] = ..., string_data: _Optional[_Union[StringArray, _Mapping]] = ..., bytes_data: _Optional[_Union[BytesArray, _Mapping]] = ..., array_data: _Optional[_Union[ArrayArray, _Mapping]] = ..., json_data: _Optional[_Union[JSONArray, _Mapping]] = ..., geometry_data: _Optional[_Union[GeometryArray, _Mapping]] = ..., timestamptz_data: _Optional[_Union[TimestamptzArray, _Mapping]] = ..., geometry_wkt_data: _Optional[_Union[GeometryWktArray, _Mapping]] = ..., mol_data: _Optional[_Union[MolArray, _Mapping]] = ..., mol_smiles_data: _Optional[_Union[MolSmilesArray, _Mapping]] = ..., date_data: _Optional[_Union[DateArray, _Mapping]] = ..., time_data: _Optional[_Union[TimeArray, _Mapping]] = ...) -> None: ...
 
 class SparseFloatArray(_message.Message):
     __slots__ = ("contents", "dim")
@@ -697,18 +721,20 @@ class ClusteringInfo(_message.Message):
     def __init__(self, vector_clustering_infos: _Optional[_Iterable[_Union[VectorClusteringInfo, _Mapping]]] = ..., scalar_clustering_infos: _Optional[_Iterable[_Union[ScalarClusteringInfo, _Mapping]]] = ...) -> None: ...
 
 class TemplateValue(_message.Message):
-    __slots__ = ("bool_val", "int64_val", "float_val", "string_val", "array_val")
+    __slots__ = ("bool_val", "int64_val", "float_val", "string_val", "array_val", "bytes_val")
     BOOL_VAL_FIELD_NUMBER: _ClassVar[int]
     INT64_VAL_FIELD_NUMBER: _ClassVar[int]
     FLOAT_VAL_FIELD_NUMBER: _ClassVar[int]
     STRING_VAL_FIELD_NUMBER: _ClassVar[int]
     ARRAY_VAL_FIELD_NUMBER: _ClassVar[int]
+    BYTES_VAL_FIELD_NUMBER: _ClassVar[int]
     bool_val: bool
     int64_val: int
     float_val: float
     string_val: str
     array_val: TemplateArrayValue
-    def __init__(self, bool_val: bool = ..., int64_val: _Optional[int] = ..., float_val: _Optional[float] = ..., string_val: _Optional[str] = ..., array_val: _Optional[_Union[TemplateArrayValue, _Mapping]] = ...) -> None: ...
+    bytes_val: bytes
+    def __init__(self, bool_val: bool = ..., int64_val: _Optional[int] = ..., float_val: _Optional[float] = ..., string_val: _Optional[str] = ..., array_val: _Optional[_Union[TemplateArrayValue, _Mapping]] = ..., bytes_val: _Optional[bytes] = ...) -> None: ...
 
 class TemplateArrayValue(_message.Message):
     __slots__ = ("bool_data", "long_data", "double_data", "string_data", "array_data", "json_data")
