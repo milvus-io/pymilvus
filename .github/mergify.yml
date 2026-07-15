@@ -1,14 +1,16 @@
 pull_request_rules:
-  - name: Test passed on master
+  - name: Test passed
     conditions:
-      - base=master
+      - or:
+        - base=master
+        - base~=2\.\d
+        - base~=3\.\d
       # Require that Python tests succeed on Windows (any Python version, any Windows build)
       - "status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
       # Require that Python tests succeed on Ubuntu (any Python version, any Ubuntu build)
       - "status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
-      # Require proto checks for the stable minimum and latest Python lanes
-      - "status-success=Run Check Proto (minimum)"
-      - "status-success=Run Check Proto (latest)"
+      # Require that proto checks pass for any Python version
+      - "status-success~=Run Check Proto \\(\\d+\\.\\d+\\)"
       # Require that code lint checks pass for any Python version
       - "status-success~=Code lint check \\(\\d+\\.\\d+\\)"
       # Require that patch coverage meets the threshold
@@ -17,44 +19,16 @@ pull_request_rules:
       label:
         add:
           - ci-passed
-  - name: Test passed on release branches
+  - name: Remove ci-passed label when CI is not passing
     conditions:
       - or:
-        - base~=2\.\d
-        - base~=3\.\d
-      - "status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
-      - "status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
-      # Release workflows use versioned names today and stable lane names after backport.
-      - "status-success~=Run Check Proto \\((\\d+\\.\\d+|minimum|latest)\\)"
-      - "status-success~=Code lint check \\(\\d+\\.\\d+\\)"
-      - status-success=codecov/patch
-    actions:
-      label:
-        add:
-          - ci-passed
-  - name: Remove ci-passed label when master CI is not passing
-    conditions:
-      - base=master
-      - or:
-        - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
-        - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
-        - "-status-success=Run Check Proto (minimum)"
-        - "-status-success=Run Check Proto (latest)"
-        - "-status-success~=Code lint check \\(\\d+\\.\\d+\\)"
-        - -status-success=codecov/patch
-    actions:
-      label:
-        remove:
-          - ci-passed
-  - name: Remove ci-passed label when release CI is not passing
-    conditions:
-      - or:
+        - base=master
         - base~=2\.\d
         - base~=3\.\d
       - or:
         - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, windows-\\S+\\)"
         - "-status-success~=Run Python Tests \\(\\d+\\.\\d+, ubuntu-\\S+\\)"
-        - "-status-success~=Run Check Proto \\((\\d+\\.\\d+|minimum|latest)\\)"
+        - "-status-success~=Run Check Proto \\(\\d+\\.\\d+\\)"
         - "-status-success~=Code lint check \\(\\d+\\.\\d+\\)"
         - -status-success=codecov/patch
     actions:
@@ -88,3 +62,4 @@ pull_request_rules:
           - needs-dco
         add:
           - dco-passed
+
