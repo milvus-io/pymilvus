@@ -100,7 +100,7 @@ def mkts_from_hybridts(
         raise MilvusException(message="parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += delta.microseconds / 1000.0
+        milliseconds += delta / datetime.timedelta(milliseconds=1)
     elif delta is not None:
         raise MilvusException(message="parameter delta should be type of datetime.timedelta")
 
@@ -125,7 +125,7 @@ def mkts_from_unixtime(
         raise MilvusException(message="parameter milliseconds should be type of int or float")
 
     if isinstance(delta, datetime.timedelta):
-        milliseconds += delta.microseconds / 1000.0
+        milliseconds += delta / datetime.timedelta(milliseconds=1)
     elif delta is not None:
         raise MilvusException(message="parameter delta should be type of datetime.timedelta")
 
