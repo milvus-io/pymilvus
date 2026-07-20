@@ -71,7 +71,10 @@ model = [
 ]
 
 milvus_lite = [
-    "milvus-lite>=2.4.0;sys_platform!='win32'",
+    # milvus-lite 3.x is pure-Python (py3-none-any) and supports Windows; requires Python >=3.10.
+    "milvus-lite>=3.0;python_version>='3.10'",
+    # Pre-3.x ships native wheels only for non-Windows platforms.
+    "milvus-lite>=2.4.0;python_version<'3.10' and sys_platform!='win32'",
     # milvus-lite 2.5.1 uses pkg_resources on Python 3.9; setuptools 82 removed it.
     "setuptools<82;python_version<'3.10'",
 ]
