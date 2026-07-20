@@ -147,7 +147,7 @@ def mkts_from_datetime(
 def check_invalid_binary_vector(entities: List) -> bool:
     for entity in entities:
         if entity["type"] == DataType.BINARY_VECTOR:
-            if not isinstance(entity["values"], list) and len(entity["values"]) == 0:
+            if not isinstance(entity["values"], list) or len(entity["values"]) == 0:
                 return False
 
             dim = len(entity["values"][0]) * 8
