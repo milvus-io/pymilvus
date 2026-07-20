@@ -17,6 +17,14 @@ class ShowType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     All: _ClassVar[ShowType]
     InMemory: _ClassVar[ShowType]
 
+class PrewarmTaskState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PrewarmTaskStateUnknown: _ClassVar[PrewarmTaskState]
+    PrewarmTaskStatePending: _ClassVar[PrewarmTaskState]
+    PrewarmTaskStateWarming: _ClassVar[PrewarmTaskState]
+    PrewarmTaskStateCompleted: _ClassVar[PrewarmTaskState]
+    PrewarmTaskStateFailed: _ClassVar[PrewarmTaskState]
+
 class OperatePrivilegeGroupType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     AddPrivilegesToGroup: _ClassVar[OperatePrivilegeGroupType]
@@ -71,6 +79,11 @@ class RefreshExternalCollectionState(int, metaclass=_enum_type_wrapper.EnumTypeW
     RefreshFailed: _ClassVar[RefreshExternalCollectionState]
 All: ShowType
 InMemory: ShowType
+PrewarmTaskStateUnknown: PrewarmTaskState
+PrewarmTaskStatePending: PrewarmTaskState
+PrewarmTaskStateWarming: PrewarmTaskState
+PrewarmTaskStateCompleted: PrewarmTaskState
+PrewarmTaskStateFailed: PrewarmTaskState
 AddPrivilegesToGroup: OperatePrivilegeGroupType
 RemovePrivilegesFromGroup: OperatePrivilegeGroupType
 AddUserToRole: OperateUserRoleType
@@ -525,6 +538,71 @@ class LoadPartitionsRequest(_message.Message):
     load_params: _containers.ScalarMap[str, str]
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_names: _Optional[_Iterable[str]] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., refresh: bool = ..., load_fields: _Optional[_Iterable[str]] = ..., skip_load_dynamic_field: bool = ..., load_params: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
+class PrewarmRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace", "replica_number", "resource_groups", "load_fields", "skip_load_dynamic_field", "load_params", "ttl_seconds", "priority")
+    class LoadParamsEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: str
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    REPLICA_NUMBER_FIELD_NUMBER: _ClassVar[int]
+    RESOURCE_GROUPS_FIELD_NUMBER: _ClassVar[int]
+    LOAD_FIELDS_FIELD_NUMBER: _ClassVar[int]
+    SKIP_LOAD_DYNAMIC_FIELD_FIELD_NUMBER: _ClassVar[int]
+    LOAD_PARAMS_FIELD_NUMBER: _ClassVar[int]
+    TTL_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PRIORITY_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace: str
+    replica_number: int
+    resource_groups: _containers.RepeatedScalarFieldContainer[str]
+    load_fields: _containers.RepeatedScalarFieldContainer[str]
+    skip_load_dynamic_field: bool
+    load_params: _containers.ScalarMap[str, str]
+    ttl_seconds: int
+    priority: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace: _Optional[str] = ..., replica_number: _Optional[int] = ..., resource_groups: _Optional[_Iterable[str]] = ..., load_fields: _Optional[_Iterable[str]] = ..., skip_load_dynamic_field: bool = ..., load_params: _Optional[_Mapping[str, str]] = ..., ttl_seconds: _Optional[int] = ..., priority: _Optional[str] = ...) -> None: ...
+
+class PrewarmResponse(_message.Message):
+    __slots__ = ("status", "taskID", "namespace")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TASKID_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    taskID: str
+    namespace: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., taskID: _Optional[str] = ..., namespace: _Optional[str] = ...) -> None: ...
+
+class DescribePrewarmTaskRequest(_message.Message):
+    __slots__ = ("base", "taskID")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    TASKID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    taskID: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., taskID: _Optional[str] = ...) -> None: ...
+
+class DescribePrewarmTaskResponse(_message.Message):
+    __slots__ = ("status", "taskID", "state", "progress", "error_message")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TASKID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    taskID: str
+    state: PrewarmTaskState
+    progress: int
+    error_message: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., taskID: _Optional[str] = ..., state: _Optional[_Union[PrewarmTaskState, str]] = ..., progress: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...
+
 class ReleasePartitionsRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_names")
     BASE_FIELD_NUMBER: _ClassVar[int]
@@ -588,6 +666,170 @@ class ShowPartitionsResponse(_message.Message):
     created_utc_timestamps: _containers.RepeatedScalarFieldContainer[int]
     inMemory_percentages: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., partition_names: _Optional[_Iterable[str]] = ..., partitionIDs: _Optional[_Iterable[int]] = ..., created_timestamps: _Optional[_Iterable[int]] = ..., created_utc_timestamps: _Optional[_Iterable[int]] = ..., inMemory_percentages: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class NamespaceStats(_message.Message):
+    __slots__ = ("stats", "approx_entity_count", "entity_count", "entity_count_type", "logical_bytes", "last_write_timestamp", "last_write_utc_timestamp")
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    APPROX_ENTITY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ENTITY_COUNT_FIELD_NUMBER: _ClassVar[int]
+    ENTITY_COUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    LAST_WRITE_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    LAST_WRITE_UTC_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    stats: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    approx_entity_count: int
+    entity_count: int
+    entity_count_type: str
+    logical_bytes: int
+    last_write_timestamp: int
+    last_write_utc_timestamp: int
+    def __init__(self, stats: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., approx_entity_count: _Optional[int] = ..., entity_count: _Optional[int] = ..., entity_count_type: _Optional[str] = ..., logical_bytes: _Optional[int] = ..., last_write_timestamp: _Optional[int] = ..., last_write_utc_timestamp: _Optional[int] = ...) -> None: ...
+
+class NamespaceInfo(_message.Message):
+    __slots__ = ("collection_name", "namespace_name", "created_timestamp", "created_utc_timestamp", "state", "stats")
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    CREATED_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    CREATED_UTC_TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    collection_name: str
+    namespace_name: str
+    created_timestamp: int
+    created_utc_timestamp: int
+    state: str
+    stats: NamespaceStats
+    def __init__(self, collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ..., created_timestamp: _Optional[int] = ..., created_utc_timestamp: _Optional[int] = ..., state: _Optional[str] = ..., stats: _Optional[_Union[NamespaceStats, _Mapping]] = ...) -> None: ...
+
+class CreateNamespaceRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ...) -> None: ...
+
+class CreateNamespaceResponse(_message.Message):
+    __slots__ = ("status", "namespace")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    namespace: NamespaceInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., namespace: _Optional[_Union[NamespaceInfo, _Mapping]] = ...) -> None: ...
+
+class DescribeNamespaceRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ...) -> None: ...
+
+class DescribeNamespaceResponse(_message.Message):
+    __slots__ = ("status", "namespace")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    namespace: NamespaceInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., namespace: _Optional[_Union[NamespaceInfo, _Mapping]] = ...) -> None: ...
+
+class ListNamespacesRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "prefix", "page_size", "page_token")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PREFIX_FIELD_NUMBER: _ClassVar[int]
+    PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
+    PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    prefix: str
+    page_size: int
+    page_token: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., prefix: _Optional[str] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
+
+class ListNamespacesResponse(_message.Message):
+    __slots__ = ("status", "namespaces", "next_page_token")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACES_FIELD_NUMBER: _ClassVar[int]
+    NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    namespaces: _containers.RepeatedCompositeFieldContainer[NamespaceInfo]
+    next_page_token: str
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., namespaces: _Optional[_Iterable[_Union[NamespaceInfo, _Mapping]]] = ..., next_page_token: _Optional[str] = ...) -> None: ...
+
+class DropNamespaceRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ...) -> None: ...
+
+class DropNamespaceResponse(_message.Message):
+    __slots__ = ("status", "namespace")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    namespace: NamespaceInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., namespace: _Optional[_Union[NamespaceInfo, _Mapping]] = ...) -> None: ...
+
+class HasNamespaceRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace_name")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace_name: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ...) -> None: ...
+
+class HasNamespaceResponse(_message.Message):
+    __slots__ = ("status", "value")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    VALUE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    value: bool
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., value: bool = ...) -> None: ...
+
+class GetNamespaceStatsRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "namespace_name", "exact")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    EXACT_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    namespace_name: str
+    exact: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., namespace_name: _Optional[str] = ..., exact: bool = ...) -> None: ...
+
+class GetNamespaceStatsResponse(_message.Message):
+    __slots__ = ("status", "namespace_name", "stats")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    NAMESPACE_NAME_FIELD_NUMBER: _ClassVar[int]
+    STATS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    namespace_name: str
+    stats: NamespaceStats
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., namespace_name: _Optional[str] = ..., stats: _Optional[_Union[NamespaceStats, _Mapping]] = ...) -> None: ...
 
 class DescribeSegmentRequest(_message.Message):
     __slots__ = ("base", "collectionID", "segmentID")
