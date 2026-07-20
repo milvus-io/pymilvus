@@ -237,7 +237,7 @@ line-length = 100
 # Allow unused variables when underscore-prefixed.
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.8
+# Keep a conservative lint syntax target; runtime support starts at requires-python.
 target-version = "py38"
 
 [tool.ruff.lint.mccabe]
