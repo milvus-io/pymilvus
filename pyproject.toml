@@ -72,6 +72,8 @@ model = [
 
 milvus_lite = [
     "milvus-lite>=2.4.0;sys_platform!='win32'",
+    # milvus-lite 2.5.1 uses pkg_resources on Python 3.9; setuptools 82 removed it.
+    "setuptools<82;python_version<'3.10'",
 ]
 
 [dependency-groups]
