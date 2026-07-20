@@ -4,7 +4,7 @@ UV_RUN_DEV_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_DEV)
 UV_RUN_LITE = $(UV) run --group dev --extra milvus-lite
 UV_RUN_LITE_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_LITE)
 # Keep aligned with the codegen group's requires-python constraint in pyproject.toml.
-CODEGEN_PYTHON = >=3.8,<3.14
+CODEGEN_PYTHON = >=3.9,<3.14
 # vcs-versioning 2.x changes .dev0 handling away from PyMilvus' intended
 # master dev line, so keep all local/workflow version reads on <2.
 VERSION_DEPS = --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" --with "vcs-versioning<2"
