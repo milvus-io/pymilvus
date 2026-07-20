@@ -856,15 +856,15 @@ class AsyncConnectionManager:
     _instances_lock: ClassVar[threading.Lock] = threading.Lock()
 
     def __init__(self):
-        # Lazy-init: on Python 3.8, asyncio.Lock() requires an event loop to
-        # exist in the current thread.  Deferring creation to the first async
-        # call avoids RuntimeError when get_instance() is called from sync code.
+        # Lazy-init because asyncio.Lock() requires an event loop to exist in
+        # the current thread. Deferring creation to the first async call avoids
+        # RuntimeError when get_instance() is called from sync code.
         self._lock: Optional[asyncio.Lock] = None
         self._registry: Dict[str, ManagedConnection] = {}
         self._dedicated: Dict[int, ManagedConnection] = {}
 
     def _get_lock(self) -> asyncio.Lock:
-        """Return the asyncio.Lock, creating it lazily for Python 3.8 compat."""
+        """Return the asyncio.Lock, creating it lazily inside an async call."""
         if self._lock is None:
             self._lock = asyncio.Lock()
         return self._lock
