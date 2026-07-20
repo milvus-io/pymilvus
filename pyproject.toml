@@ -13,25 +13,23 @@ name="pymilvus"
 authors = [
   {name='PyMilvus Team', email="pymilvus@zilliz.com"},
 ]
-requires-python = '>=3.8'
+requires-python = '>=3.9'
 description = "Python SDK for Milvus"
 readme = "README.md"
 keywords = ["milvus", "vector database", "sdk", "similarity search"]
 dependencies=[
     "grpcio>=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0; python_version < '3.14'",
     "grpcio>=1.75.1; python_version >= '3.14'",
-    "orjson>=3.10.15", # orjson 3.10.15 is the last version to support python3.8
+    "orjson>=3.10.15",
     "protobuf>=5.27.2", # aligned with grpcio-tools generated codes
     "python-dotenv>=1.0.1, <2.0.0",
     "pandas>=1.2.4",
-    "numpy<1.25.0;python_version<='3.8'",
     "cachetools>=5.0.0",
     "requests>=2.20.0",
 ]
 
 classifiers=[
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -74,12 +72,14 @@ model = [
 
 milvus_lite = [
     "milvus-lite>=2.4.0;sys_platform!='win32'",
+    # milvus-lite 2.5.1 uses pkg_resources on Python 3.9; setuptools 82 removed it.
+    "setuptools<82;python_version<'3.10'",
 ]
 
 [dependency-groups]
 codegen = [
     # Pin grpcio-tools to 1.66.2: generated code in grpc_gen/ embeds GRPC_GENERATED_VERSION,
-    # so regenerating with a newer version would break older Python (e.g. 3.8) at import time.
+    # so regenerating with a newer version would break older supported Python at import time.
     "grpcio==1.66.2",
     "grpcio-tools==1.66.2",
 ]
@@ -115,7 +115,7 @@ release = [
 ]
 
 [tool.uv.dependency-groups]
-codegen = { requires-python = ">=3.8,<3.14" }
+codegen = { requires-python = ">=3.9,<3.14" }
 release = { requires-python = ">=3.9" }
 
 [tool.hatch.version]
@@ -239,7 +239,7 @@ line-length = 100
 # Allow unused variables when underscore-prefixed.
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
-# Assume Python 3.8
+# Keep a conservative lint syntax target; runtime support starts at requires-python.
 target-version = "py38"
 
 [tool.ruff.lint.mccabe]
