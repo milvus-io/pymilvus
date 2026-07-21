@@ -1,10 +1,6 @@
 import logging.config
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 
 class Config:
     # legacy env MILVUS_DEFAULT_CONNECTION, not recommended
