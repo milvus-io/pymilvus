@@ -547,11 +547,24 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.add_collection_field_request(collection_name, field_schema)
-        status = self._stub.AddCollectionField(
-            request, timeout=timeout, metadata=_api_level_md(context)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
         )
-        check_status(status)
+        try:
+            response = self._stub.AlterCollectionSchema(
+                request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            check_status(response.alter_status)
+        except grpc.RpcError as e:
+            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+                raise
+            legacy_request = Prepare.add_collection_field_request(collection_name, field_schema)
+            status = self._stub.AddCollectionField(
+                legacy_request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def add_collection_struct_field(
@@ -624,14 +637,13 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        self._alter_collection_schema_drop(
-            collection_name,
-            function_name=function_name,
-            timeout=timeout,
-            context=context,
-            **kwargs,
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.drop_collection_function_request(collection_name, function_name)
+
+        status = self._stub.DropCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
-        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+        check_status(status)
 
     @retry_on_rpc_failure()
     def add_collection_function(

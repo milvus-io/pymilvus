@@ -3,12 +3,13 @@
 import inspect
 from unittest.mock import MagicMock, patch
 
+import grpc
 import pytest
 from pymilvus import FieldSchema, Function, FunctionType, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import DescribeCollectionException
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2, schema_pb2
 
 from .conftest import (
     COLLECTION_VALIDATION_CASES,
@@ -206,11 +207,41 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.AlterCollectionField.assert_called_once()
 
     def test_add_collection_field(self, handler):
+        response = MagicMock()
+        response.alter_status = make_status()
+        handler._stub.AlterCollectionSchema.return_value = response
+        field = FieldSchema(name="new_field", dtype=DataType.VARCHAR, max_length=256)
 
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+        handler.add_collection_field("coll", field)
+        handler._stub.AlterCollectionSchema.assert_called_once()
+        request = handler._stub.AlterCollectionSchema.call_args.args[0]
+        assert request.action.add_request.field_infos[0].field_schema.name == "new_field"
+        handler._stub.AddCollectionField.assert_not_called()
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
+
+    def test_add_collection_field_falls_back_for_older_server(self, handler):
+        unimplemented = grpc.RpcError()
+        unimplemented.code = MagicMock(return_value=grpc.StatusCode.UNIMPLEMENTED)
+        handler._stub.AlterCollectionSchema.side_effect = unimplemented
         handler._stub.AddCollectionField.return_value = make_status()
         field = FieldSchema(name="new_field", dtype=DataType.VARCHAR, max_length=256)
+
+        GlobalCache._reset_for_testing()
+        GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
         handler.add_collection_field("coll", field)
+
+        handler._stub.AlterCollectionSchema.assert_called_once()
         handler._stub.AddCollectionField.assert_called_once()
+        request = handler._stub.AddCollectionField.call_args.args[0]
+        field_schema = schema_pb2.FieldSchema()
+        field_schema.ParseFromString(request.schema)
+        assert request.collection_name == "coll"
+        assert field_schema.name == "new_field"
+        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+        GlobalCache._reset_for_testing()
 
     def test_add_collection_struct_field(self, handler):
         handler._stub.AddCollectionStructField.return_value = make_status()
@@ -227,19 +258,10 @@ class TestGrpcHandlerCollectionProperties:
         GlobalCache._reset_for_testing()
 
     def test_drop_collection_function(self, handler):
-        response = MagicMock()
-        response.alter_status = make_status()
-        handler._stub.AlterCollectionSchema.return_value = response
-        GlobalCache._reset_for_testing()
-        GlobalCache.schema.set(handler.server_address, "", "coll", {"functions": []})
+        handler._stub.DropCollectionFunction.return_value = make_status()
         handler.drop_collection_function("coll", "func")
-        handler._stub.AlterCollectionSchema.assert_called_once()
-        request = handler._stub.AlterCollectionSchema.call_args.args[0]
-        assert request.action.drop_request.function_name == "func"
-        assert not request.action.drop_request.drop_function_output_fields
-        handler._stub.DropCollectionFunction.assert_not_called()
-        assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
-        GlobalCache._reset_for_testing()
+        handler._stub.DropCollectionFunction.assert_called_once()
+        handler._stub.AlterCollectionSchema.assert_not_called()
 
     def test_drop_collection_field(self, handler):
         response = MagicMock()
