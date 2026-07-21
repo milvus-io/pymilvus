@@ -14,6 +14,7 @@ from pymilvus import (
     FunctionChain,
     FunctionChainStage,
     FunctionType,
+    PyMilvusDeprecationWarning,
     SearchAggregation,
     TopHits,
 )
@@ -1475,14 +1476,27 @@ class TestAsyncAlterCollectionSchema:
         mock_handler.alter_collection_schema = AsyncMock()
         mock_handler.drop_collection_function = AsyncMock()
 
-        await client.drop_collection_function("col", "fn")
+        with pytest.warns(
+            PyMilvusDeprecationWarning,
+            match=r"AsyncMilvusClient\.drop_collection_function.*Milvus 3\.0.*AsyncMilvusClient\.drop_function_field",
+        ):
+            await client.drop_collection_function("col", "fn")
 
-        mock_handler.alter_collection_schema.assert_called_once()
-        assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
-        assert not mock_handler.alter_collection_schema.call_args.kwargs[
-            "drop_function_output_fields"
-        ]
-        mock_handler.drop_collection_function.assert_not_called()
+        mock_handler.drop_collection_function.assert_called_once()
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_collection_function_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.add_collection_function = AsyncMock()
+
+        with pytest.warns(
+            PyMilvusDeprecationWarning,
+            match=r"AsyncMilvusClient\.add_collection_function.*Milvus 3\.0.*AsyncMilvusClient\.add_function_field",
+        ):
+            await client.add_collection_function("col", MagicMock())
+
+        mock_handler.add_collection_function.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_drop_function_field_delegates(self, client_and_handler):

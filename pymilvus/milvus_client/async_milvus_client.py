@@ -1011,10 +1011,18 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "AsyncMilvusClient.add_collection_function",
+        replacement="AsyncMilvusClient.add_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     async def add_collection_function(
         self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
     ):
-        """Add a new function to the collection.
+        """Deprecated: Use add_function_field instead.
+
+        Milvus 3.0 and later do not support adding a function separately. The replacement
+        adds the function together with its output field and index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1068,10 +1076,18 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "AsyncMilvusClient.drop_collection_function",
+        replacement="AsyncMilvusClient.drop_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     async def drop_collection_function(
         self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        """Drop a function from the collection.
+        """Deprecated: Use drop_function_field instead.
+
+        Milvus 3.0 and later do not support dropping a function separately. The replacement
+        also removes the function's output field and its index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1084,10 +1100,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
-        await self._alter_collection_schema(
-            collection_name=collection_name,
-            drop_function_name=function_name,
+        conn = await self._get_connection()
+        await conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
