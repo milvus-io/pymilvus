@@ -19,6 +19,7 @@ import pandas as pd
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.iterator import QueryIterator
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import (
@@ -46,7 +47,7 @@ from .connections import connections
 from .constants import UNLIMITED
 from .future import MutationFuture, SearchFuture
 from .index import Index
-from .iterator import QueryIterator, SearchIterator
+from .iterator import SearchIterator
 from .mutation import MutationResult
 from .partition import Partition
 from .prepare import Prepare
@@ -1183,7 +1184,8 @@ class Collection:
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(expr))
         conn, context = self._get_connection(**kwargs)
         return QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=context,
             collection_name=self._name,
             batch_size=batch_size,
             limit=limit,
@@ -1192,8 +1194,7 @@ class Collection:
             partition_names=partition_names,
             schema=self._schema_dict,
             timeout=timeout,
-            context=context,
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     @property
