@@ -8,6 +8,7 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.iterator import QueryIterator
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
@@ -40,7 +41,7 @@ from pymilvus.exceptions import (
 from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
-from pymilvus.orm.iterator import QueryIterator, SearchIterator
+from pymilvus.orm.iterator import SearchIterator
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
 
@@ -569,17 +570,19 @@ class MilvusClient(BaseMilvusClient):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
         conn = self._get_connection()
+        context = self._generate_call_context(**kwargs)
         # set up schema for iterator from cache
         schema_dict, _ = conn._get_schema(
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
+            context=context,
             **kwargs,
         )
 
         kwargs = self._with_cluster_id(kwargs)
         return QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=context,
             collection_name=collection_name,
             batch_size=batch_size,
             limit=limit,
@@ -588,8 +591,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             schema=schema_dict,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     def search_iterator(
