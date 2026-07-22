@@ -15,6 +15,7 @@ from .search_iterator import (
     extend_batch_size,
     metrics_positive_related,
 )
+from .search_iterator_v2 import SearchIteratorV2
 
 __all__ = [
     "NO_CACHE_ID",
@@ -22,6 +23,7 @@ __all__ = [
     "QueryIterator",
     "QueryIteratorCursor",
     "SearchIterator",
+    "SearchIteratorV2",
     "SearchPage",
     "assert_info",
     "check_set_flag",
