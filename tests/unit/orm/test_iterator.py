@@ -794,7 +794,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="multiple vectors"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4], [5, 6, 7, 8]],
                 ann_field="vec",
@@ -807,7 +808,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="cannot be empty"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[],
                 ann_field="vec",
@@ -820,21 +822,23 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="offset"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
                 param={METRIC_TYPE: "L2", PARAMS: {}},
                 batch_size=10,
                 schema=_SEARCH_SCHEMA_DICT,
-                **{OFFSET: 5},
+                rpc_options={OFFSET: 5},
             )
 
     def test_no_metric_type_raises(self):
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="metrics type"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -847,7 +851,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="hnsw"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -863,7 +868,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -878,7 +884,8 @@ class TestSearchIteratorInit:
         """When init page is empty, _init_success should be False."""
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -893,7 +900,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="radius must be"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -907,7 +915,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="radius must be"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -921,7 +930,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises((ParamError, KeyError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -937,7 +947,8 @@ class TestSearchIteratorInit:
         # param=None with no metric raises the right error
         with pytest.raises((ParamError, KeyError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -952,7 +963,8 @@ class TestSearchIteratorNext:
         """When init fails, next() returns empty page."""
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -971,7 +983,8 @@ class TestSearchIteratorNext:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -992,7 +1005,8 @@ class TestSearchIteratorClose:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1009,7 +1023,8 @@ class TestSearchIteratorFilteredExpr:
     def test_no_filtered_ids(self):
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1025,7 +1040,8 @@ class TestSearchIteratorFilteredExpr:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1055,7 +1071,8 @@ class TestSearchIteratorFilteredExpr:
         conn.search.return_value = mock_res
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1072,7 +1089,8 @@ class TestSearchIteratorFilteredExpr:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1091,7 +1109,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1110,7 +1129,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1127,7 +1147,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1791,11 +1812,12 @@ class TestSearchIteratorSessionTsFallback:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=0)
 
         with patch(
-            "pymilvus.orm.iterator.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=7777,
         ):
             si = SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -1824,7 +1846,8 @@ class TestSearchIteratorMissingPk:
         conn = _make_search_conn(hits=[], session_ts=500)
         with pytest.raises((ParamError, AttributeError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -1840,7 +1863,8 @@ class TestSearchIteratorUpdateFilteredIds:
     def _make_si(self, hits):
         conn = _make_search_conn(hits=hits, session_ts=500)
         return SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1908,7 +1932,8 @@ class TestSearchIteratorCacheHelpers:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         return SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2019,7 +2044,8 @@ class TestSearchIteratorNextFull:
             next_hits_list=[],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2044,7 +2070,8 @@ class TestSearchIteratorNextFull:
             next_hits_list=[],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2089,7 +2116,8 @@ class TestSearchIteratorNextFull:
             ],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2137,7 +2165,8 @@ class TestSearchIteratorNextFull:
             ],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2191,7 +2220,8 @@ class TestSearchIteratorTrySearchFill:
         conn.search.side_effect = search_side_effect
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2216,7 +2246,8 @@ class TestSearchIteratorNextParamsWithRadius:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2240,7 +2271,8 @@ class TestSearchIteratorNextParamsWithRadius:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2266,7 +2298,8 @@ class TestSearchIteratorUpdateWidth:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2283,7 +2316,8 @@ class TestSearchIteratorUpdateWidth:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2303,7 +2337,8 @@ class TestSearchIteratorCheckReachedLimit:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2321,7 +2356,8 @@ class TestSearchIteratorCheckReachedLimit:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2343,7 +2379,8 @@ class TestSearchIteratorVarcharPk:
         hit1 = Mock(id="b", distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
