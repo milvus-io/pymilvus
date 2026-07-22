@@ -8,7 +8,7 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
-from pymilvus.client.iterator import QueryIterator
+from pymilvus.client.iterator import QueryIterator, SearchIterator
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
@@ -41,7 +41,6 @@ from pymilvus.exceptions import (
 from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
-from pymilvus.orm.iterator import SearchIterator
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
 
@@ -653,6 +652,7 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
+        context = self._generate_call_context(**kwargs)
 
         # compatibility logic, change this when support get version from server
         try:
@@ -669,7 +669,7 @@ class MilvusClient(BaseMilvusClient):
                 partition_names=partition_names,
                 anns_field=anns_field or "",
                 round_decimal=round_decimal,
-                context=self._generate_call_context(**kwargs),
+                context=context,
                 **kwargs,
             )
         except ServerVersionIncompatibleException:
@@ -684,7 +684,7 @@ class MilvusClient(BaseMilvusClient):
         schema_dict, _ = conn._get_schema(
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
+            context=context,
             **kwargs,
         )
         # if anns_field is not provided
@@ -718,9 +718,7 @@ class MilvusClient(BaseMilvusClient):
         if search_params is None:
             search_params = {}
         if METRIC_TYPE not in search_params:
-            indexes = conn.list_indexes(
-                collection_name, context=self._generate_call_context(**kwargs)
-            )
+            indexes = conn.list_indexes(collection_name, context=context)
             for index in indexes:
                 if anns_field == index.index_name:
                     params = index.params
@@ -735,7 +733,8 @@ class MilvusClient(BaseMilvusClient):
         search_params["params"] = get_params(search_params)
 
         return SearchIterator(
-            connection=self._get_connection(),
+            handler=conn,
+            context=context,
             collection_name=collection_name,
             data=data,
             ann_field=anns_field,
@@ -748,8 +747,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             round_decimal=round_decimal,
             schema=schema_dict,
-            context=self._generate_call_context(**kwargs),
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     def get(
