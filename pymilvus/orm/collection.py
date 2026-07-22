@@ -19,7 +19,7 @@ import pandas as pd
 from pymilvus.client import utils
 from pymilvus.client.abstract import BaseRanker
 from pymilvus.client.constants import DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.iterator import QueryIterator
+from pymilvus.client.iterator import QueryIterator, SearchIterator
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import (
@@ -47,7 +47,6 @@ from .connections import connections
 from .constants import UNLIMITED
 from .future import MutationFuture, SearchFuture
 from .index import Index
-from .iterator import SearchIterator
 from .mutation import MutationResult
 from .partition import Partition
 from .prepare import Prepare
@@ -1059,7 +1058,8 @@ class Collection:
         param["params"] = utils.get_params(param)
         conn, context = self._get_connection(**kwargs)
         return SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=context,
             collection_name=self._name,
             data=data,
             ann_field=anns_field,
@@ -1072,8 +1072,7 @@ class Collection:
             timeout=timeout,
             round_decimal=round_decimal,
             schema=self._schema_dict,
-            context=context,
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     def query(
