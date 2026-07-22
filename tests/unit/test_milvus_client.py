@@ -12,6 +12,7 @@ from pymilvus import (
     FunctionChain,
     FunctionChainStage,
     FunctionType,
+    PyMilvusDeprecationWarning,
     SearchAggregation,
     StructFieldSchema,
     TopHits,
@@ -1638,7 +1639,11 @@ class TestMilvusClientCollectionMgmt:
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            client.add_collection_function("col", MagicMock())
+            with pytest.warns(
+                PyMilvusDeprecationWarning,
+                match=r"MilvusClient\.add_collection_function.*Milvus 3\.0.*MilvusClient\.add_function_field",
+            ):
+                client.add_collection_function("col", MagicMock())
             handler.add_collection_function.assert_called_once()
 
     def test_alter_collection_function_delegates(self):
@@ -1652,13 +1657,13 @@ class TestMilvusClientCollectionMgmt:
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            client.drop_collection_function("col", "fn")
-            handler.alter_collection_schema.assert_called_once()
-            assert handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
-            assert not handler.alter_collection_schema.call_args.kwargs[
-                "drop_function_output_fields"
-            ]
-            handler.drop_collection_function.assert_not_called()
+            with pytest.warns(
+                PyMilvusDeprecationWarning,
+                match=r"MilvusClient\.drop_collection_function.*Milvus 3\.0.*MilvusClient\.drop_function_field",
+            ):
+                client.drop_collection_function("col", "fn")
+            handler.drop_collection_function.assert_called_once()
+            handler.alter_collection_schema.assert_not_called()
 
     def test_drop_function_field_delegates(self):
         handler = _make_handler()
