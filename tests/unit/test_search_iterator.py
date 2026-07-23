@@ -275,7 +275,7 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = probe_result
 
         with patch(
-            "pymilvus.client.iterator.search_iterator_v2.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=99999,
         ) as mock_fallback:
             iterator = SearchIteratorV2(
@@ -298,7 +298,7 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = probe_result
 
         with patch(
-            "pymilvus.client.iterator.search_iterator_v2.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=99999,
         ) as mock_fallback:
             iterator = SearchIteratorV2(

@@ -377,69 +377,6 @@ class SearchResult(list):
             nq_thres += topk
         return data
 
-    def _get_fields_by_range(
-        self, start: int, end: int, all_fields_data: List[schema_pb2.FieldData]
-    ) -> Dict[str, Tuple[List[Any], schema_pb2.FieldData]]:
-        field2data: Dict[str, Tuple[List[Any], schema_pb2.FieldData]] = {}
-
-        for field in all_fields_data:
-            name, dtype = field.field_name, field.type
-            field_meta = schema_pb2.FieldData(
-                type=dtype,
-                field_name=name,
-                field_id=field.field_id,
-                is_dynamic=field.is_dynamic,
-            )
-            if _is_eager_scalar(dtype):
-                field2data[name] = field_data_extractors.decode_range(field, start, end), field_meta
-                continue
-
-            if dtype == DataType.JSON:
-                field2data[name] = field_data_extractors.decode_range(field, start, end), field_meta
-                continue
-
-            if dtype == DataType.ARRAY:
-                field2data[name] = field_data_extractors.decode_range(field, start, end), field_meta
-                continue
-
-            if dtype == DataType._ARRAY_OF_STRUCT:
-                struct_array_data = []
-
-                if hasattr(field, "struct_arrays") and field.struct_arrays:
-                    for row_idx in range(start, end):
-                        struct_array_data.append(
-                            entity_helper.extract_struct_array_from_column_data(
-                                field.struct_arrays, row_idx
-                            )
-                        )
-
-                field2data[name] = (struct_array_data, field_meta)
-                continue
-
-            # vectors
-            dim = field.vectors.dim
-            field_meta.vectors.dim = dim
-            if is_dense_vector_type(dtype):
-                data = field_data_extractors.get_field_data(field)
-                width = _dense_result_slice_width(dtype, dim)
-                if dtype == DataType.FLOAT_VECTOR and start == 0 and end * width >= len(data):
-                    # If the range equals to the length of vectors.float_vector.data, direct return
-                    # it to avoid a copy. This logic improves performance by 25% for the case
-                    # retrival 1536 dim embeddings with topk=16384.
-                    field2data[name] = data, field_meta
-                else:
-                    field2data[name] = (
-                        data[start * width : end * width],
-                        field_meta,
-                    )
-                continue
-
-            # TODO(SPARSE): do we want to allow the user to specify the return format?
-            if is_sparse_vector_type(dtype):
-                field2data[name] = field_data_extractors.decode_range(field, start, end), field_meta
-                continue
-        return field2data
-
     def get_session_ts(self):
         """Iterator related inner method"""
         # TODO(Goose): change it into properties

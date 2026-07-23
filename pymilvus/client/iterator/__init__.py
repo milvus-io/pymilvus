@@ -10,12 +10,12 @@ from .query_iterator import (
 )
 from .search_iterator import (
     SearchIterator,
+    SearchIteratorV2,
     SearchPage,
     check_set_flag,
     extend_batch_size,
     metrics_positive_related,
 )
-from .search_iterator_v2 import SearchIteratorV2
 
 __all__ = [
     "NO_CACHE_ID",
