@@ -60,7 +60,7 @@ def validate_partition_key(
     # not allow partition_key field is primary key field
     if partition_key_field is not None:
         if partition_key_field.name == primary_field_name:
-            PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
+            raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
 
         if partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
             raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
@@ -262,6 +262,13 @@ class CollectionSchema:
                     )
                     raise ClusteringKeyException(message=msg)
                 self._clustering_key_field = field
+
+            if self._primary_field is not None and self._partition_key_field is not None:
+                validate_partition_key(
+                    self._partition_key_field.name,
+                    self._partition_key_field,
+                    self._primary_field.name,
+                )
         except Exception:
             self._primary_field = primary_field
             self._partition_key_field = partition_key_field
