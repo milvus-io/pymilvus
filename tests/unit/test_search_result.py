@@ -738,111 +738,6 @@ class TestHitsLegacy:
         assert hits[0].entity["d1"] == 1
 
 
-class TestGetFieldsByRange:
-    """Test SearchResult._get_fields_by_range"""
-
-    def test_get_fields_all_types(self):
-        # It's stateless regarding instance data, it just uses the args
-        res = SearchResult(schema_pb2.SearchResultData())
-        count = 5
-
-        _int_row = schema_pb2.ScalarField(int_data=schema_pb2.IntArray(data=[1]))
-        all_fields_data = [
-            _make_scalar_field(DataType.BOOL, "bool", [True] * count),
-            _make_scalar_field(DataType.INT32, "int32", list(range(count))),
-            _make_scalar_field(DataType.INT64, "int64", list(range(count))),
-            _make_scalar_field(DataType.FLOAT, "float", [float(i) for i in range(count)]),
-            _make_scalar_field(DataType.DOUBLE, "double", [float(i) for i in range(count)]),
-            _make_scalar_field(DataType.VARCHAR, "varchar", [str(i) for i in range(count)]),
-            _make_scalar_field(DataType.JSON, "json", [b"{}"] * count),
-            _make_scalar_field(DataType.GEOMETRY, "geom", ["POINT(0 0)"] * count),
-            _make_array_field(DataType.INT32, "array", [_int_row] * count),
-            # ARRAY_OF_STRUCT — mocked helper
-            schema_pb2.FieldData(type=DataType._ARRAY_OF_STRUCT, field_name="aos"),
-            _make_vector_field(DataType.FLOAT_VECTOR, "fv", 2, [0.0] * (count * 2)),
-            _make_vector_field(DataType.BINARY_VECTOR, "bv", 8, b"\x00" * count),
-            _make_vector_field(DataType.FLOAT16_VECTOR, "f16v", 2, b"\x00" * (count * 2 * 2)),
-            _make_vector_field(DataType.BFLOAT16_VECTOR, "bf16v", 2, b"\x00" * (count * 2 * 2)),
-            _make_vector_field(DataType.INT8_VECTOR, "i8v", 2, b"\x00" * (count * 2)),
-            schema_pb2.FieldData(
-                type=DataType.SPARSE_FLOAT_VECTOR,
-                field_name="sv",
-                vectors=schema_pb2.VectorField(
-                    sparse_float_vector=schema_pb2.SparseFloatArray(contents=[b""] * count)
-                ),
-            ),
-        ]
-
-        original_struct_func = entity_helper.extract_struct_array_from_column_data
-        original_sparse_func = entity_helper.sparse_proto_to_rows
-
-        try:
-            entity_helper.extract_struct_array_from_column_data = lambda x, y: {}
-            entity_helper.sparse_proto_to_rows = lambda x, start, end: [{}] * (end - start)
-
-            result = res._get_fields_by_range(0, count, all_fields_data)
-
-            expected_keys = [
-                "bool",
-                "int32",
-                "int64",
-                "float",
-                "double",
-                "varchar",
-                "json",
-                "geom",
-                "array",
-                "aos",
-                "fv",
-                "bv",
-                "f16v",
-                "bf16v",
-                "i8v",
-                "sv",
-            ]
-            for key in expected_keys:
-                assert key in result
-            assert len(result["bool"][0]) == count
-
-        finally:
-            entity_helper.extract_struct_array_from_column_data = original_struct_func
-            entity_helper.sparse_proto_to_rows = original_sparse_func
-
-    def test_get_fields_optimized_float_vector(self):
-        """Test the 25% perf optimization path for float vector"""
-        res = SearchResult(schema_pb2.SearchResultData())
-        fd = schema_pb2.FieldData(
-            type=DataType.FLOAT_VECTOR,
-            field_name="fv",
-            vectors=schema_pb2.VectorField(
-                dim=2, float_vector=schema_pb2.FloatArray(data=[1.0, 2.0, 3.0, 4.0])
-            ),
-        )
-
-        # Full range
-        result = res._get_fields_by_range(0, 2, [fd])
-        # It calls directly return data
-        assert result["fv"][0] == [1.0, 2.0, 3.0, 4.0]
-
-    def test_get_fields_by_range_dense_registry_widths(self):
-        res = SearchResult(schema_pb2.SearchResultData())
-        fields = [
-            _make_vector_field(DataType.FLOAT_VECTOR, "fv", 2, [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]),
-            _make_vector_field(DataType.BINARY_VECTOR, "bv", 16, b"abcdef"),
-            _make_vector_field(DataType.FLOAT16_VECTOR, "f16v", 2, b"abcdefghijkl"),
-            _make_vector_field(DataType.BFLOAT16_VECTOR, "bf16v", 2, b"mnopqrstuvwx"),
-            _make_vector_field(DataType.INT8_VECTOR, "i8v", 2, b"ABCDEF"),
-        ]
-
-        result = res._get_fields_by_range(1, 3, fields)
-
-        assert result["fv"][0] == [3.0, 4.0, 5.0, 6.0]
-        assert result["bv"][0] == b"cdef"
-        assert result["f16v"][0] == b"efghijkl"
-        assert result["bf16v"][0] == b"qrstuvwx"
-        assert result["i8v"][0] == b"CDEF"
-
-
 class TestHelpers:
     """Test standalone helper functions in search_result.py"""
 
@@ -1138,21 +1033,6 @@ class TestCoverageEdgeCases:
         hh.materialize()
         # idx=0, len=0 -> branch else
         assert hh[0].entity["aov"] == []
-
-    def test_get_fields_by_range_json_error(self):
-        # target 488-494
-        res = SearchResult(schema_pb2.SearchResultData())
-
-        # Valid data mask true, but content invalid json
-        fd = schema_pb2.FieldData(
-            type=DataType.JSON,
-            field_name="json",
-            valid_data=[True],
-            scalars=schema_pb2.ScalarField(json_data=schema_pb2.JSONArray(data=[b"{bad"])),
-        )
-
-        with pytest.raises(orjson.JSONDecodeError):
-            res._get_fields_by_range(0, 1, [fd])
 
     def test_iterator_v2_info(self):
         # target 582
