@@ -8,9 +8,8 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
-from pymilvus.client.iterator import QueryIterator, SearchIterator
+from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
-from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
@@ -657,7 +656,8 @@ class MilvusClient(BaseMilvusClient):
         # compatibility logic, change this when support get version from server
         try:
             return SearchIteratorV2(
-                connection=conn,
+                handler=conn,
+                context=context,
                 collection_name=collection_name,
                 data=data,
                 batch_size=batch_size,
@@ -669,8 +669,7 @@ class MilvusClient(BaseMilvusClient):
                 partition_names=partition_names,
                 anns_field=anns_field or "",
                 round_decimal=round_decimal,
-                context=context,
-                **kwargs,
+                rpc_options=kwargs,
             )
         except ServerVersionIncompatibleException:
             # for compatibility, return search_iterator V1

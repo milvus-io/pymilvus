@@ -10,6 +10,7 @@ from .query_iterator import (
 )
 from .search_iterator import (
     SearchIterator,
+    SearchIteratorV2,
     SearchPage,
     check_set_flag,
     extend_batch_size,
@@ -22,6 +23,7 @@ __all__ = [
     "QueryIterator",
     "QueryIteratorCursor",
     "SearchIterator",
+    "SearchIteratorV2",
     "SearchPage",
     "assert_info",
     "check_set_flag",
