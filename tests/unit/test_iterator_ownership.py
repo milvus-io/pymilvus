@@ -35,6 +35,8 @@ from pymilvus.orm.collection import Collection
 from pymilvus.orm.iterator import QueryIterator as OrmQueryIterator
 from pymilvus.orm.iterator import QueryIteratorCursor as OrmQueryIteratorCursor
 
+pytestmark = pytest.mark.filterwarnings("error::pymilvus.PyMilvusDeprecationWarning")
+
 
 def test_query_iterator_compatibility_imports_share_client_owned_classes():
     assert OrmQueryIterator is ClientQueryIterator
@@ -211,9 +213,13 @@ def test_collection_public_seam_returns_shared_iterator_page():
     collection._name = "collection"
     collection._schema_dict = _QUERY_SCHEMA
 
-    with patch.object(collection, "_get_connection", return_value=(handler, context)):
-        iterator = collection.query_iterator(expr="pk > 0", client_request_id="request")
+    with pytest.warns(
+        PyMilvusDeprecationWarning, match="Collection.query_iterator.*MilvusClient.query_iterator"
+    ) as records:
+        with patch.object(collection, "_get_connection", return_value=(handler, context)):
+            iterator = collection.query_iterator(expr="pk > 0", client_request_id="request")
 
+    assert len(records) == 1
     assert isinstance(iterator, ClientQueryIterator)
     assert iterator.next() == [{"pk": 1, "transport": "before"}]
     assert handler.describe_calls[0][1]["context"] is context
@@ -356,15 +362,20 @@ def test_collection_search_iterator_uses_shared_v1_owner():
     collection._name = "collection"
     collection._schema_dict = _SEARCH_SCHEMA
 
-    with patch.object(collection, "_get_connection", return_value=(handler, context)):
-        iterator = collection.search_iterator(
-            data=[[0.1, 0.2]],
-            anns_field="vec",
-            param={"metric_type": "L2"},
-            batch_size=1,
-            client_request_id="request",
-        )
+    with pytest.warns(
+        PyMilvusDeprecationWarning,
+        match="Collection.search_iterator.*MilvusClient.search_iterator",
+    ) as records:
+        with patch.object(collection, "_get_connection", return_value=(handler, context)):
+            iterator = collection.search_iterator(
+                data=[[0.1, 0.2]],
+                anns_field="vec",
+                param={"metric_type": "L2"},
+                batch_size=1,
+                client_request_id="request",
+            )
 
+    assert len(records) == 1
     assert isinstance(iterator, client_iterator.SearchIterator)
     assert handler.describe_calls[0][1]["context"] is context
     assert all(call[1]["context"] is context for call in handler.search_calls)
