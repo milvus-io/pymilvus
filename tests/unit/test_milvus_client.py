@@ -1530,6 +1530,80 @@ class TestMilvusClientRoleDescription:
 
 
 class TestMilvusClientCollectionMgmt:
+    def test_namespace_lifecycle_delegates_to_partition_ops(self):
+        handler = _make_handler()
+        handler.has_partition.return_value = True
+        handler.list_partitions.return_value = ["_default", "tenant_a"]
+        stat = MagicMock()
+        stat.key = "row_count"
+        stat.value = "100"
+        handler.get_partition_stats.return_value = [stat]
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+
+            client.create_namespace("col", "tenant_a", timeout=10, trace_id="t1")
+            client.drop_namespace("col", "tenant_a", timeout=11, trace_id="t2")
+            assert client.has_namespace("col", "tenant_a", timeout=12, trace_id="t3") is True
+            assert client.list_namespaces("col", timeout=13, trace_id="t4") == {
+                "namespaces": ["_default", "tenant_a"],
+                "next_page_token": "",
+            }
+            assert client.get_namespace_stats("col", "tenant_a", timeout=14, trace_id="t5") == {
+                "row_count": 100
+            }
+
+        handler.create_partition.assert_called_once_with(
+            "col", "tenant_a", timeout=10, context=ANY, trace_id="t1"
+        )
+        handler.drop_partition.assert_called_once_with(
+            "col", "tenant_a", timeout=11, context=ANY, trace_id="t2"
+        )
+        handler.has_partition.assert_called_once_with(
+            "col", "tenant_a", timeout=12, context=ANY, trace_id="t3"
+        )
+        handler.list_partitions.assert_called_once_with("col", timeout=13, context=ANY, trace_id="t4")
+        handler.get_partition_stats.assert_called_once_with(
+            "col", "tenant_a", timeout=14, context=ANY, trace_id="t5"
+        )
+
+    def test_list_namespaces_supports_prefix_and_page_token(self):
+        handler = _make_handler()
+        handler.list_partitions.return_value = ["_default", "tenant_a", "tenant_b", "team_a"]
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+
+            first_page = client.list_namespaces("col", prefix="tenant_", page_size=1)
+            second_page = client.list_namespaces(
+                "col", prefix="tenant_", page_size=1, page_token=first_page["next_page_token"]
+            )
+
+        assert first_page == {"namespaces": ["tenant_a"], "next_page_token": "1"}
+        assert second_page == {"namespaces": ["tenant_b"], "next_page_token": ""}
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"page_token": "bad"},
+            {"page_token": "-1"},
+            {"page_size": 0},
+            {"page_size": True},
+            {"prefix": 1},
+        ],
+    )
+    def test_list_namespaces_rejects_invalid_pagination_params(self, kwargs):
+        handler = _make_handler()
+        handler.list_partitions.return_value = ["_default", "tenant_a"]
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+
+            with pytest.raises(ParamError):
+                client.list_namespaces("col", **kwargs)
+
+        handler.list_partitions.assert_not_called()
+
     def test_alter_collection_field(self):
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):

@@ -429,6 +429,62 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    async def create_namespace(
+        self, collection_name: str, namespace_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Create a partition-backed namespace for a collection using namespace.mode=partition."""
+        return await self.create_partition(
+            collection_name, namespace_name, timeout=timeout, **kwargs
+        )
+
+    async def drop_namespace(
+        self, collection_name: str, namespace_name: str, timeout: Optional[float] = None, **kwargs
+    ):
+        """Drop a partition-backed namespace for a collection using namespace.mode=partition."""
+        return await self.drop_partition(collection_name, namespace_name, timeout=timeout, **kwargs)
+
+    async def has_namespace(
+        self, collection_name: str, namespace_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> bool:
+        """Check whether a partition-backed namespace exists."""
+        return await self.has_partition(collection_name, namespace_name, timeout=timeout, **kwargs)
+
+    async def list_namespaces(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        *,
+        prefix: Optional[str] = None,
+        page_token: Optional[str] = "",
+        page_size: Optional[int] = None,
+        **kwargs,
+    ) -> Dict:
+        """List partition-backed namespaces for a collection using namespace.mode=partition.
+
+        Args:
+            collection_name: Name of the collection.
+            timeout: Operation timeout.
+            prefix: Optional namespace name prefix to filter results.
+            page_token: Token returned by the previous page. Empty starts from the first page.
+            page_size: Maximum number of namespaces to return. If unset, returns all matches.
+
+        Returns:
+            Dict containing `namespaces` and `next_page_token`.
+        """
+        offset = self._parse_namespace_page_args(prefix, page_token, page_size)
+        namespaces = await self.list_partitions(collection_name, timeout=timeout, **kwargs)
+        return self._format_namespace_page(
+            namespaces, prefix, page_token, page_size, offset=offset
+        )
+
+    async def get_namespace_stats(
+        self, collection_name: str, namespace_name: str, timeout: Optional[float] = None, **kwargs
+    ) -> Dict:
+        """Return stats for a partition-backed namespace."""
+        return await self.get_partition_stats(
+            collection_name, namespace_name, timeout=timeout, **kwargs
+        )
+
     async def insert(
         self,
         collection_name: str,

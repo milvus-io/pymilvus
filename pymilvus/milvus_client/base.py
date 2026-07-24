@@ -1,10 +1,11 @@
 """Base class for Milvus clients."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.constants import CLUSTER_ID
+from pymilvus.exceptions import ParamError
 from pymilvus.orm.collection import CollectionSchema, FieldSchema
 from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
@@ -27,6 +28,68 @@ class BaseMilvusClient:
         if cluster_id:
             kwargs.setdefault(CLUSTER_ID, cluster_id)
         return kwargs
+
+    @staticmethod
+    def _format_namespace_page(
+        namespaces: List[str],
+        prefix: Optional[str] = None,
+        page_token: Optional[str] = "",
+        page_size: Optional[int] = None,
+        *,
+        offset: Optional[int] = None,
+    ) -> Dict:
+        """Apply namespace list prefix filtering and token pagination."""
+        if offset is None:
+            offset = BaseMilvusClient._parse_namespace_page_args(prefix, page_token, page_size)
+
+        matching_namespaces = list(namespaces)
+        if prefix:
+            matching_namespaces = [
+                namespace for namespace in matching_namespaces if namespace.startswith(prefix)
+            ]
+
+        if page_size is None:
+            page = matching_namespaces[offset:]
+            next_page_token = ""
+        else:
+            next_offset = offset + page_size
+            page = matching_namespaces[offset:next_offset]
+            next_page_token = str(next_offset) if next_offset < len(matching_namespaces) else ""
+
+        return {"namespaces": page, "next_page_token": next_page_token}
+
+    @staticmethod
+    def _parse_namespace_page_args(
+        prefix: Optional[str] = None,
+        page_token: Optional[str] = "",
+        page_size: Optional[int] = None,
+    ) -> int:
+        """Validate namespace list pagination arguments and return the page offset."""
+        if prefix is not None and not isinstance(prefix, str):
+            raise ParamError(message="prefix must be a string")
+
+        if page_token in (None, ""):
+            offset = 0
+        elif isinstance(page_token, str):
+            try:
+                offset = int(page_token)
+            except ValueError as exc:
+                raise ParamError(
+                    message="page_token must be empty or a non-negative integer string"
+                ) from exc
+        else:
+            raise ParamError(message="page_token must be a string")
+
+        if offset < 0:
+            raise ParamError(message="page_token must be a non-negative integer string")
+
+        if page_size is not None:
+            if isinstance(page_size, bool) or not isinstance(page_size, int):
+                raise ParamError(message="page_size must be a positive integer")
+            if page_size <= 0:
+                raise ParamError(message="page_size must be a positive integer")
+
+        return offset
 
     @classmethod
     def create_schema(cls, **kwargs):
