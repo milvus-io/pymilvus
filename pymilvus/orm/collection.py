@@ -29,7 +29,7 @@ from pymilvus.client.types import (
     cmp_consistency_level,
     get_consistency_level,
 )
-from pymilvus.decorators import deprecated_class
+from pymilvus.decorators import deprecated, deprecated_class
 from pymilvus.exceptions import (
     AutoIDException,
     DataTypeNotMatchException,
@@ -1039,6 +1039,7 @@ class Collection:
 
         return SearchFuture(resp) if kwargs.get("_async", False) else resp
 
+    @deprecated("Collection.search_iterator", replacement="MilvusClient.search_iterator()")
     def search_iterator(
         self,
         data: Union[List, utils.SparseMatrixInputType],
@@ -1169,6 +1170,7 @@ class Collection:
             **kwargs,
         )
 
+    @deprecated("Collection.query_iterator", replacement="MilvusClient.query_iterator()")
     def query_iterator(
         self,
         batch_size: Optional[int] = 1000,

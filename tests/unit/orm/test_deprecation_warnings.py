@@ -129,15 +129,42 @@ def test_collection_method_warns(schema, mock_grpc_connect, mock_grpc_close):
             collection.flush()
 
 
-def test_collection_iterators_do_not_warn(schema, mock_grpc_connect, mock_grpc_close):
+def test_collection_query_iterator_warns_once_with_client_replacement(
+    schema, mock_grpc_connect, mock_grpc_close
+):
     collection = make_collection(schema, mock_grpc_connect, mock_grpc_close)
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", PyMilvusDeprecationWarning)
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always", PyMilvusDeprecationWarning)
         with mock.patch("pymilvus.orm.collection.QueryIterator", return_value=object()):
             collection.query_iterator()
+
+    assert len(records) == 1
+    assert records[0].category is PyMilvusDeprecationWarning
+    assert str(records[0].message) == (
+        "`Collection.query_iterator` is an ORM-style PyMilvus API and will be removed in "
+        "PyMilvus 3.1. Use `MilvusClient.query_iterator()` instead."
+    )
+    assert records[0].filename == __file__
+
+
+def test_collection_search_iterator_warns_once_with_client_replacement(
+    schema, mock_grpc_connect, mock_grpc_close
+):
+    collection = make_collection(schema, mock_grpc_connect, mock_grpc_close)
+
+    with warnings.catch_warnings(record=True) as records:
+        warnings.simplefilter("always", PyMilvusDeprecationWarning)
         with mock.patch("pymilvus.orm.collection.SearchIterator", return_value=object()):
             collection.search_iterator(data=[[0.1, 0.2, 0.3, 0.4]], anns_field="vec", param={})
+
+    assert len(records) == 1
+    assert records[0].category is PyMilvusDeprecationWarning
+    assert str(records[0].message) == (
+        "`Collection.search_iterator` is an ORM-style PyMilvus API and will be removed in "
+        "PyMilvus 3.1. Use `MilvusClient.search_iterator()` instead."
+    )
+    assert records[0].filename == __file__
 
 
 def test_partition_constructor_and_method_warn(schema, mock_grpc_connect, mock_grpc_close):
