@@ -80,6 +80,7 @@ class FieldSchema:
                 if type_param.key in [Config.MaxVarCharLengthKey] and raw.data_type in (
                     DataType.VARCHAR,
                     DataType.ARRAY,
+                    DataType.UUID,
                 ):
                     self.params[type_param.key] = int(type_param.value)
 

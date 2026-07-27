@@ -95,6 +95,7 @@ def test_vector_width_metadata_matches_family_extension_rules():
         (DataType.ARRAY, TypeFamily.COMPLEX),
         (DataType.GEOMETRY, TypeFamily.SCALAR),
         (DataType.TIMESTAMPTZ, TypeFamily.SCALAR),
+        (DataType.UUID, TypeFamily.SCALAR),
         (DataType.FLOAT_VECTOR, TypeFamily.DENSE_VECTOR),
         (DataType.BINARY_VECTOR, TypeFamily.DENSE_VECTOR),
         (DataType.SPARSE_FLOAT_VECTOR, TypeFamily.SPARSE_VECTOR),
@@ -119,6 +120,7 @@ def test_type_family_metadata(dtype, expected_family):
         (DataType.BFLOAT16_VECTOR, False, True, False, True, True),
         (DataType.INT8_VECTOR, False, True, False, True, True),
         (DataType.SPARSE_FLOAT_VECTOR, False, False, True, True, False),
+        (DataType.UUID, True, False, False, False, False),
         (DataType.STRUCT, False, False, False, False, False),
         (DataType.UNKNOWN, False, False, False, False, False),
     ],
@@ -167,6 +169,7 @@ def test_legacy_vector_predicates_use_registry_facts(
         (DataType.VARCHAR, "string_data"),
         (DataType.TEXT, "string_data"),
         (DataType.TIMESTAMPTZ, "string_data"),
+        (DataType.UUID, "string_data"),
         (DataType.GEOMETRY, "geometry_wkt_data"),
         (DataType.JSON, "json_data"),
         (DataType.ARRAY, "array_data"),
@@ -193,6 +196,7 @@ def test_scalar_protobuf_attributes_match_existing_maps(dtype, attr):
         DataType.STRING,
         DataType.VARCHAR,
         DataType.TEXT,
+        DataType.UUID,
     ],
 )
 def test_supported_array_element_attrs_match_scalar_attrs(dtype):

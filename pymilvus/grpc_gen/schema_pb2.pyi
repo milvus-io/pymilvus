@@ -29,6 +29,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Date: _ClassVar[DataType]
     Time: _ClassVar[DataType]
     Decimal: _ClassVar[DataType]
+    UUID: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -83,6 +84,7 @@ Mol: DataType
 Date: DataType
 Time: DataType
 Decimal: DataType
+UUID: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType
@@ -369,6 +371,12 @@ class StringArray(_message.Message):
     data: _containers.RepeatedScalarFieldContainer[str]
     def __init__(self, data: _Optional[_Iterable[str]] = ...) -> None: ...
 
+class UUIDArray(_message.Message):
+    __slots__ = ("data",)
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    data: _containers.RepeatedScalarFieldContainer[bytes]
+    def __init__(self, data: _Optional[_Iterable[bytes]] = ...) -> None: ...
+
 class ArrayArray(_message.Message):
     __slots__ = ("data", "element_type")
     DATA_FIELD_NUMBER: _ClassVar[int]
@@ -566,12 +574,14 @@ class FieldData(_message.Message):
     def __init__(self, type: _Optional[_Union[DataType, str]] = ..., field_name: _Optional[str] = ..., scalars: _Optional[_Union[ScalarField, _Mapping]] = ..., vectors: _Optional[_Union[VectorField, _Mapping]] = ..., struct_arrays: _Optional[_Union[StructArrayField, _Mapping]] = ..., field_id: _Optional[int] = ..., is_dynamic: bool = ..., valid_data: _Optional[_Iterable[bool]] = ...) -> None: ...
 
 class IDs(_message.Message):
-    __slots__ = ("int_id", "str_id")
+    __slots__ = ("int_id", "str_id", "uuid_id")
     INT_ID_FIELD_NUMBER: _ClassVar[int]
     STR_ID_FIELD_NUMBER: _ClassVar[int]
+    UUID_ID_FIELD_NUMBER: _ClassVar[int]
     int_id: LongArray
     str_id: StringArray
-    def __init__(self, int_id: _Optional[_Union[LongArray, _Mapping]] = ..., str_id: _Optional[_Union[StringArray, _Mapping]] = ...) -> None: ...
+    uuid_id: UUIDArray
+    def __init__(self, int_id: _Optional[_Union[LongArray, _Mapping]] = ..., str_id: _Optional[_Union[StringArray, _Mapping]] = ..., uuid_id: _Optional[_Union[UUIDArray, _Mapping]] = ...) -> None: ...
 
 class SearchIteratorV2Results(_message.Message):
     __slots__ = ("token", "last_bound")

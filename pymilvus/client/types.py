@@ -115,6 +115,7 @@ class DataType(IntEnum):
     JSON = schema_pb2.JSON
     GEOMETRY = schema_pb2.Geometry
     TIMESTAMPTZ = schema_pb2.Timestamptz
+    UUID = schema_pb2.UUID
 
     BINARY_VECTOR = schema_pb2.BinaryVector
     FLOAT_VECTOR = schema_pb2.FloatVector

@@ -78,6 +78,7 @@ _JSON_TYPE_MAP = {
     DataType.INT64: "Int64",
     DataType.BOOL: "Bool",
     DataType.VARCHAR: "VarChar",
+    DataType.UUID: "VarChar",
     DataType.STRING: "VarChar",
 }
 
@@ -299,8 +300,8 @@ class Prepare:
         if is_primary:
             if primary_field is not None:
                 raise ParamError(message="A collection should only have one primary field")
-            if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR]:
-                msg = "int64 and varChar are the only supported types of primary key"
+            if DataType(data_type) not in [DataType.INT64, DataType.VARCHAR, DataType.UUID]:
+                msg = "int64, varChar and uuid are the supported types of primary key"
                 raise ParamError(message=msg)
             primary_field = field_name
 

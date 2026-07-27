@@ -287,6 +287,9 @@ TYPE_INFO: Mapping[DataType, TypeInfo] = MappingProxyType(
         DataType.TIMESTAMPTZ: _scalar(
             DataType.TIMESTAMPTZ, "string_data", "str", ArrowLayout("string")
         ),
+        DataType.UUID: _scalar(
+            DataType.UUID, "string_data", "str", ArrowLayout("string"), array_element=True,
+        ),
         DataType.FLOAT_VECTOR: TypeInfo(
             dtype=DataType.FLOAT_VECTOR,
             family=TypeFamily.DENSE_VECTOR,
