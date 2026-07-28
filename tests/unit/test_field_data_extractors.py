@@ -1,4 +1,5 @@
 import struct
+from types import SimpleNamespace
 
 import orjson
 import pytest
@@ -75,6 +76,33 @@ def test_decode_scalar_json_and_array_cells():
     decoded_array = decode_cell(array_field, 0)
     assert decoded_array == [1, 2]
     assert isinstance(decoded_array, list)
+
+
+def test_decode_nullable_scalar_range_scans_validity_once():
+    class CountingValidity:
+        def __init__(self, values):
+            self.values = values
+            self.scanned_values = 0
+
+        def __len__(self):
+            return len(self.values)
+
+        def __getitem__(self, key):
+            values = self.values[key]
+            self.scanned_values += len(values) if isinstance(key, slice) else 1
+            return values
+
+    validity = CountingValidity([True, False, True, True])
+    field = SimpleNamespace(
+        type=DataType.VARCHAR,
+        scalars=SimpleNamespace(
+            string_data=SimpleNamespace(data=["a", "b", "c", "d"]),
+        ),
+        valid_data=validity,
+    )
+
+    assert decode_range(field, 1, 4) == [None, "c", "d"]
+    assert validity.scanned_values == 3
 
 
 @pytest.mark.parametrize(
