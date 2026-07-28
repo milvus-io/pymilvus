@@ -1,6 +1,9 @@
 import math
 import struct
+from itertools import islice
 from typing import Sequence, Union
+
+import numpy as np
 
 from pymilvus.exceptions import ParamError
 
@@ -29,6 +32,12 @@ _MAX_FILTER_BYTES = 128 * 1024 * 1024
 _DOMAIN_INT64 = 1
 _DOMAIN_UTF8 = 2
 
+_HEADER_FORMAT = "<4sHHQdIB3x"
+_HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
+# One SBBF block is eight little-endian uint32 words; read and write it in a single call so the
+# hot loop does two struct operations per member instead of sixteen.
+_BLOCK_STRUCT = struct.Struct("<8I")
+
 
 def _rotl64(value: int, count: int) -> int:
     return ((value << count) | (value >> (64 - count))) & _MASK64
@@ -45,7 +54,33 @@ def _merge_round(accumulator: int, value: int) -> int:
     return (accumulator * _PRIME64_1 + _PRIME64_4) & _MASK64
 
 
-def _xxh64(data: bytes) -> int:
+def _avalanche(result: int) -> int:
+    result ^= result >> 33
+    result = (result * _PRIME64_2) & _MASK64
+    result ^= result >> 29
+    result = (result * _PRIME64_3) & _MASK64
+    return result ^ (result >> 32)
+
+
+def _xxh64_int64_python(value: int) -> int:
+    """Return XXH64(struct.pack("<q", value), seed=0) without materialising the 8 bytes.
+
+    Specialisation of :func:`_xxh64_python` for the one input length the INT64 domain ever
+    produces: the 32-byte stripe loop and both tail loops are unreachable, leaving a single
+    8-byte lane. ``value & _MASK64`` is exactly the little-endian two's-complement encoding
+    read back as ``<Q``, so the pack/unpack round trip drops out. Kept honest by
+    ``test_xxh64_int64_python_matches_generic``.
+    """
+    accumulator = ((value & _MASK64) * _PRIME64_2) & _MASK64
+    accumulator = ((accumulator << 31) | (accumulator >> 33)) & _MASK64
+    accumulator = (accumulator * _PRIME64_1) & _MASK64
+    result = (_PRIME64_5 + 8) ^ accumulator
+    result = ((result << 27) | (result >> 37)) & _MASK64
+    result = (result * _PRIME64_1 + _PRIME64_4) & _MASK64
+    return _avalanche(result)
+
+
+def _xxh64_python(data: bytes) -> int:
     """Return XXH64(data, seed=0), the Parquet SBBF hash contract."""
     length = len(data)
     index = 0
@@ -83,11 +118,93 @@ def _xxh64(data: bytes) -> int:
         result ^= (data[index] * _PRIME64_5) & _MASK64
         result = (_rotl64(result, 11) * _PRIME64_1) & _MASK64
         index += 1
-    result ^= result >> 33
-    result = (result * _PRIME64_2) & _MASK64
-    result ^= result >> 29
-    result = (result * _PRIME64_3) & _MASK64
-    return result ^ (result >> 32)
+    return _avalanche(result)
+
+
+try:
+    # Optional acceleration: pip install "pymilvus[bloom_filter]". The C implementation is the
+    # same XXH64 the pure-Python fallback computes, so the blob is identical either way -- only
+    # the build time changes. test_xxh64_python_matches_xxhash_c pins that equivalence whenever
+    # the package is installed.
+    from xxhash import xxh64_intdigest as _xxh64
+
+    _PACK_INT64 = struct.Struct("<q").pack
+
+    def _xxh64_int64(value: int) -> int:
+        return _xxh64(_PACK_INT64(value))
+
+except ImportError:  # pragma: no cover - depends on whether the extra is installed
+    _xxh64 = _xxh64_python
+    _xxh64_int64 = _xxh64_int64_python
+
+
+# Members are hashed a chunk at a time so the temporary uint64 arrays stay cache-resident and
+# peak memory does not scale with len(members). 16384 measured fastest; larger chunks fall off
+# a cache cliff (256K was 1.7x slower and used 26 MiB more at 10M members).
+_VECTOR_CHUNK = 1 << 14
+
+# Pre-reduced so every numpy constant below is already in range -- computing them with numpy
+# scalars would emit spurious overflow RuntimeWarnings.
+_NP_P1 = np.uint64(_PRIME64_1)
+_NP_P2 = np.uint64(_PRIME64_2)
+_NP_P3 = np.uint64(_PRIME64_3)
+_NP_P4 = np.uint64(_PRIME64_4)
+_NP_SEED_LEN8 = np.uint64((_PRIME64_5 + 8) & _MASK64)
+_NP_SALT = tuple(np.uint32(salt) for salt in _SALT)
+_NP_32 = np.uint64(32)
+_NP_MASK32 = np.uint64(0xFFFFFFFF)
+
+
+def _fill_int64_vectorised(buf: bytearray, members: Sequence[int], num_blocks: int) -> None:
+    """Hash and insert INT64 members with numpy, mirroring :func:`_xxh64_int64_python` exactly.
+
+    ``np.fromiter`` performs the int64 range check in C, so out-of-range members surface as
+    OverflowError instead of costing a per-member Python comparison.
+    """
+    # np.fromiter coerces silently where the scalar path raises: bool (an int subclass) becomes
+    # 0/1 and float is truncated. Screen the distinct types up front -- map(type, ...) runs at C
+    # speed, and the common all-int case settles in one set comparison.
+    member_types = set(map(type, members))
+    if member_types != {int}:
+        for member_type in member_types:
+            if member_type is bool or not issubclass(member_type, int):
+                raise ParamError(message="bloom filter members must be all int or all str")
+
+    words = np.frombuffer(buf, dtype=np.uint32, offset=_HEADER_SIZE)
+    blocks = np.uint64(num_blocks)
+    values = iter(members)
+    remaining = len(members)
+
+    while remaining:
+        size = _VECTOR_CHUNK if remaining > _VECTOR_CHUNK else remaining
+        try:
+            lanes = np.fromiter(islice(values, size), dtype=np.int64, count=size)
+        except OverflowError as exc:
+            raise ParamError(
+                message="integer bloom filter members must fit in signed int64"
+            ) from exc
+        except (TypeError, ValueError) as exc:
+            raise ParamError(message="bloom filter members must be all int or all str") from exc
+
+        accumulator = lanes.view(np.uint64) * _NP_P2
+        accumulator = ((accumulator << np.uint64(31)) | (accumulator >> np.uint64(33))) * _NP_P1
+        digest = _NP_SEED_LEN8 ^ accumulator
+        digest = ((digest << np.uint64(27)) | (digest >> np.uint64(37))) * _NP_P1 + _NP_P4
+        digest ^= digest >> np.uint64(33)
+        digest *= _NP_P2
+        digest ^= digest >> np.uint64(29)
+        digest *= _NP_P3
+        digest ^= digest >> _NP_32
+
+        word_base = (((digest >> _NP_32) * blocks) >> _NP_32).astype(np.intp) * 8
+        key = (digest & _NP_MASK32).astype(np.uint32)
+        for index, salt in enumerate(_NP_SALT):
+            bit = np.uint32(1) << ((key * salt) >> np.uint32(27))
+            # Unbuffered: several members routinely land in the same block, so the OR has to
+            # accumulate rather than let one write win.
+            np.bitwise_or.at(words, word_base + index, bit)
+
+        remaining -= size
 
 
 def _optimal_num_bytes(count: int, fpr: float) -> int:
@@ -122,30 +239,72 @@ def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT
     else:
         raise ParamError(message="bloom filter members must be all int or all str")
 
-    num_bytes = _optimal_num_bytes(len(members), float(fpr))
+    count = len(members)
+    num_bytes = _optimal_num_bytes(count, float(fpr))
     num_blocks = num_bytes // 32
-    body = bytearray(num_bytes)
+    # Reserve the header in place so the blob is assembled in one buffer. Concatenating a separate
+    # header would hold the body, its bytes() copy and the joined result live at once, tripling
+    # peak memory for large member sets.
+    buf = bytearray(_HEADER_SIZE + num_bytes)
+    struct.pack_into(_HEADER_FORMAT, buf, 0, b"MBF1", 1, 1, count, float(fpr), num_blocks, domain)
+
+    if domain == _DOMAIN_INT64:
+        _fill_int64_vectorised(buf, members, num_blocks)
+    elif domain == _DOMAIN_UTF8:
+        _fill_scalar(buf, members, domain, num_blocks)
+
+    return bytes(buf)
+
+
+def _fill_scalar(
+    buf: bytearray, members: Sequence[Union[int, str]], domain: int, num_blocks: int
+) -> None:
+    """Hash and insert members one at a time.
+
+    Serves the UTF8 domain, which cannot be vectorised because XXH64's stripe and tail loops
+    depend on each member's byte length. Also the reference the vectorised INT64 path is
+    checked against by ``test_int64_vectorised_matches_scalar``.
+    """
+    int_domain = domain == _DOMAIN_INT64
+    salt0, salt1, salt2, salt3, salt4, salt5, salt6, salt7 = _SALT
+    unpack_block = _BLOCK_STRUCT.unpack_from
+    pack_block = _BLOCK_STRUCT.pack_into
+    hash_int64 = _xxh64_int64
+    hash_bytes = _xxh64
+
     for value in members:
-        if domain == _DOMAIN_INT64:
+        if int_domain:
             if not isinstance(value, int) or isinstance(value, bool):
                 raise ParamError(message="bloom filter members must be all int or all str")
             if value < -(1 << 63) or value > (1 << 63) - 1:
                 raise ParamError(message="integer bloom filter members must fit in signed int64")
-            encoded_value = struct.pack("<q", value)
+            hash_value = hash_int64(value)
         else:
             if not isinstance(value, str):
                 raise ParamError(message="bloom filter members must be all int or all str")
-            encoded_value = value.encode("utf-8")
+            hash_value = hash_bytes(value.encode("utf-8"))
 
-        hash_value = _xxh64(encoded_value)
-        block = ((hash_value >> 32) * num_blocks) >> 32
+        base = _HEADER_SIZE + ((((hash_value >> 32) * num_blocks) >> 32) << 5)
         key = hash_value & 0xFFFFFFFF
-        base = block * 32
-        for index, salt in enumerate(_SALT):
-            offset = base + index * 4
-            word = struct.unpack_from("<I", body, offset)[0]
-            word |= 1 << ((key * salt & 0xFFFFFFFF) >> 27)
-            struct.pack_into("<I", body, offset, word)
+        word0, word1, word2, word3, word4, word5, word6, word7 = unpack_block(buf, base)
+        pack_block(
+            buf,
+            base,
+            word0 | 1 << ((key * salt0 & 0xFFFFFFFF) >> 27),
+            word1 | 1 << ((key * salt1 & 0xFFFFFFFF) >> 27),
+            word2 | 1 << ((key * salt2 & 0xFFFFFFFF) >> 27),
+            word3 | 1 << ((key * salt3 & 0xFFFFFFFF) >> 27),
+            word4 | 1 << ((key * salt4 & 0xFFFFFFFF) >> 27),
+            word5 | 1 << ((key * salt5 & 0xFFFFFFFF) >> 27),
+            word6 | 1 << ((key * salt6 & 0xFFFFFFFF) >> 27),
+            word7 | 1 << ((key * salt7 & 0xFFFFFFFF) >> 27),
+        )
 
-    header = struct.pack("<4sHHQdIB3x", b"MBF1", 1, 1, len(members), float(fpr), num_blocks, domain)
-    return header + bytes(body)
+
+def _fill_scalar_int64(buf: bytearray, members: Sequence[int], num_blocks: int) -> None:
+    """Scalar INT64 insertion, signature-compatible with :func:`_fill_int64_vectorised`.
+
+    Not on the default path -- it exists so the vectorised implementation has a reference to be
+    checked against, and as a drop-in should numpy ever need to be bypassed.
+    """
+    _fill_scalar(buf, members, _DOMAIN_INT64, num_blocks)
