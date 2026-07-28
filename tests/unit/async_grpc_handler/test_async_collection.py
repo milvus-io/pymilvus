@@ -692,6 +692,47 @@ class TestAsyncGrpcHandlerCollectionProperties:
             GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
+    async def test_add_collection_field_falls_back_for_external_collection(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.alter_status = common_pb2.Status(
+            code=1100,
+            error_code=common_pb2.IllegalArgument,
+            reason=(
+                "alter collection schema operation is not supported for external collection "
+                "test_coll: invalid parameter"
+            ),
+        )
+        mock_stub.AlterCollectionSchema = AsyncMock(return_value=mock_response)
+        legacy_status = MagicMock(code=0, error_code=0, reason="")
+        mock_stub.AddCollectionField = AsyncMock(return_value=legacy_status)
+        handler._async_stub = mock_stub
+
+        mock_field_schema = MagicMock()
+        legacy_request = MagicMock()
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch("pymilvus.client.async_grpc_handler.check_status") as mock_check_status:
+            mock_prepare.alter_collection_schema_request.return_value = MagicMock()
+            mock_prepare.add_collection_field_request.return_value = legacy_request
+
+            await handler.add_collection_field("test_coll", mock_field_schema)
+
+            mock_stub.AlterCollectionSchema.assert_awaited_once()
+            mock_prepare.add_collection_field_request.assert_called_once_with(
+                "test_coll", mock_field_schema
+            )
+            mock_stub.AddCollectionField.assert_awaited_once()
+            assert mock_stub.AddCollectionField.call_args.args[0] is legacy_request
+            mock_check_status.assert_called_once_with(legacy_status)
+
+    @pytest.mark.asyncio
     async def test_add_collection_struct_field(self) -> None:
         """Test add_collection_struct_field async API"""
         mock_channel = MagicMock()
