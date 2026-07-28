@@ -160,11 +160,6 @@ def decode_cell(
         return None
 
     field_type = field_data.type
-    physical = (
-        physical_index(field_data, logical_index)
-        if physical_index_override is None
-        else physical_index_override
-    )
 
     if field_type == DataType.JSON:
         data = field_data.scalars.json_data.data
@@ -178,6 +173,11 @@ def decode_cell(
         return None if logical_index >= len(data) else data[logical_index]
 
     if type_info.is_dense_vector_type(field_type):
+        physical = (
+            physical_index(field_data, logical_index)
+            if physical_index_override is None
+            else physical_index_override
+        )
         dim = field_data.vectors.dim
         width = dense_vector_width(field_type, dim)
         data = dense_vector_data if dense_vector_data is not None else get_field_data(field_data)
@@ -191,6 +191,11 @@ def decode_cell(
         return value
 
     if type_info.is_sparse_vector_type(field_type):
+        physical = (
+            physical_index(field_data, logical_index)
+            if physical_index_override is None
+            else physical_index_override
+        )
         contents = field_data.vectors.sparse_float_vector.contents
         return None if physical >= len(contents) else sparse_parse_single_row(contents[physical])
 
@@ -206,6 +211,16 @@ def decode_cell(
 
 
 def decode_range(field_data: Any, start: int, end: int) -> List[Any]:
+    field_type = field_data.type
+    if type_info.is_scalar_type(field_type) and field_type != DataType.JSON:
+        # Scalar payloads stay aligned with logical rows, including nullable fields.
+        data = list(get_field_data(field_data)[start:end])
+        if len(field_data.valid_data) == 0:
+            return data
+        return [
+            value if valid else None for value, valid in zip(data, field_data.valid_data[start:end])
+        ]
+
     return [decode_cell(field_data, index) for index in range(start, end)]
 
 
