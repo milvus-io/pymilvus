@@ -1,4 +1,5 @@
 import json
+import struct
 from pathlib import Path
 
 import pytest
@@ -25,6 +26,30 @@ def test_build_bloom_filter_matches_parquet_sbbf_string_vector():
     )
 
     assert build_bloom_filter(members, fpr=0.001) == expected
+
+
+@pytest.mark.parametrize(
+    "length,expected_hex",
+    [
+        (
+            31,
+            "4d424631010001000100000000000000fca9f1d24d62503f0100000002000000"
+            "0000000200100000000080000004000000000200000008002000000000000200",
+        ),
+        (
+            32,
+            "4d424631010001000100000000000000fca9f1d24d62503f0100000002000000"
+            "0000800020000000020000000000020002000000000080000000800000000080",
+        ),
+        (
+            33,
+            "4d424631010001000100000000000000fca9f1d24d62503f0100000002000000"
+            "0000800000000001000000040001000020000000000020000800000040000000",
+        ),
+    ],
+)
+def test_build_bloom_filter_matches_go_xxh64_boundary_vectors(length, expected_hex):
+    assert build_bloom_filter(["a" * length], fpr=0.001) == bytes.fromhex(expected_hex)
 
 
 def test_build_bloom_filter_matches_arrow_cpp_fixture():
@@ -57,9 +82,27 @@ def test_build_bloom_filter_encodes_value_domain(members, domain):
     assert blob[29:32] == b"\x00\x00\x00"
 
 
+@pytest.mark.parametrize("fpr", [0.0001, 0.05])
+def test_build_bloom_filter_accepts_fpr_boundaries(fpr):
+    blob = build_bloom_filter([1], fpr=fpr)
+
+    assert struct.unpack_from("<d", blob, 16)[0] == fpr
+
+
 @pytest.mark.parametrize(
     "members,fpr",
-    [([1, "mixed"], 0.001), ([True], 0.001), ([1], 0.5)],
+    [
+        ([1, "mixed"], 0.001),
+        (["mixed", 1], 0.001),
+        ([True], 0.001),
+        ("not-a-list", 0.001),
+        ([1 << 63], 0.001),
+        ([-(1 << 63) - 1], 0.001),
+        ([1], 0.00009),
+        ([1], 0.051),
+        ([1], float("nan")),
+        ([1], float("inf")),
+    ],
 )
 def test_build_bloom_filter_rejects_invalid_input(members, fpr):
     with pytest.raises(ParamError):

@@ -113,27 +113,31 @@ def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT
         raise ParamError(message=f"bloom filter fpr must be in [{_MIN_FPR}, {_MAX_FPR}]")
     if not isinstance(members, (list, tuple)):
         raise ParamError(message="bloom filter members must be a list or tuple of int or str")
-    if members and all(isinstance(value, int) and not isinstance(value, bool) for value in members):
-        domain = _DOMAIN_INT64
-        encoded = []
-        for value in members:
-            if value < -(1 << 63) or value > (1 << 63) - 1:
-                raise ParamError(message="integer bloom filter members must fit in signed int64")
-            encoded.append(struct.pack("<q", value))
-    elif members and all(isinstance(value, str) for value in members):
-        domain = _DOMAIN_UTF8
-        encoded = [value.encode("utf-8") for value in members]
-    elif not members:
+    if not members:
         domain = 0
-        encoded = []
+    elif isinstance(members[0], int) and not isinstance(members[0], bool):
+        domain = _DOMAIN_INT64
+    elif isinstance(members[0], str):
+        domain = _DOMAIN_UTF8
     else:
         raise ParamError(message="bloom filter members must be all int or all str")
 
-    num_bytes = _optimal_num_bytes(len(encoded), float(fpr))
+    num_bytes = _optimal_num_bytes(len(members), float(fpr))
     num_blocks = num_bytes // 32
     body = bytearray(num_bytes)
-    for value in encoded:
-        hash_value = _xxh64(value)
+    for value in members:
+        if domain == _DOMAIN_INT64:
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise ParamError(message="bloom filter members must be all int or all str")
+            if value < -(1 << 63) or value > (1 << 63) - 1:
+                raise ParamError(message="integer bloom filter members must fit in signed int64")
+            encoded_value = struct.pack("<q", value)
+        else:
+            if not isinstance(value, str):
+                raise ParamError(message="bloom filter members must be all int or all str")
+            encoded_value = value.encode("utf-8")
+
+        hash_value = _xxh64(encoded_value)
         block = ((hash_value >> 32) * num_blocks) >> 32
         key = hash_value & 0xFFFFFFFF
         base = block * 32
@@ -143,5 +147,5 @@ def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT
             word |= 1 << ((key * salt & 0xFFFFFFFF) >> 27)
             struct.pack_into("<I", body, offset, word)
 
-    header = struct.pack("<4sHHQdIB3x", b"MBF1", 1, 1, len(encoded), float(fpr), num_blocks, domain)
+    header = struct.pack("<4sHHQdIB3x", b"MBF1", 1, 1, len(members), float(fpr), num_blocks, domain)
     return header + bytes(body)
