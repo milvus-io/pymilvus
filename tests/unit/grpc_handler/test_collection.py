@@ -8,7 +8,7 @@ import pytest
 from pymilvus import FieldSchema, Function, FunctionType, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DescribeCollectionException
+from pymilvus.exceptions import DescribeCollectionException, MilvusException
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 
 from .conftest import (
@@ -242,6 +242,50 @@ class TestGrpcHandlerCollectionProperties:
         assert field_schema.name == "new_field"
         assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
         GlobalCache._reset_for_testing()
+
+    def test_add_collection_field_falls_back_for_external_collection(self, handler):
+        response = MagicMock()
+        response.alter_status = common_pb2.Status(
+            code=1100,
+            error_code=common_pb2.IllegalArgument,
+            reason=(
+                "alter collection schema operation is not supported for external collection coll: "
+                "invalid parameter"
+            ),
+        )
+        handler._stub.AlterCollectionSchema.return_value = response
+        handler._stub.AddCollectionField.return_value = make_status()
+        field = FieldSchema(
+            name="new_field",
+            dtype=DataType.VARCHAR,
+            max_length=256,
+            external_field="source_field",
+        )
+
+        handler.add_collection_field("coll", field)
+
+        handler._stub.AlterCollectionSchema.assert_called_once()
+        handler._stub.AddCollectionField.assert_called_once()
+        request = handler._stub.AddCollectionField.call_args.args[0]
+        field_schema = schema_pb2.FieldSchema()
+        field_schema.ParseFromString(request.schema)
+        assert field_schema.name == "new_field"
+        assert field_schema.external_field == "source_field"
+
+    def test_add_collection_field_does_not_fallback_for_other_business_errors(self, handler):
+        response = MagicMock()
+        response.alter_status = common_pb2.Status(
+            code=1100,
+            error_code=common_pb2.IllegalArgument,
+            reason="invalid add field request",
+        )
+        handler._stub.AlterCollectionSchema.return_value = response
+        field = FieldSchema(name="new_field", dtype=DataType.VARCHAR, max_length=256)
+
+        with pytest.raises(MilvusException, match="invalid add field request"):
+            handler.add_collection_field("coll", field)
+
+        handler._stub.AddCollectionField.assert_not_called()
 
     def test_add_collection_struct_field(self, handler):
         handler._stub.AddCollectionStructField.return_value = make_status()
