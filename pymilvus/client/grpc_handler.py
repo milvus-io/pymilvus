@@ -91,6 +91,7 @@ from .utils import (
     check_status,
     get_server_type,
     immutable_message_to_dict,
+    is_external_collection_schema_alter_unsupported,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -551,14 +552,21 @@ class GrpcHandler:
             collection_name=collection_name,
             field_schema=field_schema,
         )
+        fallback_to_legacy = False
         try:
             response = self._stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            check_status(response.alter_status)
+            if is_external_collection_schema_alter_unsupported(response.alter_status):
+                fallback_to_legacy = True
+            else:
+                check_status(response.alter_status)
         except grpc.RpcError as e:
             if e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
+            fallback_to_legacy = True
+
+        if fallback_to_legacy:
             legacy_request = Prepare.add_collection_field_request(collection_name, field_schema)
             status = self._stub.AddCollectionField(
                 legacy_request, timeout=timeout, metadata=_api_level_md(context)
