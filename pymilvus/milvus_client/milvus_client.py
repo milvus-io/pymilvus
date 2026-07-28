@@ -171,7 +171,7 @@ class MilvusClient(BaseMilvusClient):
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
 
         pk_args = {}
-        if "max_length" in kwargs and pk_data_type in (DataType.VARCHAR, DataType.UUID):
+        if "max_length" in kwargs and pk_data_type == DataType.VARCHAR:
             pk_args["max_length"] = kwargs["max_length"]
 
         schema.add_field(primary_field_name, pk_data_type, is_primary=True, **pk_args)

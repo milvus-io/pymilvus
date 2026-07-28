@@ -78,7 +78,7 @@ _JSON_TYPE_MAP = {
     DataType.INT64: "Int64",
     DataType.BOOL: "Bool",
     DataType.VARCHAR: "VarChar",
-    DataType.UUID: "VarChar",
+    DataType.UUID: "UUID",
     DataType.STRING: "VarChar",
 }
 
