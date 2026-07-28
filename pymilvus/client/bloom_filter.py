@@ -26,6 +26,8 @@ _MAX_FPR = 0.05
 _DEFAULT_FPR = 0.005
 _MIN_FILTER_BYTES = 32
 _MAX_FILTER_BYTES = 128 * 1024 * 1024
+_DOMAIN_INT64 = 1
+_DOMAIN_UTF8 = 2
 
 
 def _rotl64(value: int, count: int) -> int:
@@ -112,14 +114,17 @@ def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT
     if not isinstance(members, (list, tuple)):
         raise ParamError(message="bloom filter members must be a list or tuple of int or str")
     if members and all(isinstance(value, int) and not isinstance(value, bool) for value in members):
+        domain = _DOMAIN_INT64
         encoded = []
         for value in members:
             if value < -(1 << 63) or value > (1 << 63) - 1:
                 raise ParamError(message="integer bloom filter members must fit in signed int64")
             encoded.append(struct.pack("<q", value))
     elif members and all(isinstance(value, str) for value in members):
+        domain = _DOMAIN_UTF8
         encoded = [value.encode("utf-8") for value in members]
     elif not members:
+        domain = 0
         encoded = []
     else:
         raise ParamError(message="bloom filter members must be all int or all str")
@@ -138,5 +143,5 @@ def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT
             word |= 1 << ((key * salt & 0xFFFFFFFF) >> 27)
             struct.pack_into("<I", body, offset, word)
 
-    header = struct.pack("<4sHHQdII", b"MBF1", 1, 1, len(encoded), float(fpr), num_blocks, 0)
+    header = struct.pack("<4sHHQdIB3x", b"MBF1", 1, 1, len(encoded), float(fpr), num_blocks, domain)
     return header + bytes(body)
