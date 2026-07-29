@@ -81,12 +81,16 @@ def test_xxh64_int64_python_matches_generic():
 def test_build_bloom_filter_fallback_matches_default_path(monkeypatch, members):
     """Forcing the pure-Python hashes must reproduce the blob the default path builds.
 
-    Keeps the fallback exercised even when the optional C accelerator is installed.
+    Keeps the fallback exercised even when the optional C accelerator is installed. The INT64
+    default path is the vectorised fill, which inlines its own hash and never consults
+    ``_xxh64_int64``, so that case must also swap in the scalar fill -- without it the
+    monkeypatched hash never runs and the INT64 case compares the default path to itself.
     """
     expected = build_bloom_filter(members, fpr=0.001)
 
     monkeypatch.setattr(bloom_filter, "_xxh64", bloom_filter._xxh64_python)
     monkeypatch.setattr(bloom_filter, "_xxh64_int64", bloom_filter._xxh64_int64_python)
+    monkeypatch.setattr(bloom_filter, "_fill_int64_vectorised", bloom_filter._fill_scalar_int64)
 
     assert build_bloom_filter(members, fpr=0.001) == expected
 
