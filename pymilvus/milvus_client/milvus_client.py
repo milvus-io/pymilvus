@@ -1,7 +1,7 @@
 import copy
 import logging
 import time
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -10,6 +10,7 @@ from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
+from pymilvus.client.search_result import Hit, Hits
 from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
@@ -605,6 +606,8 @@ class MilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         round_decimal: int = -1,
+        *,
+        external_filter_func: Optional[Callable[[Hits], Union[Hits, List[Hit]]]] = None,
         **kwargs,
     ) -> Union[SearchIteratorV2, SearchIterator]:
         """Creates an iterator for searching vectors in batches.
@@ -630,6 +633,9 @@ class MilvusClient(BaseMilvusClient):
                 there is only one vector field in the collection.
             round_decimal (int, optional): Number of decimal places for distance values.
                 Defaults to -1 (no rounding).
+            external_filter_func (Callable, optional): A client-side callback that filters each
+                page of search hits. The callback receives Hits and returns Hits or a list of Hit
+                objects. This argument is keyword-only and is supported by Search Iterator V2.
             **kwargs: Additional arguments to pass to the search operation.
 
         Returns:
@@ -669,6 +675,7 @@ class MilvusClient(BaseMilvusClient):
                 partition_names=partition_names,
                 anns_field=anns_field or "",
                 round_decimal=round_decimal,
+                external_filter_func=external_filter_func,
                 rpc_options=kwargs,
             )
         except ServerVersionIncompatibleException:

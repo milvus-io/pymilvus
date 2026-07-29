@@ -1,9 +1,10 @@
 import ast
 import importlib
+import inspect
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 from pymilvus import PyMilvusDeprecationWarning
@@ -544,6 +545,60 @@ def test_milvus_client_uses_shared_search_v2_owner_and_one_context():
     assert handler.describe_calls[0][1]["context"] is context
     assert all(call["context"] is context for call in handler.search_calls)
     assert all(call["cluster_id"] == "cluster" for call in handler.search_calls)
+
+
+def test_milvus_client_search_iterator_external_filter_is_explicit_keyword_only():
+    parameters = inspect.signature(MilvusClient.search_iterator).parameters
+    parameter = parameters["external_filter_func"]
+
+    assert parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameter.default is None
+    assert all(
+        parameters[name].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+        for name in (
+            "batch_size",
+            "filter",
+            "limit",
+            "output_fields",
+            "search_params",
+            "timeout",
+            "partition_names",
+            "anns_field",
+            "round_decimal",
+        )
+    )
+
+
+def test_milvus_client_search_v2_preserves_external_filter_callback():
+    handler = _SwitchingSearchV2Handler()
+    handler.search = Mock(
+        side_effect=[
+            _SearchV2Result([_SearchV2Hit(0, "probe")]),
+            _SearchV2Result([_SearchV2Hit(1, "rejected")]),
+            _SearchV2Result([_SearchV2Hit(2, "accepted")]),
+        ]
+    )
+    context = CallContext(db_name="db", client_request_id="request")
+    client = object.__new__(MilvusClient)
+    client._handler = handler
+    external_filter = Mock(side_effect=lambda hits: [hit for hit in hits if hit.id == 2])
+
+    with patch.object(client, "_generate_call_context", return_value=context) as generate_context:
+        iterator = client.search_iterator(
+            "collection",
+            data=[[0.1, 0.2]],
+            batch_size=1,
+            external_filter_func=external_filter,
+        )
+
+    page = iterator.next()
+
+    assert page.ids() == [2]
+    assert external_filter.call_count == 2
+    assert len(handler.search.call_args_list) == 3
+    assert "external_filter_func" not in generate_context.call_args.kwargs
+    assert "external_filter_func" not in handler.describe_calls[0][1]
+    assert all("external_filter_func" not in call.kwargs for call in handler.search.call_args_list)
 
 
 def test_milvus_client_preserves_search_v2_public_preparation():
