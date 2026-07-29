@@ -3,6 +3,7 @@ import random
 import struct
 from pathlib import Path
 
+import numpy as np
 import pytest
 from pymilvus import build_bloom_filter
 from pymilvus.client import bloom_filter
@@ -101,6 +102,34 @@ def test_int64_vectorised_matches_scalar(monkeypatch, count):
 
     monkeypatch.setattr(bloom_filter, "_fill_int64_vectorised", bloom_filter._fill_scalar_int64)
     assert build_bloom_filter(members, fpr=0.001) == vectorised
+
+
+def test_int64_vectorised_block_words_pinned_little_endian(monkeypatch):
+    """The block-word view must be explicitly little-endian, never host-native.
+
+    ``np.uint32`` follows the host byte order: on a big-endian client (s390x, ppc64) it would
+    write byte-swapped SBBF words that a little-endian QueryNode reads as different bit
+    positions -- silent false negatives. The wire dtype is pinned as ``_WORD_DTYPE = "<u4"``,
+    and this test proves the fill actually routes through it: forcing the constant to ">u4"
+    (what native order resolves to on a big-endian host) must produce the same word *values*
+    in the opposite byte order. On little-endian CI both asserts fail if the fill regresses
+    to a hard-coded native dtype, because overriding the constant would then change nothing.
+    """
+    assert bloom_filter._WORD_DTYPE.newbyteorder("<") == bloom_filter._WORD_DTYPE
+
+    rng = random.Random(20260729)
+    members = [rng.randrange(-(1 << 63), 1 << 63) for _ in range(500)]
+    expected = build_bloom_filter(members, fpr=0.001)
+
+    monkeypatch.setattr(bloom_filter, "_WORD_DTYPE", np.dtype(">u4"))
+    swapped = build_bloom_filter(members, fpr=0.001)
+
+    header_size = bloom_filter._HEADER_SIZE
+    assert swapped[:header_size] == expected[:header_size]
+    assert swapped != expected
+    expected_words = np.frombuffer(expected, dtype="<u4", offset=header_size)
+    swapped_words = np.frombuffer(swapped, dtype=">u4", offset=header_size)
+    assert np.array_equal(swapped_words, expected_words)
 
 
 @pytest.mark.parametrize(

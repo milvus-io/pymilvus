@@ -37,6 +37,10 @@ _HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
 # One SBBF block is eight little-endian uint32 words; read and write it in a single call so the
 # hot loop does two struct operations per member instead of sixteen.
 _BLOCK_STRUCT = struct.Struct("<8I")
+# The numpy view over those words must pin the same byte order: np.uint32 is host-native, which
+# on a big-endian client would emit byte-swapped block words that a little-endian server reads
+# as different bit positions.
+_WORD_DTYPE = np.dtype("<u4")
 
 
 def _rotl64(value: int, count: int) -> int:
@@ -170,7 +174,7 @@ def _fill_int64_vectorised(buf: bytearray, members: Sequence[int], num_blocks: i
             if member_type is bool or not issubclass(member_type, int):
                 raise ParamError(message="bloom filter members must be all int or all str")
 
-    words = np.frombuffer(buf, dtype=np.uint32, offset=_HEADER_SIZE)
+    words = np.frombuffer(buf, dtype=_WORD_DTYPE, offset=_HEADER_SIZE)
     blocks = np.uint64(num_blocks)
     values = iter(members)
     remaining = len(members)
