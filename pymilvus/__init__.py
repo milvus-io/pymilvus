@@ -19,6 +19,7 @@ __path__ = extend_path(__path__, __name__)
 from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
+from .client.bloom_filter import build_bloom_filter
 from .client.field_ops import FieldOp, FieldOpType
 from .client.prepare import Prepare
 from .client.search_aggregation import (
@@ -141,6 +142,7 @@ __all__ = [
     "TopHits",
     "WeightedRanker",
     "__version__",
+    "build_bloom_filter",
     "connections",
     "create_resource_group",
     "create_user",
