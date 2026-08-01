@@ -41,6 +41,15 @@ _BLOCK_STRUCT = struct.Struct("<8I")
 # on a big-endian client would emit byte-swapped block words that a little-endian server reads
 # as different bit positions.
 _WORD_DTYPE = np.dtype("<u4")
+# The body is also viewed 64 bits at a time so one scatter covers two of a block's eight
+# words. Pinned little-endian for the same reason _WORD_DTYPE is: a host-native dtype would
+# emit byte-swapped lanes on a big-endian client.
+_WORD64_DTYPE = np.dtype("<u8")
+# A 32-byte block is four uint64 lanes.
+_LANES_PER_BLOCK = 4
+# Buffered retries before falling back to the unbuffered scatter. Three covers the collision
+# rate a well-sized filter produces; the cap is what stops an oversubscribed one degenerating.
+_MAX_BUFFERED_PASSES = 3
 
 
 def _rotl64(value: int, count: int) -> int:
@@ -184,15 +193,40 @@ def _insert_digests(words: np.ndarray, digests: np.ndarray, num_blocks: int) -> 
     land in exactly the same bit positions, and doing this part per member in Python costs far
     more than the hashing does -- 10M strings hash in 0.4s with the C accelerator while the
     scalar insert loop they used to feed took ~10s.
+
+    Two things make this faster than the obvious ``np.bitwise_or.at`` per word:
+
+    * ``words`` is a uint64 view, so each 64-bit lane carries two of the block's eight 32-bit
+      words and the scatter runs four times per member instead of eight. The view dtype pins
+      little-endian, so lane = word[2i] | word[2i+1] << 32 holds on any host.
+    * The scatter itself is a buffered ``words[idx] |= bits`` rather than the unbuffered
+      ``ufunc.at``, which is an order of magnitude slower. A buffered scatter silently drops
+      all but one write when indices repeat -- and they do repeat, since a 16384-member chunk
+      landing in 524288 blocks collides a couple of hundred times -- but OR is idempotent and
+      order-independent, so the writes that lost can simply be retried. Together: 2x.
+
+    Retries are capped and the remainder handed to ``ufunc.at``. Without the cap a filter
+    whose blocks are heavily oversubscribed (``BloomFilterBuilder(1, fpr)`` fed a million
+    members, which the API allows) degenerates to one pass per colliding member and runs 11x
+    *slower* than the unbuffered scatter it replaced.
     """
     blocks = np.uint64(num_blocks)
-    word_base = (((digests >> _NP_32) * blocks) >> _NP_32).astype(np.intp) * 8
+    lane_base = (((digests >> _NP_32) * blocks) >> _NP_32).astype(np.intp) * _LANES_PER_BLOCK
     key = (digests & _NP_MASK32).astype(np.uint32)
-    for index, salt in enumerate(_NP_SALT):
-        bit = np.uint32(1) << ((key * salt) >> np.uint32(27))
-        # Unbuffered: several members routinely land in the same block, so the OR has to
-        # accumulate rather than let one write win.
-        np.bitwise_or.at(words, word_base + index, bit)
+    masks = [np.uint64(1) << ((key * salt) >> np.uint32(27)).astype(np.uint64) for salt in _NP_SALT]
+
+    for lane in range(_LANES_PER_BLOCK):
+        index = lane_base + lane
+        bits = masks[2 * lane] | (masks[2 * lane + 1] << _NP_32)
+        for _ in range(_MAX_BUFFERED_PASSES):
+            words[index] |= bits
+            stale = (words[index] & bits) != bits
+            if not stale.any():
+                break
+            index = index[stale]
+            bits = bits[stale]
+        else:
+            np.bitwise_or.at(words, index, bits)
 
 
 def _screen_int_members(chunk: Sequence[int]) -> None:
@@ -285,7 +319,7 @@ def _fill_int64_vectorised(buf: bytearray, members: Sequence[int], num_blocks: i
     Retained as the entry point this module used before :class:`BloomFilterBuilder` existed;
     it now just drives the shared chunk loop.
     """
-    words = np.frombuffer(buf, dtype=_WORD_DTYPE, offset=_HEADER_SIZE)
+    words = np.frombuffer(buf, dtype=_WORD64_DTYPE, offset=_HEADER_SIZE)
     _add_int64_chunks(words, members, num_blocks)
 
 
@@ -350,7 +384,7 @@ class BloomFilterBuilder:
         # a separate header would hold the body, its bytes() copy and the joined result live at
         # once, tripling peak memory for large member sets.
         self._buf = bytearray(_HEADER_SIZE + num_bytes)
-        self._words = np.frombuffer(self._buf, dtype=_WORD_DTYPE, offset=_HEADER_SIZE)
+        self._words = np.frombuffer(self._buf, dtype=_WORD64_DTYPE, offset=_HEADER_SIZE)
 
     def add_int64_batch(self, values: Iterable[int]) -> "BloomFilterBuilder":
         """Inserts integer members, hashed as their 8-byte little-endian encoding."""

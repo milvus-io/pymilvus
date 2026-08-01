@@ -141,32 +141,32 @@ def test_string_vectorised_matches_scalar(count):
     )
 
 
-def test_int64_vectorised_block_words_pinned_little_endian(monkeypatch):
-    """The block-word view must be explicitly little-endian, never host-native.
+def test_body_view_is_pinned_little_endian(monkeypatch):
+    """The view the body is written through must be explicitly little-endian, never native.
 
-    ``np.uint32`` follows the host byte order: on a big-endian client (s390x, ppc64) it would
-    write byte-swapped SBBF words that a little-endian QueryNode reads as different bit
-    positions -- silent false negatives. The wire dtype is pinned as ``_WORD_DTYPE = "<u4"``,
-    and this test proves the fill actually routes through it: forcing the constant to ">u4"
-    (what native order resolves to on a big-endian host) must produce the same word *values*
-    in the opposite byte order. On little-endian CI both asserts fail if the fill regresses
-    to a hard-coded native dtype, because overriding the constant would then change nothing.
+    A host-native dtype follows the machine: on a big-endian client (s390x, ppc64) it would
+    write byte-swapped lanes that a little-endian QueryNode reads as different bit positions
+    -- silent false negatives. The wire dtype is pinned as ``_WORD64_DTYPE = "<u8"``, and this
+    test proves the fill actually routes through it: forcing the constant to ">u8" (what
+    native order resolves to on a big-endian host) must produce the same lane *values* in the
+    opposite byte order. On little-endian CI both asserts fail if the fill regresses to a
+    hard-coded native dtype, because overriding the constant would then change nothing.
     """
-    assert bloom_filter._WORD_DTYPE.newbyteorder("<") == bloom_filter._WORD_DTYPE
+    assert bloom_filter._WORD64_DTYPE.newbyteorder("<") == bloom_filter._WORD64_DTYPE
 
     rng = random.Random(20260729)
     members = [rng.randrange(-(1 << 63), 1 << 63) for _ in range(500)]
     expected = build_bloom_filter(members, fpr=0.001)
 
-    monkeypatch.setattr(bloom_filter, "_WORD_DTYPE", np.dtype(">u4"))
+    monkeypatch.setattr(bloom_filter, "_WORD64_DTYPE", np.dtype(">u8"))
     swapped = build_bloom_filter(members, fpr=0.001)
 
     header_size = bloom_filter._HEADER_SIZE
     assert swapped[:header_size] == expected[:header_size]
     assert swapped != expected
-    expected_words = np.frombuffer(expected, dtype="<u4", offset=header_size)
-    swapped_words = np.frombuffer(swapped, dtype=">u4", offset=header_size)
-    assert np.array_equal(swapped_words, expected_words)
+    expected_lanes = np.frombuffer(expected, dtype="<u8", offset=header_size)
+    swapped_lanes = np.frombuffer(swapped, dtype=">u8", offset=header_size)
+    assert np.array_equal(swapped_lanes, expected_lanes)
 
 
 @pytest.mark.parametrize(
@@ -326,3 +326,25 @@ def test_builder_rejects_invalid_members(method, values):
     builder = BloomFilterBuilder(len(values), fpr=0.001)
     with pytest.raises(ParamError):
         getattr(builder, method)(values)
+
+
+def test_oversubscribed_filter_still_correct():
+    """A filter whose blocks are heavily oversubscribed must still be exact.
+
+    n only sizes the filter, so a caller may legitimately add far more members than promised.
+    That drives every member into the same handful of blocks, which is the case the buffered
+    scatter cannot converge in three passes -- it is the path that falls back to the
+    unbuffered one. The result has to be identical to the scalar reference either way.
+    """
+    members = list(range(20000))
+    builder = BloomFilterBuilder(1, fpr=0.001)
+    builder.add_int64_batch(members)
+    blob = builder.build()
+    assert builder.num_blocks == 1, "the point of the test is that every member collides"
+
+    # The reference has to use the builder's geometry, not the one 20000 members would size,
+    # so it is filled by hand at num_blocks = 1 rather than through _scalar_reference_blob.
+    reference = bytearray(bloom_filter._HEADER_SIZE + bloom_filter._MIN_FILTER_BYTES)
+    bloom_filter._fill_scalar(reference, members, bloom_filter._DOMAIN_INT64, 1)
+
+    assert blob[bloom_filter._HEADER_SIZE :] == bytes(reference)[bloom_filter._HEADER_SIZE :]
