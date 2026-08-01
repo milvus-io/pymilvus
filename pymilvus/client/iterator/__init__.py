@@ -1,3 +1,4 @@
+from .async_query_iterator import AsyncQueryIterator
 from .query_iterator import (
     NO_CACHE_ID,
     IteratorCache,
@@ -19,6 +20,7 @@ from .search_iterator import (
 
 __all__ = [
     "NO_CACHE_ID",
+    "AsyncQueryIterator",
     "IteratorCache",
     "QueryIterator",
     "QueryIteratorCursor",
