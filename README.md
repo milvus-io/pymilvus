@@ -35,6 +35,7 @@ You can install PyMilvus via `pip` or `pip3` for Python 3.8+:
 ```shell
 $ pip3 install pymilvus
 $ pip3 install pymilvus[model] # for milvus-model
+$ pip3 install pymilvus[milvus_lite] # for Milvus Lite
 $ pip3 install pymilvus[bulk_writer] # for bulk_writer
 ```
 
@@ -110,7 +111,7 @@ Q8. `zsh: no matches found: pymilvus[model]`, how do I solve this?
 
 A8
 ```shell
-$ pip install "pymilvus[model]"
+$ pip install "pymilvus[model]" # quote extras such as model, milvus_lite, or bulk_writer
 ```
 
 ## Documentation
