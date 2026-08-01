@@ -7,7 +7,8 @@ from typing import Dict, List, Optional, Type, Union
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
-from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL, UNLIMITED
+from pymilvus.client.iterator import AsyncQueryIterator
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     ExceptionsMessage,
@@ -648,6 +649,92 @@ class AsyncMilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,
+        )
+
+    async def query_iterator(
+        self,
+        collection_name: str,
+        batch_size: Optional[int] = 1000,
+        limit: Optional[int] = UNLIMITED,
+        filter: Optional[str] = "",
+        output_fields: Optional[List[str]] = None,
+        partition_names: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> AsyncQueryIterator:
+        """Creates an iterator that walks a filtered result set in batches.
+
+        Unlike ``query``, which caps the result set at ``limit`` rows with no ordering
+        guarantee, the iterator pages through every matching row using a primary-key
+        cursor pinned to one mvcc timestamp.
+
+        This coroutine performs the iterator's setup RPCs, so it must be awaited before
+        the iterator is used.
+
+        Args:
+            collection_name (str): Name of the collection to query.
+            batch_size (int, optional): Rows fetched per page. Defaults to 1000.
+            limit (int, optional): Total rows to return. Defaults to UNLIMITED.
+            filter (str, optional): Filtering expression. Defaults to "".
+            output_fields (List[str], optional): Fields to return.
+            partition_names (List[str], optional): Partitions to query.
+            timeout (float, optional): Timeout in seconds for each RPC call.
+
+        Returns:
+            AsyncQueryIterator: Call ``await it.next()`` until it returns an empty list,
+                then ``await it.close()``. ``async for`` is supported as well.
+
+        Raises:
+            DataTypeNotMatchException: If ``filter`` is not a string.
+            ParamError: If ``batch_size`` is negative or exceeds the server's max batch size.
+            MilvusException: If a setup RPC fails.
+
+        Note:
+            If you pass ``iterator_cp_file`` (a checkpoint file path) in ``kwargs``, the
+            iterator writes and flushes one cursor line to that file on every batch, and
+            this happens synchronously, on the event-loop thread; the same is true of the
+            checkpoint setup in this coroutine and the cleanup in ``it.close()``. A slow or
+            network-mounted checkpoint path will therefore block the loop and stall
+            unrelated coroutines. On latency-sensitive loops, leave checkpointing off or
+            point it at local disk.
+
+        Examples:
+            >>> it = await client.query_iterator(collection_name="c", filter="pk > 0")
+            >>> try:
+            ...     while True:
+            ...         batch = await it.next()
+            ...         if not batch:
+            ...             break
+            ...         handle(batch)
+            ... finally:
+            ...     await it.close()
+        """
+        if filter is not None and not isinstance(filter, str):
+            raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
+        conn = await self._get_connection()
+        context = self._generate_call_context(**kwargs)
+        # set up schema for iterator from cache
+        schema_dict, _ = await conn._get_schema(
+            collection_name,
+            timeout=timeout,
+            context=context,
+            **kwargs,
+        )
+
+        kwargs = self._with_cluster_id(kwargs)
+        return await AsyncQueryIterator.create(
+            handler=conn,
+            context=context,
+            collection_name=collection_name,
+            batch_size=batch_size,
+            limit=limit,
+            expr=filter,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            schema=schema_dict,
+            timeout=timeout,
+            rpc_options=kwargs,
         )
 
     async def get(
@@ -2833,6 +2920,10 @@ class AsyncMilvusClientSession:
     async def query(self, *args, **kwargs):
         self._ensure_open()
         return await self._parent.query(*args, **self._with_cluster_id(kwargs))
+
+    async def query_iterator(self, *args, **kwargs):
+        self._ensure_open()
+        return await self._parent.query_iterator(*args, **self._with_cluster_id(kwargs))
 
     async def get(self, *args, **kwargs):
         self._ensure_open()

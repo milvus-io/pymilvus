@@ -1,12 +1,17 @@
 """Unit tests for AsyncQueryIterator (no server required)."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
+from pymilvus import AsyncMilvusClient
+from pymilvus.client.connection_manager import AsyncConnectionManager
 from pymilvus.client.constants import (
     COLLECTION_ID,
     ITERATOR_SESSION_TS_FIELD,
 )
 from pymilvus.client.iterator import AsyncQueryIterator
 from pymilvus.client.types import DataType
+from pymilvus.exceptions import DataTypeNotMatchException
 
 _SCHEMA_DICT = {
     "fields": [
@@ -119,3 +124,51 @@ async def test_cursor_expr_quotes_varchar_pk():
     await it.close()
 
     assert 'pk > "abc"' in handler.query_calls[2][1]["expr"]
+
+
+@pytest.fixture(autouse=True)
+def _reset_async_connection_manager():
+    AsyncConnectionManager._reset_instance()
+    yield
+    AsyncConnectionManager._reset_instance()
+
+
+async def _client_with_handler(handler):
+    mock_handler = MagicMock()
+    mock_handler.ensure_channel_ready = AsyncMock()
+    mock_handler.describe_collection = handler.describe_collection
+    mock_handler.query = handler.query
+    mock_handler._get_schema = AsyncMock(return_value=(_SCHEMA_DICT, 1))
+    with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=mock_handler):
+        client = AsyncMilvusClient()
+        await client._connect()
+        return client
+
+
+@pytest.mark.asyncio
+async def test_client_query_iterator_returns_async_iterator():
+    handler = _FakeAsyncHandler(pages=[[], [{"pk": 1}, {"pk": 2}], []])
+    client = await _client_with_handler(handler)
+
+    it = await client.query_iterator(
+        collection_name="test", batch_size=2, filter="pk > 0", output_fields=["pk"]
+    )
+    assert isinstance(it, AsyncQueryIterator)
+    assert await it.next() == [{"pk": 1}, {"pk": 2}]
+    assert await it.next() == []
+    await it.close()
+
+
+@pytest.mark.asyncio
+async def test_client_query_iterator_rejects_non_string_filter():
+    handler = _FakeAsyncHandler()
+    client = await _client_with_handler(handler)
+
+    with pytest.raises(DataTypeNotMatchException):
+        await client.query_iterator(collection_name="test", filter=123)
+
+
+def test_async_client_session_exposes_query_iterator():
+    from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession  # noqa: PLC0415
+
+    assert hasattr(AsyncMilvusClientSession, "query_iterator")
