@@ -1098,8 +1098,20 @@ class Prepare:
         partial_update: bool = False,
     ):
         input_fields_info = [
-            field for field in fields_info if Prepare._is_input_field(field, is_upsert=True)
+            field for field in fields_info if Prepare._is_input_field(field, is_upsert=False)
         ]
+        # Row upsert should omit auto-generated primary keys unless the user
+        # explicitly provides the key in the row payload.
+        primary_field_info = next(
+            (field for field in fields_info if field.get("is_primary", False)), None
+        )
+        if (
+            primary_field_info
+            and primary_field_info.get("auto_id", False)
+            and entities
+            and primary_field_info["name"] in entities[0]
+        ):
+            input_fields_info.append(primary_field_info)
         function_output_field_names = Prepare._function_output_field_names(fields_info)
         fields_data = {
             field["name"]: schema_types.FieldData(field_name=field["name"], type=field["type"])

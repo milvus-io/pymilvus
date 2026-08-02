@@ -406,6 +406,66 @@ class TestRowUpsertParam:
         )
         assert req.num_rows == 1
 
+    def test_upsert_with_auto_id_pk_omitted(self):
+        """Test row upsert omits auto_id primary field when rows omit it."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True, auto_id=True),
+                FieldSchema("chunk_id", DataType.VARCHAR, max_length=64),
+                FieldSchema(
+                    "content", DataType.VARCHAR, nullable=True, default_value="", max_length=100
+                ),
+                FieldSchema("embedding", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        rows = [
+            {
+                "chunk_id": "chunk-1",
+                "content": "text",
+                "embedding": [1.0, 2.0, 3.0, 4.0],
+            }
+        ]
+
+        req = Prepare.row_upsert_param("test_coll", rows, "", fields_info=make_fields_info(schema))
+
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == [
+            "chunk_id",
+            "content",
+            "embedding",
+        ]
+
+    def test_upsert_with_auto_id_pk_provided(self):
+        """Test row upsert includes auto_id primary field when rows provide it."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True, auto_id=True),
+                FieldSchema("chunk_id", DataType.VARCHAR, max_length=64),
+                FieldSchema(
+                    "content", DataType.VARCHAR, nullable=True, default_value="", max_length=100
+                ),
+                FieldSchema("embedding", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        rows = [
+            {
+                "id": 1,
+                "chunk_id": "chunk-1",
+                "content": "text",
+                "embedding": [1.0, 2.0, 3.0, 4.0],
+            }
+        ]
+
+        req = Prepare.row_upsert_param("test_coll", rows, "", fields_info=make_fields_info(schema))
+
+        assert req.num_rows == 1
+        assert [field.field_name for field in req.fields_data] == [
+            "chunk_id",
+            "content",
+            "embedding",
+            "id",
+        ]
+
     def test_upsert_non_nullable_struct_missing_raises(self):
         """Test upsert rejects missing non-nullable struct."""
         schema = CollectionSchema(
