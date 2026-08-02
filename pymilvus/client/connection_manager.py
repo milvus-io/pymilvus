@@ -36,6 +36,24 @@ logger = logging.getLogger(__name__)
 DEFAULT_PORT = 19530
 
 
+def _freeze_key_value(value: Any) -> Any:
+    """Return a deterministic, hashable representation for connection keys."""
+    if isinstance(value, dict):
+        return tuple(
+            (key, _freeze_key_value(item_value))
+            for key, item_value in sorted(value.items(), key=lambda item: repr(item[0]))
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_key_value(item) for item in value)
+    if isinstance(value, set):
+        return tuple(sorted((_freeze_key_value(item) for item in value), key=repr))
+    try:
+        hash(value)
+    except TypeError:
+        return repr(value)
+    return value
+
+
 @dataclass
 class ConnectionConfig:
     """Configuration for a Milvus connection.
@@ -59,8 +77,12 @@ class ConnectionConfig:
 
     @property
     def key(self) -> str:
-        """Return deduplication key: address|token."""
-        return f"{self.address}|{self.token}"
+        """Return deduplication key: address|token|handler_kwargs."""
+        handler_kwargs_key = tuple(
+            (key, _freeze_key_value(value))
+            for key, value in sorted(self.handler_kwargs, key=lambda item: item[0])
+        )
+        return f"{self.address}|{self.token}|{handler_kwargs_key!r}"
 
     @property
     def is_global(self) -> bool:

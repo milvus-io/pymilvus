@@ -205,14 +205,33 @@ class TestConnectionConfig:
     @pytest.mark.parametrize(
         "uri,expected_key",
         [
-            ("https://user:pass@host:19530", "host:19530|user:pass"),
-            ("http://localhost:19530", "localhost:19530|"),
+            ("https://user:pass@host:19530", "host:19530|user:pass|(('secure', True),)"),
+            ("http://localhost:19530", "localhost:19530||()"),
         ],
     )
     def test_key_property(self, uri, expected_key):
         """Test key property for connection deduplication."""
         config = ConnectionConfig.from_uri(uri)
         assert config.key == expected_key
+
+    def test_key_property_includes_handler_kwargs_deterministically(self):
+        """Test key includes handler kwargs independent of dict/list ordering."""
+        config1 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            grpc_options={"b": [("nested", 1)], "a": 2},
+        )
+        config2 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            grpc_options={"a": 2, "b": [("nested", 1)]},
+        )
+        config3 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            grpc_options={"a": 3, "b": [("nested", 1)]},
+        )
+
+        assert config1.key == config2.key
+        assert config1.key != config3.key
+        hash(config1.key)
 
     @pytest.mark.parametrize(
         "uri,expected_is_global",
@@ -596,6 +615,39 @@ class TestConnectionManager:
             else:
                 assert h1 is h2
                 assert mock_handler_cls.call_count == 1
+
+    def test_get_or_create_separates_shared_connections_by_grpc_options(self):
+        """Test shared connections include grpc_options in the pool key."""
+        mgr = ConnectionManager.get_instance()
+        config1 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"a": 1, "b": [("nested", 2)]},
+        )
+        config2 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"b": [("nested", 2)], "a": 1},
+        )
+        config3 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"a": 2, "b": [("nested", 2)]},
+        )
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
+            mock_handler_cls.side_effect = [
+                _make_sync_handler(),
+                _make_sync_handler(),
+            ]
+
+            h1 = mgr.get_or_create(config1)
+            h2 = mgr.get_or_create(config2)
+            h3 = mgr.get_or_create(config3)
+
+            assert h1 is h2
+            assert h1 is not h3
+            assert mock_handler_cls.call_count == 2
 
     def test_release_removes_client_reference(self, mock_grpc_handler):
         """Test release removes client from managed connection."""
@@ -1080,6 +1132,40 @@ class TestAsyncConnectionManager:
                 assert h1 is not h2
             else:
                 assert h1 is h2
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_separates_shared_connections_by_grpc_options(self):
+        """Test async shared connections include grpc_options in the pool key."""
+        mgr = AsyncConnectionManager.get_instance()
+        config1 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"a": 1, "b": [("nested", 2)]},
+        )
+        config2 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"b": [("nested", 2)], "a": 1},
+        )
+        config3 = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="test",
+            grpc_options={"a": 2, "b": [("nested", 2)]},
+        )
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
+            mock_handler_cls.side_effect = [
+                _make_async_handler(),
+                _make_async_handler(),
+            ]
+
+            h1 = await mgr.get_or_create(config1)
+            h2 = await mgr.get_or_create(config2)
+            h3 = await mgr.get_or_create(config3)
+
+            assert h1 is h2
+            assert h1 is not h3
+            assert mock_handler_cls.call_count == 2
 
     @pytest.mark.asyncio
     async def test_release(self, mock_async_handler):
