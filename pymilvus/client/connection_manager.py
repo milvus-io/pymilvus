@@ -110,6 +110,14 @@ class ConnectionConfig:
             local_uri = server_manager_instance.start_and_get_uri(uri)
             if local_uri is None:
                 raise ConnectionConfigException(message="Open local milvus failed")
+            if local_uri.startswith("unix:"):
+                return cls(
+                    uri=local_uri,
+                    address=local_uri,
+                    token=token or "",
+                    db_name=db_name or "",
+                    handler_kwargs=tuple(kwargs.items()),
+                )
             uri = local_uri  # continue below with the rewritten gRPC URI
 
         # --- Unix socket: pass raw string as address ---
