@@ -113,6 +113,13 @@ A8
 $ pip install "pymilvus[model]"
 ```
 
+Q9. Why does Milvus Lite report `metric type BM25 not found or not supported`?
+
+A9. Milvus Lite does not support server-side BM25 full-text indexes. Use a
+standalone or distributed Milvus server for `FunctionType.BM25` with
+`metric_type="BM25"`, or generate sparse vectors client-side with
+`pymilvus[model]` and use a sparse-vector metric supported by Milvus Lite.
+
 ## Documentation
 
 Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.6.x/About.md
