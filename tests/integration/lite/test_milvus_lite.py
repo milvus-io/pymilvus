@@ -17,6 +17,7 @@ class TestMilvusLite:
     def test_milvus_client_with_local_db_path(self, tmp_path):
         """MilvusClient("./test.db") should connect via Milvus Lite.
 
+        Regression test for https://github.com/milvus-io/pymilvus/issues/2613.
         Regression test for https://github.com/milvus-io/pymilvus/issues/3314
         and https://github.com/milvus-io/pymilvus/issues/3317.
 

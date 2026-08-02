@@ -265,6 +265,34 @@ class TestConnectionConfig:
             assert config.uri == "http://127.0.0.1:12345"
             assert config.address == "127.0.0.1:12345"
 
+    def test_milvus_lite_preserves_unix_socket_uri(self, tmp_path):
+        """Milvus-Lite may return a Unix socket endpoint for local .db paths."""
+        db_path = str(tmp_path / "test.db")
+        mock_manager = Mock()
+        mock_manager.start_and_get_uri.return_value = "unix:/tmp/test.sock"
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "milvus_lite": Mock(),
+                "milvus_lite.server_manager": Mock(server_manager_instance=mock_manager),
+            },
+        ):
+            config = ConnectionConfig.from_uri(
+                db_path,
+                token="root:milvus",
+                db_name="default",
+                grpc_options={"grpc.max_receive_message_length": 1024},
+            )
+            mock_manager.start_and_get_uri.assert_called_once_with(db_path)
+            assert config.uri == "unix:/tmp/test.sock"
+            assert config.address == "unix:/tmp/test.sock"
+            assert config.token == "root:milvus"
+            assert config.db_name == "default"
+            assert config.get_handler_kwargs() == {
+                "grpc_options": {"grpc.max_receive_message_length": 1024}
+            }
+
     def test_milvus_lite_parent_dir_missing(self):
         """ConnectionConfigException when parent directory doesn't exist."""
         with pytest.raises(ConnectionConfigException, match="not exists"):
