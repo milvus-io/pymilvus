@@ -46,6 +46,10 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
 from .search_result import SearchResult
+from .telemetry import (
+    AsyncClientTelemetryManager,
+    AsyncTelemetryUnaryUnaryInterceptor,
+)
 from .types import (
     AnalyzeResult,
     CompactionState,
@@ -96,6 +100,22 @@ class AsyncGrpcHandler:
         self._user = kwargs.get("user")
         self._connect_reserved = kwargs.get("option", {})
         self._grpc_options = kwargs.get("grpc_options", {})
+        self._current_db_name = kwargs.get("db_name", "")
+        self._telemetry_stub = None
+        self._telemetry = AsyncClientTelemetryManager(
+            lambda: self._telemetry_stub,
+            kwargs.get("telemetry_config"),
+            user=self._user,
+            database_provider=lambda: self._current_db_name,
+            config_provider=lambda: {
+                "address": self._address,
+                "username": self._user or "",
+                "db_name": self._current_db_name,
+                "secure": self._secure,
+            },
+            runtime_client_id=kwargs.get("_telemetry_client_id", ""),
+        )
+        self._telemetry_interceptor = AsyncTelemetryUnaryUnaryInterceptor(self._telemetry)
         self._set_authorization(**kwargs)
         self._reconnect_lock = asyncio.Lock()
         self._setup_grpc_channel(**kwargs)
@@ -135,6 +155,7 @@ class AsyncGrpcHandler:
 
     async def close(self):
         async with self._reconnect_lock:
+            await self._telemetry.stop_async()
             if self._async_channel:
                 await self._async_channel.close()
             self._async_channel = None
@@ -285,6 +306,7 @@ class AsyncGrpcHandler:
             )
             final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
             self._log_level = None
+        final_channel._unary_unary_interceptors.append(self._telemetry_interceptor)
         return final_channel, milvus_pb2_grpc.MilvusServiceStub(final_channel)
 
     def _setup_grpc_channel(self, **kwargs):
@@ -317,6 +339,7 @@ class AsyncGrpcHandler:
                 )
 
                 self._is_channel_ready = True
+                self._telemetry.start()
         except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
@@ -342,7 +365,14 @@ class AsyncGrpcHandler:
         )
         final_channel._unary_unary_interceptors.append(async_identifier_interceptor)
         stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
+        self._telemetry_stub = milvus_pb2_grpc.ClientTelemetryServiceStub(final_channel)
         return async_identifier_interceptor, final_channel, stub
+
+    @property
+    def telemetry(self) -> AsyncClientTelemetryManager:
+        """Return this connection's telemetry manager."""
+
+        return self._telemetry
 
     @retry_on_rpc_failure()
     async def create_collection(

@@ -371,7 +371,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
 
         def connect_milvus(**kwargs):
             gh = GrpcHandler(**kwargs) if not _async else AsyncGrpcHandler(**kwargs)
-            exclude_keys = ["password", "token", "keep_alive"]
+            exclude_keys = ["password", "token", "keep_alive", "_telemetry_client_id"]
             if _unbind_with_db:
                 exclude_keys.append("db_name")
             config_to_keep = {k: v for k, v in kwargs.items() if k not in exclude_keys}

@@ -1282,6 +1282,11 @@ class AsyncMilvusClient(BaseMilvusClient):
             await self._manager.release(self._handler, client=self)
             self._handler = None
 
+    async def get_telemetry(self):
+        """Return the telemetry manager for this client's underlying connection."""
+
+        return (await self._get_connection()).telemetry
+
     async def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         conn = await self._get_connection()
         indexes = await conn.list_indexes(

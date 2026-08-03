@@ -214,6 +214,33 @@ class TestConnectionConfig:
         config = ConnectionConfig.from_uri(uri)
         assert config.key == expected_key
 
+    def test_default_telemetry_keeps_historical_pool_key(self):
+        implicit = ConnectionConfig.from_uri("http://localhost:19530")
+        explicit = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={
+                "enabled": True,
+                "heartbeat_interval": 30.0,
+                "sampling_rate": 1.0,
+                "error_max_count": 100,
+                "client_id": "",
+            },
+        )
+
+        assert explicit.key == implicit.key
+
+    def test_custom_telemetry_config_gets_dedicated_pool_key(self):
+        first = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={"client_id": "client-a"},
+        )
+        second = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={"client_id": "client-b"},
+        )
+
+        assert first.key != second.key
+
     @pytest.mark.parametrize(
         "uri,expected_is_global",
         [

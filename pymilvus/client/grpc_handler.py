@@ -57,6 +57,10 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
 from .search_result import SearchResult
+from .telemetry import (
+    ClientTelemetryManager,
+    TelemetryUnaryUnaryInterceptor,
+)
 from .types import (
     AnalyzeResult,
     BulkInsertState,
@@ -122,6 +126,8 @@ class ReconnectHandler:
             logger.info("reconnect on idle state")
             self.is_idle_state = False
             try:
+                old_handler = self.conns._fetch_handler(self.connection_name)
+                self._kwargs["_telemetry_client_id"] = old_handler.telemetry.client_id
                 logger.debug("try disconnecting old connection...")
                 self.conns.disconnect(self.connection_name)
             except Exception:
@@ -172,6 +178,22 @@ class GrpcHandler:
         self._connect_reserved = kwargs.get("option", {})
         self._server_info_cache = None
         self._grpc_options = kwargs.get("grpc_options", {})
+        self._current_db_name = kwargs.get("db_name", "")
+        self._telemetry_stub = None
+        self._telemetry = ClientTelemetryManager(
+            lambda: self._telemetry_stub,
+            kwargs.get("telemetry_config"),
+            user=self._user,
+            database_provider=lambda: self._current_db_name,
+            config_provider=lambda: {
+                "address": self._address,
+                "username": self._user or "",
+                "db_name": self._current_db_name,
+                "secure": self._secure,
+            },
+            runtime_client_id=kwargs.get("_telemetry_client_id", ""),
+        )
+        self._telemetry_interceptor = TelemetryUnaryUnaryInterceptor(self._telemetry)
         self._set_authorization(**kwargs)
         self._setup_grpc_channel()
         self.callbacks = []
@@ -270,10 +292,13 @@ class GrpcHandler:
                 self.close()
             raise
         else:
+            if update_self:
+                self._telemetry.start()
             return target_final_channel, target_stub
 
     def close(self):
         with self._channel_swap_lock:
+            self._telemetry.stop()
             self.deregister_state_change_callbacks()
             if self._channel:
                 self._channel.close()
@@ -331,15 +356,17 @@ class GrpcHandler:
             self._channel = new_channel
             self._final_channel = new_final_channel
             self._stub = new_stub
+            self._telemetry_stub = milvus_pb2_grpc.ClientTelemetryServiceStub(new_final_channel)
             self._address = target_address
             self._move_state_change_callbacks(old_channel, new_channel)
 
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
 
-        This method is kept for backward compatibility but does nothing.
+        This method is kept for backward compatibility and updates telemetry identity.
         Use MilvusClient.use_database() instead.
         """
+        self._current_db_name = db_name
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
@@ -423,10 +450,13 @@ class GrpcHandler:
             )
             final_channel = grpc.intercept_channel(final_channel, log_level_interceptor)
             self._log_level = None
+        final_channel = grpc.intercept_channel(final_channel, self._telemetry_interceptor)
         stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
+        telemetry_stub = milvus_pb2_grpc.ClientTelemetryServiceStub(final_channel)
         if update_self:
             self._final_channel = final_channel
             self._stub = stub
+            self._telemetry_stub = telemetry_stub
         return final_channel, stub
 
     def set_onetime_loglevel(self, log_level: str):
@@ -459,7 +489,14 @@ class GrpcHandler:
             self._identifier_interceptor = identifier_interceptor
             self._final_channel = target_final_channel
             self._stub = target_stub
+            self._telemetry_stub = milvus_pb2_grpc.ClientTelemetryServiceStub(target_final_channel)
         return target_final_channel, target_stub
+
+    @property
+    def telemetry(self) -> ClientTelemetryManager:
+        """Return this connection's telemetry manager."""
+
+        return self._telemetry
 
     @property
     def server_address(self):

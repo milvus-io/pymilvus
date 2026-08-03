@@ -1019,6 +1019,11 @@ class MilvusClient(BaseMilvusClient):
         self._manager.release(self._handler, client=self)
         self._handler = None
 
+    def get_telemetry(self):
+        """Return the telemetry manager for this client's underlying connection."""
+
+        return self._get_connection().telemetry
+
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
         conn = self._get_connection()

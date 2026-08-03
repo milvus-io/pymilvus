@@ -36,6 +36,35 @@ logger = logging.getLogger(__name__)
 DEFAULT_PORT = 19530
 
 
+def _telemetry_connection_key(value: Any) -> str:
+    """Freeze connection-affecting telemetry options into the pool key.
+
+    A telemetry manager belongs to the underlying gRPC connection. Reusing a pooled
+    handler for a caller that supplied a different stable client ID (or disabled
+    telemetry) would silently ignore the caller's configuration. Keep the default
+    configuration on the historical address|token key, and split only custom configs.
+    """
+    from pymilvus.client.telemetry import TelemetryConfig  # noqa: PLC0415
+
+    config = TelemetryConfig.from_value(value)
+    fields = (
+        config.enabled,
+        config.heartbeat_interval,
+        config.sampling_rate,
+        config.error_max_count,
+        config.client_id,
+    )
+    defaults = TelemetryConfig()
+    default_fields = (
+        defaults.enabled,
+        defaults.heartbeat_interval,
+        defaults.sampling_rate,
+        defaults.error_max_count,
+        defaults.client_id,
+    )
+    return "" if fields == default_fields else f"|telemetry={fields!r}"
+
+
 @dataclass
 class ConnectionConfig:
     """Configuration for a Milvus connection.
@@ -52,6 +81,7 @@ class ConnectionConfig:
     token: str = ""
     db_name: str = ""
     handler_kwargs: Tuple = ()
+    telemetry_key: str = ""
 
     def get_handler_kwargs(self) -> Dict[str, Any]:
         """Return handler_kwargs as a dict."""
@@ -59,8 +89,8 @@ class ConnectionConfig:
 
     @property
     def key(self) -> str:
-        """Return deduplication key: address|token."""
-        return f"{self.address}|{self.token}"
+        """Return deduplication key for connection-owned settings."""
+        return f"{self.address}|{self.token}{self.telemetry_key}"
 
     @property
     def is_global(self) -> bool:
@@ -120,6 +150,7 @@ class ConnectionConfig:
                 token=token or "",
                 db_name=db_name or "",
                 handler_kwargs=tuple(kwargs.items()),
+                telemetry_key=_telemetry_connection_key(kwargs.get("telemetry_config")),
             )
 
         # --- Normal URI parsing ---
@@ -168,6 +199,7 @@ class ConnectionConfig:
             token=final_token,
             db_name=final_db_name,
             handler_kwargs=tuple(kwargs.items()),
+            telemetry_key=_telemetry_connection_key(kwargs.get("telemetry_config")),
         )
 
 
