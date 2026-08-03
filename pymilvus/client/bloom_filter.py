@@ -1,7 +1,8 @@
 import math
 import struct
 from itertools import islice
-from typing import Any, Iterable, Iterator, Sequence, Tuple, Union
+from threading import Lock
+from typing import Any, Callable, Iterable, Iterator, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -37,13 +38,9 @@ _HEADER_SIZE = struct.calcsize(_HEADER_FORMAT)
 # One SBBF block is eight little-endian uint32 words; read and write it in a single call so the
 # hot loop does two struct operations per member instead of sixteen.
 _BLOCK_STRUCT = struct.Struct("<8I")
-# The numpy view over those words must pin the same byte order: np.uint32 is host-native, which
-# on a big-endian client would emit byte-swapped block words that a little-endian server reads
-# as different bit positions.
-_WORD_DTYPE = np.dtype("<u4")
 # The body is also viewed 64 bits at a time so one scatter covers two of a block's eight
-# words. Pinned little-endian for the same reason _WORD_DTYPE is: a host-native dtype would
-# emit byte-swapped lanes on a big-endian client.
+# words. The dtype is pinned little-endian: a host-native dtype would emit byte-swapped lanes
+# on a big-endian client.
 _WORD64_DTYPE = np.dtype("<u8")
 # A 32-byte block is four uint64 lanes.
 _LANES_PER_BLOCK = 4
@@ -243,6 +240,15 @@ def _screen_int_members(chunk: Sequence[int]) -> None:
                 raise ParamError(message="bloom filter members must be all int or all str")
 
 
+def _screen_string_members(chunk: Sequence[str]) -> None:
+    """Reject non-strings before calling their potentially string-like methods."""
+    member_types = set(map(type, chunk))
+    if member_types != {str}:
+        for member_type in member_types:
+            if not issubclass(member_type, str):
+                raise ParamError(message="bloom filter members must be all int or all str")
+
+
 def _chunks(values: Iterable[Any]) -> Iterator[Tuple[Iterable[Any], int]]:
     """Yield ``(chunk, size)`` pairs of at most ``_VECTOR_CHUNK`` members each.
 
@@ -271,16 +277,19 @@ def _chunks(values: Iterable[Any]) -> Iterator[Tuple[Iterable[Any], int]]:
         yield chunk, len(chunk)
 
 
-def _add_int64_chunks(words: np.ndarray, values: Iterable[int], num_blocks: int) -> bool:
-    """Hash and insert integer members a chunk at a time. Returns whether anything was added."""
+def _add_int64_chunks(
+    words: np.ndarray,
+    values: Iterable[int],
+    num_blocks: int,
+    commit: Callable[[], None],
+) -> None:
+    """Hash and insert integer members a chunk at a time."""
     # A sequence can be screened in one C-speed pass; a one-shot iterable has to be screened
     # per chunk, since by then the earlier members are gone.
     prescreened = isinstance(values, (list, tuple))
     if prescreened:
         _screen_int_members(values)
-    added = False
     for chunk, size in _chunks(values):
-        added = True
         if not prescreened:
             _screen_int_members(chunk)
         try:
@@ -291,36 +300,33 @@ def _add_int64_chunks(words: np.ndarray, values: Iterable[int], num_blocks: int)
             ) from exc
         except (TypeError, ValueError) as exc:
             raise ParamError(message="bloom filter members must be all int or all str") from exc
+        # The body cannot be rolled back without copying the whole filter. Mark the domain before
+        # mutation so a failure during this or a later chunk leaves a valid partial commit.
+        commit()
         _insert_digests(words, _int64_digests(lanes), num_blocks)
-    return added
 
 
-def _add_string_chunks(words: np.ndarray, values: Iterable[str], num_blocks: int) -> bool:
-    """Hash and insert string members a chunk at a time. Returns whether anything was added."""
-    added = False
+def _add_string_chunks(
+    words: np.ndarray,
+    values: Iterable[str],
+    num_blocks: int,
+    commit: Callable[[], None],
+) -> None:
+    """Hash and insert string members a chunk at a time."""
+    prescreened = isinstance(values, (list, tuple))
+    if prescreened:
+        _screen_string_members(values)
     hash_bytes = _xxh64
     for chunk, size in _chunks(values):
-        added = True
-        try:
-            digests = np.fromiter(
-                (hash_bytes(value.encode("utf-8")) for value in chunk),
-                dtype=np.uint64,
-                count=size,
-            )
-        except AttributeError as exc:
-            raise ParamError(message="bloom filter members must be all int or all str") from exc
+        if not prescreened:
+            _screen_string_members(chunk)
+        digests = np.fromiter(
+            (hash_bytes(value.encode("utf-8")) for value in chunk),
+            dtype=np.uint64,
+            count=size,
+        )
+        commit()
         _insert_digests(words, digests, num_blocks)
-    return added
-
-
-def _fill_int64_vectorised(buf: bytearray, members: Sequence[int], num_blocks: int) -> None:
-    """Hash and insert INT64 members with numpy, in place, into an already-sized buffer.
-
-    Retained as the entry point this module used before :class:`BloomFilterBuilder` existed;
-    it now just drives the shared chunk loop.
-    """
-    words = np.frombuffer(buf, dtype=_WORD64_DTYPE, offset=_HEADER_SIZE)
-    _add_int64_chunks(words, members, num_blocks)
 
 
 def _optimal_num_bytes(count: int, fpr: float) -> int:
@@ -360,6 +366,10 @@ class BloomFilterBuilder:
     time with numpy, and a per-member Python call would cost more than the hashing does.
     Accumulate into batches of a few thousand and hand those over.
 
+    Calls to the add methods and :meth:`build` are serialized per builder. Streaming adds are
+    not transactional: once insertion of a chunk starts, that chunk remains committed if the
+    iterable or a later chunk raises. Retrying members is safe because insertion is idempotent.
+
     .. code-block:: python
 
         builder = BloomFilterBuilder(10_000_000, fpr=0.005)
@@ -374,12 +384,13 @@ class BloomFilterBuilder:
 
     def __init__(self, n: int, fpr: float = _DEFAULT_FPR) -> None:
         self._fpr = _validate_fpr(fpr)
-        if not isinstance(n, int) or isinstance(n, bool) or n < 0:
-            raise ParamError(message="bloom filter member count must be a non-negative int")
+        if not isinstance(n, int) or isinstance(n, bool) or not 0 <= n <= _MASK64:
+            raise ParamError(message="bloom filter member count must be a uint64")
         num_bytes = _optimal_num_bytes(n, self._fpr)
         self._num_blocks = num_bytes // 32
         self._n = n
         self._domains = 0
+        self._lock = Lock()
         # The header is reserved in place so the blob is assembled in one buffer. Concatenating
         # a separate header would hold the body, its bytes() copy and the joined result live at
         # once, tripling peak memory for large member sets.
@@ -387,16 +398,35 @@ class BloomFilterBuilder:
         self._words = np.frombuffer(self._buf, dtype=_WORD64_DTYPE, offset=_HEADER_SIZE)
 
     def add_int64_batch(self, values: Iterable[int]) -> "BloomFilterBuilder":
-        """Inserts integer members, hashed as their 8-byte little-endian encoding."""
-        if _add_int64_chunks(self._words, values, self._num_blocks):
-            self._domains |= _DOMAIN_INT64
+        """Inserts integer members, hashed as their 8-byte little-endian encoding.
+
+        Completed chunks remain committed if the iterable later raises.
+        """
+        with self._lock:
+            _add_int64_chunks(
+                self._words,
+                values,
+                self._num_blocks,
+                lambda: self._commit_domain(_DOMAIN_INT64),
+            )
         return self
 
     def add_string_batch(self, values: Iterable[str]) -> "BloomFilterBuilder":
-        """Inserts string members, hashed as their raw UTF-8 bytes."""
-        if _add_string_chunks(self._words, values, self._num_blocks):
-            self._domains |= _DOMAIN_UTF8
+        """Inserts string members, hashed as their raw UTF-8 bytes.
+
+        Completed chunks remain committed if the iterable later raises.
+        """
+        with self._lock:
+            _add_string_chunks(
+                self._words,
+                values,
+                self._num_blocks,
+                lambda: self._commit_domain(_DOMAIN_UTF8),
+            )
         return self
+
+    def _commit_domain(self, domain: int) -> None:
+        self._domains |= domain
 
     @property
     def domains(self) -> int:
@@ -410,19 +440,20 @@ class BloomFilterBuilder:
 
     def build(self) -> bytes:
         """Stamps the MBF1 header and returns a copy of the envelope."""
-        struct.pack_into(
-            _HEADER_FORMAT,
-            self._buf,
-            0,
-            b"MBF1",
-            1,
-            1,
-            self._n,
-            self._fpr,
-            self._num_blocks,
-            self._domains,
-        )
-        return bytes(self._buf)
+        with self._lock:
+            struct.pack_into(
+                _HEADER_FORMAT,
+                self._buf,
+                0,
+                b"MBF1",
+                1,
+                1,
+                self._n,
+                self._fpr,
+                self._num_blocks,
+                self._domains,
+            )
+            return bytes(self._buf)
 
 
 def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT_FPR) -> bytes:
@@ -494,12 +525,3 @@ def _fill_scalar(
             word6 | 1 << ((key * salt6 & 0xFFFFFFFF) >> 27),
             word7 | 1 << ((key * salt7 & 0xFFFFFFFF) >> 27),
         )
-
-
-def _fill_scalar_int64(buf: bytearray, members: Sequence[int], num_blocks: int) -> None:
-    """Scalar INT64 insertion, signature-compatible with :func:`_fill_int64_vectorised`.
-
-    Not on the default path -- it exists so the vectorised implementation has a reference to be
-    checked against, and as a drop-in should numpy ever need to be bypassed.
-    """
-    _fill_scalar(buf, members, _DOMAIN_INT64, num_blocks)

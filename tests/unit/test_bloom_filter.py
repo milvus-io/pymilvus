@@ -1,7 +1,9 @@
 import json
 import random
 import struct
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier, Event
 
 import numpy as np
 import pytest
@@ -278,6 +280,87 @@ def test_builder_accepts_a_generator():
     assert builder.build() == build_bloom_filter(list(range(n)), fpr=0.001)
 
 
+@pytest.mark.parametrize(
+    ("method", "values", "domain"),
+    [
+        ("add_int64_batch", list(range(1 << 14)), bloom_filter._DOMAIN_INT64),
+        ("add_string_batch", [f"value_{i}" for i in range(1 << 14)], bloom_filter._DOMAIN_UTF8),
+    ],
+)
+def test_builder_commits_completed_chunks_when_stream_fails(method, values, domain):
+    """A later cursor failure must not leave already-written body bits with no domain."""
+
+    def failing_cursor():
+        yield from values
+        raise RuntimeError("cursor failed")
+
+    builder = BloomFilterBuilder(len(values), fpr=0.001)
+    with pytest.raises(RuntimeError, match="cursor failed"):
+        getattr(builder, method)(failing_cursor())
+
+    expected = BloomFilterBuilder(len(values), fpr=0.001)
+    getattr(expected, method)(values)
+    assert builder.domains == domain
+    assert builder.build() == expected.build()
+
+
+@pytest.mark.parametrize("method", ["add_int64_batch", "add_string_batch"])
+def test_builder_serializes_concurrent_adds(method):
+    """Concurrent numpy scatters must not lose OR updates and create false negatives."""
+    size = 100_000
+    if method == "add_int64_batch":
+        values = list(range(size * 2))
+    else:
+        values = [f"value_{i}" for i in range(size * 2)]
+    builder = BloomFilterBuilder(size * 2, fpr=0.001)
+    barrier = Barrier(2)
+
+    def add(values):
+        barrier.wait()
+        getattr(builder, method)(values)
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(add, values[:size]), pool.submit(add, values[size:])]
+        for future in futures:
+            future.result()
+
+    assert builder.build() == build_bloom_filter(values, fpr=0.001)
+
+
+def test_builder_build_waits_for_active_add():
+    """build() must return a complete snapshot rather than copying a body mid-update."""
+    builder = BloomFilterBuilder(1, fpr=0.001)
+    add_entered = Event()
+    allow_add = Event()
+    build_started = Event()
+    build_finished = Event()
+
+    def blocking_values():
+        add_entered.set()
+        allow_add.wait()
+        yield 1
+
+    def build():
+        build_started.set()
+        blob = builder.build()
+        build_finished.set()
+        return blob
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        add_future = pool.submit(builder.add_int64_batch, blocking_values())
+        assert add_entered.wait(timeout=5)
+        build_future = pool.submit(build)
+        assert build_started.wait(timeout=5)
+        try:
+            assert not build_finished.wait(timeout=0.1)
+        finally:
+            allow_add.set()
+        add_future.result()
+        blob = build_future.result()
+
+    assert blob == build_bloom_filter([1], fpr=0.001)
+
+
 def test_builder_records_both_domains():
     """A builder may mix domains -- a JSON path can legitimately hold ints and strings."""
     builder = BloomFilterBuilder(2, fpr=0.001)
@@ -312,6 +395,20 @@ def test_builder_rejects_invalid_construction(n, fpr):
         BloomFilterBuilder(n, fpr)
 
 
+def test_builder_enforces_uint64_count_before_sizing(monkeypatch):
+    def minimum_filter_bytes(count, fpr):
+        assert count == (1 << 64) - 1
+        return bloom_filter._MIN_FILTER_BYTES
+
+    monkeypatch.setattr(bloom_filter, "_optimal_num_bytes", minimum_filter_bytes)
+
+    maximum = BloomFilterBuilder((1 << 64) - 1, fpr=0.001)
+    assert struct.unpack_from("<Q", maximum.build(), 8)[0] == (1 << 64) - 1
+
+    with pytest.raises(ParamError):
+        BloomFilterBuilder(1 << 64, fpr=0.001)
+
+
 @pytest.mark.parametrize(
     ("method", "values"),
     [
@@ -326,6 +423,20 @@ def test_builder_rejects_invalid_members(method, values):
     builder = BloomFilterBuilder(len(values), fpr=0.001)
     with pytest.raises(ParamError):
         getattr(builder, method)(values)
+
+
+def test_string_members_must_really_be_strings():
+    class Encodable:
+        def encode(self, encoding):
+            return b"not-a-string"
+
+    for values in (["a", Encodable()], [Encodable(), "a"]):
+        with pytest.raises(ParamError):
+            build_bloom_filter(values, fpr=0.001)
+
+        builder = BloomFilterBuilder(len(values), fpr=0.001)
+        with pytest.raises(ParamError):
+            builder.add_string_batch(values)
 
 
 def test_oversubscribed_filter_still_correct():
