@@ -3,7 +3,7 @@ import random
 import struct
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from threading import Barrier, Event
+from threading import Event
 
 import numpy as np
 import pytest
@@ -281,14 +281,14 @@ def test_builder_accepts_a_generator():
 
 
 @pytest.mark.parametrize(
-    ("method", "values", "domain"),
+    ("method", "values"),
     [
-        ("add_int64_batch", list(range(1 << 14)), bloom_filter._DOMAIN_INT64),
-        ("add_string_batch", [f"value_{i}" for i in range(1 << 14)], bloom_filter._DOMAIN_UTF8),
+        ("add_int64_batch", list(range(1 << 14))),
+        ("add_string_batch", [f"value_{i}" for i in range(1 << 14)]),
     ],
 )
-def test_builder_commits_completed_chunks_when_stream_fails(method, values, domain):
-    """A later cursor failure must not leave already-written body bits with no domain."""
+def test_builder_is_poisoned_when_stream_fails(method, values):
+    """A failed streamed add may have changed the body, so the builder must not be reused."""
 
     def failing_cursor():
         yield from values
@@ -298,67 +298,42 @@ def test_builder_commits_completed_chunks_when_stream_fails(method, values, doma
     with pytest.raises(RuntimeError, match="cursor failed"):
         getattr(builder, method)(failing_cursor())
 
-    expected = BloomFilterBuilder(len(values), fpr=0.001)
-    getattr(expected, method)(values)
-    assert builder.domains == domain
-    assert builder.build() == expected.build()
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.add_int64_batch([1])
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.add_string_batch(["a"])
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.build()
 
 
-@pytest.mark.parametrize("method", ["add_int64_batch", "add_string_batch"])
-def test_builder_serializes_concurrent_adds(method):
-    """Concurrent numpy scatters must not lose OR updates and create false negatives."""
-    size = 100_000
-    if method == "add_int64_batch":
-        values = list(range(size * 2))
-    else:
-        values = [f"value_{i}" for i in range(size * 2)]
-    builder = BloomFilterBuilder(size * 2, fpr=0.001)
-    barrier = Barrier(2)
-
-    def add(values):
-        barrier.wait()
-        getattr(builder, method)(values)
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = [pool.submit(add, values[:size]), pool.submit(add, values[size:])]
-        for future in futures:
-            future.result()
-
-    assert builder.build() == build_bloom_filter(values, fpr=0.001)
-
-
-def test_builder_build_waits_for_active_add():
-    """build() must return a complete snapshot rather than copying a body mid-update."""
-    builder = BloomFilterBuilder(1, fpr=0.001)
+@pytest.mark.parametrize("operation", ["add_int64_batch", "add_string_batch", "build"])
+def test_builder_rejects_concurrent_use(operation):
+    """Concurrent use is unsupported and must fail instead of corrupting the shared body."""
+    builder = BloomFilterBuilder(2, fpr=0.001)
     add_entered = Event()
     allow_add = Event()
-    build_started = Event()
-    build_finished = Event()
 
     def blocking_values():
         add_entered.set()
         allow_add.wait()
         yield 1
 
-    def build():
-        build_started.set()
-        blob = builder.build()
-        build_finished.set()
-        return blob
-
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=1) as pool:
         add_future = pool.submit(builder.add_int64_batch, blocking_values())
         assert add_entered.wait(timeout=5)
-        build_future = pool.submit(build)
-        assert build_started.wait(timeout=5)
         try:
-            assert not build_finished.wait(timeout=0.1)
+            with pytest.raises(RuntimeError, match="does not support concurrent use"):
+                if operation == "build":
+                    builder.build()
+                else:
+                    getattr(builder, operation)([2] if operation == "add_int64_batch" else ["a"])
         finally:
             allow_add.set()
         add_future.result()
-        blob = build_future.result()
 
-    assert blob == build_bloom_filter([1], fpr=0.001)
+    # The rejected call does not poison the active operation or the builder.
+    builder.add_int64_batch([2])
+    assert builder.build() == build_bloom_filter([1, 2], fpr=0.001)
 
 
 def test_builder_records_both_domains():
@@ -423,6 +398,8 @@ def test_builder_rejects_invalid_members(method, values):
     builder = BloomFilterBuilder(len(values), fpr=0.001)
     with pytest.raises(ParamError):
         getattr(builder, method)(values)
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.build()
 
 
 def test_string_members_must_really_be_strings():

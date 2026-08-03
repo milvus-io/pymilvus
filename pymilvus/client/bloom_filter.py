@@ -1,8 +1,9 @@
 import math
 import struct
+from contextlib import contextmanager
 from itertools import islice
 from threading import Lock
-from typing import Any, Callable, Iterable, Iterator, Sequence, Tuple, Union
+from typing import Any, Iterable, Iterator, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -281,15 +282,16 @@ def _add_int64_chunks(
     words: np.ndarray,
     values: Iterable[int],
     num_blocks: int,
-    commit: Callable[[], None],
-) -> None:
-    """Hash and insert integer members a chunk at a time."""
+) -> bool:
+    """Hash and insert integer members a chunk at a time. Returns whether anything was added."""
     # A sequence can be screened in one C-speed pass; a one-shot iterable has to be screened
     # per chunk, since by then the earlier members are gone.
     prescreened = isinstance(values, (list, tuple))
     if prescreened:
         _screen_int_members(values)
+    added = False
     for chunk, size in _chunks(values):
+        added = True
         if not prescreened:
             _screen_int_members(chunk)
         try:
@@ -300,24 +302,23 @@ def _add_int64_chunks(
             ) from exc
         except (TypeError, ValueError) as exc:
             raise ParamError(message="bloom filter members must be all int or all str") from exc
-        # The body cannot be rolled back without copying the whole filter. Mark the domain before
-        # mutation so a failure during this or a later chunk leaves a valid partial commit.
-        commit()
         _insert_digests(words, _int64_digests(lanes), num_blocks)
+    return added
 
 
 def _add_string_chunks(
     words: np.ndarray,
     values: Iterable[str],
     num_blocks: int,
-    commit: Callable[[], None],
-) -> None:
-    """Hash and insert string members a chunk at a time."""
+) -> bool:
+    """Hash and insert string members a chunk at a time. Returns whether anything was added."""
     prescreened = isinstance(values, (list, tuple))
     if prescreened:
         _screen_string_members(values)
     hash_bytes = _xxh64
+    added = False
     for chunk, size in _chunks(values):
+        added = True
         if not prescreened:
             _screen_string_members(chunk)
         digests = np.fromiter(
@@ -325,8 +326,8 @@ def _add_string_chunks(
             dtype=np.uint64,
             count=size,
         )
-        commit()
         _insert_digests(words, digests, num_blocks)
+    return added
 
 
 def _optimal_num_bytes(count: int, fpr: float) -> int:
@@ -366,9 +367,10 @@ class BloomFilterBuilder:
     time with numpy, and a per-member Python call would cost more than the hashing does.
     Accumulate into batches of a few thousand and hand those over.
 
-    Calls to the add methods and :meth:`build` are serialized per builder. Streaming adds are
-    not transactional: once insertion of a chunk starts, that chunk remains committed if the
-    iterable or a later chunk raises. Retrying members is safe because insertion is idempotent.
+    A builder is not safe for concurrent use. Overlapping calls to either add method or
+    :meth:`build` fail immediately instead of waiting. If an add raises for any reason, discard
+    the builder: it is poisoned because earlier chunks may already have changed the filter body,
+    and all subsequent add and build calls will fail.
 
     .. code-block:: python
 
@@ -390,6 +392,7 @@ class BloomFilterBuilder:
         self._num_blocks = num_bytes // 32
         self._n = n
         self._domains = 0
+        self._failed = False
         self._lock = Lock()
         # The header is reserved in place so the blob is assembled in one buffer. Concatenating
         # a separate header would hold the body, its bytes() copy and the joined result live at
@@ -398,35 +401,39 @@ class BloomFilterBuilder:
         self._words = np.frombuffer(self._buf, dtype=_WORD64_DTYPE, offset=_HEADER_SIZE)
 
     def add_int64_batch(self, values: Iterable[int]) -> "BloomFilterBuilder":
-        """Inserts integer members, hashed as their 8-byte little-endian encoding.
-
-        Completed chunks remain committed if the iterable later raises.
-        """
-        with self._lock:
-            _add_int64_chunks(
-                self._words,
-                values,
-                self._num_blocks,
-                lambda: self._commit_domain(_DOMAIN_INT64),
-            )
+        """Inserts integer members, poisoning the builder if the add fails."""
+        with self._operation():
+            try:
+                if _add_int64_chunks(self._words, values, self._num_blocks):
+                    self._domains |= _DOMAIN_INT64
+            except BaseException:
+                self._failed = True
+                raise
         return self
 
     def add_string_batch(self, values: Iterable[str]) -> "BloomFilterBuilder":
-        """Inserts string members, hashed as their raw UTF-8 bytes.
-
-        Completed chunks remain committed if the iterable later raises.
-        """
-        with self._lock:
-            _add_string_chunks(
-                self._words,
-                values,
-                self._num_blocks,
-                lambda: self._commit_domain(_DOMAIN_UTF8),
-            )
+        """Inserts string members, poisoning the builder if the add fails."""
+        with self._operation():
+            try:
+                if _add_string_chunks(self._words, values, self._num_blocks):
+                    self._domains |= _DOMAIN_UTF8
+            except BaseException:
+                self._failed = True
+                raise
         return self
 
-    def _commit_domain(self, domain: int) -> None:
-        self._domains |= domain
+    @contextmanager
+    def _operation(self) -> Iterator[None]:
+        if not self._lock.acquire(blocking=False):
+            message = "BloomFilterBuilder does not support concurrent use"
+            raise RuntimeError(message)
+        try:
+            if self._failed:
+                message = "BloomFilterBuilder is unusable after a failed add"
+                raise RuntimeError(message)
+            yield
+        finally:
+            self._lock.release()
 
     @property
     def domains(self) -> int:
@@ -440,7 +447,7 @@ class BloomFilterBuilder:
 
     def build(self) -> bytes:
         """Stamps the MBF1 header and returns a copy of the envelope."""
-        with self._lock:
+        with self._operation():
             struct.pack_into(
                 _HEADER_FORMAT,
                 self._buf,
