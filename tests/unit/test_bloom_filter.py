@@ -1,11 +1,13 @@
 import json
 import random
 import struct
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Event
 
 import numpy as np
 import pytest
-from pymilvus import build_bloom_filter
+from pymilvus import BloomFilterBuilder, build_bloom_filter
 from pymilvus.client import bloom_filter
 from pymilvus.client.bloom_filter import _xxh64_int64_python, _xxh64_python
 from pymilvus.client.prepare import Prepare
@@ -71,69 +73,102 @@ def test_xxh64_int64_python_matches_generic():
         assert _xxh64_int64_python(value) == _xxh64_python(struct.pack("<q", value)), value
 
 
+def _scalar_reference_blob(members, fpr, domain):
+    """Build the same envelope through ``_fill_scalar``, one member at a time.
+
+    Both domains now share the vectorised numpy insert, so the scalar loop is the independent
+    reference it has to agree with. The reference is assembled explicitly rather than by
+    monkeypatching a seam inside the default path: a refactor that moves the vectorised code
+    somewhere else then makes these tests fail loudly, instead of silently comparing the
+    default path to itself (which is exactly what happened when the INT64 fill moved).
+    """
+    count = len(members)
+    num_bytes = bloom_filter._optimal_num_bytes(count, float(fpr))
+    num_blocks = num_bytes // 32
+    buf = bytearray(bloom_filter._HEADER_SIZE + num_bytes)
+    struct.pack_into(
+        bloom_filter._HEADER_FORMAT, buf, 0, b"MBF1", 1, 1, count, float(fpr), num_blocks, domain
+    )
+    bloom_filter._fill_scalar(buf, members, domain, num_blocks)
+    return bytes(buf)
+
+
 @pytest.mark.parametrize(
-    "members",
+    ("members", "domain"),
     [
-        [-(1 << 63), -1, 0, 1, 42, (1 << 63) - 1],
-        ["", "a", "milvus", "日本語", "🚀🚀", "x" * 40],
+        ([-(1 << 63), -1, 0, 1, 42, (1 << 63) - 1], bloom_filter._DOMAIN_INT64),
+        (["", "a", "milvus", "日本語", "🚀🚀", "x" * 40], bloom_filter._DOMAIN_UTF8),
     ],
 )
-def test_build_bloom_filter_fallback_matches_default_path(monkeypatch, members):
+def test_build_bloom_filter_fallback_matches_default_path(monkeypatch, members, domain):
     """Forcing the pure-Python hashes must reproduce the blob the default path builds.
 
-    Keeps the fallback exercised even when the optional C accelerator is installed. The INT64
-    default path is the vectorised fill, which inlines its own hash and never consults
-    ``_xxh64_int64``, so that case must also swap in the scalar fill -- without it the
-    monkeypatched hash never runs and the INT64 case compares the default path to itself.
+    Keeps the fallback exercised even when the optional C accelerator is installed. The
+    vectorised INT64 path inlines its own hash and never consults ``_xxh64_int64``, so the
+    load-bearing assertion is the one against the scalar reference, which does.
     """
     expected = build_bloom_filter(members, fpr=0.001)
 
     monkeypatch.setattr(bloom_filter, "_xxh64", bloom_filter._xxh64_python)
     monkeypatch.setattr(bloom_filter, "_xxh64_int64", bloom_filter._xxh64_int64_python)
-    monkeypatch.setattr(bloom_filter, "_fill_int64_vectorised", bloom_filter._fill_scalar_int64)
 
+    assert _scalar_reference_blob(members, 0.001, domain) == expected
     assert build_bloom_filter(members, fpr=0.001) == expected
 
 
 @pytest.mark.parametrize("count", [1, 2, 100, (1 << 14) + 3])
-def test_int64_vectorised_matches_scalar(monkeypatch, count):
+def test_int64_vectorised_matches_scalar(count):
     """The numpy INT64 path must agree with the scalar loop, including across chunk boundaries."""
     rng = random.Random(20260728)
     members = [-(1 << 63), (1 << 63) - 1, 0, -1]
     members += [rng.randrange(-(1 << 63), 1 << 63) for _ in range(count)]
 
-    vectorised = build_bloom_filter(members, fpr=0.001)
+    assert build_bloom_filter(members, fpr=0.001) == _scalar_reference_blob(
+        members, 0.001, bloom_filter._DOMAIN_INT64
+    )
 
-    monkeypatch.setattr(bloom_filter, "_fill_int64_vectorised", bloom_filter._fill_scalar_int64)
-    assert build_bloom_filter(members, fpr=0.001) == vectorised
+
+@pytest.mark.parametrize("count", [1, 2, 100, (1 << 14) + 3])
+def test_string_vectorised_matches_scalar(count):
+    """The string path now shares the vectorised insert, so it needs the same guarantee."""
+    rng = random.Random(20260731)
+    alphabet = "abcdefghij日本語🚀"
+    members = ["", "a", "milvus", "日本語", "🚀🚀", "x" * 40]
+    members += [
+        "".join(rng.choice(alphabet) for _ in range(rng.randrange(0, 40))) for _ in range(count)
+    ]
+
+    assert build_bloom_filter(members, fpr=0.001) == _scalar_reference_blob(
+        members, 0.001, bloom_filter._DOMAIN_UTF8
+    )
 
 
-def test_int64_vectorised_block_words_pinned_little_endian(monkeypatch):
-    """The block-word view must be explicitly little-endian, never host-native.
+def test_body_view_is_pinned_little_endian(monkeypatch):
+    """The view the body is written through must be explicitly little-endian, never native.
 
-    ``np.uint32`` follows the host byte order: on a big-endian client (s390x, ppc64) it would
-    write byte-swapped SBBF words that a little-endian QueryNode reads as different bit
-    positions -- silent false negatives. The wire dtype is pinned as ``_WORD_DTYPE = "<u4"``,
-    and this test proves the fill actually routes through it: forcing the constant to ">u4"
-    (what native order resolves to on a big-endian host) must produce the same word *values*
-    in the opposite byte order. On little-endian CI both asserts fail if the fill regresses
-    to a hard-coded native dtype, because overriding the constant would then change nothing.
+    A host-native dtype follows the machine: on a big-endian client (s390x, ppc64) it would
+    write byte-swapped lanes that a little-endian QueryNode reads as different bit positions
+    -- silent false negatives. The wire dtype is pinned as ``_WORD64_DTYPE = "<u8"``, and this
+    test proves the fill actually routes through it: forcing the constant to ">u8" (what
+    native order resolves to on a big-endian host) must produce the same lane *values* in the
+    opposite byte order. On little-endian CI both asserts fail if the fill regresses to a
+    hard-coded native dtype, because overriding the constant would then change nothing.
     """
-    assert bloom_filter._WORD_DTYPE.newbyteorder("<") == bloom_filter._WORD_DTYPE
+    assert bloom_filter._WORD64_DTYPE.newbyteorder("<") == bloom_filter._WORD64_DTYPE
 
     rng = random.Random(20260729)
     members = [rng.randrange(-(1 << 63), 1 << 63) for _ in range(500)]
     expected = build_bloom_filter(members, fpr=0.001)
 
-    monkeypatch.setattr(bloom_filter, "_WORD_DTYPE", np.dtype(">u4"))
+    monkeypatch.setattr(bloom_filter, "_WORD64_DTYPE", np.dtype(">u8"))
     swapped = build_bloom_filter(members, fpr=0.001)
 
     header_size = bloom_filter._HEADER_SIZE
     assert swapped[:header_size] == expected[:header_size]
     assert swapped != expected
-    expected_words = np.frombuffer(expected, dtype="<u4", offset=header_size)
-    swapped_words = np.frombuffer(swapped, dtype=">u4", offset=header_size)
-    assert np.array_equal(swapped_words, expected_words)
+    expected_lanes = np.frombuffer(expected, dtype="<u8", offset=header_size)
+    swapped_lanes = np.frombuffer(swapped, dtype=">u8", offset=header_size)
+    assert np.array_equal(swapped_lanes, expected_lanes)
 
 
 @pytest.mark.parametrize(
@@ -214,3 +249,190 @@ def test_build_bloom_filter_accepts_fpr_boundaries(fpr):
 def test_build_bloom_filter_rejects_invalid_input(members, fpr):
     with pytest.raises(ParamError):
         build_bloom_filter(members, fpr=fpr)
+
+
+@pytest.mark.parametrize("chunk", [1, 7, 1000, (1 << 14) + 3])
+def test_builder_streaming_matches_one_shot(chunk):
+    """Streaming a set through the builder must produce exactly the one-shot blob.
+
+    Insertion into an SBBF is order-independent and idempotent, so how the members are cut
+    into batches cannot matter -- including batches that straddle the internal chunk size.
+    """
+    ints = list(range(5000))
+    strings = [f"user_{i}" for i in range(5000)]
+
+    for members, add in (
+        (ints, "add_int64_batch"),
+        (strings, "add_string_batch"),
+    ):
+        builder = BloomFilterBuilder(len(members), fpr=0.001)
+        for start in range(0, len(members), chunk):
+            getattr(builder, add)(members[start : start + chunk])
+        assert builder.build() == build_bloom_filter(members, fpr=0.001)
+
+
+def test_builder_accepts_a_generator():
+    """The point of the builder is not materialising the set, so it must take any iterable."""
+    n = 40000
+    builder = BloomFilterBuilder(n, fpr=0.001)
+    builder.add_int64_batch(i for i in range(n))
+
+    assert builder.build() == build_bloom_filter(list(range(n)), fpr=0.001)
+
+
+@pytest.mark.parametrize(
+    ("method", "values"),
+    [
+        ("add_int64_batch", list(range(1 << 14))),
+        ("add_string_batch", [f"value_{i}" for i in range(1 << 14)]),
+    ],
+)
+def test_builder_is_poisoned_when_stream_fails(method, values):
+    """A failed streamed add may have changed the body, so the builder must not be reused."""
+
+    def failing_cursor():
+        yield from values
+        raise RuntimeError("cursor failed")
+
+    builder = BloomFilterBuilder(len(values), fpr=0.001)
+    with pytest.raises(RuntimeError, match="cursor failed"):
+        getattr(builder, method)(failing_cursor())
+
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.add_int64_batch([1])
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.add_string_batch(["a"])
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.build()
+
+
+@pytest.mark.parametrize("operation", ["add_int64_batch", "add_string_batch", "build"])
+def test_builder_rejects_concurrent_use(operation):
+    """Concurrent use is unsupported and must fail instead of corrupting the shared body."""
+    builder = BloomFilterBuilder(2, fpr=0.001)
+    add_entered = Event()
+    allow_add = Event()
+
+    def blocking_values():
+        add_entered.set()
+        allow_add.wait()
+        yield 1
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        add_future = pool.submit(builder.add_int64_batch, blocking_values())
+        assert add_entered.wait(timeout=5)
+        try:
+            with pytest.raises(RuntimeError, match="does not support concurrent use"):
+                if operation == "build":
+                    builder.build()
+                else:
+                    getattr(builder, operation)([2] if operation == "add_int64_batch" else ["a"])
+        finally:
+            allow_add.set()
+        add_future.result()
+
+    # The rejected call does not poison the active operation or the builder.
+    builder.add_int64_batch([2])
+    assert builder.build() == build_bloom_filter([1, 2], fpr=0.001)
+
+
+def test_builder_records_both_domains():
+    """A builder may mix domains -- a JSON path can legitimately hold ints and strings."""
+    builder = BloomFilterBuilder(2, fpr=0.001)
+    builder.add_int64_batch([1]).add_string_batch(["a"])
+
+    blob = builder.build()
+    assert blob[28] == bloom_filter._DOMAIN_INT64 | bloom_filter._DOMAIN_UTF8
+
+    # An empty batch must not claim a domain, or the server would probe one that has no members.
+    empty = BloomFilterBuilder(0, fpr=0.001)
+    empty.add_int64_batch([]).add_string_batch([])
+    assert empty.build()[28] == 0
+
+
+def test_builder_count_only_drives_sizing():
+    """n sizes the filter; overshooting it is allowed and only costs false-positive rate."""
+    builder = BloomFilterBuilder(10, fpr=0.001)
+    builder.add_int64_batch(range(500))
+    blob = builder.build()
+
+    # Same geometry as a 10-member filter, and n_declared still reports what was promised.
+    assert len(blob) == len(build_bloom_filter(list(range(10)), fpr=0.001))
+    assert struct.unpack_from("<Q", blob, 8)[0] == 10
+
+
+@pytest.mark.parametrize(
+    ("n", "fpr"),
+    [(-1, 0.001), (1.5, 0.001), (True, 0.001), ("x", 0.001), (1, 0.0), (1, float("nan"))],
+)
+def test_builder_rejects_invalid_construction(n, fpr):
+    with pytest.raises(ParamError):
+        BloomFilterBuilder(n, fpr)
+
+
+def test_builder_enforces_uint64_count_before_sizing(monkeypatch):
+    def minimum_filter_bytes(count, fpr):
+        assert count == (1 << 64) - 1
+        return bloom_filter._MIN_FILTER_BYTES
+
+    monkeypatch.setattr(bloom_filter, "_optimal_num_bytes", minimum_filter_bytes)
+
+    maximum = BloomFilterBuilder((1 << 64) - 1, fpr=0.001)
+    assert struct.unpack_from("<Q", maximum.build(), 8)[0] == (1 << 64) - 1
+
+    with pytest.raises(ParamError):
+        BloomFilterBuilder(1 << 64, fpr=0.001)
+
+
+@pytest.mark.parametrize(
+    ("method", "values"),
+    [
+        ("add_int64_batch", [1, "x"]),
+        ("add_int64_batch", [True]),
+        ("add_int64_batch", [1 << 63]),
+        ("add_string_batch", ["a", 1]),
+        ("add_string_batch", [None]),
+    ],
+)
+def test_builder_rejects_invalid_members(method, values):
+    builder = BloomFilterBuilder(len(values), fpr=0.001)
+    with pytest.raises(ParamError):
+        getattr(builder, method)(values)
+    with pytest.raises(RuntimeError, match="unusable after a failed add"):
+        builder.build()
+
+
+def test_string_members_must_really_be_strings():
+    class Encodable:
+        def encode(self, encoding):
+            return b"not-a-string"
+
+    for values in (["a", Encodable()], [Encodable(), "a"]):
+        with pytest.raises(ParamError):
+            build_bloom_filter(values, fpr=0.001)
+
+        builder = BloomFilterBuilder(len(values), fpr=0.001)
+        with pytest.raises(ParamError):
+            builder.add_string_batch(values)
+
+
+def test_oversubscribed_filter_still_correct():
+    """A filter whose blocks are heavily oversubscribed must still be exact.
+
+    n only sizes the filter, so a caller may legitimately add far more members than promised.
+    That drives every member into the same handful of blocks, which is the case the buffered
+    scatter cannot converge in three passes -- it is the path that falls back to the
+    unbuffered one. The result has to be identical to the scalar reference either way.
+    """
+    members = list(range(20000))
+    builder = BloomFilterBuilder(1, fpr=0.001)
+    builder.add_int64_batch(members)
+    blob = builder.build()
+    assert builder.num_blocks == 1, "the point of the test is that every member collides"
+
+    # The reference has to use the builder's geometry, not the one 20000 members would size,
+    # so it is filled by hand at num_blocks = 1 rather than through _scalar_reference_blob.
+    reference = bytearray(bloom_filter._HEADER_SIZE + bloom_filter._MIN_FILTER_BYTES)
+    bloom_filter._fill_scalar(reference, members, bloom_filter._DOMAIN_INT64, 1)
+
+    assert blob[bloom_filter._HEADER_SIZE :] == bytes(reference)[bloom_filter._HEADER_SIZE :]
