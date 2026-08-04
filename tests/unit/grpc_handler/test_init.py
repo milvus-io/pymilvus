@@ -46,6 +46,23 @@ class TestReconnectHandler:
         handler.reconnect_on_idle(MagicMock(value=(None, "ready")))
         assert handler.is_idle_state is False
 
+    def test_idle_reconnect_preserves_existing_handler_and_telemetry(self):
+        mock_conns = MagicMock()
+        old_handler = MagicMock()
+        telemetry = object()
+        old_handler.telemetry = telemetry
+        mock_conns._fetch_handler.return_value = old_handler
+        handler = ReconnectHandler(mock_conns, "test", {"timeout": 1})
+        handler.is_idle_state = True
+
+        with patch("pymilvus.client.grpc_handler.time.sleep"):
+            handler.check_state_and_reconnect_later()
+
+        old_handler.reconnect.assert_called_once_with(timeout=1)
+        assert old_handler.telemetry is telemetry
+        mock_conns.disconnect.assert_not_called()
+        mock_conns.connect.assert_not_called()
+
 
 class TestGrpcHandlerInit:
     """Tests for GrpcHandler initialization."""

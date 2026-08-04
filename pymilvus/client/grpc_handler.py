@@ -125,25 +125,20 @@ class ReconnectHandler:
         with self.reconnect_lock:
             logger.info("reconnect on idle state")
             self.is_idle_state = False
-            try:
-                old_handler = self.conns._fetch_handler(self.connection_name)
-                self._kwargs["_telemetry_client_id"] = old_handler.telemetry.client_id
-                logger.debug("try disconnecting old connection...")
-                self.conns.disconnect(self.connection_name)
-            except Exception:
-                logger.warning("disconnect failed: {e}")
-            finally:
-                reconnected = False
-                while not reconnected:
-                    try:
-                        logger.debug("try reconnecting...")
-                        self.conns.connect(self.connection_name, **self._kwargs)
-                        reconnected = True
-                    except Exception as e:
-                        logger.warning(
-                            f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
-                        )
-                        time.sleep(check_after_seconds)
+            timeout = self._kwargs.get("timeout")
+            timeout = timeout if isinstance(timeout, (int, float)) else Config.MILVUS_CONN_TIMEOUT
+            reconnected = False
+            while not reconnected:
+                try:
+                    logger.debug("try reconnecting existing handler...")
+                    old_handler = self.conns._fetch_handler(self.connection_name)
+                    old_handler.reconnect(timeout=timeout)
+                    reconnected = True
+                except Exception as e:
+                    logger.warning(
+                        f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
+                    )
+                    time.sleep(check_after_seconds)
             logger.info("reconnected")
 
     def reconnect_on_idle(self, state: object):
