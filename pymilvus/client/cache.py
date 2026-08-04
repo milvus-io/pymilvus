@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, MutableMapping, Optional, Tuple
 
 from cachetools import LRUCache
 
@@ -9,15 +9,25 @@ logger = logging.getLogger(__name__)
 
 class CacheRegion:
     """
-    Thread-safe LRU cache base class.
+    Thread-safe cache base class, LRU-bounded by default.
 
     Subclasses should define specific key types and value types.
     """
 
     DEFAULT_CAPACITY = 4096
 
-    def __init__(self, capacity: int = DEFAULT_CAPACITY):
-        self._cache: LRUCache = LRUCache(maxsize=capacity)
+    def __init__(self, capacity: Optional[int] = DEFAULT_CAPACITY):
+        """Create a cache region.
+
+        Args:
+            capacity: maximum number of entries. ``None`` makes the region
+                unbounded, so entries are only dropped by ``invalidate`` or
+                ``clear``. Use it for regions where an evicted entry changes
+                behaviour rather than just costing a round trip.
+        """
+        self._cache: MutableMapping[Any, Any] = (
+            {} if capacity is None else LRUCache(maxsize=capacity)
+        )
         self._lock = threading.Lock()
 
     def get(self, key: Any) -> Optional[Any]:
@@ -26,7 +36,7 @@ class CacheRegion:
             return self._cache.get(key)
 
     def set(self, key: Any, value: Any) -> None:
-        """Set value in cache. Evicts LRU entry if over capacity."""
+        """Set value in cache. Bounded regions evict the LRU entry when over capacity."""
         with self._lock:
             self._cache[key] = value
 
@@ -34,6 +44,18 @@ class CacheRegion:
         """Remove a specific key from cache."""
         with self._lock:
             self._cache.pop(key, None)
+
+    def invalidate_prefix(self, prefix: Tuple[Any, ...]) -> None:
+        """Remove every entry whose tuple key starts with ``prefix``.
+
+        Used to drop a whole database or endpoint at once, so an unbounded
+        region still shrinks when the objects it describes are gone.
+        """
+        size = len(prefix)
+        with self._lock:
+            stale = [k for k in self._cache if isinstance(k, tuple) and k[:size] == prefix]
+            for key in stale:
+                self._cache.pop(key, None)
 
     def clear(self) -> None:
         """Clear all entries from cache."""
@@ -71,11 +93,11 @@ class SchemaCache(CacheRegion):
 
     def invalidate_db(self, endpoint: str, db_name: str) -> None:
         """Invalidate all schemas for a database."""
-        prefix = (endpoint, db_name or "default")
-        with self._lock:
-            keys_to_remove = [k for k in self._cache if k[:2] == prefix]
-            for key in keys_to_remove:
-                self._cache.pop(key, None)
+        self.invalidate_prefix((endpoint, db_name or "default"))
+
+    def invalidate_endpoint(self, endpoint: str) -> None:
+        """Invalidate all schemas cached for an endpoint."""
+        self.invalidate_prefix((endpoint,))
 
     @staticmethod
     def _make_key(endpoint: str, db_name: str, collection_name: str) -> Tuple[str, str, str]:
@@ -90,7 +112,16 @@ class CollectionTsCache(CacheRegion):
 
     Key: (endpoint, db_name, collection_name)
     Value: timestamp (int)
+
+    Unbounded on purpose. A missing entry makes ``get`` return 0, and
+    ``construct_guarantee_ts`` then falls back to ``EVENTUALLY_TS``, so an
+    evicted collection silently downgrades a Session-consistency read to the
+    weakest guarantee with nothing logged. An entry is one small int, and
+    stale ones are dropped by ``invalidate``.
     """
+
+    def __init__(self, capacity: Optional[int] = None):
+        super().__init__(capacity)
 
     def get(self, endpoint: str, db_name: str, collection_name: str) -> int:
         """Get timestamp from cache."""
@@ -110,6 +141,14 @@ class CollectionTsCache(CacheRegion):
         """Invalidate timestamp for a specific collection."""
         key = self._make_key(endpoint, db_name, collection_name)
         super().invalidate(key)
+
+    def invalidate_db(self, endpoint: str, db_name: str) -> None:
+        """Invalidate all timestamps for a database."""
+        self.invalidate_prefix((endpoint, db_name or "default"))
+
+    def invalidate_endpoint(self, endpoint: str) -> None:
+        """Invalidate all timestamps cached for an endpoint."""
+        self.invalidate_prefix((endpoint,))
 
     @staticmethod
     def _make_key(endpoint: str, db_name: str, collection_name: str) -> Tuple[str, str, str]:
