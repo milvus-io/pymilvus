@@ -424,6 +424,23 @@ class TestQueryIteratorInit:
                 schema=_SCHEMA_DICT,
             )
 
+    def test_invalid_batch_size_raises_before_describe_collection(self):
+        # batch_size validation now runs in _QueryIteratorBase.__init__, before the
+        # subclass issues the describe_collection RPC. Pin that ordering here so a
+        # future refactor can't silently move the RPC back in front of validation.
+        conn = _make_mock_conn()
+        with pytest.raises(ParamError):
+            QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=-1,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+            )
+        conn.describe_collection.assert_not_called()
+
     def test_session_ts_set(self):
         conn = _make_mock_conn(session_ts=5000)
         qi = QueryIterator(
@@ -609,7 +626,7 @@ class TestQueryIteratorNextExpr:
             schema=_SCHEMA_DICT,
         )
         # _next_id is None initially
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         assert expr == "pk > 0"
 
     def test_setup_next_expr_with_int_cursor(self):
@@ -624,7 +641,7 @@ class TestQueryIteratorNextExpr:
             schema=_SCHEMA_DICT,
         )
         qi._next_id = 42
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         assert "pk > 42" in expr
         assert "(pk > 0)" in expr
         # PK cursor must precede the user filter so that right-most-operand
@@ -644,7 +661,7 @@ class TestQueryIteratorNextExpr:
             schema=_SCHEMA_DICT,
         )
         qi._next_id = 211
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         # element_filter() must remain the right-most operand of AND.
         assert expr == f"pk > 211 and ({user_filter})"
 
@@ -662,7 +679,7 @@ class TestQueryIteratorNextExpr:
         )
         qi._next_id = 211
         qi._next_element_offset = 3
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         assert expr == f"pk >= 211 and ({user_filter})"
 
     def test_setup_next_expr_with_varchar_cursor(self):
@@ -677,7 +694,7 @@ class TestQueryIteratorNextExpr:
             schema=_VARCHAR_SCHEMA_DICT,
         )
         qi._next_id = "abc"
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         assert 'pk > "abc"' in expr
 
     def test_setup_next_expr_empty_expr_with_cursor(self):
@@ -693,7 +710,7 @@ class TestQueryIteratorNextExpr:
         )
         qi._next_id = 10
         qi._expr = ""
-        expr = qi._QueryIterator__setup_next_expr()
+        expr = qi._setup_next_expr()
         assert expr == "pk > 10"
 
 
@@ -1460,7 +1477,7 @@ class TestQueryIteratorCpFile:
             assert qi._next_id == 99
             assert qi._next_element_offset == 2
             assert (
-                qi._QueryIterator__setup_next_expr()
+                qi._setup_next_expr()
                 == "pk >= 99 and (element_filter(structA, $[int_val] >= 20000))"
             )
             qi.close()
@@ -1620,8 +1637,8 @@ class TestQueryIteratorSavePkCursor:
             qi._buffer_cursor_lines_number = 100
             qi._next_id = 42
 
-            # Manually call __save_pk_cursor
-            qi._QueryIterator__save_pk_cursor()
+            # Manually call _save_pk_cursor
+            qi._save_pk_cursor()
             # After truncation, lines reset to 0 + 1 new write
             assert qi._buffer_cursor_lines_number == 1
             qi.close()
