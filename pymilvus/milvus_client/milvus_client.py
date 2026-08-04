@@ -1081,18 +1081,15 @@ class MilvusClient(BaseMilvusClient):
         )
 
     def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
-        """List all indexes of collection. If `field_name` is not specified,
-            return all the indexes of this collection, otherwise this interface will return
-            all indexes on this field of the collection.
+        """List indexes in a collection.
 
-        :param collection_name: The name of collection.
-        :type  collection_name: str
+        Args:
+            collection_name (str): The name of the collection.
+            field_name (str, optional): The name of the field. If omitted, indexes for all
+                fields are returned. Defaults to "".
 
-        :param field_name: The name of field.  If no field name is specified, all indexes
-                of this collection will be returned.
-
-        :return: The name list of all indexes.
-        :rtype: str list
+        Returns:
+            List[str]: The names of the indexes.
         """
         conn = self._get_connection()
         indexes = conn.list_indexes(
