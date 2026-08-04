@@ -46,6 +46,19 @@ def test_query_iterator_compatibility_imports_share_client_owned_classes():
     assert collection_module.QueryIterator is ClientQueryIterator
 
 
+def test_async_query_iterator_is_owned_by_the_client_iterator_package():
+    from pymilvus.client.iterator import (  # noqa: PLC0415
+        AsyncQueryIterator as PackageAsyncQueryIterator,
+    )
+    from pymilvus.client.iterator.async_query_iterator import AsyncQueryIterator  # noqa: PLC0415
+    from pymilvus.milvus_client import (  # noqa: PLC0415
+        async_milvus_client as async_milvus_client_module,
+    )
+
+    assert PackageAsyncQueryIterator is AsyncQueryIterator
+    assert async_milvus_client_module.AsyncQueryIterator is AsyncQueryIterator
+
+
 def test_client_iterator_package_has_no_orm_imports():
     package = Path(__file__).parents[2] / "pymilvus" / "client" / "iterator"
 

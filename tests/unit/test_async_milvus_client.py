@@ -617,6 +617,7 @@ class TestAsyncMilvusClientSession:
             ("search", ("col",), {"data": [[0.1, 0.2]]}),
             ("hybrid_search", ("col", [], MagicMock()), {"limit": 10}),
             ("query", ("col",), {"filter": "id > 0"}),
+            ("query_iterator", ("col",), {"filter": "id > 0", "batch_size": 10}),
             ("get", ("col", [1, 2]), {"output_fields": ["id"]}),
         ],
     )

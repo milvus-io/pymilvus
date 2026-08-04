@@ -1,17 +1,21 @@
 """Unit tests for AsyncQueryIterator (no server required)."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import tempfile
+from pathlib import Path
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus import AsyncMilvusClient
 from pymilvus.client.connection_manager import AsyncConnectionManager
 from pymilvus.client.constants import (
     COLLECTION_ID,
+    ITERATOR_SESSION_CP_FILE,
     ITERATOR_SESSION_TS_FIELD,
+    MAX_BATCH_SIZE,
 )
 from pymilvus.client.iterator import AsyncQueryIterator
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DataTypeNotMatchException
+from pymilvus.exceptions import DataTypeNotMatchException, ParamError
 
 _SCHEMA_DICT = {
     "fields": [
@@ -26,6 +30,13 @@ _VARCHAR_SCHEMA_DICT = {
         {"name": "vec", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
     ],
 }
+
+
+@pytest.fixture(autouse=True)
+def _reset_async_connection_manager():
+    AsyncConnectionManager._reset_instance()
+    yield
+    AsyncConnectionManager._reset_instance()
 
 
 class _QueryResult(list):
@@ -126,13 +137,6 @@ async def test_cursor_expr_quotes_varchar_pk():
     assert 'pk > "abc"' in handler.query_calls[2][1]["expr"]
 
 
-@pytest.fixture(autouse=True)
-def _reset_async_connection_manager():
-    AsyncConnectionManager._reset_instance()
-    yield
-    AsyncConnectionManager._reset_instance()
-
-
 async def _client_with_handler(handler):
     mock_handler = MagicMock()
     mock_handler.ensure_channel_ready = AsyncMock()
@@ -154,7 +158,11 @@ async def test_client_query_iterator_returns_async_iterator():
         collection_name="test", batch_size=2, filter="pk > 0", output_fields=["pk"]
     )
     assert isinstance(it, AsyncQueryIterator)
+    # the factory fetched the schema for the collection we asked for, not a stale one
+    client._handler._get_schema.assert_awaited_once_with("test", timeout=None, context=ANY)
     assert await it.next() == [{"pk": 1}, {"pk": 2}]
+    # query_calls[0] is the mvccTs probe; [1] is the first data page, keyed by our filter
+    assert handler.query_calls[1][1]["expr"] == "pk > 0"
     assert await it.next() == []
     await it.close()
 
@@ -168,7 +176,101 @@ async def test_client_query_iterator_rejects_non_string_filter():
         await client.query_iterator(collection_name="test", filter=123)
 
 
-def test_async_client_session_exposes_query_iterator():
-    from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession  # noqa: PLC0415
+@pytest.mark.asyncio
+async def test_negative_batch_size_raises_before_any_rpc():
+    handler = _FakeAsyncHandler()
+    with pytest.raises(ParamError):
+        await _make_iterator(handler, batch_size=-1)
+    assert handler.describe_calls == []
 
-    assert hasattr(AsyncMilvusClientSession, "query_iterator")
+
+@pytest.mark.asyncio
+async def test_batch_size_over_max_raises_before_any_rpc():
+    handler = _FakeAsyncHandler()
+    with pytest.raises(ParamError):
+        await _make_iterator(handler, batch_size=MAX_BATCH_SIZE + 1)
+    assert handler.describe_calls == []
+
+
+@pytest.mark.asyncio
+async def test_limit_cuts_off_the_last_batch():
+    handler = _FakeAsyncHandler(
+        pages=[
+            [],  # mvccTs probe
+            [{"pk": 1}, {"pk": 2}],
+            [{"pk": 3}, {"pk": 4}],
+        ]
+    )
+    it = await _make_iterator(handler, batch_size=2, limit=3)
+
+    assert await it.next() == [{"pk": 1}, {"pk": 2}]
+    assert await it.next() == [{"pk": 3}]
+    await it.close()
+
+
+@pytest.mark.asyncio
+async def test_async_for_yields_same_batches_as_next():
+    handler = _FakeAsyncHandler(pages=[[], [{"pk": 1}, {"pk": 2}], [{"pk": 3}], []])
+    it = await _make_iterator(handler)
+
+    batches = [batch async for batch in it]
+    await it.close()
+
+    assert batches == [[{"pk": 1}, {"pk": 2}], [{"pk": 3}]]
+
+
+@pytest.mark.asyncio
+async def test_get_cursor_reports_session_ts_and_pk():
+    handler = _FakeAsyncHandler(pages=[[], [{"pk": 5}]], session_ts=4242)
+    it = await _make_iterator(handler)
+    await it.next()
+    cursor = it.get_cursor()
+    await it.close()
+
+    assert cursor.session_ts == 4242
+    assert cursor.int_pk == 5
+    assert cursor.str_pk is None
+
+
+@pytest.mark.asyncio
+async def test_get_cursor_uses_str_pk_for_varchar():
+    handler = _FakeAsyncHandler(pages=[[], [{"pk": "zz"}]], session_ts=7)
+    it = await _make_iterator(handler, expr='pk != ""', schema=_VARCHAR_SCHEMA_DICT)
+    await it.next()
+    cursor = it.get_cursor()
+    await it.close()
+
+    assert cursor.str_pk == "zz"
+    assert cursor.int_pk is None
+
+
+@pytest.mark.asyncio
+async def test_cp_file_records_cursor_and_close_removes_it():
+    handler = _FakeAsyncHandler(pages=[[], [{"pk": 11}, {"pk": 12}]], session_ts=200)
+    with tempfile.TemporaryDirectory() as td:
+        cp_path = str(Path(td) / "cursor.cp")
+        it = await _make_iterator(handler, rpc_options={ITERATOR_SESSION_CP_FILE: cp_path})
+        await it.next()
+
+        assert Path(cp_path).read_text().splitlines() == ["200", "12"]
+
+        await it.close()
+        assert not Path(cp_path).exists()
+
+
+@pytest.mark.asyncio
+async def test_cp_file_resume_skips_the_mvcc_probe_and_restores_cursor():
+    with tempfile.TemporaryDirectory() as td:
+        cp_path = Path(td) / "cursor.cp"
+        cp_path.write_text("300\n42\n")
+
+        handler = _FakeAsyncHandler(pages=[[{"pk": 43}]])
+        it = await _make_iterator(handler, rpc_options={ITERATOR_SESSION_CP_FILE: str(cp_path)})
+
+        # session ts came from the file, so no mvccTs probe was issued
+        assert it._session_ts == 300
+        assert handler.query_calls == []
+
+        assert await it.next() == [{"pk": 43}]
+        assert "pk > 42" in handler.query_calls[0][1]["expr"]
+        await it.close()
