@@ -41,6 +41,54 @@ class TestGrpcHandlerCollectionOps:
         handler.drop_collection("test_coll")
         handler._stub.DropCollection.assert_called_once()
 
+    def test_drop_collection_evicts_the_guarantee_timestamp(self, handler):
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.collection_ts.set(handler.server_address, "", "coll", 5000)
+            GlobalCache.collection_ts.set(handler.server_address, "", "other", 6000)
+
+            handler._stub.DropCollection.return_value = make_status()
+            handler.drop_collection("coll")
+
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "coll") == 0
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "other") == 6000
+        finally:
+            GlobalCache._reset_for_testing()
+
+    def test_recreated_collection_starts_from_its_own_timestamp(self, handler):
+        # `set` only moves a timestamp forward, so without eviction on drop the
+        # recreated collection would stay pinned to the old incarnation's value.
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.collection_ts.set(handler.server_address, "", "coll", 5000)
+
+            handler._stub.DropCollection.return_value = make_status()
+            handler.drop_collection("coll")
+
+            GlobalCache.collection_ts.set(handler.server_address, "", "coll", 10)
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "coll") == 10
+        finally:
+            GlobalCache._reset_for_testing()
+
+    def test_altering_a_collection_keeps_its_guarantee_timestamp(self, handler):
+        # Schema-only invalidation must not drop the timestamp: the collection
+        # still exists, and losing it downgrades Session reads to eventual.
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.schema.set(handler.server_address, "", "coll", {"fields": []})
+            GlobalCache.collection_ts.set(handler.server_address, "", "coll", 5000)
+
+            response = MagicMock()
+            response.alter_status.code = 0
+            response.alter_status.error_code = 0
+            handler._stub.AlterCollectionSchema.return_value = response
+            handler.drop_collection_field("coll", field_name="f")
+
+            assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "coll") == 5000
+        finally:
+            GlobalCache._reset_for_testing()
+
     @pytest.mark.parametrize(
         "error_code,status_code,reason,expected", HAS_COLLECTION_RESPONSE_CASES
     )
