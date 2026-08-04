@@ -1078,7 +1078,13 @@ class GrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_insert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                namespace=kwargs.get("namespace"),
+            )
         )
 
     @retry_on_rpc_failure()
@@ -1212,6 +1218,7 @@ class GrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                namespace=kwargs.get("namespace"),
             )
         )
 
@@ -1293,6 +1300,7 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
             field_ops=field_ops,
+            namespace=kwargs.get("namespace"),
         )
 
     @retry_on_rpc_failure()

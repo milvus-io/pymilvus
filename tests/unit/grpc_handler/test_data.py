@@ -40,6 +40,18 @@ class TestGrpcHandlerDataOps:
             result = handler.upsert_rows("coll", [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4]}])
             assert result.insert_count == 1
 
+    def test_prepare_row_upsert_request_forwards_namespace(self, handler, mock_schema):
+        with patch.object(handler, "_get_schema", return_value=(mock_schema, 0)), patch(
+            "pymilvus.client.grpc_handler.Prepare.row_upsert_param", return_value=MagicMock()
+        ) as mock_prepare:
+            handler._prepare_row_upsert_request(
+                "coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4]}],
+                namespace="tenant_a",
+            )
+
+        assert mock_prepare.call_args.kwargs["namespace"] == "tenant_a"
+
     def test_batch_insert_sync_raises_on_exception(self, handler):
         handler._stub.Insert.future.return_value.result.side_effect = RuntimeError("rpc error")
         with patch.object(handler, "_prepare_batch_insert_request", return_value=MagicMock()):
@@ -56,6 +68,15 @@ class TestGrpcHandlerDataOps:
         with patch.object(handler, "_prepare_batch_upsert_request", return_value=MagicMock()):
             with pytest.raises(MilvusException):
                 handler.upsert("coll", [])
+
+    def test_prepare_batch_upsert_request_forwards_namespace(self, handler, mock_schema):
+        entities = [[1], [[0.1, 0.2, 0.3, 0.4]]]
+        with patch.object(handler, "describe_collection", return_value=mock_schema), patch(
+            "pymilvus.client.grpc_handler.Prepare.batch_upsert_param", return_value=MagicMock()
+        ) as mock_prepare:
+            handler._prepare_batch_upsert_request("coll", entities, namespace="tenant_a")
+
+        assert mock_prepare.call_args.kwargs["namespace"] == "tenant_a"
 
     def test_delete_sync(self, handler):
         mock_resp = MagicMock()
@@ -319,6 +340,16 @@ class TestGrpcHandlerBatchInsert:
                 mock_prepare.return_value = MagicMock()
                 handler._prepare_batch_insert_request("coll", entities)
                 mock_prepare.assert_called_once()
+
+    def test_prepare_batch_insert_request_forwards_namespace(self, handler, mock_schema):
+        """Test _prepare_batch_insert_request forwards namespace."""
+        entities = [[1], [[0.1, 0.2, 0.3, 0.4]]]
+        with patch.object(handler, "describe_collection", return_value=mock_schema), patch(
+            "pymilvus.client.grpc_handler.Prepare.batch_insert_param", return_value=MagicMock()
+        ) as mock_prepare:
+            handler._prepare_batch_insert_request("coll", entities, namespace="tenant_a")
+
+        assert mock_prepare.call_args.kwargs["namespace"] == "tenant_a"
 
     def test_prepare_batch_insert_invalid_param(self, handler):
         """Test _prepare_batch_insert_request with invalid insert_param."""

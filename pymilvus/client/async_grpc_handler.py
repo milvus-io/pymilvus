@@ -877,6 +877,7 @@ class AsyncGrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                namespace=kwargs.get("namespace"),
             )
         )
 
@@ -940,6 +941,7 @@ class AsyncGrpcHandler:
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
             field_ops=field_ops,
+            namespace=kwargs.get("namespace"),
         )
 
     @retry_on_rpc_failure()
