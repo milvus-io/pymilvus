@@ -307,6 +307,39 @@ class QueryIterator:
             self._session_ts = fall_back_to_latest_session_ts()
         self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
 
+    def __init_fresh_cp(self):
+        # (re-)initialize as if the cp file had no content at all yet:
+        # set up mvccTs by a query request and persist it.
+        self.__setup_ts_by_request()
+        io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+
+    def __read_intact_cp_lines(self) -> list[str]:
+        # Every line this iterator writes to the cp file is newline-
+        # terminated: __save_mvcc_ts() writes str(self._session_ts) + "\n",
+        # and __save_pk_cursor() writes __dump_cursor_line() + "\n" -- and
+        # nothing else ever appends to this file. Both writers hand a
+        # single already-terminated "<content>\n" string to writelines()
+        # in one call, so a write interrupted partway through can only
+        # have landed a strict byte-prefix of that string; its trailing
+        # "\n" is its last byte, so a partial write can never include it.
+        # readlines() preserves line terminators, so a final line missing
+        # one is a definitive, content-independent signal that it was only
+        # partially written -- whatever shape the partial content takes
+        # (a bare "-1" left behind by an intended "-1234", a truncated
+        # JSON object, half a varchar pk, even half a ts). Discard it
+        # instead of parsing it: a fully written line is never missing its
+        # terminator, so this can never drop content that actually
+        # finished landing.
+        try:
+            lines = self._cp_file_handler.readlines()
+        except OSError as ose:
+            raise MilvusException(
+                message=f"Failed to read cp info from file:{self._cp_file_path_str}"
+            ) from ose
+        if lines and not lines[-1].endswith("\n"):
+            lines = lines[:-1]
+        return lines
+
     def __set_up_ts_cp(self):
         self._buffer_cursor_lines_number = 0
         self._cp_file_path_str = self._query_options.get(ITERATOR_SESSION_CP_FILE, None)
@@ -319,30 +352,38 @@ class QueryIterator:
             self._need_save_cp = True
             self._cp_file_path = Path(self._cp_file_path_str)
             if not self.__init_cp_file_handler():
-                # input cp file is empty, set up mvccTs by query request
-                self.__setup_ts_by_request()
-                io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+                # input cp file does not exist, set up mvccTs by query request
+                self.__init_fresh_cp()
             else:
-                try:
-                    # input cp file is not emtpy, init mvccTs by reading cp file
-                    lines = self._cp_file_handler.readlines()
-                    line_count = len(lines)
-                    if line_count < 2:
+                # input cp file exists, init mvccTs by reading cp file,
+                # ignoring any unterminated (partially written) final line
+                lines = self.__read_intact_cp_lines()
+                line_count = len(lines)
+                if line_count == 0:
+                    # Either the file was genuinely empty (run interrupted
+                    # right after creation, before the mvcc ts was
+                    # written), or its only line was an unterminated,
+                    # partially written ts -- both leave nothing intact to
+                    # resume from. Treat exactly like a brand new cp file.
+                    self.__init_fresh_cp()
+                else:
+                    try:
+                        self._session_ts = int(lines[0])
+                    except ValueError as e:
                         raise ParamError(
-                            message=f"input cp file:{self._cp_file_path_str} should contain "
-                            f"at least two lines, but only:{line_count} lines"
-                        )
-                    self._session_ts = int(lines[0])
+                            message=f"cannot parse input cp session_ts:{lines[0]}"
+                        ) from e
                     self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
                     if line_count > 1:
                         self._buffer_cursor_lines_number = line_count - 1
                         self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
-                except OSError as ose:
-                    raise MilvusException(
-                        message=f"Failed to read cp info from file:{self._cp_file_path_str}"
-                    ) from ose
-                except ValueError as e:
-                    raise ParamError(message=f"cannot parse input cp session_ts:{lines[0]}") from e
+                    # line_count == 1: either only the session_ts was ever
+                    # persisted (right after __save_mvcc_ts, before any
+                    # batch was consumed), or a later cursor line existed
+                    # but was discarded above as unterminated -- both
+                    # resume the ts with no pk cursor, and
+                    # _buffer_cursor_lines_number correctly stays at 0,
+                    # consistent with the intact lines that remain.
 
     def __maybe_cache(self, result: list):
         if len(result) < 2 * self._query_options[BATCH_SIZE]:

@@ -1469,15 +1469,75 @@ class TestQueryIteratorCpFile:
                 Path(cp_path).unlink()
             raise
 
-    def test_cp_file_too_few_lines_raises(self):
-        """CP file with only 1 line raises ParamError."""
+    def test_cp_file_zero_byte_initializes_like_new(self):
+        """A zero-byte cp file (exists but empty, e.g. left behind by a run
+        interrupted after file creation but before the mvcc ts was written)
+        must be treated exactly like a brand new cp file: fetch a fresh
+        session ts by request and persist it, instead of being rejected."""
+        conn = _make_mock_conn(session_ts=400)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "empty.cp")
+            Path(cp_path).touch()  # file exists, but has zero bytes
+
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 400
+            assert qi._next_id is None
+            qi._cp_file_handler.flush()
+            assert Path(cp_path).read_text().splitlines() == ["400"]
+            qi.close()
+
+    def test_cp_file_single_line_resumes_ts_only(self):
+        """A one-line cp file (just the ts, written right after
+        __save_mvcc_ts but before any batch was consumed) must resume with
+        that session_ts, restore no pk cursor, and keep the cursor buffer at
+        zero lines."""
         conn = _make_mock_conn(session_ts=100)
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
             f.write("300\n")
             cp_path = f.name
 
         try:
-            with pytest.raises(ParamError, match="at least two lines"):
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id is None
+            assert qi._buffer_cursor_lines_number == 0
+            # no pk cursor restored -> next expr is the plain user expr
+            assert qi._QueryIterator__setup_next_expr() == "pk > 0"
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_single_line_invalid_ts_raises(self):
+        """A one-line cp file whose only line is not parseable as an int
+        must still raise ParamError (same ValueError handler as the
+        two-line case)."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("not_a_number\n")
+            cp_path = f.name
+
+        try:
+            with pytest.raises(ParamError, match="cannot parse"):
                 QueryIterator(
                     handler=conn,
                     context=None,
@@ -1515,6 +1575,232 @@ class TestQueryIteratorCpFile:
         finally:
             if Path(cp_path).exists():
                 Path(cp_path).unlink()
+
+    def test_cp_file_truncated_negative_int_cursor_discarded_resumes_previous(self):
+        """Reviewer's finding: json.loads("-1") succeeds as a bare int, so a
+        cursor line that was mid-write from an intended "-1234\\n" down to
+        just "-1" (no trailing newline) parses fine and is *numerically
+        larger* than -1234 -- silently adopting it as the pk would skip the
+        whole (-1234, -1] range with no exception. An unterminated final
+        line must be discarded regardless of what it happens to parse as,
+        so the iterator must fall back to the last intact cursor line
+        instead of ever seeing "-1"."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write("-5000\n")
+            f.write("-1")  # truncated mid-write from an intended "-1234", no "\n"
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == "-5000"
+            assert qi._next_id != "-1"
+            assert qi._buffer_cursor_lines_number == 1
+            assert qi._QueryIterator__setup_next_expr() == "pk > -5000 and (pk > 0)"
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_truncated_element_cursor_discarded_resumes_previous(self):
+        """Same discard rule for an element-filter iterator's JSON cursor
+        line: a mid-write cut-off (e.g. '{"pk":99,"last_el' with no closing
+        brace and no trailing newline) must be dropped, not treated as
+        corruption to reject outright -- the iterator should transparently
+        fall back to the last intact cursor line."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write('{"pk":50,"last_element_offset":1}\n')
+            f.write('{"pk":99,"last_el')  # truncated mid-write, no trailing newline
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="element_filter(structA, $[int_val] >= 20000)",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == 50
+            assert qi._next_element_offset == 1
+            assert qi._buffer_cursor_lines_number == 1
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_truncated_varchar_cursor_discarded_resumes_previous(self):
+        """Same discard rule for a plain varchar pk cursor line: a mid-write
+        cut-off (e.g. "abc-1" left behind by an intended "abc-1234\\n") must
+        be dropped rather than adopted as the pk, since a truncated varchar
+        prefix is not guaranteed to sort before the untruncated value."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write("abc-99\n")
+            f.write("abc-1")  # truncated mid-write from an intended "abc-1234", no "\n"
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr='pk != ""',
+                output_fields=["pk"],
+                schema=_VARCHAR_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == "abc-99"
+            assert qi._next_id != "abc-1"
+            assert qi._buffer_cursor_lines_number == 1
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_unterminated_ts_only_line_goes_to_fresh_init(self):
+        """An unterminated final line is discarded no matter what it is --
+        including the ts line itself, when it is the only line in the
+        file. With nothing intact left to resume from, this must behave
+        exactly like a 0-line (empty) cp file: fresh init via a query
+        request, not an adoption of the partial ts value."""
+        conn = _make_mock_conn(session_ts=400)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300")  # truncated mid-write from an intended "30045\n", no "\n"
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 400
+            assert qi._next_id is None
+            assert qi._buffer_cursor_lines_number == 0
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_terminated_last_line_int_pk_resumes_unchanged(self):
+        """Regression guard: a fully written file (last line properly
+        terminated) must resume exactly as it always did -- the discard
+        rule is a no-op here since there is nothing unterminated."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write("50\n")
+            f.write("99\n")
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == "99"
+            assert qi._buffer_cursor_lines_number == 2
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_terminated_last_line_varchar_pk_resumes_unchanged(self):
+        """Regression guard: same as above, for a varchar pk."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write("abc-50\n")
+            f.write("abc-99\n")
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr='pk != ""',
+                output_fields=["pk"],
+                schema=_VARCHAR_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == "abc-99"
+            assert qi._buffer_cursor_lines_number == 2
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+    def test_cp_file_terminated_last_line_element_cursor_resumes_unchanged(self):
+        """Regression guard: same as above, for an element-filter cursor."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write('{"pk":50,"last_element_offset":1}\n')
+            f.write('{"pk":99,"last_element_offset":2}\n')
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="element_filter(structA, $[int_val] >= 20000)",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == 99
+            assert qi._next_element_offset == 2
+            assert qi._buffer_cursor_lines_number == 2
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
 
 
 class TestQueryIteratorSavePkCursor:
