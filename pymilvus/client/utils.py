@@ -417,11 +417,13 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
 
 
 def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> List[Dict]:
-    """
-    Convert internal struct_array_fields representation to user-friendly format.
+    """Convert internal struct array fields to a user-friendly format.
 
-    :param struct_array_fields: List of struct field info from server
-    :return: List of user-friendly field dictionaries
+    Args:
+        struct_array_fields (List[Dict]): Struct field information from the server.
+
+    Returns:
+        List[Dict]: User-friendly field dictionaries.
     """
     converted_fields = []
 
