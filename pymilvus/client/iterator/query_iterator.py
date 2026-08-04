@@ -222,8 +222,42 @@ class QueryIterator:
                 )
                 self._buffer_cursor_lines_number = 0
                 self.__save_mvcc_ts()
-            self._cp_file_handler.writelines(self.__dump_cursor_line() + "\n")
-            self._cp_file_handler.flush()
+            # Everything above this point is already committed (whatever
+            # __init_cp_file_handler / the recreate branch / the compaction
+            # branch above left in place); only the cursor-line append below
+            # is rolled back on failure. Record the file's current offset
+            # first so a failure -- even one that only surfaces from
+            # flush(), after writelines() already handed the bytes to the
+            # file object -- can be undone: seek back, truncate the
+            # accepted-but-unconfirmed bytes off, and flush that truncation
+            # so the on-disk file matches the in-memory cursor that the
+            # caller (next()) is about to roll back too.
+            prev_offset = self._cp_file_handler.tell()
+            try:
+                self._cp_file_handler.writelines(self.__dump_cursor_line() + "\n")
+                self._cp_file_handler.flush()
+            except OSError as write_ose:
+                try:
+                    self._cp_file_handler.seek(prev_offset)
+                    self._cp_file_handler.truncate()
+                    self._cp_file_handler.flush()
+                except OSError as rollback_ose:
+                    # The rollback itself failed: we can no longer claim to
+                    # know what bytes are on disk (some unknown prefix of
+                    # the attempted write may have landed). Escalate loudly
+                    # instead of letting a caller believe the checkpoint
+                    # file still reflects the last successfully delivered
+                    # batch.
+                    raise MilvusException(
+                        message=(
+                            f"failed to save pk cursor to cp file:{self._cp_file_path_str}, "
+                            "and the attempt to roll the file back to its prior state also "
+                            f"failed (target offset {prev_offset}); its on-disk content is "
+                            "now unknown and must not be trusted for recovery. write error: "
+                            f"{write_ose!r}, rollback error: {rollback_ose!r}"
+                        )
+                    ) from rollback_ose
+                raise
             self._buffer_cursor_lines_number += 1
 
     def __dump_cursor_line(self) -> str:
@@ -241,7 +275,30 @@ class QueryIterator:
         cursor_line = line.strip()
         try:
             cursor = json.loads(cursor_line)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            if self._is_element_filter_iterator:
+                # __read_intact_cp_lines() already discards any final line
+                # that lacks its trailing "\n" before we ever get here, so
+                # every line reaching this point -- including one left
+                # behind by a failed offset-rollback in __save_pk_cursor --
+                # was fully, durably written. __dump_cursor_line always
+                # writes an element-filter iterator's cursor as a complete
+                # JSON object once it has one to write (see
+                # _has_element_cursor), so a *terminated* line that still
+                # fails to parse as JSON cannot be explained by any
+                # write-failure path this iterator itself can hit; it can
+                # only be corruption from something else (e.g. bit-level
+                # disk corruption after a successful flush, or this cp
+                # file being resumed by a differently-configured iterator).
+                # Kept as defense in depth for that residual case -- it
+                # never rejects a line this iterator could have produced,
+                # so keeping it costs nothing. Fail loudly instead of
+                # silently adopting a garbage pk (like the generic
+                # fallback below does for genuinely plain, non-JSON pk
+                # cursors) that could narrow or drop the rest of the scan.
+                raise ParamError(
+                    message=f"cannot parse cp cursor line for element-filter iterator: {cursor_line}"
+                ) from e
             self._next_id = cursor_line
             self._next_element_offset = None
             return
@@ -410,13 +467,23 @@ class QueryIterator:
         )
 
     def next(self):
+        # Decide `ret` without mutating iterator_cache yet: the checkpoint
+        # write below is this batch's commit point, so any cache mutation
+        # that corresponds to it (splicing the cache-hit remainder back, or
+        # caching a fresh query's overflow) must wait until that write has
+        # actually succeeded.
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
-        ret = None
-        if self.__is_res_sufficient(cached_res):
+        served_from_cache = self.__is_res_sufficient(cached_res)
+        if served_from_cache:
             ret = cached_res[0 : self._query_options[BATCH_SIZE]]
-            res_to_cache = cached_res[self._query_options[BATCH_SIZE] :]
-            iterator_cache.cache(res_to_cache, self._cache_id_in_use)
+            cache_remainder = cached_res[self._query_options[BATCH_SIZE] :]
         else:
+            # This releases an *insufficient* cache remainder, if any,
+            # before the query below. That remainder is always a suffix of
+            # what the server returns for the current cursor, so releasing
+            # it here is safe even if the checkpoint write later fails:
+            # the cursor rollback makes the retry re-query, which re-fetches
+            # those same rows from the server rather than relying on cache.
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
             log.debug(f"query_iterator_next_expr:{current_expr}")
@@ -430,12 +497,30 @@ class QueryIterator:
                 context=self._context,
                 **query_params,
             )
-            self.__maybe_cache(res)
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
 
         ret = self.__check_reached_limit(ret)
+        prev_next_id = self._next_id
+        prev_next_element_offset = self._next_element_offset
         self.__update_cursor(ret)
-        io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        try:
+            io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        except MilvusException:
+            # The checkpoint write is this batch's commit point. Roll the
+            # cursor back so a retry re-derives the identical batch: since
+            # the cache mutation below hasn't run yet either, a query-branch
+            # retry re-issues the same expression and gets the same rows
+            # back, and a cache-hit retry finds the same untouched cache and
+            # re-serves the same batch from it.
+            self._next_id = prev_next_id
+            self._next_element_offset = prev_next_element_offset
+            raise
+        # Only now that the checkpoint write has durably recorded this batch
+        # as delivered is it safe to commit the cache mutation for it.
+        if served_from_cache:
+            iterator_cache.cache(cache_remainder, self._cache_id_in_use)
+        else:
+            self.__maybe_cache(res)
         self._returned_count += len(ret)
         return ret
 

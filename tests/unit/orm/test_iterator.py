@@ -1802,6 +1802,98 @@ class TestQueryIteratorCpFile:
                 Path(cp_path).unlink()
             raise
 
+    def test_cp_file_element_filter_corrupted_cursor_line_raises(self):
+        """__dump_cursor_line always writes an element-filter iterator's
+        cursor as a JSON object once it has one to write. A cursor line
+        that fails to parse as JSON for such an iterator can only be a
+        partially written line left behind by a mid-compaction failure
+        whose offset-rollback (see __save_pk_cursor) also failed --
+        silently treating it as a literal pk value could resume with a
+        garbage cursor that skips or drops the rest of the scan. Must raise
+        ParamError instead of silently accepting it."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write('{"pk":99,"last_el\n')  # truncated mid-JSON
+            cp_path = f.name
+
+        try:
+            with pytest.raises(ParamError, match="cannot parse"):
+                QueryIterator(
+                    handler=conn,
+                    context=None,
+                    collection_name="test",
+                    batch_size=10,
+                    expr="element_filter(structA, $[int_val] >= 20000)",
+                    output_fields=["pk"],
+                    schema=_SCHEMA_DICT,
+                    rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+                )
+        finally:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+
+    def test_cp_file_varchar_pk_non_json_cursor_line_still_resumes(self):
+        """Regression guard for the fix above: a plain (non-JSON) pk cursor
+        line for a *non* element-filter iterator is the normal, legitimate
+        format (see __dump_cursor_line's plain str(self._next_id) branch)
+        and must keep resuming successfully, not be mistaken for
+        corruption."""
+        conn = _make_mock_conn(session_ts=100)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            f.write("300\n")
+            f.write("abc-99\n")
+            cp_path = f.name
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr='pk != ""',
+                output_fields=["pk"],
+                schema=_VARCHAR_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id == "abc-99"
+            qi.close()
+        except Exception:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+            raise
+
+
+class _RealFlushFailsOnceWrapper:
+    """Wraps a real, on-disk file handle. writelines() forwards to the real
+    handle and *really flushes it* (so the bytes are genuinely on disk
+    before this method returns); flush() raises OSError exactly once (when
+    armed via fail_next_flush) and delegates to the real flush() otherwise.
+
+    This reproduces a flush() call that reports failure even though the
+    data it was "flushing" had, via a different call, already landed --
+    the exact gap the reviewer flagged: __save_pk_cursor's own explicit
+    flush() can fail *after* writelines() already handed the bytes to the
+    file object."""
+
+    def __init__(self, real_handle):
+        self._real = real_handle
+        self.fail_next_flush = False
+
+    def writelines(self, lines):
+        self._real.writelines(lines)
+        self._real.flush()
+
+    def flush(self):
+        if self.fail_next_flush:
+            self.fail_next_flush = False
+            raise OSError("simulated flush failure after the bytes already landed on disk")
+        self._real.flush()
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
 
 class TestQueryIteratorSavePkCursor:
     """Cover __save_pk_cursor (lines 195-214)."""
@@ -1911,6 +2003,320 @@ class TestQueryIteratorSavePkCursor:
             # After truncation, lines reset to 0 + 1 new write
             assert qi._buffer_cursor_lines_number == 1
             qi.close()
+
+    def test_checkpoint_write_failure_restores_cursor_for_retry(self):
+        """If persisting the pk cursor fails, next() must raise
+        MilvusException *and* roll _next_id/_next_element_offset back to
+        their pre-batch values, so a caller that retries next() re-issues
+        the same expression and gets the same batch again instead of
+        silently skipping it."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+
+            # Swap in a file-handle stub whose writelines fails once (the
+            # checkpoint write) then succeeds, without touching the method
+            # under test (__save_pk_cursor) itself.
+            failing_handler = Mock()
+            failing_handler.writelines = Mock(side_effect=[OSError("disk full"), None])
+            failing_handler.flush = Mock()
+            qi._cp_file_handler = failing_handler
+
+            conn.query.return_value = _make_query_res([{"pk": 5}])
+
+            assert qi._next_id is None
+            with pytest.raises(MilvusException, match="failed to save pk cursor"):
+                qi.next()
+            # the batch was never delivered -> cursor must not have advanced
+            assert qi._next_id is None
+
+            conn.query.reset_mock()
+            conn.query.return_value = _make_query_res([{"pk": 5}])
+            result = qi.next()
+
+            # retry re-issues the very same expression (no pk cursor leaked
+            # through), i.e. the same batch is re-delivered, not skipped
+            retry_expr = conn.query.call_args.kwargs["expr"]
+            assert retry_expr == "pk > 0"
+            assert len(result) == 1
+            qi.close()
+
+    def test_checkpoint_write_failure_restores_element_offset_for_retry(self):
+        """Same rollback guarantee as
+        test_checkpoint_write_failure_restores_cursor_for_retry, but for an
+        element-filter iterator: _next_element_offset (not just _next_id)
+        must also be rolled back on a failed checkpoint write."""
+        conn = _make_mock_conn(session_ts=200)
+        user_filter = "element_filter(structA, $[int_val] >= 20000)"
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr=user_filter,
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            try:
+                failing_handler = Mock()
+                failing_handler.writelines = Mock(side_effect=[OSError("disk full"), None])
+                failing_handler.flush = Mock()
+                qi._cp_file_handler = failing_handler
+
+                conn.query.return_value = _make_query_res([{"pk": 7, OFFSET: 1}])
+
+                assert qi._next_id is None
+                assert qi._next_element_offset is None
+                with pytest.raises(MilvusException, match="failed to save pk cursor"):
+                    qi.next()
+                # rollback must restore BOTH the pk cursor and the element offset
+                assert qi._next_id is None
+                assert qi._next_element_offset is None
+
+                conn.query.reset_mock()
+                conn.query.return_value = _make_query_res([{"pk": 7, OFFSET: 1}])
+                result = qi.next()
+
+                retry_call = conn.query.call_args
+                # no leaked cursor/offset -> retry re-issues the plain expr
+                assert retry_call.kwargs["expr"] == user_filter
+                assert QUERY_ITER_LAST_PK not in retry_call.kwargs
+                assert len(result) == 1
+                assert qi._next_id == 7
+                assert qi._next_element_offset == 1
+            finally:
+                qi.close()
+
+    def test_checkpoint_write_failure_after_cache_hit_replays_same_batch_from_cache(self):
+        """Cache-hit branch: a prior next() call cached the overflow of a
+        query result. If the checkpoint write fails for a batch served from
+        that cache, the retry must re-deliver the identical cached batch
+        (not the rows after it) -- the cache splice must not be committed
+        until the checkpoint write has succeeded."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=2,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            try:
+                # 7-row result overflows batch_size=2: rows [2..6] get cached.
+                conn.query.return_value = _make_query_res([{"pk": i} for i in range(7)])
+                first = qi.next()
+                assert [row["pk"] for row in first] == [0, 1]
+                assert qi._cache_id_in_use != NO_CACHE_ID
+                cached = iterator_cache.fetch_cache(qi._cache_id_in_use)
+                assert [row["pk"] for row in cached] == [2, 3, 4, 5, 6]
+
+                # Second call is served from cache. Make its checkpoint
+                # write fail once, then succeed.
+                failing_handler = Mock()
+                failing_handler.writelines = Mock(side_effect=[OSError("disk full"), None])
+                failing_handler.flush = Mock()
+                qi._cp_file_handler = failing_handler
+
+                conn.query.reset_mock()
+                with pytest.raises(MilvusException, match="failed to save pk cursor"):
+                    qi.next()
+                # the failed attempt must not touch the server or the cache
+                assert not conn.query.called
+                cached_after_failure = iterator_cache.fetch_cache(qi._cache_id_in_use)
+                assert [row["pk"] for row in cached_after_failure] == [2, 3, 4, 5, 6]
+
+                # Retry re-delivers the SAME batch [2, 3] from the untouched
+                # cache, not [4, 5] -- no rows are skipped.
+                retry = qi.next()
+                assert not conn.query.called
+                assert [row["pk"] for row in retry] == [2, 3]
+            finally:
+                qi.close()
+
+    def test_checkpoint_write_failure_after_fresh_query_overflow_replays_same_batch(self):
+        """Query branch: a fresh query's result overflows the batch size,
+        so __maybe_cache would cache the remainder. If the checkpoint
+        write for the delivered batch fails, that cache commit must not
+        have happened either -- the retry must re-issue the same query and
+        re-deliver the identical first batch, not serve the
+        never-committed cached overflow."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=2,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            try:
+                failing_handler = Mock()
+                failing_handler.writelines = Mock(side_effect=[OSError("disk full"), None])
+                failing_handler.flush = Mock()
+                qi._cp_file_handler = failing_handler
+
+                conn.query.return_value = _make_query_res([{"pk": i} for i in range(7)])
+
+                assert qi._cache_id_in_use == NO_CACHE_ID
+                with pytest.raises(MilvusException, match="failed to save pk cursor"):
+                    qi.next()
+                # the overflow must not have been committed to the cache
+                assert qi._cache_id_in_use == NO_CACHE_ID
+                assert qi._next_id is None
+
+                conn.query.reset_mock()
+                conn.query.return_value = _make_query_res([{"pk": i} for i in range(7)])
+                retry = qi.next()
+
+                # retry re-issued the same expression (cursor rolled back)...
+                assert conn.query.call_args.kwargs["expr"] == "pk > 0"
+                # ...and re-delivered the identical first batch
+                assert [row["pk"] for row in retry] == [0, 1]
+            finally:
+                qi.close()
+
+    def test_checkpoint_flush_failure_survives_process_restart(self):
+        """Reproduces the reviewer's finding on PR #3746 (query_iterator.py
+        __save_pk_cursor around the writelines()+flush() append): a
+        MilvusException from the checkpoint write does not guarantee the
+        file was left untouched -- writelines() can hand bytes to the file
+        before flush() reports failure. Wrap the *real* file handle so
+        writelines() forwards to it and really flushes (the bytes hit disk
+        for real), then make the wrapper's own flush() call raise --
+        reproducing "the cursor was accepted by the file, but the flush()
+        call reported failure" without touching __save_pk_cursor itself.
+
+        The decisive assertion is cross-restart: a brand new QueryIterator
+        constructed against the same cp file afterwards must resume at the
+        pre-failure cursor and re-deliver the batch that was never actually
+        handed to the caller, not skip it."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            qi2 = None
+            try:
+                # A first batch succeeds normally and lands a real cursor
+                # line, so the simulated failure below is a second append,
+                # not the very first write to the file.
+                conn.query.return_value = _make_query_res([{"pk": 5}])
+                first = qi.next()
+                assert [row["pk"] for row in first] == [5]
+                pre_failure_bytes = Path(cp_path).read_bytes()
+                assert pre_failure_bytes == b"200\n5\n"
+
+                wrapper = _RealFlushFailsOnceWrapper(qi._cp_file_handler)
+                qi._cp_file_handler = wrapper
+
+                conn.query.return_value = _make_query_res([{"pk": 9}])
+                wrapper.fail_next_flush = True
+                with pytest.raises(MilvusException, match="failed to save pk cursor"):
+                    qi.next()
+
+                # in-memory cursor rolled back
+                assert qi._next_id == 5
+                # on-disk bytes restored to exactly the pre-failure content,
+                # even though writelines() really flushed the new line to
+                # disk before the explicit flush() call reported failure
+                assert Path(cp_path).read_bytes() == pre_failure_bytes
+
+                # a brand new process/iterator resuming from this same cp
+                # file must see the pre-failure cursor, not one that points
+                # past the batch that was never delivered
+                conn.query.reset_mock()
+                conn.query.return_value = _make_query_res([{"pk": 9}])
+                qi2 = QueryIterator(
+                    handler=conn,
+                    context=None,
+                    collection_name="test",
+                    batch_size=10,
+                    expr="pk > 0",
+                    output_fields=["pk"],
+                    schema=_SCHEMA_DICT,
+                    rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+                )
+                # (a plain pk cursor line is always restored as the raw
+                # string read from the file, matching e.g.
+                # test_cp_file_existing_reads_ts_and_cursor)
+                assert qi2._next_id == "5"
+                retried = qi2.next()
+                assert conn.query.call_args.kwargs["expr"] == "pk > 5 and (pk > 0)"
+                assert [row["pk"] for row in retried] == [9]
+            finally:
+                # qi's cp_file_handler was swapped for a wrapper around the
+                # real handle, and qi2 owns the same on-disk cp file -- only
+                # let one of them unlink it.
+                iterator_cache.release_cache(qi._cache_id_in_use)
+                if qi2 is not None:
+                    qi2.close()
+                else:
+                    qi.close()
+
+    def test_checkpoint_write_failure_recovery_also_fails_flags_untrustworthy(self):
+        """If the checkpoint write fails AND the offset-rollback recovery
+        itself also fails (e.g. the disk is still unavailable), the cp
+        file's on-disk state is genuinely unknown. next() must raise a
+        MilvusException whose message says the checkpoint must not be
+        trusted, chaining the original write error."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = str(Path(td) / "cursor.cp")
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            try:
+                failing_handler = Mock()
+                failing_handler.tell = Mock(return_value=4)
+                failing_handler.writelines = Mock(side_effect=OSError("disk full"))
+                failing_handler.seek = Mock(side_effect=OSError("disk still unavailable"))
+                qi._cp_file_handler = failing_handler
+
+                conn.query.return_value = _make_query_res([{"pk": 5}])
+                with pytest.raises(MilvusException, match="must not be trusted"):
+                    qi.next()
+                # the in-memory cursor is still rolled back even though the
+                # on-disk file could not be
+                assert qi._next_id is None
+            finally:
+                qi.close()
 
 
 class TestQueryIteratorMaybeCache:
