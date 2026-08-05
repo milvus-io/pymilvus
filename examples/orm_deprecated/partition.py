@@ -75,7 +75,7 @@ def gen_data(nb):
     entities = [
         [i for i in range(nb)],
         [float(i) for i in range(nb)],
-        [[random.random() for _ in range(dim)] for _ in range(num)],
+        [[random.random() for _ in range(default_dim)] for _ in range(nb)],
     ]
     return entities
 
