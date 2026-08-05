@@ -166,6 +166,8 @@ class MilvusClient(BaseMilvusClient):
             pk_data_type = DataType.INT64
         elif id_type in ("string", "str", DataType.VARCHAR):
             pk_data_type = DataType.VARCHAR
+        elif id_type in ("uuid", "UUID", DataType.UUID):
+            pk_data_type = DataType.UUID
         else:
             raise PrimaryKeyException(message=ExceptionsMessage.PrimaryFieldType)
 

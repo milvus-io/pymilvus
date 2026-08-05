@@ -450,6 +450,7 @@ def entity_to_array_arr(entity_values: List[Any], field_info: Any):
 
 _ROW_SCALAR_NORMALIZERS = {
     DataType.VARCHAR: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
+    DataType.UUID: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
     DataType.TEXT: lambda v, fi: convert_to_str_array(v, fi, check=False),
     DataType.GEOMETRY: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
     DataType.JSON: lambda v, _: convert_to_json(v),
@@ -660,6 +661,8 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
         if type_info.is_scalar_type(entity_type) or entity_type == DataType.ARRAY:
             attr_name = type_info.get_scalar_attr(entity_type)
             if entity_type in (DataType.VARCHAR, DataType.GEOMETRY):
+                entity_values = entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
+            elif entity_type == DataType.UUID:
                 entity_values = entity_to_str_arr(entity_values, field_info, CHECK_STR_ARRAY)
             elif entity_type == DataType.TEXT:
                 # TEXT type does not have max_length limit, skip length check

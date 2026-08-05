@@ -230,8 +230,8 @@ class ExceptionsMessage:
     PrimaryKeyNotExist = "Primary field must in dataframe."
     PrimaryKeyOnlyOne = "Expected only one primary key field, got [%s, %s, ...]."
     PartitionKeyOnlyOne = "Expected only one partition key field, got [%s, %s, ...]."
-    PrimaryKeyType = "Primary key type must be DataType.INT64 or DataType.VARCHAR."
-    PartitionKeyType = "Partition key field type must be DataType.INT64 or DataType.VARCHAR."
+    PrimaryKeyType = "Primary key type must be DataType.INT64 or DataType.VARCHAR or DataType.UUID."
+    PartitionKeyType = "Partition key field type must be DataType.INT64 or DataType.VARCHAR or DataType.UUID."
     PartitionKeyNotPrimary = "Partition key field should not be primary field"
     IsPrimaryType = "Param is_primary must be bool type."
     PrimaryFieldType = "Param primary_field must be int or str type."
@@ -305,7 +305,7 @@ class ExceptionsMessage:
     ClusteringKeyType = (
         "Clustering key field type must be DataType.INT8, DataType.INT16, "
         "DataType.INT32, DataType.INT64, DataType.FLOAT, DataType.DOUBLE, "
-        "DataType.VARCHAR, DataType.FLOAT_VECTOR."
+        "DataType.VARCHAR, DataType.UUID, DataType.FLOAT_VECTOR."
     )
     ClusteringKeyFieldNotExist = "the specified clustering key field {%s} not exist"
     ClusteringKeyOnlyOne = "Expected only one clustering key field, got [%s, %s, ...]."

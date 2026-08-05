@@ -411,7 +411,7 @@ class QueryIterator:
         fields = self._schema[FIELDS]
         for field in fields:
             if field.get(IS_PRIMARY):
-                if field["type"] == DataType.VARCHAR:
+                if field["type"] in (DataType.VARCHAR, DataType.UUID):
                     self._pk_str = True
                 else:
                     self._pk_str = False

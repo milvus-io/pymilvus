@@ -82,6 +82,13 @@ class TestFieldSchemaCreation:
                 id="varchar",
             ),
             pytest.param(
+                "uid",
+                DataType.UUID,
+                {"max_length": 36},
+                {"max_length": 36},
+                id="uuid",
+            ),
+            pytest.param(
                 "vec",
                 DataType.FLOAT_VECTOR,
                 {"dim": 128},
@@ -1569,6 +1576,7 @@ class TestValidatePrimaryKey:
         [
             pytest.param(DataType.INT64, True, id="int64_valid"),
             pytest.param(DataType.VARCHAR, True, id="varchar_valid"),
+            pytest.param(DataType.UUID, True, id="uuid_valid"),
             pytest.param(DataType.FLOAT, False, id="float_invalid"),
             pytest.param(DataType.DOUBLE, False, id="double_invalid"),
             pytest.param(DataType.BOOL, False, id="bool_invalid"),
@@ -1594,6 +1602,7 @@ class TestValidatePartitionKey:
         [
             pytest.param(DataType.INT64, True, id="int64_valid"),
             pytest.param(DataType.VARCHAR, True, id="varchar_valid"),
+            pytest.param(DataType.UUID, True, id="uuid_valid"),
             pytest.param(DataType.FLOAT, False, id="float_invalid"),
             pytest.param(DataType.DOUBLE, False, id="double_invalid"),
             pytest.param(DataType.BOOL, False, id="bool_invalid"),
@@ -1628,6 +1637,7 @@ class TestValidateClusteringKey:
             pytest.param(DataType.FLOAT, True, id="float_valid"),
             pytest.param(DataType.DOUBLE, True, id="double_valid"),
             pytest.param(DataType.VARCHAR, True, id="varchar_valid"),
+            pytest.param(DataType.UUID, True, id="uuid_valid"),
             pytest.param(DataType.FLOAT_VECTOR, True, id="float_vector_valid"),
             pytest.param(DataType.BOOL, False, id="bool_invalid"),
             pytest.param(DataType.JSON, False, id="json_invalid"),

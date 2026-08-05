@@ -129,8 +129,8 @@ class BaseMilvusClient:
         pk_field_name = primary_field["name"]
         data_type = primary_field["type"]
 
-        # Varchar pks need double quotes around the values
-        if data_type == DataType.VARCHAR:
+        # Varchar and UUID pks need double quotes around the values
+        if data_type in (DataType.VARCHAR, DataType.UUID):
             ids = ["'" + str(entry) + "'" for entry in pks]
             expr = f"""{pk_field_name} in [{",".join(ids)}]"""
         else:

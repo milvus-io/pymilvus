@@ -385,8 +385,9 @@ class TestLogicalTypeBatchInsertPaths:
             (DataType.INT32, [1, 2], "int_data", [1, 2]),
             (DataType.FLOAT, [1.5, 2.5], "float_data", [1.5, 2.5]),
             (DataType.TEXT, ["a", "b"], "string_data", ["a", "b"]),
+            (DataType.UUID, ["uuid-1", "uuid-2"], "string_data", ["uuid-1", "uuid-2"]),
         ],
-        ids=["bool", "int32", "float", "text"],
+        ids=["bool", "int32", "float", "text", "uuid"],
     )
     def test_registry_backed_batch_scalar_destinations(self, dtype, values, attr, expected):
         field_info = {"name": "scalar", "params": {Config.MaxVarCharLengthKey: 128}}
@@ -1284,6 +1285,12 @@ _PACK_ERROR_CASES = [
         {"name": "f", "params": {Config.MaxVarCharLengthKey: 10}},
         DataNotMatchException,
     ),
+    (
+        DataType.UUID,
+        12345,
+        {"name": "f"},
+        DataNotMatchException,
+    ),
     (DataType.JSON, _Unserializable(), {"name": "f"}, DataNotMatchException),
 ]
 
@@ -1408,6 +1415,7 @@ class TestLogicalTypeRowInsertPaths:
                 "2026-05-18T10:00:00Z",
             ),
             (DataType.VARCHAR, "varchar", "string_data", "varchar"),
+            (DataType.UUID, "550e8400-e29b-41d4-a716-446655440000", "string_data", "550e8400-e29b-41d4-a716-446655440000"),
             (DataType.TEXT, "text", "string_data", "text"),
             (DataType.JSON, {"ok": True}, "json_data", orjson.dumps({"ok": True})),
             (DataType.GEOMETRY, "POINT(1 2)", "geometry_wkt_data", "POINT(1 2)"),
@@ -1422,6 +1430,7 @@ class TestLogicalTypeRowInsertPaths:
             "double",
             "timestamptz",
             "varchar",
+            "uuid",
             "text",
             "json",
             "geometry",

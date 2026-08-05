@@ -202,6 +202,9 @@ class BulkWriter:
         elif element_type == DataType.VARCHAR:
             for ele in x:
                 row_size = row_size + self._verify_varchar(ele, field)
+        elif element_type == DataType.UUID:
+            for ele in x:
+                row_size = row_size + self._verify_text(ele, field)
         elif element_type == DataType.TEXT:
             for ele in x:
                 row_size = row_size + self._verify_text(ele, field)
@@ -287,6 +290,8 @@ class BulkWriter:
                 row_size = row_size + byte_len
             elif dtype == DataType.VARCHAR:
                 row_size = row_size + self._verify_varchar(row[field.name], field)
+            elif dtype == DataType.UUID:
+                row_size = row_size + self._verify_text(row[field.name], field)
             elif dtype == DataType.TEXT:
                 row_size = row_size + self._verify_text(row[field.name], field)
             elif dtype == DataType.JSON:
@@ -353,6 +358,8 @@ class BulkWriter:
                     struct_size = struct_size + byte_len
                 elif sub_dtype == DataType.VARCHAR:
                     struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
+                elif sub_dtype == DataType.UUID:
+                    struct_size = struct_size + self._verify_text(obj[sub_field.name], sub_field)
                 elif sub_dtype == DataType.TEXT:
                     struct_size = struct_size + self._verify_text(obj[sub_field.name], sub_field)
                 elif sub_dtype in {
