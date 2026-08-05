@@ -571,6 +571,22 @@ def tracing_request():
 
 def ignore_unimplemented(default_return_value: Any):
     def wrapper(func: Callable):
+        if inspect.iscoroutinefunction(func):
+
+            @functools.wraps(func)
+            async def async_handler(*args, **kwargs):
+                try:
+                    return await func(*args, **kwargs)
+                except grpc.RpcError as e:
+                    if e.code() == grpc.StatusCode.UNIMPLEMENTED:
+                        LOGGER.debug(f"{func.__name__} unimplemented, ignore it")
+                        return default_return_value
+                    raise e from e
+                except Exception as e:
+                    raise e from e
+
+            return async_handler
+
         @functools.wraps(func)
         def handler(*args, **kwargs):
             try:
