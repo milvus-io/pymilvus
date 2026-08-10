@@ -78,6 +78,22 @@ from .utils import (
 logger = logging.getLogger(__name__)
 
 
+def _register_async_interceptor(channel: Any, intercept: Any) -> None:
+    """Register an interceptor for every gRPC call type, not just unary-unary.
+
+    A grpc.aio channel keeps four separate interceptor lists. Appending to
+    `_unary_unary_interceptors` alone leaves streaming RPCs uncovered, which silently
+    dropped the authorization header from `DumpMessages`, a unary_stream call reachable
+    through AsyncMilvusClient.dump_messages(). The sync handler has always covered all
+    four, because grpc.intercept_channel does, and _GenericAsyncClientInterceptor already
+    implements all four.
+    """
+    channel._unary_unary_interceptors.append(intercept)
+    channel._unary_stream_interceptors.append(intercept)
+    channel._stream_unary_interceptors.append(intercept)
+    channel._stream_stream_interceptors.append(intercept)
+
+
 class AsyncGrpcHandler:
     def __init__(
         self,
@@ -218,7 +234,7 @@ class AsyncGrpcHandler:
         authorization_interceptor = self._create_authorization_interceptor(user, password, token)
         if authorization_interceptor:
             self._async_authorization_interceptor = authorization_interceptor
-            self._final_channel._unary_unary_interceptors.append(authorization_interceptor)
+            _register_async_interceptor(self._final_channel, authorization_interceptor)
 
     def _create_channel(self, address: str):
         default_opts = {
@@ -269,7 +285,7 @@ class AsyncGrpcHandler:
         final_channel = channel
 
         if self._async_authorization_interceptor:
-            final_channel._unary_unary_interceptors.append(self._async_authorization_interceptor)
+            _register_async_interceptor(final_channel, self._async_authorization_interceptor)
         else:
             authorization_interceptor = self._create_authorization_interceptor(
                 kwargs.get("user"),
@@ -278,12 +294,12 @@ class AsyncGrpcHandler:
             )
             if authorization_interceptor:
                 self._async_authorization_interceptor = authorization_interceptor
-                final_channel._unary_unary_interceptors.append(authorization_interceptor)
+                _register_async_interceptor(final_channel, authorization_interceptor)
         if self._log_level:
             async_log_level_interceptor = async_header_adder_interceptor(
                 ["log-level"], [self._log_level]
             )
-            final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
+            _register_async_interceptor(final_channel, async_log_level_interceptor)
             self._log_level = None
         return final_channel, milvus_pb2_grpc.MilvusServiceStub(final_channel)
 
@@ -340,7 +356,7 @@ class AsyncGrpcHandler:
         async_identifier_interceptor = async_header_adder_interceptor(
             ["identifier"], [str(identifier)]
         )
-        final_channel._unary_unary_interceptors.append(async_identifier_interceptor)
+        _register_async_interceptor(final_channel, async_identifier_interceptor)
         stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
         return async_identifier_interceptor, final_channel, stub
 

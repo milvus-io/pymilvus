@@ -796,3 +796,44 @@ class TestAsyncGrpcHandlerResourceGroup:
             mock_prepare.transfer_replica.return_value = MagicMock()
             await handler.transfer_replica("src_rg", "tgt_rg", "test_coll", 1)
             mock_stub.TransferReplica.assert_called_once()
+
+
+class TestAsyncAuthInterceptorCoverage:
+    """The authorization header must reach every gRPC call type, not just unary-unary.
+
+    A grpc.aio channel keeps a separate interceptor list per call type, and
+    `DumpMessages` (reachable via AsyncMilvusClient.dump_messages) is a unary_stream RPC.
+    These assert against a REAL grpc.aio channel: a MagicMock auto-creates any attribute,
+    so it reports success whether or not the other three lists are ever touched.
+    """
+
+    INTERCEPTOR_LISTS = (
+        "_unary_unary_interceptors",
+        "_unary_stream_interceptors",
+        "_stream_unary_interceptors",
+        "_stream_stream_interceptors",
+    )
+
+    @pytest.mark.asyncio
+    async def test_authorization_interceptor_covers_every_call_type(self) -> None:
+        handler = AsyncGrpcHandler(uri="http://127.0.0.1:1", token="a-token")
+        channel = handler._async_channel
+        try:
+            for name in self.INTERCEPTOR_LISTS:
+                assert len(getattr(channel, name)) == 1, (
+                    f"authorization interceptor missing from {name}; a streaming RPC "
+                    f"would be sent without the authorization header"
+                )
+        finally:
+            await channel.close()
+
+    @pytest.mark.asyncio
+    async def test_no_interceptor_registered_without_credentials(self) -> None:
+        handler = AsyncGrpcHandler(uri="http://127.0.0.1:1")
+        channel = handler._async_channel
+        try:
+            for name in self.INTERCEPTOR_LISTS:
+                assert getattr(channel, name) == []
+        finally:
+            await channel.close()
+
