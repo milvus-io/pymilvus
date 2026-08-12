@@ -1,8 +1,11 @@
+import pathlib
 import struct
+import uuid
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import orjson
 import pytest
 from pymilvus.client import entity_helper
 from pymilvus.client.entity_helper import (
@@ -192,6 +195,54 @@ class TestEntityHelperEdgeCases:
 
         with pytest.raises(ParamError):
             entity_to_json_arr([None], {"name": "json_field"})
+
+    # Regression tests for GH-2917: pathlib.Path values (e.g. WindowsPath,
+    # PosixPath, or the pure variants) in a JSON/dynamic field used to raise
+    # a raw, unhelpful orjson TypeError ("Type is not JSON serializable: ...")
+    # instead of being handled like the other leaf types (numpy scalars,
+    # etc.) that convert_to_json already normalizes before serialization.
+    def test_json_with_windows_path(self):
+        """A PureWindowsPath value is serialized as its string form"""
+
+        result = convert_to_json({"path": pathlib.PureWindowsPath("C:\\Users\\a")})
+        assert result == b'{"path":"C:\\\\Users\\\\a"}'
+
+    def test_json_with_native_path(self):
+        """A concrete, OS-native pathlib.Path value is serialized as its string form.
+
+        Uses pathlib.Path rather than PosixPath/WindowsPath directly, since a
+        concrete cross-flavor path class can only be instantiated on its
+        matching OS on Python < 3.13, and this repo's CI runs both Windows
+        and Linux; the expected JSON is computed from the same OS-native
+        string form rather than a hardcoded separator.
+        """
+        p = pathlib.Path("tmp") / "foo" / "bar.txt"
+        result = convert_to_json({"path": p})
+        assert result == orjson.dumps({"path": str(p)})
+
+    def test_json_with_nested_path_values(self):
+        """Path values nested in lists/dicts are converted, not just top-level"""
+
+        data = {
+            "paths": [pathlib.PurePosixPath("/a"), pathlib.PurePosixPath("/b")],
+            "meta": {"p": pathlib.PurePosixPath("/x/y")},
+        }
+        result = convert_to_json(data)
+        assert result == b'{"paths":["/a","/b"],"meta":{"p":"/x/y"}}'
+
+    def test_entity_to_field_data_varchar_uuid_and_pathlike(self):
+        """GH-2917 end-to-end: a column of uuid.UUID/PathLike values for a
+        VARCHAR field is coerced to strings through the real column-insert
+        path (entity_to_field_data -> entity_to_str_arr ->
+        convert_to_str_array), not just the helper functions in isolation."""
+        u = uuid.uuid4()
+        p = pathlib.PurePosixPath("/tmp/foo")
+        entity = {"name": "meta", "type": DataType.VARCHAR, "values": [u, p]}
+        field_info = {"name": "meta", "params": {"max_length": 256}}
+
+        result = entity_to_field_data(entity, field_info, 2)
+
+        assert list(result.scalars.string_data.data) == [str(u), "/tmp/foo"]
 
     # Tests from TestPackExceptionsMock
     def test_pack_exceptions_mock(self):

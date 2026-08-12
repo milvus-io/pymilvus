@@ -1,7 +1,9 @@
 import itertools
 import json
 import math
+import os
 import struct
+import uuid
 from collections.abc import Sized
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -197,7 +199,26 @@ def get_max_len_of_var_char(field_info: Dict) -> int:
     return field_info.get("params", {}).get(k, v)
 
 
+def _coerce_str_like(value: Any) -> Any:
+    """Coerce a uuid.UUID or os.PathLike value to its string form; pass through otherwise."""
+    if isinstance(value, os.PathLike):
+        return os.fspath(value)
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    return value
+
+
 def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True):
+    # convert_to_str_array is called with either a single scalar value (row-based
+    # insert, via _ROW_SCALAR_NORMALIZERS) or a list/tuple of values (column-based
+    # insert). uuid.UUID and os.PathLike values are unambiguous as their string
+    # form, so coerce them before the rest of this function treats its input as
+    # an iterable of strings. See GH-2917.
+    if isinstance(orig_str_arr, (uuid.UUID, os.PathLike)):
+        orig_str_arr = _coerce_str_like(orig_str_arr)
+    elif isinstance(orig_str_arr, (list, tuple)):
+        orig_str_arr = [_coerce_str_like(s) for s in orig_str_arr]
+
     arr = []
     if Config.EncodeProtocol.lower() != "utf-8":
         for s in orig_str_arr:
@@ -254,6 +275,15 @@ def convert_to_json(obj: object):
                 assign_to_parent(float(current))
             elif isinstance(current, np.bool_):
                 assign_to_parent(bool(current))
+            elif isinstance(current, os.PathLike):
+                # pathlib.Path (and subclasses like PosixPath/WindowsPath,
+                # plus the pure variants PurePosixPath/PureWindowsPath) are
+                # not natively JSON-serializable by orjson, which raises a
+                # raw, unhelpful "Type is not JSON serializable" TypeError.
+                # Path values are unambiguous as their string form, so
+                # convert them here alongside the other leaf-type
+                # normalizations. See GH-2917.
+                assign_to_parent(os.fspath(current))
             elif isinstance(current, dict):
                 # Process dict: create new dict first
                 processed = {}
