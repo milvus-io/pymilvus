@@ -1,3 +1,4 @@
+import os
 import pathlib
 import time
 import uuid
@@ -131,6 +132,21 @@ class TestEntityHelperExtended:
         assert convert_to_str_array(p, field_info) == "C:\\Users\\a"
         # Plain string scalars are unaffected
         assert convert_to_str_array("hello", field_info) == "hello"
+
+    def test_convert_to_str_array_coerces_bytes_returning_pathlike(self):
+        """PR review (yhmo): os.PathLike.__fspath__() is allowed to return
+        bytes, not just str. Coercing via os.fspath() would leave raw bytes
+        behind, which still fails the VARCHAR string check; os.fsdecode()
+        must be used to normalize to text."""
+
+        class BytesPath(os.PathLike):
+            def __fspath__(self):
+                return b"/tmp/bytes-path"
+
+        field_info = {"name": "test_field", "params": {Config.MaxVarCharLengthKey: 64}}
+
+        assert convert_to_str_array(BytesPath(), field_info) == "/tmp/bytes-path"
+        assert convert_to_str_array([BytesPath()], field_info) == ["/tmp/bytes-path"]
 
     @patch("pymilvus.client.entity_helper.Config")
     def test_convert_to_str_array_with_encoding(self, mock_config):

@@ -1,3 +1,4 @@
+import os
 import pathlib
 import struct
 import uuid
@@ -229,6 +230,28 @@ class TestEntityHelperEdgeCases:
         }
         result = convert_to_json(data)
         assert result == b'{"paths":["/a","/b"],"meta":{"p":"/x/y"}}'
+
+    def test_json_with_path_nested_in_tuple(self):
+        """PR review (yhmo): preprocess_numpy_types previously only descended
+        into dict/list, so a PathLike inside a tuple (which orjson also
+        accepts as a JSON array) was left unconverted and still raised
+        TypeError. Tuples must be traversed too."""
+
+        result = convert_to_json({"paths": (pathlib.PurePosixPath("/a"),)})
+        assert result == b'{"paths":["/a"]}'
+
+    def test_json_with_bytes_returning_pathlike(self):
+        """PR review (yhmo): os.PathLike.__fspath__() is allowed to return
+        bytes, not just str. os.fspath() would leave that as raw bytes,
+        which orjson still can't serialize; os.fsdecode() must be used to
+        normalize to text."""
+
+        class BytesPath(os.PathLike):
+            def __fspath__(self):
+                return b"/tmp/bytes-path"
+
+        result = convert_to_json({"p": BytesPath()})
+        assert result == b'{"p":"/tmp/bytes-path"}'
 
     def test_entity_to_field_data_varchar_uuid_and_pathlike(self):
         """GH-2917 end-to-end: a column of uuid.UUID/PathLike values for a
