@@ -291,6 +291,15 @@ def convert_to_json(obj: object):
                 # __fspath__() is allowed to return bytes, which still
                 # isn't natively JSON-serializable. See GH-2917.
                 assign_to_parent(os.fsdecode(current))
+            elif isinstance(current, uuid.UUID):
+                # orjson serializes UUID natively, so this branch is a no-op
+                # there. But convert_to_json falls back to stdlib json past
+                # orjson's recursion limit (~500 levels), and stdlib json has
+                # no native UUID support, so without this the fallback path
+                # would raise the same raw TypeError this function exists to
+                # avoid. Normalize here so both serializers are covered. See
+                # GH-2917.
+                assign_to_parent(str(current))
             elif isinstance(current, dict):
                 # Process dict: create new dict first
                 processed = {}

@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import struct
@@ -252,6 +253,26 @@ class TestEntityHelperEdgeCases:
 
         result = convert_to_json({"p": BytesPath()})
         assert result == b'{"p":"/tmp/bytes-path"}'
+
+    def test_json_with_deeply_nested_uuid(self):
+        """PR review (shashvat-singham): convert_to_json falls back to stdlib
+        json past orjson's recursion limit (~500 levels), and stdlib json has
+        no native UUID support. Unlike PathLike, UUID previously had no
+        conversion branch in preprocess_numpy_types and relied on orjson's
+        native UUID support, so a UUID nested past that depth still raised
+        the raw TypeError this function exists to avoid."""
+
+        def nest(leaf, depth):
+            o = leaf
+            for _ in range(depth):
+                o = {"n": o}
+            return o
+
+        u = uuid.uuid4()
+        result = convert_to_json(nest(u, 600))
+        # >500 levels overflows orjson's recursion limit, so convert_to_json
+        # falls back to stdlib json for serialization.
+        assert result == json.dumps(nest(str(u), 600)).encode()
 
     def test_entity_to_field_data_varchar_uuid_and_pathlike(self):
         """GH-2917 end-to-end: a column of uuid.UUID/PathLike values for a
