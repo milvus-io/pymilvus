@@ -70,6 +70,12 @@ model = [
     "pymilvus.model>=0.3.0",
 ]
 
+# Optional C implementation of XXH64 used by build_bloom_filter. Produces byte-identical
+# blobs; without it the pure-Python fallback is used.
+bloom_filter = [
+    "xxhash>=3.0.0",
+]
+
 milvus_lite = [
     "milvus-lite>=2.4.0;sys_platform!='win32'",
     # milvus-lite 2.5.1 uses pkg_resources on Python 3.9; setuptools 82 removed it.
@@ -95,6 +101,8 @@ dev = [
     "vcs-versioning<2",
     "ruff>=0.12.9,<1",
     "black",
+    # exercise the accelerated bloom_filter path in CI, not just the pure-Python fallback
+    "xxhash>=3.0.0",
     # develop bulk_writer
     "requests",
     "minio>=7.0.0",

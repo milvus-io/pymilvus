@@ -131,6 +131,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.LoadPartitionsRequest.SerializeToString,
                 response_deserializer=common__pb2.Status.FromString,
                 _registered_method=True)
+        self.Prewarm = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/Prewarm',
+                request_serializer=milvus__pb2.PrewarmRequest.SerializeToString,
+                response_deserializer=milvus__pb2.PrewarmResponse.FromString,
+                _registered_method=True)
+        self.DescribePrewarmTask = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribePrewarmTask',
+                request_serializer=milvus__pb2.DescribePrewarmTaskRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribePrewarmTaskResponse.FromString,
+                _registered_method=True)
         self.ReleasePartitions = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/ReleasePartitions',
                 request_serializer=milvus__pb2.ReleasePartitionsRequest.SerializeToString,
@@ -145,6 +155,36 @@ class MilvusServiceStub(object):
                 '/milvus.proto.milvus.MilvusService/ShowPartitions',
                 request_serializer=milvus__pb2.ShowPartitionsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ShowPartitionsResponse.FromString,
+                _registered_method=True)
+        self.CreateNamespace = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateNamespace',
+                request_serializer=milvus__pb2.CreateNamespaceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.CreateNamespaceResponse.FromString,
+                _registered_method=True)
+        self.DescribeNamespace = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeNamespace',
+                request_serializer=milvus__pb2.DescribeNamespaceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribeNamespaceResponse.FromString,
+                _registered_method=True)
+        self.ListNamespaces = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListNamespaces',
+                request_serializer=milvus__pb2.ListNamespacesRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListNamespacesResponse.FromString,
+                _registered_method=True)
+        self.DropNamespace = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropNamespace',
+                request_serializer=milvus__pb2.DropNamespaceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DropNamespaceResponse.FromString,
+                _registered_method=True)
+        self.HasNamespace = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/HasNamespace',
+                request_serializer=milvus__pb2.HasNamespaceRequest.SerializeToString,
+                response_deserializer=milvus__pb2.HasNamespaceResponse.FromString,
+                _registered_method=True)
+        self.GetNamespaceStats = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetNamespaceStats',
+                request_serializer=milvus__pb2.GetNamespaceStatsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetNamespaceStatsResponse.FromString,
                 _registered_method=True)
         self.GetLoadingProgress = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetLoadingProgress',
@@ -830,6 +870,18 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def Prewarm(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribePrewarmTask(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def ReleasePartitions(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -843,6 +895,42 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ShowPartitions(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateNamespace(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribeNamespace(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListNamespaces(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropNamespace(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def HasNamespace(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetNamespaceStats(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1669,6 +1757,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     request_deserializer=milvus__pb2.LoadPartitionsRequest.FromString,
                     response_serializer=common__pb2.Status.SerializeToString,
             ),
+            'Prewarm': grpc.unary_unary_rpc_method_handler(
+                    servicer.Prewarm,
+                    request_deserializer=milvus__pb2.PrewarmRequest.FromString,
+                    response_serializer=milvus__pb2.PrewarmResponse.SerializeToString,
+            ),
+            'DescribePrewarmTask': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribePrewarmTask,
+                    request_deserializer=milvus__pb2.DescribePrewarmTaskRequest.FromString,
+                    response_serializer=milvus__pb2.DescribePrewarmTaskResponse.SerializeToString,
+            ),
             'ReleasePartitions': grpc.unary_unary_rpc_method_handler(
                     servicer.ReleasePartitions,
                     request_deserializer=milvus__pb2.ReleasePartitionsRequest.FromString,
@@ -1683,6 +1781,36 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ShowPartitions,
                     request_deserializer=milvus__pb2.ShowPartitionsRequest.FromString,
                     response_serializer=milvus__pb2.ShowPartitionsResponse.SerializeToString,
+            ),
+            'CreateNamespace': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateNamespace,
+                    request_deserializer=milvus__pb2.CreateNamespaceRequest.FromString,
+                    response_serializer=milvus__pb2.CreateNamespaceResponse.SerializeToString,
+            ),
+            'DescribeNamespace': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeNamespace,
+                    request_deserializer=milvus__pb2.DescribeNamespaceRequest.FromString,
+                    response_serializer=milvus__pb2.DescribeNamespaceResponse.SerializeToString,
+            ),
+            'ListNamespaces': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListNamespaces,
+                    request_deserializer=milvus__pb2.ListNamespacesRequest.FromString,
+                    response_serializer=milvus__pb2.ListNamespacesResponse.SerializeToString,
+            ),
+            'DropNamespace': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropNamespace,
+                    request_deserializer=milvus__pb2.DropNamespaceRequest.FromString,
+                    response_serializer=milvus__pb2.DropNamespaceResponse.SerializeToString,
+            ),
+            'HasNamespace': grpc.unary_unary_rpc_method_handler(
+                    servicer.HasNamespace,
+                    request_deserializer=milvus__pb2.HasNamespaceRequest.FromString,
+                    response_serializer=milvus__pb2.HasNamespaceResponse.SerializeToString,
+            ),
+            'GetNamespaceStats': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetNamespaceStats,
+                    request_deserializer=milvus__pb2.GetNamespaceStatsRequest.FromString,
+                    response_serializer=milvus__pb2.GetNamespaceStatsResponse.SerializeToString,
             ),
             'GetLoadingProgress': grpc.unary_unary_rpc_method_handler(
                     servicer.GetLoadingProgress,
@@ -2774,6 +2902,60 @@ class MilvusService(object):
             _registered_method=True)
 
     @staticmethod
+    def Prewarm(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/Prewarm',
+            milvus__pb2.PrewarmRequest.SerializeToString,
+            milvus__pb2.PrewarmResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DescribePrewarmTask(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DescribePrewarmTask',
+            milvus__pb2.DescribePrewarmTaskRequest.SerializeToString,
+            milvus__pb2.DescribePrewarmTaskResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
     def ReleasePartitions(request,
             target,
             options=(),
@@ -2844,6 +3026,168 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ShowPartitions',
             milvus__pb2.ShowPartitionsRequest.SerializeToString,
             milvus__pb2.ShowPartitionsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateNamespace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/CreateNamespace',
+            milvus__pb2.CreateNamespaceRequest.SerializeToString,
+            milvus__pb2.CreateNamespaceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DescribeNamespace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DescribeNamespace',
+            milvus__pb2.DescribeNamespaceRequest.SerializeToString,
+            milvus__pb2.DescribeNamespaceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListNamespaces(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListNamespaces',
+            milvus__pb2.ListNamespacesRequest.SerializeToString,
+            milvus__pb2.ListNamespacesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DropNamespace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DropNamespace',
+            milvus__pb2.DropNamespaceRequest.SerializeToString,
+            milvus__pb2.DropNamespaceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def HasNamespace(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/HasNamespace',
+            milvus__pb2.HasNamespaceRequest.SerializeToString,
+            milvus__pb2.HasNamespaceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetNamespaceStats(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetNamespaceStats',
+            milvus__pb2.GetNamespaceStatsRequest.SerializeToString,
+            milvus__pb2.GetNamespaceStatsResponse.FromString,
             options,
             channel_credentials,
             insecure,
