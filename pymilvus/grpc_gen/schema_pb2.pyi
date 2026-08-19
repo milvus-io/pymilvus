@@ -28,6 +28,7 @@ class DataType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     Mol: _ClassVar[DataType]
     Date: _ClassVar[DataType]
     Time: _ClassVar[DataType]
+    Decimal: _ClassVar[DataType]
     BinaryVector: _ClassVar[DataType]
     FloatVector: _ClassVar[DataType]
     Float16Vector: _ClassVar[DataType]
@@ -81,6 +82,7 @@ Timestamptz: DataType
 Mol: DataType
 Date: DataType
 Time: DataType
+Decimal: DataType
 BinaryVector: DataType
 FloatVector: DataType
 Float16Vector: DataType

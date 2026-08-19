@@ -77,6 +77,14 @@ class RefreshExternalCollectionState(int, metaclass=_enum_type_wrapper.EnumTypeW
     RefreshInProgress: _ClassVar[RefreshExternalCollectionState]
     RefreshCompleted: _ClassVar[RefreshExternalCollectionState]
     RefreshFailed: _ClassVar[RefreshExternalCollectionState]
+
+class ExportSnapshotState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ExportSnapshotNone: _ClassVar[ExportSnapshotState]
+    ExportSnapshotPending: _ClassVar[ExportSnapshotState]
+    ExportSnapshotExecuting: _ClassVar[ExportSnapshotState]
+    ExportSnapshotCompleted: _ClassVar[ExportSnapshotState]
+    ExportSnapshotFailed: _ClassVar[ExportSnapshotState]
 All: ShowType
 InMemory: ShowType
 PrewarmTaskStateUnknown: PrewarmTaskState
@@ -113,6 +121,11 @@ RefreshPending: RefreshExternalCollectionState
 RefreshInProgress: RefreshExternalCollectionState
 RefreshCompleted: RefreshExternalCollectionState
 RefreshFailed: RefreshExternalCollectionState
+ExportSnapshotNone: ExportSnapshotState
+ExportSnapshotPending: ExportSnapshotState
+ExportSnapshotExecuting: ExportSnapshotState
+ExportSnapshotCompleted: ExportSnapshotState
+ExportSnapshotFailed: ExportSnapshotState
 MILVUS_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 milvus_ext_obj: _descriptor.FieldDescriptor
 
@@ -3274,12 +3287,14 @@ class ExportSnapshotRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., target_s3_path: _Optional[str] = ..., external_spec: _Optional[str] = ...) -> None: ...
 
 class ExportSnapshotResponse(_message.Message):
-    __slots__ = ("status", "snapshot_metadata_uri")
+    __slots__ = ("status", "snapshot_metadata_uri", "job_id")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_METADATA_URI_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     snapshot_metadata_uri: str
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., snapshot_metadata_uri: _Optional[str] = ...) -> None: ...
+    job_id: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., snapshot_metadata_uri: _Optional[str] = ..., job_id: _Optional[int] = ...) -> None: ...
 
 class RestoreSnapshotInfo(_message.Message):
     __slots__ = ("job_id", "snapshot_name", "db_name", "collection_name", "state", "progress", "reason", "start_time", "time_cost")
@@ -3618,3 +3633,49 @@ class ListRefreshExternalCollectionJobsResponse(_message.Message):
     status: _common_pb2.Status
     jobs: _containers.RepeatedCompositeFieldContainer[RefreshExternalCollectionJobInfo]
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., jobs: _Optional[_Iterable[_Union[RefreshExternalCollectionJobInfo, _Mapping]]] = ...) -> None: ...
+
+class ExportSnapshotInfo(_message.Message):
+    __slots__ = ("job_id", "snapshot_name", "db_name", "collection_name", "state", "progress", "reason", "start_time", "time_cost", "total_files", "copied_files", "snapshot_metadata_uri", "total_bytes")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_NAME_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    PROGRESS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    START_TIME_FIELD_NUMBER: _ClassVar[int]
+    TIME_COST_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_FILES_FIELD_NUMBER: _ClassVar[int]
+    COPIED_FILES_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_METADATA_URI_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_BYTES_FIELD_NUMBER: _ClassVar[int]
+    job_id: int
+    snapshot_name: str
+    db_name: str
+    collection_name: str
+    state: ExportSnapshotState
+    progress: int
+    reason: str
+    start_time: int
+    time_cost: int
+    total_files: int
+    copied_files: int
+    snapshot_metadata_uri: str
+    total_bytes: int
+    def __init__(self, job_id: _Optional[int] = ..., snapshot_name: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., state: _Optional[_Union[ExportSnapshotState, str]] = ..., progress: _Optional[int] = ..., reason: _Optional[str] = ..., start_time: _Optional[int] = ..., time_cost: _Optional[int] = ..., total_files: _Optional[int] = ..., copied_files: _Optional[int] = ..., snapshot_metadata_uri: _Optional[str] = ..., total_bytes: _Optional[int] = ...) -> None: ...
+
+class GetExportSnapshotStateRequest(_message.Message):
+    __slots__ = ("base", "job_id")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    job_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., job_id: _Optional[int] = ...) -> None: ...
+
+class GetExportSnapshotStateResponse(_message.Message):
+    __slots__ = ("status", "info")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    INFO_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    info: ExportSnapshotInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., info: _Optional[_Union[ExportSnapshotInfo, _Mapping]] = ...) -> None: ...

@@ -706,6 +706,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ExportSnapshotRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ExportSnapshotResponse.FromString,
                 _registered_method=True)
+        self.GetExportSnapshotState = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetExportSnapshotState',
+                request_serializer=milvus__pb2.GetExportSnapshotStateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetExportSnapshotStateResponse.FromString,
+                _registered_method=True)
         self.GetRestoreSnapshotState = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/GetRestoreSnapshotState',
                 request_serializer=milvus__pb2.GetRestoreSnapshotStateRequest.SerializeToString,
@@ -1604,6 +1609,12 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetExportSnapshotState(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def GetRestoreSnapshotState(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -2331,6 +2342,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ExportSnapshot,
                     request_deserializer=milvus__pb2.ExportSnapshotRequest.FromString,
                     response_serializer=milvus__pb2.ExportSnapshotResponse.SerializeToString,
+            ),
+            'GetExportSnapshotState': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetExportSnapshotState,
+                    request_deserializer=milvus__pb2.GetExportSnapshotStateRequest.FromString,
+                    response_serializer=milvus__pb2.GetExportSnapshotStateResponse.SerializeToString,
             ),
             'GetRestoreSnapshotState': grpc.unary_unary_rpc_method_handler(
                     servicer.GetRestoreSnapshotState,
@@ -5996,6 +6012,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ExportSnapshot',
             milvus__pb2.ExportSnapshotRequest.SerializeToString,
             milvus__pb2.ExportSnapshotResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetExportSnapshotState(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetExportSnapshotState',
+            milvus__pb2.GetExportSnapshotStateRequest.SerializeToString,
+            milvus__pb2.GetExportSnapshotStateResponse.FromString,
             options,
             channel_credentials,
             insecure,
