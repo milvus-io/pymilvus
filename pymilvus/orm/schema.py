@@ -657,6 +657,9 @@ class FieldSchema:
     def construct_from_dict(cls, raw: Dict):
         kwargs = {}
         kwargs.update(raw.get("params", {}))
+        for key in ("max_length", "dim"):
+            if key not in kwargs and raw.get(key) is not None:
+                kwargs[key] = raw[key]
         kwargs["is_primary"] = raw.get("is_primary", False)
         if raw.get("auto_id") is not None:
             kwargs["auto_id"] = raw.get("auto_id")
