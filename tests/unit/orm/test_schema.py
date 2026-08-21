@@ -361,6 +361,55 @@ class TestFieldSchemaToDict:
         assert field.params == {"dim": 128}
         assert field.to_dict()["params"] == {"dim": 128}
 
+    @pytest.mark.parametrize(
+        "raw_dict,expected_params",
+        [
+            pytest.param(
+                {
+                    "name": "tags",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.VARCHAR,
+                    "max_capacity": 100,
+                },
+                {"max_capacity": 100},
+                id="max_capacity",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "enable_match": True,
+                    "enable_analyzer": False,
+                },
+                {"enable_match": True, "enable_analyzer": False},
+                id="analyzer_flags",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "analyzer_params": {"type": "standard"},
+                },
+                {"analyzer_params": '{"type":"standard"}'},
+                id="analyzer_params",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "multi_analyzer_params": {"analyzers": [{"type": "standard"}]},
+                },
+                {"multi_analyzer_params": '{"analyzers":[{"type":"standard"}]}'},
+                id="multi_analyzer_params",
+            ),
+        ],
+    )
+    def test_construct_from_dict_with_top_level_common_type_params(self, raw_dict, expected_params):
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == expected_params
+        assert field.to_dict()["params"] == expected_params
+
     def test_construct_from_dict_ignores_none_top_level_param(self):
         raw_dict = {
             "name": "vec",
