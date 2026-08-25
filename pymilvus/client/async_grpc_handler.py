@@ -302,8 +302,24 @@ class AsyncGrpcHandler:
         return get_server_type(self.server_address.split(":")[0])
 
     async def ensure_channel_ready(self, timeout: Optional[float] = None):
-        try:
-            if not self._is_channel_ready:
+        # Fast path: avoid the lock once a real request has already set this,
+        # which is the common case for every call after the first.
+        if self._is_channel_ready:
+            return
+
+        # Without the lock, many coroutines can race in here concurrently
+        # while _is_channel_ready is still False: each would independently
+        # await _setup_identifier_interceptor_for_channel(), which appends
+        # its own interceptor to the shared channel's interceptor chain on
+        # every call. Enough concurrent callers before the first one sets
+        # _is_channel_ready stacks enough interceptors to blow Python's
+        # recursion limit on a later RPC (interceptor dispatch recurses one
+        # frame per interceptor). _reconnect_lock is the same lock reconnect()
+        # and close() already use to serialize channel-state mutation.
+        async with self._reconnect_lock:
+            if self._is_channel_ready:
+                return
+            try:
                 wait_timeout = timeout if timeout is not None else 10
                 (
                     self._async_identifier_interceptor,
@@ -317,11 +333,11 @@ class AsyncGrpcHandler:
                 )
 
                 self._is_channel_ready = True
-        except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
-            raise MilvusException(
-                code=Status.CONNECT_FAILED,
-                message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
-            ) from e
+            except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
+                raise MilvusException(
+                    code=Status.CONNECT_FAILED,
+                    message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
+                ) from e
 
     async def _register_identifier(self, stub: Any, user: str, timeout: float = 10) -> int:
         host = socket.gethostname()
