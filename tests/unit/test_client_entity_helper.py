@@ -53,6 +53,21 @@ class TestEntityHelperExtended:
         with pytest.raises(ParamError, match="input must be a sparse matrix"):
             sparse_rows_to_proto("invalid")
 
+    def test_sparse_rows_to_proto_dim_uses_max_index(self):
+        """dim must cover the largest index even when indices are not sorted.
+
+        Indices are collected in input order, so the last index is not
+        necessarily the largest. Using indices[-1] under-declared dim for an
+        unsorted row (e.g. {5: .., 2: ..} -> dim 3 instead of 6).
+        """
+        # dict row whose last key (2) is smaller than its max key (5)
+        proto = sparse_rows_to_proto([{5: 0.1, 2: 0.3}])
+        assert proto.dim == 6
+
+        # list-of-pairs row, unsorted
+        proto = sparse_rows_to_proto([[(7, 0.1), (1, 0.2), (4, 0.3)]])
+        assert proto.dim == 8
+
     def test_sparse_proto_to_rows_invalid(self):
         """Test error handling for invalid proto"""
         with pytest.raises(ParamError, match="Vector must be a sparse float vector"):
