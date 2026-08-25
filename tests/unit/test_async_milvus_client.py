@@ -276,6 +276,16 @@ class TestAsyncMilvusClientNewFeatures:
         assert call_args[0][2] == mock_function_ranker  # ranker is 3rd positional arg
 
     @pytest.mark.asyncio
+    async def test_hybrid_search_passes_function_chains(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.hybrid_search = AsyncMock(return_value=[])
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf")
+
+        await client.hybrid_search("test_collection", reqs=[], function_chains=chain)
+
+        assert mock_handler.hybrid_search.call_args.kwargs["function_chains"] is chain
+
+    @pytest.mark.asyncio
     async def test_compact_with_is_l0(self, client_and_handler):
         """Test compact method accepts is_l0 parameter"""
         client, mock_handler = client_and_handler

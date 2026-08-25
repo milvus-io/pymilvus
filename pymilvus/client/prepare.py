@@ -1712,9 +1712,39 @@ class Prepare:
         return [chain.to_proto() for chain in chains]
 
     @staticmethod
-    def check_no_hybrid_function_chains(function_chains: Any) -> None:
-        if function_chains is not None:
-            raise ParamError(message="function_chains is not supported for hybrid_search yet")
+    def hybrid_function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+        rerank: Optional[Union[BaseRanker, Function]],
+    ) -> List[schema_types.FunctionChain]:
+        if function_chains is None or function_chains == []:
+            return []
+        if rerank is not None:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if not isinstance(chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in chains
+        ):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        supported_stages = {
+            FunctionChainStage.PRE_PROCESS,
+            FunctionChainStage.L2_RERANK,
+            FunctionChainStage.POST_PROCESS,
+        }
+        for chain in chains:
+            if chain.stage not in supported_stages:
+                stage_name = schema_types.FunctionChainStage.Name(int(chain.stage))
+                raise ParamError(message=f"stage {stage_name} is not supported in hybrid_search")
+
+        rerank_chains = [chain for chain in chains if chain.stage == FunctionChainStage.L2_RERANK]
+        if len(rerank_chains) != 1:
+            raise ParamError(message="hybrid_search requires exactly one L2_RERANK function chain")
+
+        return [chain.to_proto() for chain in chains]
 
     @classmethod
     def search_requests_with_expr(
@@ -1993,12 +2023,33 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
+        chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
+        for index, sub_request in enumerate(reqs):
+            nested_chains = sub_request.function_chains
+            if nested_chains and isinstance(rerank, Function):
+                raise ParamError(
+                    message=f"function_score cannot be used with function_chains in sub-search[{index}]"
+                )
+            seen_stages = set()
+            for chain in nested_chains:
+                stage = chain.stage
+                stage_name = schema_types.FunctionChainStage.Name(stage)
+                if stage in seen_stages:
+                    raise ParamError(
+                        message=f"stage {stage_name} appears more than once in hybrid sub-search[{index}]"
+                    )
+                if not chain.ops:
+                    raise ParamError(
+                        message=f"function chain in hybrid sub-search[{index}] must contain at least one op"
+                    )
+                seen_stages.add(stage)
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
             rerank_param = rerank.dict()
@@ -2023,6 +2074,7 @@ class Prepare:
                 for key, value in rerank_param.items()
             ]
         )
+        request.function_chains.extend(chain_protos)
 
         for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
             val = kwargs.get(param_key)

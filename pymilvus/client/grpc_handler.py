@@ -1467,7 +1467,7 @@ class GrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Union[BaseRanker, Function],
+        rerank: Optional[Union[BaseRanker, Function]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1476,7 +1476,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+        function_chains = kwargs.pop("function_chains", None)
 
         check_pass_param(
             limit=limit,
@@ -1505,6 +1505,7 @@ class GrpcHandler:
             # Convert EmbeddingList to flat array if present in the request data
             data = req.data
             req_kwargs = dict(kwargs)
+            req_kwargs.pop("function_chains", None)
             if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
@@ -1522,6 +1523,7 @@ class GrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                function_chains=req.function_chains,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
@@ -1536,6 +1538,7 @@ class GrpcHandler:
             output_fields,
             round_decimal,
             use_default_consistency=use_default_consistency,
+            function_chains=function_chains,
             **kwargs,
         )
         return self._execute_hybrid_search(

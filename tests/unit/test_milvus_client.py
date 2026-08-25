@@ -1194,6 +1194,16 @@ class TestMilvusClientSearchOps:
             client.hybrid_search("col", reqs=[], ranker=MagicMock())
             handler.hybrid_search.assert_called_once()
 
+    def test_hybrid_search_passes_function_chains(self):
+        handler = _make_handler()
+        handler.hybrid_search.return_value = []
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf")
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.hybrid_search("col", reqs=[], function_chains=chain)
+
+        assert handler.hybrid_search.call_args.kwargs["function_chains"] is chain
+
     def test_search_basic_delegates(self):
         handler = _make_handler()
         handler.search.return_value = []
