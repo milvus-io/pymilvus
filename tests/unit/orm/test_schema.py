@@ -402,6 +402,24 @@ class TestFieldSchemaToDict:
                 {"multi_analyzer_params": '{"analyzers":[{"type":"standard"}]}'},
                 id="multi_analyzer_params",
             ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "mmap_enabled": True,
+                },
+                {"mmap_enabled": True},
+                id="mmap_enabled",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "warmup": {"policy": "async"},
+                },
+                {"warmup": {"policy": "async"}},
+                id="warmup",
+            ),
         ],
     )
     def test_construct_from_dict_with_top_level_common_type_params(self, raw_dict, expected_params):
@@ -444,6 +462,26 @@ class TestFieldSchemaToDict:
                 },
                 {"dim": 128},
                 id="dim",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"mmap_enabled": True},
+                    "mmap_enabled": False,
+                },
+                {"mmap_enabled": True},
+                id="mmap_enabled",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"warmup": {"policy": "sync"}},
+                    "warmup": {"policy": "async"},
+                },
+                {"warmup": {"policy": "sync"}},
+                id="warmup",
             ),
         ],
     )
