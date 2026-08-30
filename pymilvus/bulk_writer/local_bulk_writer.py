@@ -45,6 +45,8 @@ class LocalBulkWriter(BulkWriter):
         self._flush_count = 0
         self._working_thread = {}
         self._working_thread_lock = Lock()
+        self._flush_exception_lock = Lock()
+        self._flush_exception: Optional[Exception] = None
         self._local_files = []
 
         self._make_dir()
@@ -97,6 +99,19 @@ class LocalBulkWriter(BulkWriter):
             if self.buffer_size > self.chunk_size:
                 self.commit(_async=True)
 
+    def _set_flush_exception(self, exc: Exception):
+        with self._flush_exception_lock:
+            if self._flush_exception is None:
+                self._flush_exception = exc
+
+    def _raise_flush_exception(self):
+        with self._flush_exception_lock:
+            exc = self._flush_exception
+            self._flush_exception = None
+
+        if exc is not None:
+            raise exc
+
     def commit(self, **kwargs):
         # _async=True, the flush thread is asynchronously
         while len(self._working_thread) > 0:
@@ -104,6 +119,8 @@ class LocalBulkWriter(BulkWriter):
                 f"Previous flush action is not finished, {threading.current_thread().name} is waiting..."
             )
             time.sleep(1.0)
+
+        self._raise_flush_exception()
 
         logger.info(
             f"Prepare to flush buffer, row_count: {self.buffer_row_count}, size: {self.buffer_size}"
@@ -118,6 +135,7 @@ class LocalBulkWriter(BulkWriter):
         if not _async:
             logger.info("Wait flush to finish")
             x.join()
+            self._raise_flush_exception()
 
         super().commit()  # reset the buffer size
         logger.info(f"Commit done with async={_async}")
@@ -139,7 +157,7 @@ class LocalBulkWriter(BulkWriter):
                     call_back(file_list)
         except Exception as e:
             logger.error(f"Failed to fulsh, error: {e}")
-            raise e from e
+            self._set_flush_exception(e)
         finally:
             del self._working_thread[threading.current_thread().name]
             logger.info(f"Flush thread finished, name: {threading.current_thread().name}")

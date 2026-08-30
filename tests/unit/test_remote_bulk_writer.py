@@ -2,6 +2,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pymilvus.bulk_writer.constants import BulkFileType
 from pymilvus.bulk_writer.remote_bulk_writer import RemoteBulkWriter
 from pymilvus.client.types import DataType
@@ -151,3 +152,17 @@ class TestRemoteBulkWriter:
         assert kwargs["object_name"].endswith("/1.jsonl")
         assert "bulk/test/" in kwargs["object_name"]
         assert "\\" not in kwargs["object_name"]
+
+    def test_commit_propagates_upload_exception(self, tmp_path):
+        writer = RemoteBulkWriter(
+            schema=self._simple_schema(),
+            remote_path="bulk/test",
+            connect_param=None,
+            file_type=BulkFileType.JSON,
+            local_path=str(tmp_path),
+        )
+        writer.append_row({"id": 1, "vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with patch.object(writer, "_upload", side_effect=RuntimeError("upload failed")):
+            with pytest.raises(RuntimeError, match="upload failed"):
+                writer.commit()

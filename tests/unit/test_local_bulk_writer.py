@@ -452,8 +452,16 @@ class TestLocalBulkWriter:
         with self._mock_row_count(writer, 1):
             with patch.object(writer._buffer, "persist", side_effect=Exception("Test error")):
                 writer._working_thread[threading.current_thread().name] = threading.current_thread()
+                writer._flush()
                 with pytest.raises(Exception, match="Test error"):
-                    writer._flush()
+                    writer._raise_flush_exception()
+
+    def test_commit_sync_propagates_flush_exception(self, writer):
+        writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
+
+        with patch.object(writer._buffer, "persist", side_effect=RuntimeError("Test error")):
+            with pytest.raises(RuntimeError, match="Test error"):
+                writer.commit(_async=False)
 
     def test_properties(self, writer):
         assert writer.uuid == writer._uuid
