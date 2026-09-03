@@ -48,6 +48,9 @@ jobs:
     strategy:
       fail-fast: false  # Continue with other branches even if one fails
       matrix: ${{ fromJSON(needs.resolve-matrix.outputs.matrix) }}
+    concurrency:
+      group: update-pymilvus-dev-${{ matrix.pymilvus_branch }}-${{ matrix.milvus_branch }}
+      cancel-in-progress: false
     steps:
     - name: Setup Python
       uses: actions/setup-python@v6
@@ -125,25 +128,43 @@ jobs:
         PYMILVUS_BRANCH="${{ matrix.pymilvus_branch }}"
         TARGET_BRANCH="${{ matrix.milvus_branch }}"
 
-        # Search for open PRs with matching title pattern
         PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} from ${PYMILVUS_BRANCH} for ${TARGET_BRANCH} branch"
         LEGACY_PR_TITLE_PATTERN="test: Increase PyMilvus version to ${TARGET_VERSION} for ${TARGET_BRANCH} branch"
         echo "Checking for existing PRs with title pattern: $PR_TITLE_PATTERN"
 
-        # List open PRs and check if any match our criteria
-        EXISTING_PR=$(
-          gh pr list --repo milvus-io/milvus --base "${TARGET_BRANCH}" --state open --json number,title,author |
-            jq -r --arg title "$PR_TITLE_PATTERN" --arg legacy_title "$LEGACY_PR_TITLE_PATTERN" '.[] | select(.title == $title or .title == $legacy_title) | .number' || echo ""
-        )
-
-        if [ -n "$EXISTING_PR" ]; then
-          echo "Found existing PR #$EXISTING_PR with same version update"
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "pr_number=$EXISTING_PR" >> $GITHUB_OUTPUT
-        else
-          echo "No existing PR found for this version update"
-          echo "exists=false" >> $GITHUB_OUTPUT
+        CANDIDATE_PRS="$(
+          gh pr list --repo milvus-io/milvus --base "$TARGET_BRANCH" --state open \
+            --search "${TARGET_VERSION} in:title" --limit 100 --json number,title
+        )"
+        CANDIDATE_COUNT="$(jq 'length' <<< "$CANDIDATE_PRS")"
+        if [ "$CANDIDATE_COUNT" -ge 100 ]; then
+          echo "::error title=Incomplete existing PR search::The search reached its 100-PR limit. Refusing to create another PR."
+          exit 1
         fi
+        MATCHING_PRS="$(
+          jq -c --arg title "$PR_TITLE_PATTERN" --arg legacy_title "$LEGACY_PR_TITLE_PATTERN" \
+            '[.[] | select(.title == $title or .title == $legacy_title) | .number] | sort' \
+            <<< "$CANDIDATE_PRS"
+        )"
+        MATCH_COUNT="$(jq 'length' <<< "$MATCHING_PRS")"
+
+        case "$MATCH_COUNT" in
+          0)
+            echo "No existing PR found for this version update"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            ;;
+          1)
+            EXISTING_PR="$(jq -r '.[0]' <<< "$MATCHING_PRS")"
+            echo "Found existing PR #$EXISTING_PR with the same version update"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+            ;;
+          *)
+            EXISTING_PRS="$(jq -r 'map("#" + tostring) | join(", ")' <<< "$MATCHING_PRS")"
+            echo "::error title=Ambiguous existing PyMilvus update PR::Found multiple matching open PRs: $EXISTING_PRS. Refusing to create another PR."
+            exit 1
+            ;;
+        esac
 
     - name: Skip if PR already exists
       if: steps.current.outputs.current != steps.version.outputs.latest && steps.check_pr.outputs.exists == 'true'
