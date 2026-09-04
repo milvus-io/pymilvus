@@ -1487,6 +1487,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         new_password: str,
         timeout: Optional[float] = None,
         description: Optional[str] = None,
+        reset_connection: Optional[bool] = False,
         **kwargs,
     ):
         conn = await self._get_connection()
@@ -1499,6 +1500,9 @@ class AsyncMilvusClient(BaseMilvusClient):
             description=description,
             **kwargs,
         )
+        if reset_connection:
+            conn._setup_authorization_interceptor(user_name, new_password, None)
+            conn._setup_grpc_channel()
 
     async def update_user(
         self,
