@@ -260,6 +260,14 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RefreshExternalCollection: _ClassVar[MsgType]
     GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
     ListRefreshExternalCollectionJobs: _ClassVar[MsgType]
+    CreateRowPolicy: _ClassVar[MsgType]
+    DropRowPolicy: _ClassVar[MsgType]
+    ListRowPolicies: _ClassVar[MsgType]
+    UpdateRowPolicy: _ClassVar[MsgType]
+    SetRLSPrincipalTags: _ClassVar[MsgType]
+    GetRLSPrincipalTags: _ClassVar[MsgType]
+    ListRLSPrincipals: _ClassVar[MsgType]
+    DeleteRLSPrincipalTags: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -386,6 +394,7 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeUnpinSnapshotData: _ClassVar[ObjectPrivilege]
     PrivilegeRestoreExternalSnapshot: _ClassVar[ObjectPrivilege]
     PrivilegeExportSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeSkipRLS: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -656,6 +665,14 @@ AlterCollectionSchema: MsgType
 RefreshExternalCollection: MsgType
 GetRefreshExternalCollectionProgress: MsgType
 ListRefreshExternalCollectionJobs: MsgType
+CreateRowPolicy: MsgType
+DropRowPolicy: MsgType
+ListRowPolicies: MsgType
+UpdateRowPolicy: MsgType
+SetRLSPrincipalTags: MsgType
+GetRLSPrincipalTags: MsgType
+ListRLSPrincipals: MsgType
+DeleteRLSPrincipalTags: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -764,6 +781,7 @@ PrivilegePinSnapshotData: ObjectPrivilege
 PrivilegeUnpinSnapshotData: ObjectPrivilege
 PrivilegeRestoreExternalSnapshot: ObjectPrivilege
 PrivilegeExportSnapshot: ObjectPrivilege
+PrivilegeSkipRLS: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

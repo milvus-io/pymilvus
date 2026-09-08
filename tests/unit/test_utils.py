@@ -318,6 +318,44 @@ class TestConvertStructFieldsToUserFormat:
             }
         ]
 
+    def test_recursive_array_sub_field(self):
+        converted = utils.convert_struct_fields_to_user_format(
+            [
+                {
+                    "field_id": 10,
+                    "name": "metadata",
+                    "fields": [
+                        {
+                            "field_id": 11,
+                            "name": "metadata[nested]",
+                            "type_schema": {
+                                "array_element": {
+                                    "array_element": {
+                                        "array_element": {"leaf_type": DataType.INT32},
+                                        "type_params": {"max_capacity": 4},
+                                    },
+                                    "type_params": {"max_capacity": 8},
+                                },
+                                "type_params": {"max_capacity": 16},
+                            },
+                            "params": {"max_capacity": 16},
+                        }
+                    ],
+                }
+            ]
+        )
+
+        nested = converted[0]["struct_fields"][0]
+        assert nested["type"] == DataType.ARRAY
+        assert nested["params"] == {"max_capacity": 8}
+        assert nested["type_schema"] == {
+            "array_element": {
+                "array_element": {"leaf_type": DataType.INT32},
+                "type_params": {"max_capacity": 4},
+            },
+            "type_params": {"max_capacity": 8},
+        }
+
     def test_strip_struct_sub_field_name_passthrough(self):
         assert utils.strip_struct_sub_field_name("metadata", "score") == "score"
 

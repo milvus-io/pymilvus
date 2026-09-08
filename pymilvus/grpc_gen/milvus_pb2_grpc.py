@@ -641,6 +641,31 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ListRowPoliciesRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListRowPoliciesResponse.FromString,
                 _registered_method=True)
+        self.UpdateRowPolicy = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/UpdateRowPolicy',
+                request_serializer=milvus__pb2.UpdateRowPolicyRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.SetRLSPrincipalTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/SetRLSPrincipalTags',
+                request_serializer=milvus__pb2.SetRLSPrincipalTagsRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
+        self.GetRLSPrincipalTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/GetRLSPrincipalTags',
+                request_serializer=milvus__pb2.GetRLSPrincipalTagsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.GetRLSPrincipalTagsResponse.FromString,
+                _registered_method=True)
+        self.ListRLSPrincipals = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListRLSPrincipals',
+                request_serializer=milvus__pb2.ListRLSPrincipalsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListRLSPrincipalsResponse.FromString,
+                _registered_method=True)
+        self.DeleteRLSPrincipalTags = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DeleteRLSPrincipalTags',
+                request_serializer=milvus__pb2.DeleteRLSPrincipalTagsRequest.SerializeToString,
+                response_deserializer=common__pb2.Status.FromString,
+                _registered_method=True)
         self.UpdateReplicateConfiguration = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/UpdateReplicateConfiguration',
                 request_serializer=milvus__pb2.UpdateReplicateConfigurationRequest.SerializeToString,
@@ -1449,7 +1474,7 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def AddUserTags(self, request, context):
-        """Row Level Security (RLS) APIs
+        """Row-Level Security (RLS) APIs
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1486,6 +1511,36 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def ListRowPolicies(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UpdateRowPolicy(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetRLSPrincipalTags(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def GetRLSPrincipalTags(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListRLSPrincipals(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DeleteRLSPrincipalTags(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -2266,6 +2321,31 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ListRowPolicies,
                     request_deserializer=milvus__pb2.ListRowPoliciesRequest.FromString,
                     response_serializer=milvus__pb2.ListRowPoliciesResponse.SerializeToString,
+            ),
+            'UpdateRowPolicy': grpc.unary_unary_rpc_method_handler(
+                    servicer.UpdateRowPolicy,
+                    request_deserializer=milvus__pb2.UpdateRowPolicyRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'SetRLSPrincipalTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetRLSPrincipalTags,
+                    request_deserializer=milvus__pb2.SetRLSPrincipalTagsRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
+            ),
+            'GetRLSPrincipalTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetRLSPrincipalTags,
+                    request_deserializer=milvus__pb2.GetRLSPrincipalTagsRequest.FromString,
+                    response_serializer=milvus__pb2.GetRLSPrincipalTagsResponse.SerializeToString,
+            ),
+            'ListRLSPrincipals': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListRLSPrincipals,
+                    request_deserializer=milvus__pb2.ListRLSPrincipalsRequest.FromString,
+                    response_serializer=milvus__pb2.ListRLSPrincipalsResponse.SerializeToString,
+            ),
+            'DeleteRLSPrincipalTags': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteRLSPrincipalTags,
+                    request_deserializer=milvus__pb2.DeleteRLSPrincipalTagsRequest.FromString,
+                    response_serializer=common__pb2.Status.SerializeToString,
             ),
             'UpdateReplicateConfiguration': grpc.unary_unary_rpc_method_handler(
                     servicer.UpdateReplicateConfiguration,
@@ -5645,6 +5725,141 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ListRowPolicies',
             milvus__pb2.ListRowPoliciesRequest.SerializeToString,
             milvus__pb2.ListRowPoliciesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UpdateRowPolicy(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/UpdateRowPolicy',
+            milvus__pb2.UpdateRowPolicyRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetRLSPrincipalTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/SetRLSPrincipalTags',
+            milvus__pb2.SetRLSPrincipalTagsRequest.SerializeToString,
+            common__pb2.Status.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetRLSPrincipalTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/GetRLSPrincipalTags',
+            milvus__pb2.GetRLSPrincipalTagsRequest.SerializeToString,
+            milvus__pb2.GetRLSPrincipalTagsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListRLSPrincipals(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListRLSPrincipals',
+            milvus__pb2.ListRLSPrincipalsRequest.SerializeToString,
+            milvus__pb2.ListRLSPrincipalsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DeleteRLSPrincipalTags(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DeleteRLSPrincipalTags',
+            milvus__pb2.DeleteRLSPrincipalTagsRequest.SerializeToString,
+            common__pb2.Status.FromString,
             options,
             channel_credentials,
             insecure,

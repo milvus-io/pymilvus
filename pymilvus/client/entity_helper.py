@@ -337,6 +337,25 @@ def convert_to_array(obj: List[Any], field_info: Any):
         obj = obj.tolist()
 
     field_data = schema_types.ScalarField()
+    type_schema = field_info.get("type_schema")
+    if type_schema is not None:
+        element = type_schema["array_element"]
+        if "leaf_type" in element:
+            return convert_to_array(
+                obj, {"name": field_info.get("name"), "element_type": element["leaf_type"]}
+            )
+        array_data = field_data.array_data
+        array_data.element_type = (
+            DataType.ARRAY
+            if "array_element" in element["array_element"]
+            else element["array_element"]["leaf_type"]
+        )
+        array_data.data.extend(
+            convert_to_array(value, {"name": field_info.get("name"), "type_schema": element})
+            for value in obj
+        )
+        return field_data
+
     element_type = field_info.get("element_type", None)
     attr_name = type_info.get_array_element_attr(element_type)
     if attr_name is not None:
@@ -497,6 +516,8 @@ def _pack_scalar_row(
 ):
     try:
         payload = _get_protobuf_payload(field_data, dtype)
+        if dtype == DataType.ARRAY and field_info.get("type_schema") is not None:
+            payload.element_type = DataType.ARRAY
         if value is None:
             payload.data.extend([])
             return
@@ -667,6 +688,8 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             elif entity_type == DataType.JSON:
                 entity_values = entity_to_json_arr(entity_values, field_info)
             elif entity_type == DataType.ARRAY:
+                if field_info.get("type_schema") is not None:
+                    field_data.scalars.array_data.element_type = DataType.ARRAY
                 entity_values = entity_to_array_arr(entity_values, field_info)
             getattr(field_data.scalars, attr_name).data.extend(entity_values)
         elif entity_type == DataType.FLOAT_VECTOR:

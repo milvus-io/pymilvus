@@ -18,6 +18,35 @@ from .types import ConsistencyLevel, DataType, FunctionType
 logger = logging.getLogger(__name__)
 
 
+def _type_schema_params_to_dict(raw_params: Any) -> Dict[str, Any]:
+    params = {}
+    for type_param in raw_params:
+        key = "mmap_enabled" if type_param.key == "mmap.enabled" else type_param.key
+        value: Any = type_param.value
+        if key == "mmap_enabled":
+            value = value.lower() != "false"
+        elif key in ("dim", "max_capacity", Config.MaxVarCharLengthKey):
+            value = int(value)
+        params[key] = value
+    return params
+
+
+def _type_schema_to_dict(raw: Any) -> Dict[str, Any]:
+    kind = raw.WhichOneof("kind")
+    result = (
+        {"array_element": _type_schema_to_dict(raw.array_element)}
+        if kind == "array_element"
+        else {"leaf_type": DataType(raw.leaf_type)}
+    )
+    if raw.nullable:
+        result["nullable"] = True
+
+    params = _type_schema_params_to_dict(raw.type_params)
+    if params:
+        result["type_params"] = params
+    return result
+
+
 class FieldSchema:
     def __init__(self, raw: Any):
         self._raw = raw
@@ -38,6 +67,7 @@ class FieldSchema:
         self.external_field = ""
         # For array field
         self.element_type = None
+        self.type_schema = None
         self.is_clustering_key = False
         self.__pack(self._raw)
 
@@ -50,6 +80,9 @@ class FieldSchema:
         self.type = DataType(raw.data_type)
         self.is_partition_key = raw.is_partition_key
         self.element_type = DataType(raw.element_type)
+        if self.type == DataType.ARRAY and self.element_type == DataType.ARRAY:
+            self.type_schema = _type_schema_to_dict(raw.type_schema)
+            self.params.update(self.type_schema.get("type_params", {}))
         self.is_clustering_key = raw.is_clustering_key
         self.default_value = raw.default_value
         if raw.default_value is not None and raw.default_value.WhichOneof("data") is None:
@@ -122,6 +155,8 @@ class FieldSchema:
 
         if self.element_type:
             _dict["element_type"] = self.element_type
+        if self.type_schema is not None:
+            _dict["type_schema"] = self.type_schema
 
         if self.is_partition_key:
             _dict["is_partition_key"] = True

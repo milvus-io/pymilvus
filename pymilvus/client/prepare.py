@@ -1,4 +1,5 @@
 import base64
+import copy
 import datetime
 import json
 import re
@@ -86,6 +87,29 @@ _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
 
 
 class Prepare:
+    @staticmethod
+    def _type_schema_from_dict(type_schema: Dict) -> schema_types.TypeSchema:
+        """Encode the complete recursive type tree without adding ARRAY levels."""
+        result = schema_types.TypeSchema(nullable=type_schema.get("nullable", False))
+        if "array_element" in type_schema:
+            result.array_element.CopyFrom(
+                Prepare._type_schema_from_dict(type_schema["array_element"])
+            )
+        else:
+            result.leaf_type = type_schema["leaf_type"]
+        for key, value in type_schema.get("type_params", {}).items():
+            result.type_params.append(
+                common_types.KeyValuePair(
+                    key=str(key) if key != "mmap_enabled" else "mmap.enabled",
+                    value=(
+                        orjson.dumps(value).decode(Config.EncodeProtocol)
+                        if not isinstance(value, str)
+                        else value
+                    ),
+                )
+            )
+        return result
+
     @classmethod
     def create_collection_request(
         cls,
@@ -204,6 +228,9 @@ class Prepare:
                 )
                 field_schema.type_params.append(kv_pair)
 
+            if f.type_schema is not None:
+                field_schema.type_schema.CopyFrom(cls._type_schema_from_dict(f.type_schema))
+
             schema.fields.append(field_schema)
 
         for struct in fields.struct_fields:
@@ -265,7 +292,33 @@ class Prepare:
                 is_function_output=f.is_function_output,
             )
 
-            field_params = dict(f.params) if f.params else {}
+            logical_array_type = None
+            if f.dtype == DataType.ARRAY:
+                if f.type_schema is not None:
+                    logical_array_type = copy.deepcopy(f.type_schema)
+                else:
+                    array_params = {"max_capacity", "mmap_enabled", "warmup"}
+                    logical_array_type = {
+                        "array_element": {
+                            "leaf_type": f.element_type,
+                            "type_params": {
+                                key: value
+                                for key, value in f.params.items()
+                                if key not in array_params
+                            },
+                        },
+                        "type_params": {
+                            key: value for key, value in f.params.items() if key in array_params
+                        },
+                    }
+                logical_params = logical_array_type.get("type_params", {})
+                field_params = {
+                    key: logical_params.pop(key)
+                    for key in ("mmap_enabled", "warmup")
+                    if key in logical_params
+                }
+            else:
+                field_params = dict(f.params) if f.params else {}
             field_params["max_capacity"] = struct.max_capacity
 
             for k, v in field_params.items():
@@ -273,6 +326,14 @@ class Prepare:
                     key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
                 )
                 field_schema.type_params.append(kv_pair)
+            if logical_array_type is not None:
+                physical_array_type = {
+                    "array_element": logical_array_type,
+                    "type_params": field_params,
+                }
+                field_schema.type_schema.CopyFrom(
+                    Prepare._type_schema_from_dict(physical_array_type)
+                )
             struct_schema.fields.append(field_schema)
 
         return struct_schema
@@ -344,6 +405,15 @@ class Prepare:
             for k, v in type_params.items()
         ]
         field_schema.type_params.extend(kvs)
+
+        if field.get("type_schema") is not None:
+            normalized = FieldSchema.construct_from_dict(field)
+            field_schema.element_type = normalized.element_type
+            field_schema.type_schema.CopyFrom(
+                Prepare._type_schema_from_dict(normalized.type_schema)
+            )
+            field_schema.ClearField("type_params")
+            field_schema.type_params.extend(field_schema.type_schema.type_params)
 
         return field_schema, primary_field, auto_id_field
 
@@ -748,6 +818,8 @@ class Prepare:
                 continue
 
             if field_info["type"] == DataType.ARRAY:
+                if field_info.get("type_schema") is not None:
+                    field_data.scalars.array_data.element_type = DataType.ARRAY
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
@@ -801,6 +873,8 @@ class Prepare:
             field_info = struct_field_info[field_name]
 
             if field_info["type"] == DataType.ARRAY:
+                if field_info.get("type_schema") is not None:
+                    field_data.scalars.array_data.element_type = DataType.ARRAY
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)

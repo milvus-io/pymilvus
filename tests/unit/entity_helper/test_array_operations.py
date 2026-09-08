@@ -6,6 +6,7 @@ from pymilvus.client.entity_helper import (
     extract_array_rows,
     get_array_length,
     get_array_value_at_index,
+    pack_field_value_to_field_data,
 )
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import ParamError
@@ -238,6 +239,44 @@ class TestConvertToArrayExtended:
         arr = np.array([1, 2, 3], dtype=np.int64)
         result = convert_to_array(arr, field_info)
         assert list(result.long_data.data) == [1, 2, 3]
+
+    def test_pack_quadruple_nested_array_metadata(self):
+        field_info = {
+            "name": "nested_4d",
+            "type_schema": {
+                "array_element": {
+                    "array_element": {
+                        "array_element": {
+                            "array_element": {"leaf_type": DataType.INT32},
+                        },
+                    },
+                },
+            },
+        }
+
+        field_data = schema_types.FieldData(
+            type=DataType.ARRAY,
+            field_name="nested_4d",
+        )
+        pack_field_value_to_field_data(
+            [[[[1, 2], []], [[3]]]],
+            field_data,
+            field_info,
+            {},
+        )
+
+        root = field_data.scalars.array_data
+        level_one = root.data[0].array_data
+        level_two = level_one.data[0].array_data
+        level_three = level_two.data[0].array_data
+
+        assert root.element_type == DataType.ARRAY
+        assert level_one.element_type == DataType.ARRAY
+        assert level_two.element_type == DataType.ARRAY
+        assert level_three.element_type == DataType.INT32
+        assert list(level_three.data[0].int_data.data) == [1, 2]
+        assert list(level_three.data[1].int_data.data) == []
+        assert list(level_two.data[1].array_data.data[0].int_data.data) == [3]
 
 
 class TestConvertToArrayOfVector:

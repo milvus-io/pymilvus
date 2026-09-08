@@ -566,6 +566,12 @@ class Hit(dict):
 def extract_array_row_data(
     scalars: List[schema_pb2.ScalarField], element_type: DataType
 ) -> List[List[Any]]:
+    if element_type == DataType.ARRAY:
+        return [
+            None if array is None else field_data_extractors.decode_array(array, element_type)
+            for array in scalars
+        ]
+
     attr = get_array_element_attr(element_type)
     if attr is None:
         raise MilvusException(message=f"Unsupported data type: {element_type}")

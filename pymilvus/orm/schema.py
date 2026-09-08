@@ -17,6 +17,7 @@ import orjson
 import pandas as pd
 from pandas.api.types import is_list_like, is_scalar
 
+from pymilvus.client.type_info import get_array_element_attr
 from pymilvus.client.types import FunctionType, HighlightType
 from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
@@ -558,7 +559,58 @@ class CollectionSchema:
         return self
 
 
+def _normalize_type_schema(raw: Dict) -> Dict:
+    if not isinstance(raw, dict):
+        raise ParamError(message="type_schema must be a dict")
+    if ("array_element" in raw) == ("leaf_type" in raw):
+        raise ParamError(message="type_schema requires exactly one of array_element or leaf_type")
+
+    if "array_element" in raw:
+        result = {"array_element": _normalize_type_schema(raw["array_element"])}
+    else:
+        try:
+            leaf_type = DataType(raw["leaf_type"])
+        except (TypeError, ValueError):
+            raise DataTypeNotSupportException(message=ExceptionsMessage.FieldDtype) from None
+        if get_array_element_attr(leaf_type) is None:
+            raise ParamError(message=f"Unsupported leaf_type: {leaf_type} for nested ARRAY")
+        result = {"leaf_type": leaf_type}
+
+    nullable = raw.get("nullable", False)
+    if not isinstance(nullable, bool):
+        raise ParamError(message="type_schema nullable must be boolean")
+    if nullable:
+        result["nullable"] = True
+
+    params = raw.get("type_params", {})
+    if not isinstance(params, dict):
+        raise ParamError(message="type_schema type_params must be a dict")
+    params = copy.deepcopy(params)
+    for key, value in params.items():
+        if key in ("analyzer_params", "multi_analyzer_params") and isinstance(value, dict):
+            params[key] = orjson.dumps(value).decode(Config.EncodeProtocol)
+        elif (
+            key in COMMON_TYPE_PARAMS
+            and isinstance(value, str)
+            and value.lower() in ("true", "false")
+        ):
+            params[key] = value.lower() == "true"
+
+    if params:
+        result["type_params"] = params
+    return result
+
+
 class FieldSchema:
+    """Describe a collection field.
+
+    Nested ARRAY fields use a ``type_schema`` dict describing the entire field:
+    each ``array_element`` adds one ARRAY level, and ``leaf_type`` names the
+    scalar type. A node's ``type_params`` is a dict of parameter names to values.
+    Root parameters also appear in the field's params; set root nullability
+    through ``nullable`` on FieldSchema.
+    """
+
     def __init__(self, name: str, dtype: DataType, description: str = "", **kwargs) -> None:
         self.name = name
         try:
@@ -600,6 +652,7 @@ class FieldSchema:
                 kwargs.get("default_value"), dtype=self._dtype
             )
         self.element_type = kwargs.get("element_type")
+        self.type_schema = kwargs.get("type_schema")
         if "mmap_enabled" in kwargs:
             self._type_params["mmap_enabled"] = kwargs["mmap_enabled"]
 
@@ -611,6 +664,27 @@ class FieldSchema:
                 self._kwargs[key] = orjson.dumps(self._kwargs[key]).decode(Config.EncodeProtocol)
 
         self._parse_type_params()
+        if self.type_schema is not None:
+            self.type_schema = _normalize_type_schema(self.type_schema)
+            if (
+                self.dtype != DataType.ARRAY
+                or "array_element" not in self.type_schema
+                or "array_element" not in self.type_schema["array_element"]
+            ):
+                raise ParamError(message="type_schema must describe a nested ARRAY field")
+            if self.element_type not in (None, DataType.NONE, DataType.ARRAY):
+                raise ParamError(message="element_type does not match type_schema")
+            if self.type_schema.get("nullable", False):
+                raise ParamError(message="Set root nullability with FieldSchema nullable")
+            self.element_type = DataType.ARRAY
+            params = self.type_schema.get("type_params", {})
+            for key, value in self._type_params.items():
+                if key in params and params[key] != value:
+                    raise ParamError(message=f"Field parameter {key} does not match type_schema")
+                params[key] = value
+            if params:
+                self.type_schema["type_params"] = params
+                self._type_params = copy.deepcopy(params)
         self.is_function_output = False
         self.external_field = kwargs.get("external_field", "")
 
@@ -667,6 +741,8 @@ class FieldSchema:
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["nullable"] = raw.get("nullable", False)
         kwargs["element_type"] = raw.get("element_type")
+        if raw.get("type_schema") is not None:
+            kwargs["type_schema"] = raw["type_schema"]
         if raw.get("external_field"):
             kwargs["external_field"] = raw["external_field"]
         is_function_output = raw.get("is_function_output", False)
@@ -699,6 +775,8 @@ class FieldSchema:
             self.dtype == DataType.ARRAY or self._dtype == DataType._ARRAY_OF_VECTOR
         ) and self.element_type:
             _dict["element_type"] = self.element_type
+        if self.dtype == DataType.ARRAY and self.type_schema is not None:
+            _dict["type_schema"] = copy.deepcopy(self.type_schema)
         if self.is_clustering_key:
             _dict["is_clustering_key"] = True
         if self.is_function_output:
@@ -792,6 +870,14 @@ class StructFieldSchema:
             raise ParamError(message="Struct field must have at least one field")
 
         for field in self._fields:
+            if (
+                field.dtype == DataType.ARRAY
+                and field.type_schema is None
+                and get_array_element_attr(field.element_type) is None
+            ):
+                raise ParamError(
+                    message=f"Unsupported element type: {field.element_type} for Array field: {field.name}"
+                )
             if field.is_primary:
                 raise ParamError(
                     message=f"Field '{field.name}' in struct '{self.name}' cannot be primary key"
@@ -839,7 +925,9 @@ class StructFieldSchema:
             )
 
     def add_field(self, field_name: str, datatype: DataType, **kwargs):
-        if datatype in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR, DataType.STRUCT}:
+        if datatype in {DataType._ARRAY_OF_VECTOR, DataType.STRUCT} or (
+            datatype == DataType.ARRAY and kwargs.get("element_type") == DataType.STRUCT
+        ):
             raise ParamError(
                 message="Struct field schema does not support Array, ArrayOfVector or Struct"
             )
@@ -923,6 +1011,11 @@ class StructFieldSchema:
                 field_kwargs = {}
                 if field_dict.get("params"):
                     field_kwargs.update(field_dict["params"])
+                if field_dict["type"] == DataType.ARRAY:
+                    if field_dict.get("element_type") is not None:
+                        field_kwargs["element_type"] = field_dict["element_type"]
+                    if field_dict.get("type_schema") is not None:
+                        field_kwargs["type_schema"] = field_dict["type_schema"]
                 field = FieldSchema(
                     name=field_dict["name"],
                     dtype=field_dict["type"],

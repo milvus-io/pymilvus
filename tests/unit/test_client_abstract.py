@@ -25,10 +25,32 @@ from pymilvus.client.abstract import (
     RRFRanker,
     StructArrayFieldSchema,
     WeightedRanker,
+    _type_schema_to_dict,
 )
 from pymilvus.client.constants import RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
 from pymilvus.client.types import ConsistencyLevel, DataType, FunctionType
 from pymilvus.exceptions import DataTypeNotMatchException, ParamError
+from pymilvus.grpc_gen import schema_pb2
+
+
+def test_type_schema_to_dict_preserves_public_shape():
+    raw = schema_pb2.TypeSchema(
+        array_element=schema_pb2.TypeSchema(
+            leaf_type=DataType.VARCHAR,
+            type_params=[{"key": "max_length", "value": "32"}],
+        ),
+        type_params=[{"key": "max_capacity", "value": "8"}],
+        nullable=True,
+    )
+
+    assert _type_schema_to_dict(raw) == {
+        "array_element": {
+            "leaf_type": DataType.VARCHAR,
+            "type_params": {"max_length": 32},
+        },
+        "nullable": True,
+        "type_params": {"max_capacity": 8},
+    }
 
 
 class TestFieldSchema:
@@ -52,6 +74,7 @@ class TestFieldSchema:
         external_field="",
         type_params=None,
         index_params=None,
+        type_schema=None,
     ):
         """Create a mock raw field object."""
         mock = MagicMock()
@@ -71,6 +94,8 @@ class TestFieldSchema:
         mock.external_field = external_field
         mock.type_params = type_params or []
         mock.index_params = index_params or []
+        if type_schema is not None:
+            mock.type_schema = type_schema
         return mock
 
     def test_field_schema_basic_init(self):
@@ -98,6 +123,41 @@ class TestFieldSchema:
 
         assert field.is_primary is True
         assert field.auto_id is True
+
+    def test_flat_array_does_not_read_recursive_type_schema(self):
+        raw = self._create_mock_raw_field(data_type=DataType.ARRAY, element_type=DataType.INT32)
+        del raw.HasField
+        del raw.type_schema
+
+        field = FieldSchema(raw)
+
+        assert field.element_type == DataType.INT32
+        assert "type_schema" not in field.dict()
+
+    def test_field_schema_normalizes_recursive_type_schema(self):
+        type_schema = schema_pb2.TypeSchema(
+            array_element=schema_pb2.TypeSchema(
+                array_element=schema_pb2.TypeSchema(leaf_type=DataType.INT32),
+                type_params=[{"key": "max_capacity", "value": "8"}],
+            ),
+            type_params=[{"key": "max_capacity", "value": "16"}],
+        )
+        raw = self._create_mock_raw_field(
+            data_type=DataType.ARRAY,
+            element_type=DataType.ARRAY,
+            type_schema=type_schema,
+        )
+
+        field = FieldSchema(raw)
+
+        assert field.element_type == DataType.ARRAY
+        assert field.type_schema == {
+            "array_element": {
+                "array_element": {"leaf_type": DataType.INT32},
+                "type_params": {"max_capacity": 8},
+            },
+            "type_params": {"max_capacity": 16},
+        }
 
     @pytest.mark.parametrize(
         "key,value,data_type,expected_param_key,expected_value",

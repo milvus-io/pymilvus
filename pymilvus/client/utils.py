@@ -1,3 +1,4 @@
+import copy
 import datetime
 import importlib.util
 import struct
@@ -466,6 +467,9 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
             # Struct fields are always ARRAY or ARRAY_OF_VECTOR, so element_type must exist
             # Handle both cases: element_type as dict key or already converted DataType
             user_field_type = f.get("element_type")
+            type_schema = f.get("type_schema")
+            if type_schema is not None:
+                user_field_type = DataType.ARRAY
 
             if user_field_type:
                 struct_sub_field = {
@@ -480,6 +484,20 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
                     cleaned_params = {k: v for k, v in params.items() if k != "max_capacity"}
                     if cleaned_params:
                         struct_sub_field["params"] = cleaned_params
+
+                if type_schema is not None:
+                    logical_array_type = copy.deepcopy(type_schema["array_element"])
+                    cleaned_params = struct_sub_field.get("params", {})
+                    cleaned_params.update(logical_array_type.get("type_params", {}))
+                    element = logical_array_type["array_element"]
+                    if "array_element" in element:
+                        struct_sub_field["element_type"] = DataType.ARRAY
+                        struct_sub_field["type_schema"] = logical_array_type
+                    else:
+                        struct_sub_field["element_type"] = element["leaf_type"]
+                        cleaned_params.update(element.get("type_params", {}))
+                    if cleaned_params:
+                        struct_sub_field["params"] = copy.deepcopy(cleaned_params)
 
                 struct_fields.append(struct_sub_field)
 

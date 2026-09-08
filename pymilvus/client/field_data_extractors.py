@@ -69,7 +69,20 @@ def decode_array_value(array_cell: Any, index: int) -> Any:
     data = getattr(array_cell, attr).data
     if len(data) <= index:
         return None
+    if attr == "array_data":
+        return decode_array(data[index], array_cell.array_data.element_type)
     return data[index]
+
+
+def decode_array(array_cell: Any, element_type: DataType) -> Any:
+    """Recursively decode one ScalarField containing an ARRAY value."""
+    if element_type == DataType.ARRAY:
+        array_data = array_cell.array_data
+        return [decode_array(value, array_data.element_type) for value in array_data.data]
+    attr = type_info.get_array_element_attr(element_type)
+    if attr is None:
+        raise MilvusException(message=f"Unsupported data type: {element_type}")
+    return list(getattr(array_cell, attr).data)
 
 
 def vector_array_length(vector_data: Any, element_type: DataType) -> int:
@@ -113,6 +126,8 @@ def decode_array_cell(field_data: Any, logical_index: int) -> Any:
     array_data = field_data.scalars.array_data
     if logical_index >= len(array_data.data):
         return None
+    if array_data.element_type == DataType.ARRAY:
+        return decode_array(array_data.data[logical_index], array_data.element_type)
     attr = type_info.get_array_element_attr(array_data.element_type)
     if attr is None:
         raise MilvusException(message=f"Unsupported data type: {array_data.element_type}")
@@ -241,8 +256,8 @@ def _resolve_vector_array_element_type(vector_data: Any, element_type: DataType)
 
 
 def _populated_array_attr(array_cell: Any) -> Optional[str]:
-    for info in type_info.TYPE_INFO.values():
-        attr = info.array_element_attr
+    attrs = (info.array_element_attr for info in type_info.TYPE_INFO.values())
+    for attr in (*attrs, "array_data"):
         if attr is None:
             continue
         data = getattr(array_cell, attr, None)

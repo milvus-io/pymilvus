@@ -138,6 +138,64 @@ class TestGetSchemaFromCollectionSchema:
         result = Prepare.get_schema_from_collection_schema("test", schema)
         assert len(result.struct_array_fields) == 1
 
+    def test_schema_with_nullable_nested_array_element(self):
+        """Test nullable is encoded in a recursive Array element schema."""
+        nested = FieldSchema(
+            "nested",
+            DataType.ARRAY,
+            type_schema={
+                "array_element": {
+                    "array_element": {"leaf_type": DataType.INT32},
+                    "nullable": True,
+                    "type_params": {"max_capacity": 8},
+                },
+            },
+            max_capacity=8,
+        )
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                nested,
+            ]
+        )
+
+        result = Prepare.get_schema_from_collection_schema("test", schema)
+        nested_proto = next(field for field in result.fields if field.name == "nested")
+        assert nested_proto.element_type == DataType.ARRAY
+        assert nested_proto.type_schema.WhichOneof("kind") == "array_element"
+        assert nested_proto.type_schema.array_element.nullable is True
+
+    def test_nullable_nested_array_uses_field_nullable_only(self):
+        nested = FieldSchema(
+            "nested",
+            DataType.ARRAY,
+            type_schema={
+                "array_element": {
+                    "array_element": {"leaf_type": DataType.INT32},
+                    "type_params": {"max_capacity": 8},
+                },
+            },
+            max_capacity=8,
+            nullable=True,
+        )
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                nested,
+            ]
+        )
+
+        result = Prepare.get_schema_from_collection_schema("test", schema)
+        nested_proto = next(field for field in result.fields if field.name == "nested")
+        assert nested_proto.nullable is True
+        assert nested_proto.type_schema.nullable is False
+        assert nested_proto.type_schema.array_element.nullable is False
+
+        dict_proto, _, _ = Prepare.get_field_schema(nested.to_dict())
+        assert dict_proto.nullable is True
+        assert dict_proto.type_schema.nullable is False
+        assert dict_proto.type_schema.array_element.nullable is False
+
     def test_schema_with_functions(self):
         """Test schema with function definitions."""
         schema = CollectionSchema(
@@ -418,6 +476,82 @@ class TestAddCollectionFieldRequest:
 
         assert params["mmap.enabled"] == "true"
         assert params["warmup"] == '{"policy":"async"}'
+
+    def test_add_struct_field_request_with_recursive_array_sub_field(self):
+        struct_field = StructFieldSchema(nullable=True)
+        struct_field.name = "metadata"
+        struct_field.max_capacity = 16
+        struct_field.add_field(
+            "nested",
+            DataType.ARRAY,
+            type_schema={
+                "array_element": {
+                    "array_element": {"leaf_type": DataType.INT32},
+                    "type_params": {"max_capacity": 4},
+                },
+            },
+            max_capacity=8,
+        )
+        struct_field.add_field("tag", DataType.VARCHAR, max_length=32)
+
+        req = Prepare.add_collection_struct_field_request("test_coll", struct_field)
+        nested = req.struct_array_field_schema.fields[0]
+
+        assert nested.data_type == DataType.ARRAY
+        assert nested.element_type == DataType.ARRAY
+        assert nested.nullable is True
+        assert nested.type_schema.nullable is False
+        assert nested.type_schema.WhichOneof("kind") == "array_element"
+        logical_array = nested.type_schema.array_element
+        assert logical_array.WhichOneof("kind") == "array_element"
+        nested_array = logical_array.array_element
+        assert nested_array.WhichOneof("kind") == "array_element"
+        assert nested_array.array_element.WhichOneof("kind") == "leaf_type"
+        assert nested_array.array_element.leaf_type == DataType.INT32
+        assert any(kv.key == "max_capacity" and kv.value == "16" for kv in nested.type_params)
+        assert any(
+            kv.key == "max_capacity" and kv.value == "16" for kv in nested.type_schema.type_params
+        )
+        assert any(kv.key == "max_capacity" and kv.value == "8" for kv in logical_array.type_params)
+
+    def test_nested_varchar_params_are_stored_on_leaf_schema(self):
+        nested = FieldSchema(
+            "nested",
+            DataType.ARRAY,
+            type_schema={
+                "array_element": {
+                    "array_element": {
+                        "leaf_type": DataType.VARCHAR,
+                        "type_params": {"max_length": 32},
+                    },
+                    "type_params": {"max_capacity": 4},
+                },
+            },
+            max_capacity=8,
+        )
+        schema = CollectionSchema(
+            [
+                FieldSchema("pk", DataType.INT64, is_primary=True),
+                nested,
+            ]
+        )
+
+        result = Prepare.get_schema_from_collection_schema("test", schema)
+        nested_proto = next(field for field in result.fields if field.name == "nested")
+        assert nested_proto.element_type == DataType.ARRAY
+        assert nested_proto.type_schema.WhichOneof("kind") == "array_element"
+        assert any(
+            kv.key == "max_capacity" and kv.value == "8"
+            for kv in nested_proto.type_schema.type_params
+        )
+        array_schema = nested_proto.type_schema.array_element
+        leaf_schema = array_schema.array_element
+
+        assert array_schema.WhichOneof("kind") == "array_element"
+        assert leaf_schema.WhichOneof("kind") == "leaf_type"
+        assert leaf_schema.leaf_type == DataType.VARCHAR
+        assert any(kv.key == "max_capacity" and kv.value == "4" for kv in array_schema.type_params)
+        assert any(kv.key == "max_length" and kv.value == "32" for kv in leaf_schema.type_params)
 
 
 class TestAlterCollectionSchemaRequest:

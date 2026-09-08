@@ -214,6 +214,21 @@ class TestFieldSchemaValidation:
         with pytest.raises(ParamError, match=r"[Dd]efault"):
             FieldSchema("field", DataType.INT64, default_value=None, nullable=False)
 
+    def test_nested_type_schema_nullable_must_be_boolean(self):
+        with pytest.raises(ParamError, match="type_schema nullable must be boolean"):
+            FieldSchema(
+                "nested",
+                DataType.ARRAY,
+                type_schema={
+                    "array_element": {
+                        "array_element": {"leaf_type": DataType.INT32},
+                        "nullable": "true",
+                        "type_params": {"max_capacity": 8},
+                    },
+                },
+                max_capacity=8,
+            )
+
 
 class TestFieldSchemaEquality:
     """Tests for FieldSchema equality comparison."""
@@ -1354,11 +1369,32 @@ class TestStructFieldSchemaValidation:
         with pytest.raises(ParamError, match=r"[Dd]uplicate"):
             struct._check_fields()
 
-    def test_add_field_unsupported_types(self):
-        """Test adding unsupported types to struct."""
+    def test_add_array_field(self):
+        """Test adding a recursive Array sub-field to struct."""
         struct = StructFieldSchema()
-        with pytest.raises(ParamError, match="does not support"):
-            struct.add_field("arr", DataType.ARRAY, element_type=DataType.INT64, max_capacity=10)
+        struct.add_field(
+            "arr",
+            DataType.ARRAY,
+            type_schema={
+                "array_element": {
+                    "array_element": {"leaf_type": DataType.INT64},
+                    "type_params": {"max_capacity": 4},
+                },
+            },
+            max_capacity=10,
+        )
+
+        assert struct.fields[0].dtype == DataType.ARRAY
+        assert (
+            struct.fields[0].type_schema["array_element"]["array_element"]["leaf_type"]
+            == DataType.INT64
+        )
+
+    def test_add_field_rejects_nested_struct(self):
+        """Test adding nested Struct to struct remains unsupported."""
+        struct = StructFieldSchema()
+        with pytest.raises(ParamError, match="does not support Array, ArrayOfVector or Struct"):
+            struct.add_field("nested", DataType.ARRAY, element_type=DataType.STRUCT)
 
 
 class TestStructFieldSchemaToDict:
