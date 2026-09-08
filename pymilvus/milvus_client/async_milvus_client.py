@@ -1,14 +1,18 @@
 import asyncio
 import copy
+import inspect
+import logging
 import time
 import types
-from typing import Dict, List, Optional, Type, Union
+import weakref
+from typing import Any, Dict, List, Optional, Type, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_aggregation import SearchAggregation
+from pymilvus.client.telemetry import AsyncClientTelemetryManager, telemetry_operation
 from pymilvus.client.types import (
     ExceptionsMessage,
     FunctionType,
@@ -43,6 +47,8 @@ from .check import validate_param
 from .index import IndexParam, IndexParams, extract_bound_index_param
 from .optimize_task import OptimizeResult, ProgressStage, parse_target_size
 
+logger = logging.getLogger(__name__)
+
 
 class AsyncMilvusClient(BaseMilvusClient):
     """AsyncMilvusClient is an EXPERIMENTAL class
@@ -66,6 +72,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         # Store config for deferred connection
         self._dedicated = kwargs.pop("dedicated", False)
         kwargs.pop("cluster_id", None)
+        if user:
+            kwargs.setdefault("user", user)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
@@ -78,6 +86,75 @@ class AsyncMilvusClient(BaseMilvusClient):
         self._using = None
         self.is_self_hosted = None
         self._closed = False
+        self._lifecycle_lock: Optional[asyncio.Lock] = None
+        self._telemetry = self._new_telemetry_manager()
+
+    def _new_telemetry_manager(self) -> AsyncClientTelemetryManager:
+        handler_kwargs = self._config.get_handler_kwargs()
+        client_ref = weakref.ref(self)
+
+        def stub_provider():
+            client = client_ref()
+            if client is None or client._handler is None:
+                return None
+            return getattr(client._handler, "telemetry_stub", None)
+
+        def database_provider() -> str:
+            client = client_ref()
+            return client._config.db_name if client is not None else ""
+
+        def config_provider() -> Dict[str, Any]:
+            client = client_ref()
+            config = client._config if client is not None else None
+            return {
+                # Keep the caller's logical endpoint stable across global-primary
+                # failover. ConnectionConfig.address contains no URI credentials.
+                "address": config.address if config is not None else "",
+                "username": handler_kwargs.get("user", "") or "",
+                "db_name": config.db_name if config is not None else "",
+                "secure": bool(handler_kwargs.get("secure", False)),
+            }
+
+        def owner_alive_provider() -> bool:
+            return client_ref() is not None
+
+        manager = AsyncClientTelemetryManager(
+            stub_provider,
+            handler_kwargs.get("telemetry_config"),
+            user=handler_kwargs.get("user", "") or "",
+            database_provider=database_provider,
+            config_provider=config_provider,
+            owner_alive_provider=owner_alive_provider,
+            runtime_client_id=handler_kwargs.get("_telemetry_client_id", ""),
+        )
+        manager_ref = weakref.ref(manager)
+
+        def owner_released(_client_ref: weakref.ReferenceType[Any]) -> None:
+            telemetry = manager_ref()
+            if telemetry is not None:
+                telemetry.owner_released()
+
+        # The providers close over this cell, so replace the initial reference
+        # with a callback-bearing one after the manager exists. The callback
+        # retains only a weak manager reference and never keeps the client alive.
+        client_ref = weakref.ref(self, owner_released)
+        return manager
+
+    def _bind_telemetry_handler(self, handler: Any, database: str) -> None:
+        register = getattr(handler, "register_client_telemetry", None)
+        if callable(register) and not inspect.iscoroutinefunction(register):
+            register(self._telemetry, database)
+
+    def _unbind_telemetry_handler(self, handler: Any) -> None:
+        unregister = getattr(handler, "unregister_client_telemetry", None)
+        if callable(unregister) and not inspect.iscoroutinefunction(unregister):
+            unregister(self._telemetry)
+
+    def _get_lifecycle_lock(self) -> asyncio.Lock:
+        """Create the lifecycle lock on the event loop that first uses the client."""
+        if self._lifecycle_lock is None:
+            self._lifecycle_lock = asyncio.Lock()
+        return self._lifecycle_lock
 
     def session(self, cluster_id: str) -> "AsyncMilvusClientSession":
         """Create a lightweight client session pinned to a target cluster."""
@@ -100,18 +177,46 @@ class AsyncMilvusClient(BaseMilvusClient):
 
     async def _connect(self) -> None:
         """Establish the async connection. Call this before using the client."""
-        if self._handler is not None:
-            return  # Already connected
+        async with self._get_lifecycle_lock():
+            if self._closed:
+                raise MilvusException(message="should create connection first")
+            if self._handler is not None:
+                return  # Already connected
 
-        self._manager = AsyncConnectionManager.get_instance()
-        self._handler = await self._manager.get_or_create(
-            self._config,
-            dedicated=self._dedicated,
-            client=self,
-            timeout=self._timeout,
-        )
-        self._using = f"cm-async-{id(self._handler)}"
-        self.is_self_hosted = bool(self._handler.get_server_type() == "milvus")
+            manager = AsyncConnectionManager.get_instance()
+            candidate = await manager.get_or_create(
+                self._config,
+                dedicated=self._dedicated,
+                client=self,
+                timeout=self._timeout,
+            )
+            try:
+                is_self_hosted = bool(candidate.get_server_type() == "milvus")
+            except BaseException:
+                try:
+                    await manager.release(candidate, client=self)
+                except Exception:
+                    logger.warning("Failed to release rejected async connection", exc_info=True)
+                raise
+
+            try:
+                self._bind_telemetry_handler(candidate, self._config.db_name)
+                self._manager = manager
+                self._handler = candidate
+                self._using = f"cm-async-{id(candidate)}"
+                self.is_self_hosted = is_self_hosted
+                self._telemetry.start()
+            except BaseException:
+                self._unbind_telemetry_handler(candidate)
+                self._manager = None
+                self._handler = None
+                self._using = None
+                self.is_self_hosted = None
+                try:
+                    await manager.release(candidate, client=self)
+                except Exception:
+                    logger.warning("Failed to release rejected async connection", exc_info=True)
+                raise
 
     async def _get_connection(self):
         """Return the handler for this client, auto-connecting if needed."""
@@ -429,6 +534,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Insert")
     async def insert(
         self,
         collection_name: str,
@@ -468,6 +574,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             }
         )
 
+    @telemetry_operation("Upsert")
     async def upsert(
         self,
         collection_name: str,
@@ -537,6 +644,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             }
         )
 
+    @telemetry_operation("HybridSearch")
     async def hybrid_search(
         self,
         collection_name: str,
@@ -563,6 +671,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Search")
     async def search(
         self,
         collection_name: str,
@@ -602,6 +711,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Query")
     async def query(
         self,
         collection_name: str,
@@ -650,6 +760,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Query")
     async def get(
         self,
         collection_name: str,
@@ -691,6 +802,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Delete")
     async def delete(
         self,
         collection_name: str,
@@ -1277,10 +1389,28 @@ class AsyncMilvusClient(BaseMilvusClient):
 
     async def close(self):
         """Close the client and release the connection."""
-        self._closed = True
-        if self._manager and self._handler:
-            await self._manager.release(self._handler, client=self)
-            self._handler = None
+        async with self._get_lifecycle_lock():
+            self._closed = True
+            try:
+                await self._telemetry.stop_async()
+            except Exception:
+                logger.warning("Failed to stop client telemetry", exc_info=True)
+            finally:
+                if self._manager and self._handler:
+                    try:
+                        self._unbind_telemetry_handler(self._handler)
+                    except Exception:
+                        logger.warning("Failed to unbind client telemetry", exc_info=True)
+                    try:
+                        await self._manager.release(self._handler, client=self)
+                    finally:
+                        self._handler = None
+
+    async def get_telemetry(self):
+        """Return this logical client's telemetry manager."""
+
+        await self._get_connection()
+        return self._telemetry
 
     async def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
         conn = await self._get_connection()
@@ -1409,8 +1539,28 @@ class AsyncMilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If the database does not exist (error code 800).
         """
-        await self.describe_database(db_name, **kwargs)
-        self._config.db_name = db_name
+        # Establish deferred clients before entering the non-reentrant lifecycle
+        # section used for the database handoff.
+        await self._connect()
+        async with self._get_lifecycle_lock():
+            await self.describe_database(db_name, **kwargs)
+            if db_name == self._config.db_name:
+                return
+
+            # Database routing is carried by CallContext on every request. Keep the
+            # existing transport so operations that already captured it are not closed
+            # underneath another coroutine. Rebind only this logical client's telemetry
+            # database, retaining identity/history/server-pushed configuration.
+            old_config = self._config
+            new_config = copy.copy(self._config)
+            new_config.db_name = db_name
+            try:
+                self._bind_telemetry_handler(self._handler, db_name)
+                self._config = new_config
+            except BaseException:
+                self._config = old_config
+                self._bind_telemetry_handler(self._handler, old_config.db_name)
+                raise
 
     async def create_database(
         self,
@@ -1999,6 +2149,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
         )
 
+    @telemetry_operation("RunAnalyzer")
     async def run_analyzer(
         self,
         texts: Union[str, List[str]],
@@ -2394,6 +2545,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             target_size=size_mb,
             timeout=remaining_timeout(),
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -2822,18 +2974,22 @@ class AsyncMilvusClientSession:
     async def close(self) -> None:
         self._closed = True
 
+    @telemetry_operation("Search")
     async def search(self, *args, **kwargs):
         self._ensure_open()
         return await self._parent.search(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("HybridSearch")
     async def hybrid_search(self, *args, **kwargs):
         self._ensure_open()
         return await self._parent.hybrid_search(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("Query")
     async def query(self, *args, **kwargs):
         self._ensure_open()
         return await self._parent.query(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("Query")
     async def get(self, *args, **kwargs):
         self._ensure_open()
         return await self._parent.get(*args, **self._with_cluster_id(kwargs))

@@ -25,6 +25,11 @@ from pymilvus.client.constants import (
 )
 from pymilvus.client.iterator import QueryIterator as ClientQueryIterator
 from pymilvus.client.iterator import QueryIteratorCursor as ClientQueryIteratorCursor
+from pymilvus.client.telemetry import (
+    ClientTelemetryManager,
+    TelemetryConfig,
+    telemetry_operation,
+)
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException, ServerVersionIncompatibleException
 from pymilvus.milvus_client import milvus_client as milvus_client_module
@@ -183,6 +188,35 @@ def test_query_iterator_forwards_context_during_offset_seek():
     assert len(handler.query_calls) == 2
     assert all(call[1]["context"] is context for call in handler.query_calls)
     assert handler.query_calls[1][1]["iterator"] == "False"
+
+
+def test_query_iterator_internal_setup_seek_and_pages_do_not_count_as_query_operations():
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    class Handler(_SwitchingQueryHandler):
+        def __init__(self):
+            super().__init__()
+            self._telemetry = manager
+
+        @telemetry_operation("Query")
+        def query(self, collection_name, **kwargs):
+            return super().query(collection_name, **kwargs)
+
+    handler = Handler()
+    iterator = ClientQueryIterator(
+        handler=handler,
+        context=CallContext(db_name="db"),
+        collection_name="collection",
+        batch_size=10,
+        expr="pk > 0",
+        output_fields=["pk"],
+        schema=_QUERY_SCHEMA,
+        rpc_options={OFFSET: 1},
+    )
+
+    assert iterator.next() == [{"pk": 2, "transport": "before"}]
+    assert len(handler.query_calls) == 3
+    assert "Query" not in manager._collectors
 
 
 def test_milvus_client_public_seam_returns_shared_iterator_page():
@@ -356,6 +390,28 @@ def test_search_v1_keeps_handler_identity_and_context_across_pages():
     assert handler.close_calls == 0
 
 
+def test_search_v1_internal_init_and_pages_do_not_count_as_search_operations():
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    class Handler(_SwitchingSearchV1Handler):
+        def __init__(self):
+            super().__init__()
+            self._telemetry = manager
+
+        @telemetry_operation("Search")
+        def search(self, collection_name, **kwargs):
+            return super().search(collection_name, **kwargs)
+
+    handler = Handler()
+    iterator = _new_search_v1_iterator(handler, CallContext(db_name="db"))
+
+    iterator.next()
+    iterator.next()
+
+    assert len(handler.search_calls) == 2
+    assert "Search" not in manager._collectors
+
+
 def test_collection_search_iterator_uses_shared_v1_owner():
     handler = _SwitchingSearchV1Handler()
     context = CallContext(db_name="db", client_request_id="request")
@@ -523,6 +579,27 @@ def test_search_v2_keeps_handler_identity_and_context_across_probe_and_pages():
     assert handler.search_calls[2][ITER_SEARCH_ID_KEY] == "token"
     assert handler.search_calls[2][ITER_SEARCH_LAST_BOUND_KEY] == 0.5
     assert handler.close_calls == 0
+
+
+def test_search_v2_internal_probe_and_pages_do_not_count_as_search_operations():
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    class Handler(_SwitchingSearchV2Handler):
+        def __init__(self):
+            super().__init__()
+            self._telemetry = manager
+
+        @telemetry_operation("Search")
+        def search(self, **kwargs):
+            return super().search(**kwargs)
+
+    handler = Handler()
+    iterator = _new_search_v2_iterator(handler, CallContext(db_name="db"))
+
+    iterator.next()
+
+    assert len(handler.search_calls) == 2
+    assert "Search" not in manager._collectors
 
 
 def test_milvus_client_uses_shared_search_v2_owner_and_one_context():

@@ -36,6 +36,7 @@ from pymilvus.client.constants import (
     RANGE_FILTER,
     UNLIMITED,
 )
+from pymilvus.client.telemetry import suppress_telemetry
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import (
     ExceptionsMessage,
@@ -420,23 +421,24 @@ class SearchIterator:
         self, next_params: dict, next_expr: str, to_extend_batch: bool
     ) -> SearchPage:
         log.debug(f"search_iterator_next_expr:{next_expr}, next_params:{next_params}")
-        res = self._handler.search(
-            collection_name=self._iterator_params["collection_name"],
-            anns_field=self._iterator_params["ann_field"],
-            param=next_params,
-            limit=extend_batch_size(
-                self._iterator_params[BATCH_SIZE], next_params, to_extend_batch
-            ),
-            data=self._iterator_params["data"],
-            expression=next_expr,
-            partition_names=self._iterator_params["partition_names"],
-            output_fields=self._iterator_params["output_fields"],
-            round_decimal=self._iterator_params["round_decimal"],
-            timeout=self._iterator_params["timeout"],
-            schema=self._schema,
-            context=self._context,
-            **self._search_options,
-        )
+        with suppress_telemetry():
+            res = self._handler.search(
+                collection_name=self._iterator_params["collection_name"],
+                anns_field=self._iterator_params["ann_field"],
+                param=next_params,
+                limit=extend_batch_size(
+                    self._iterator_params[BATCH_SIZE], next_params, to_extend_batch
+                ),
+                data=self._iterator_params["data"],
+                expression=next_expr,
+                partition_names=self._iterator_params["partition_names"],
+                output_fields=self._iterator_params["output_fields"],
+                round_decimal=self._iterator_params["round_decimal"],
+                timeout=self._iterator_params["timeout"],
+                schema=self._schema,
+                context=self._context,
+                **self._search_options,
+            )
         return SearchPage(res[0], res.get_session_ts())
 
     # at present, the range_filter parameter means 'larger/less and equal',
@@ -566,7 +568,8 @@ class SearchIteratorV2:
         dummy_batch_size = 1
         dummy_params["limit"] = dummy_batch_size
         dummy_params[ITER_SEARCH_BATCH_SIZE_KEY] = dummy_batch_size
-        probe_result = self._handler.search(context=self._context, **dummy_params)
+        with suppress_telemetry():
+            probe_result = self._handler.search(context=self._context, **dummy_params)
         iter_info = probe_result.get_search_iterator_v2_results_info()
         self._check_token_exists(iter_info.token)
         # Pin GUARANTEE_TIMESTAMP from probe call's session_ts so that all subsequent
@@ -585,7 +588,8 @@ class SearchIteratorV2:
 
     # internal next function, do not use this outside of this class
     def _next(self):
-        res = self._handler.search(context=self._context, **self._params)
+        with suppress_telemetry():
+            res = self._handler.search(context=self._context, **self._params)
         iter_info = res.get_search_iterator_v2_results_info()
         self._check_token_exists(iter_info.token)
         self._params[ITER_SEARCH_LAST_BOUND_KEY] = iter_info.last_bound

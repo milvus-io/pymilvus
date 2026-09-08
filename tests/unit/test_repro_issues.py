@@ -412,6 +412,9 @@ class _Issue3541FakeAsyncChannel:
     async def channel_ready(self):
         return None
 
+    def unary_unary(self, *args, **kwargs):
+        return MagicMock()
+
 
 class _Issue3541AsyncStub:
     def __init__(self, channel, rpc_entered=None, release_rpc=None):

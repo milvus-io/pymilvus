@@ -71,14 +71,15 @@ class TestGrpcHandlerUserOps:
 
     def test_create_role_preserves_positional_context(self, handler):
         handler._stub.CreateRole.return_value = make_status()
-        context = CallContext(db_name="db1", client_request_id="req1")
+        request_id = "0123456789abcdef0123456789abcdef"
+        context = CallContext(db_name="db1", client_request_id=request_id)
         handler.create_role("role", 30, context)
         req = handler._stub.CreateRole.call_args.args[0]
         kwargs = handler._stub.CreateRole.call_args.kwargs
         assert req.entity.description == ""
         assert kwargs["timeout"] == 30
         assert ("dbname", "db1") in kwargs["metadata"]
-        assert ("client-request-id", "req1") in kwargs["metadata"]
+        assert ("client-request-id", request_id) in kwargs["metadata"]
 
     def test_alter_role(self, handler):
         handler._stub.AlterRole.return_value = make_status()

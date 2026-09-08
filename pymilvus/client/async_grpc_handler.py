@@ -2,7 +2,9 @@ import asyncio
 import base64
 import logging
 import socket
+import threading
 import time
+import weakref
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 from urllib import parse
@@ -46,6 +48,11 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
 from .search_result import SearchResult
+from .telemetry import (
+    AsyncClientTelemetryManager,
+    AsyncTelemetryUnaryUnaryInterceptor,
+    telemetry_operation,
+)
 from .types import (
     AnalyzeResult,
     CompactionState,
@@ -89,6 +96,10 @@ class AsyncGrpcHandler:
     ) -> None:
         self._async_stub = None
         self._async_channel = channel
+        self._client_telemetry_lock = threading.RLock()
+        self._client_telemetry_bindings = weakref.WeakKeyDictionary()
+        self._client_telemetry_generation = 0
+        self._client_owned_telemetry = bool(kwargs.pop("_client_owned_telemetry", False))
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -96,6 +107,25 @@ class AsyncGrpcHandler:
         self._user = kwargs.get("user")
         self._connect_reserved = kwargs.get("option", {})
         self._grpc_options = kwargs.get("grpc_options", {})
+        self._current_db_name = kwargs.get("db_name", "")
+        self._telemetry_stub = None
+        self._telemetry = None
+        self._telemetry_interceptor = None
+        if not self._client_owned_telemetry:
+            self._telemetry = AsyncClientTelemetryManager(
+                lambda: self._telemetry_stub,
+                kwargs.get("telemetry_config"),
+                user=self._user,
+                database_provider=lambda: self._current_db_name,
+                config_provider=lambda: {
+                    "address": self._address,
+                    "username": self._user or "",
+                    "db_name": self._current_db_name,
+                    "secure": self._secure,
+                },
+                runtime_client_id=kwargs.get("_telemetry_client_id", ""),
+            )
+            self._telemetry_interceptor = AsyncTelemetryUnaryUnaryInterceptor(self._telemetry)
         self._set_authorization(**kwargs)
         self._reconnect_lock = asyncio.Lock()
         self._setup_grpc_channel(**kwargs)
@@ -103,6 +133,104 @@ class AsyncGrpcHandler:
         self._retired_channel_close_tasks = set()
         self.callbacks = []  # Do nothing
         self._server_info_cache = None
+
+    def _rebind_telemetry_stub(self, stub: Any) -> None:
+        client_lock = getattr(self, "_client_telemetry_lock", None)
+        if client_lock is None:
+            self._telemetry_stub = stub
+            telemetry = getattr(self, "_telemetry", None)
+            if telemetry is not None:
+                telemetry.rebind_stub(stub)
+            return
+        with client_lock:
+            self._telemetry_stub = stub
+            self._client_telemetry_generation += 1
+            generation = self._client_telemetry_generation
+            telemetry = getattr(self, "_telemetry", None)
+            bindings = list(self._client_telemetry_bindings.items())
+
+        if telemetry is not None:
+            self._stabilize_legacy_telemetry(telemetry, stub, generation)
+        for manager, (binding_token, _database) in bindings:
+            try:
+                self._stabilize_client_telemetry(manager, binding_token, stub, generation)
+            except BaseException:
+                logger.warning("failed to rebind logical async client telemetry", exc_info=True)
+
+    def _stabilize_legacy_telemetry(
+        self, telemetry: AsyncClientTelemetryManager, stub: Any, generation: int
+    ) -> None:
+        while True:
+            telemetry.rebind_stub(stub)
+            with self._client_telemetry_lock:
+                if telemetry is not self._telemetry:
+                    return
+                if generation == self._client_telemetry_generation:
+                    return
+                stub = self._telemetry_stub
+                generation = self._client_telemetry_generation
+
+    def _stabilize_client_telemetry(
+        self,
+        manager: AsyncClientTelemetryManager,
+        binding_token: Any,
+        stub: Any,
+        generation: int,
+    ) -> None:
+        while True:
+            manager.rebind_transport(stub, binding_token)
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                if current is None or current[0] is not binding_token:
+                    return
+                if generation == self._client_telemetry_generation:
+                    return
+                stub = self._telemetry_stub
+                generation = self._client_telemetry_generation
+
+    def register_client_telemetry(
+        self, manager: AsyncClientTelemetryManager, database: str = ""
+    ) -> None:
+        """Attach one logical client's manager to this authenticated transport."""
+
+        with self._client_telemetry_lock:
+            existing = self._client_telemetry_bindings.get(manager)
+            if existing is not None and existing[1] == database:
+                return
+            binding_token = existing[0] if existing is not None else object()
+            self._client_telemetry_bindings[manager] = (binding_token, database)
+            stub = self._telemetry_stub
+            generation = self._client_telemetry_generation
+        try:
+            manager.bind_transport(stub, database, binding_token)
+        except BaseException:
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                if current is not None and current[0] is binding_token:
+                    self._client_telemetry_bindings.pop(manager, None)
+            manager.unbind_transport(binding_token)
+            raise
+
+        while True:
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                detached = current is None or current[0] is not binding_token
+                stable = generation == self._client_telemetry_generation
+                if not stable:
+                    stub = self._telemetry_stub
+                    generation = self._client_telemetry_generation
+            if detached:
+                manager.unbind_transport(binding_token)
+                return
+            if stable:
+                return
+            manager.rebind_transport(stub, binding_token)
+
+    def unregister_client_telemetry(self, manager: AsyncClientTelemetryManager) -> None:
+        with self._client_telemetry_lock:
+            binding = self._client_telemetry_bindings.pop(manager, None)
+        if binding is not None:
+            manager.unbind_transport(binding[0])
 
     def __get_address(self, uri: str, host: str, port: str) -> str:
         if host != "" and port != "" and is_legal_host(host) and is_legal_port(port):
@@ -135,6 +263,9 @@ class AsyncGrpcHandler:
 
     async def close(self):
         async with self._reconnect_lock:
+            if self._telemetry is not None:
+                await self._telemetry.stop_async()
+            self._rebind_telemetry_stub(None)
             if self._async_channel:
                 await self._async_channel.close()
             self._async_channel = None
@@ -184,6 +315,9 @@ class AsyncGrpcHandler:
             self._final_channel = new_final_channel
             self._async_stub = new_stub
             self._async_identifier_interceptor = new_identifier_interceptor
+            self._rebind_telemetry_stub(
+                milvus_pb2_grpc.ClientTelemetryServiceStub(new_final_channel)
+            )
             self._is_channel_ready = True
 
         if old_channel:
@@ -285,6 +419,8 @@ class AsyncGrpcHandler:
             )
             final_channel._unary_unary_interceptors.append(async_log_level_interceptor)
             self._log_level = None
+        if self._telemetry_interceptor is not None:
+            final_channel._unary_unary_interceptors.append(self._telemetry_interceptor)
         return final_channel, milvus_pb2_grpc.MilvusServiceStub(final_channel)
 
     def _setup_grpc_channel(self, **kwargs):
@@ -316,7 +452,12 @@ class AsyncGrpcHandler:
                     timeout=wait_timeout,
                 )
 
+                self._rebind_telemetry_stub(
+                    milvus_pb2_grpc.ClientTelemetryServiceStub(self._final_channel)
+                )
                 self._is_channel_ready = True
+                if self._telemetry is not None:
+                    self._telemetry.start()
         except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
@@ -343,6 +484,18 @@ class AsyncGrpcHandler:
         final_channel._unary_unary_interceptors.append(async_identifier_interceptor)
         stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
         return async_identifier_interceptor, final_channel, stub
+
+    @property
+    def telemetry(self) -> Optional[AsyncClientTelemetryManager]:
+        """Return the legacy direct-handler telemetry manager, if enabled."""
+
+        return self._telemetry
+
+    @property
+    def telemetry_stub(self) -> Any:
+        """Return the current authenticated heartbeat transport."""
+
+        return self._telemetry_stub
 
     @retry_on_rpc_failure()
     async def create_collection(
@@ -733,6 +886,7 @@ class AsyncGrpcHandler:
         )
         check_status(response)
 
+    @telemetry_operation("Insert")
     @retry_on_rpc_failure()
     @retry_on_schema_mismatch()
     async def insert_rows(
@@ -810,6 +964,7 @@ class AsyncGrpcHandler:
         check_status(response.status)
         return response.infos
 
+    @telemetry_operation("Delete")
     async def delete(
         self,
         collection_name: str,
@@ -880,6 +1035,7 @@ class AsyncGrpcHandler:
             )
         )
 
+    @telemetry_operation("Upsert")
     @retry_on_rpc_failure()
     async def upsert(
         self,
@@ -942,6 +1098,7 @@ class AsyncGrpcHandler:
             field_ops=field_ops,
         )
 
+    @telemetry_operation("Upsert")
     @retry_on_rpc_failure()
     @retry_on_schema_mismatch()
     async def upsert_rows(
@@ -1004,6 +1161,7 @@ class AsyncGrpcHandler:
         round_decimal = kwargs.get("round_decimal", -1)
         return SearchResult(response.results, round_decimal, status=response.status)
 
+    @telemetry_operation("Search")
     @retry_on_rpc_failure()
     async def search(
         self,
@@ -1084,6 +1242,7 @@ class AsyncGrpcHandler:
             request, timeout, context=context, round_decimal=round_decimal, **kwargs
         )
 
+    @telemetry_operation("HybridSearch")
     @retry_on_rpc_failure()
     async def hybrid_search(
         self,
@@ -1433,6 +1592,7 @@ class AsyncGrpcHandler:
         check_status(response.status)
         return list(response.partition_names)
 
+    @telemetry_operation("Query")
     @retry_on_rpc_failure()
     async def query(
         self,
@@ -1952,9 +2112,10 @@ class AsyncGrpcHandler:
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
 
-        This method is kept for backward compatibility but does nothing.
+        This method is kept for backward compatibility and updates telemetry identity.
         Use AsyncMilvusClient.use_database() instead.
         """
+        self._current_db_name = db_name
 
     @retry_on_rpc_failure()
     async def create_database(
@@ -2665,6 +2826,7 @@ class AsyncGrpcHandler:
             response.completedPlanNo,
         )
 
+    @telemetry_operation("RunAnalyzer")
     @retry_on_rpc_failure()
     async def run_analyzer(
         self,

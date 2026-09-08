@@ -1,7 +1,9 @@
 import copy
 import logging
+import threading
 import time
-from typing import Callable, Dict, List, Optional, Union
+import weakref
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -11,6 +13,7 @@ from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
+from pymilvus.client.telemetry import ClientTelemetryManager, telemetry_operation
 from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
@@ -86,8 +89,11 @@ class MilvusClient(BaseMilvusClient):
             final_token = f"{user}:{password}"
 
         # Create config and get handler via ConnectionManager
-        dedicated = kwargs.pop("dedicated", False)
+        self._dedicated = kwargs.pop("dedicated", False)
+        self._timeout = timeout
         kwargs.pop("cluster_id", None)
+        if user:
+            kwargs.setdefault("user", user)
         self._config = ConnectionConfig.from_uri(
             uri,
             token=final_token,
@@ -95,17 +101,86 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
         self._manager = ConnectionManager.get_instance()
+        self._lifecycle_lock = threading.RLock()
         self._handler = self._manager.get_or_create(
             self._config,
-            dedicated=dedicated,
+            dedicated=self._dedicated,
             client=self,
             timeout=timeout,
         )
-
-        # Legacy compatibility - store alias for _using attribute
+        self._telemetry = self._new_telemetry_manager()
         self._using = f"cm-{id(self._handler)}"
+        try:
+            self._bind_telemetry_handler(self._handler, self._config.db_name)
+            self._telemetry.start()
+            self.is_self_hosted = bool(self.get_server_type() == "milvus")
+        except BaseException:
+            self._telemetry.stop()
+            self._unbind_telemetry_handler(self._handler)
+            self._manager.release(self._handler, client=self)
+            self._handler = None
+            raise
 
-        self.is_self_hosted = bool(self.get_server_type() == "milvus")
+    def _new_telemetry_manager(self) -> ClientTelemetryManager:
+        handler_kwargs = self._config.get_handler_kwargs()
+        client_ref = weakref.ref(self)
+
+        def stub_provider():
+            client = client_ref()
+            if client is None or client._handler is None:
+                return None
+            return getattr(client._handler, "telemetry_stub", None)
+
+        def database_provider() -> str:
+            client = client_ref()
+            return client._config.db_name if client is not None else ""
+
+        def config_provider() -> Dict[str, Any]:
+            client = client_ref()
+            config = client._config if client is not None else None
+            return {
+                # Keep the caller's logical endpoint stable across global-primary
+                # failover. ConnectionConfig.address contains no URI credentials.
+                "address": config.address if config is not None else "",
+                "username": handler_kwargs.get("user", "") or "",
+                "db_name": config.db_name if config is not None else "",
+                "secure": bool(handler_kwargs.get("secure", False)),
+            }
+
+        def owner_alive_provider() -> bool:
+            return client_ref() is not None
+
+        manager = ClientTelemetryManager(
+            stub_provider,
+            handler_kwargs.get("telemetry_config"),
+            user=handler_kwargs.get("user", "") or "",
+            database_provider=database_provider,
+            config_provider=config_provider,
+            owner_alive_provider=owner_alive_provider,
+            runtime_client_id=handler_kwargs.get("_telemetry_client_id", ""),
+        )
+        manager_ref = weakref.ref(manager)
+
+        def owner_released(_client_ref: weakref.ReferenceType[Any]) -> None:
+            telemetry = manager_ref()
+            if telemetry is not None:
+                telemetry.owner_released()
+
+        # The providers close over this cell, so replace the initial reference
+        # with a callback-bearing one after the manager exists. The callback
+        # retains only a weak manager reference and never keeps the client alive.
+        client_ref = weakref.ref(self, owner_released)
+        return manager
+
+    def _bind_telemetry_handler(self, handler: Any, database: str) -> None:
+        register = getattr(handler, "register_client_telemetry", None)
+        if callable(register):
+            register(self._telemetry, database)
+
+    def _unbind_telemetry_handler(self, handler: Any) -> None:
+        unregister = getattr(handler, "unregister_client_telemetry", None)
+        if callable(unregister):
+            unregister(self._telemetry)
 
     def session(self, cluster_id: str) -> "MilvusClientSession":
         """Create a lightweight client session pinned to a target cluster."""
@@ -226,6 +301,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Insert")
     def insert(
         self,
         collection_name: str,
@@ -283,6 +359,7 @@ class MilvusClient(BaseMilvusClient):
             }
         )
 
+    @telemetry_operation("Upsert")
     def upsert(
         self,
         collection_name: str,
@@ -354,6 +431,7 @@ class MilvusClient(BaseMilvusClient):
             }
         )
 
+    @telemetry_operation("HybridSearch")
     def hybrid_search(
         self,
         collection_name: str,
@@ -417,6 +495,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Search")
     def search(
         self,
         collection_name: str,
@@ -493,6 +572,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Query")
     def query(
         self,
         collection_name: str,
@@ -756,6 +836,7 @@ class MilvusClient(BaseMilvusClient):
             rpc_options=kwargs,
         )
 
+    @telemetry_operation("Query")
     def get(
         self,
         collection_name: str,
@@ -810,6 +891,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("Delete")
     def delete(
         self,
         collection_name: str,
@@ -1014,10 +1096,22 @@ class MilvusClient(BaseMilvusClient):
 
     def close(self):
         """Close the client and release the connection."""
-        if self._handler is None:
-            return
-        self._manager.release(self._handler, client=self)
-        self._handler = None
+        # A custom telemetry command runs on the heartbeat worker and may enter a
+        # lifecycle API such as use_database(). Do not hold this lock while waiting
+        # for that worker, or close and the command can wait on each other forever.
+        self._telemetry.stop()
+        with self._lifecycle_lock:
+            if self._handler is None:
+                return
+            self._unbind_telemetry_handler(self._handler)
+            self._manager.release(self._handler, client=self)
+            self._handler = None
+
+    def get_telemetry(self):
+        """Return this logical client's telemetry manager."""
+
+        self._get_connection()
+        return self._telemetry
 
     def load_collection(self, collection_name: str, timeout: Optional[float] = None, **kwargs):
         """Loads the collection."""
@@ -2037,8 +2131,25 @@ class MilvusClient(BaseMilvusClient):
             MilvusException: If the database does not exist (error code 800).
         """
 
-        self.describe_database(db_name, **kwargs)
-        self._config.db_name = db_name
+        with self._lifecycle_lock:
+            self.describe_database(db_name, **kwargs)
+            if db_name == self._config.db_name:
+                return
+
+            # Database routing is carried by CallContext on every request. Keep the
+            # existing transport so operations that already captured it are not closed
+            # underneath another thread. Rebind only this logical client's telemetry
+            # database, retaining identity/history/server-pushed configuration.
+            old_config = self._config
+            new_config = copy.copy(self._config)
+            new_config.db_name = db_name
+            try:
+                self._bind_telemetry_handler(self._handler, db_name)
+                self._config = new_config
+            except BaseException:
+                self._config = old_config
+                self._bind_telemetry_handler(self._handler, old_config.db_name)
+                raise
 
     def create_database(
         self,
@@ -2492,6 +2603,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @telemetry_operation("RunAnalyzer")
     def run_analyzer(
         self,
         texts: Union[str, List[str]],
@@ -3591,14 +3703,17 @@ class MilvusClientSession:
     def close(self) -> None:
         self._closed = True
 
+    @telemetry_operation("Search")
     def search(self, *args, **kwargs):
         self._ensure_open()
         return self._parent.search(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("HybridSearch")
     def hybrid_search(self, *args, **kwargs):
         self._ensure_open()
         return self._parent.hybrid_search(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("Query")
     def query(self, *args, **kwargs):
         self._ensure_open()
         return self._parent.query(*args, **self._with_cluster_id(kwargs))
@@ -3611,6 +3726,7 @@ class MilvusClientSession:
         self._ensure_open()
         return self._parent.search_iterator(*args, **self._with_cluster_id(kwargs))
 
+    @telemetry_operation("Query")
     def get(self, *args, **kwargs):
         self._ensure_open()
         return self._parent.get(*args, **self._with_cluster_id(kwargs))

@@ -30,6 +30,7 @@ from .client.search_aggregation import (
     TopHits,
 )
 from .client.search_result import Hit, Hits, SearchResult
+from .client.telemetry import TelemetryConfig, new_client_request_id
 from .client.types import (
     BulkInsertState,
     DataType,
@@ -142,6 +143,7 @@ __all__ = [
     "Shard",
     "Status",
     "StructFieldSchema",
+    "TelemetryConfig",
     "TopHits",
     "WeightedRanker",
     "__version__",
@@ -167,6 +169,7 @@ __all__ = [
     "mkts_from_datetime",
     "mkts_from_hybridts",
     "mkts_from_unixtime",
+    "new_client_request_id",
     "reset_password",
     "transfer_node",
     "transfer_replica",

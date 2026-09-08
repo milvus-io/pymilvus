@@ -201,8 +201,12 @@ class TestAsyncClientAliasAndServerOps:
     async def test_using_database(self):
         client, handler = _make_client()
         handler.describe_database.return_value = {"db_name": "mydb"}
+        client._manager = AsyncMock()
         await client.using_database("mydb")
         assert client._config.db_name == "mydb"
+        assert client._handler is handler
+        client._manager.get_or_create.assert_not_awaited()
+        client._manager.release.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_list_resource_groups(self):
@@ -496,6 +500,8 @@ class TestAsyncClientOptimize:
     @pytest.mark.asyncio
     async def test_execute_optimize_success(self):
         client, handler = _make_client()
+        handler.describe_database.return_value = {"db_name": "analytics"}
+        await client.use_database("analytics")
         handler.compact.return_value = 99
         state = MagicMock()
         state.state = 2
@@ -511,6 +517,7 @@ class TestAsyncClientOptimize:
         task._target_size = None
         result = await client._execute_optimize(task, "col", None, None)
         assert result.collection_name == "col"
+        assert handler.compact.await_args.kwargs["context"].get_db_name() == "analytics"
 
     @pytest.mark.asyncio
     async def test_optimize_wait_true(self):

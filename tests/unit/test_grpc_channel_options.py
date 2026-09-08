@@ -7,6 +7,10 @@ from unittest.mock import MagicMock, patch
 from grpc._cython import cygrpc
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.client.telemetry import (
+    AsyncTelemetryUnaryUnaryInterceptor,
+    TelemetryUnaryUnaryInterceptor,
+)
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,6 +24,7 @@ def _create_sync_handler(grpc_options=None, secure=False):
     handler._address = "localhost:19530"
     handler._log_level = None
     handler._authorization_interceptor = None
+    handler._telemetry_interceptor = TelemetryUnaryUnaryInterceptor(MagicMock())
     if secure:
         handler._server_name = ""
         handler._server_pem_path = ""
@@ -38,6 +43,7 @@ def _create_async_handler(grpc_options=None):
     handler._address = "localhost:19530"
     handler._log_level = None
     handler._async_authorization_interceptor = None
+    handler._telemetry_interceptor = AsyncTelemetryUnaryUnaryInterceptor(MagicMock())
     return handler
 
 

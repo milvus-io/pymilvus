@@ -3,6 +3,7 @@ import logging
 import socket
 import threading
 import time
+import weakref
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
 from urllib import parse
@@ -57,6 +58,11 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
 from .search_result import SearchResult
+from .telemetry import (
+    ClientTelemetryManager,
+    TelemetryUnaryUnaryInterceptor,
+    telemetry_operation,
+)
 from .types import (
     AnalyzeResult,
     BulkInsertState,
@@ -121,23 +127,20 @@ class ReconnectHandler:
         with self.reconnect_lock:
             logger.info("reconnect on idle state")
             self.is_idle_state = False
-            try:
-                logger.debug("try disconnecting old connection...")
-                self.conns.disconnect(self.connection_name)
-            except Exception:
-                logger.warning("disconnect failed: {e}")
-            finally:
-                reconnected = False
-                while not reconnected:
-                    try:
-                        logger.debug("try reconnecting...")
-                        self.conns.connect(self.connection_name, **self._kwargs)
-                        reconnected = True
-                    except Exception as e:
-                        logger.warning(
-                            f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
-                        )
-                        time.sleep(check_after_seconds)
+            timeout = self._kwargs.get("timeout")
+            timeout = timeout if isinstance(timeout, (int, float)) else Config.MILVUS_CONN_TIMEOUT
+            reconnected = False
+            while not reconnected:
+                try:
+                    logger.debug("try reconnecting existing handler...")
+                    old_handler = self.conns._fetch_handler(self.connection_name)
+                    old_handler.reconnect(timeout=timeout)
+                    reconnected = True
+                except Exception as e:
+                    logger.warning(
+                        f"reconnect failed: {e}, try again after {check_after_seconds} seconds"
+                    )
+                    time.sleep(check_after_seconds)
             logger.info("reconnected")
 
     def reconnect_on_idle(self, state: object):
@@ -164,6 +167,10 @@ class GrpcHandler:
         self._stub = None
         self._channel = channel
         self._channel_swap_lock = threading.Lock()
+        self._client_telemetry_lock = threading.RLock()
+        self._client_telemetry_bindings = weakref.WeakKeyDictionary()
+        self._client_telemetry_generation = 0
+        self._client_owned_telemetry = bool(kwargs.pop("_client_owned_telemetry", False))
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -172,10 +179,131 @@ class GrpcHandler:
         self._connect_reserved = kwargs.get("option", {})
         self._server_info_cache = None
         self._grpc_options = kwargs.get("grpc_options", {})
+        self._current_db_name = kwargs.get("db_name", "")
+        self._telemetry_stub = None
+        self._telemetry = None
+        self._telemetry_interceptor = None
+        if not self._client_owned_telemetry:
+            self._telemetry = ClientTelemetryManager(
+                lambda: self._telemetry_stub,
+                kwargs.get("telemetry_config"),
+                user=self._user,
+                database_provider=lambda: self._current_db_name,
+                config_provider=lambda: {
+                    "address": self._address,
+                    "username": self._user or "",
+                    "db_name": self._current_db_name,
+                    "secure": self._secure,
+                },
+                runtime_client_id=kwargs.get("_telemetry_client_id", ""),
+            )
+            self._telemetry_interceptor = TelemetryUnaryUnaryInterceptor(self._telemetry)
         self._set_authorization(**kwargs)
         self._setup_grpc_channel()
         self.callbacks = []
         self._reconnect_handler = None
+
+    def _rebind_telemetry_stub(self, stub: Any) -> None:
+        client_lock = getattr(self, "_client_telemetry_lock", None)
+        if client_lock is None:
+            self._telemetry_stub = stub
+            telemetry = getattr(self, "_telemetry", None)
+            if telemetry is not None:
+                telemetry.rebind_stub(stub)
+            return
+        with client_lock:
+            self._telemetry_stub = stub
+            self._client_telemetry_generation += 1
+            generation = self._client_telemetry_generation
+            telemetry = getattr(self, "_telemetry", None)
+            bindings = list(self._client_telemetry_bindings.items())
+
+        # Manager callbacks take the manager endpoint lock. Keep them outside the
+        # handler lock because a custom telemetry command may call client lifecycle
+        # APIs while holding that endpoint lock. The generation loops make the
+        # two-phase publication converge without introducing the reverse lock order.
+        if telemetry is not None:
+            self._stabilize_legacy_telemetry(telemetry, stub, generation)
+        for manager, (binding_token, _database) in bindings:
+            try:
+                self._stabilize_client_telemetry(manager, binding_token, stub, generation)
+            except BaseException:
+                logger.warning("failed to rebind logical client telemetry", exc_info=True)
+
+    def _stabilize_legacy_telemetry(
+        self, telemetry: ClientTelemetryManager, stub: Any, generation: int
+    ) -> None:
+        while True:
+            telemetry.rebind_stub(stub)
+            with self._client_telemetry_lock:
+                if telemetry is not self._telemetry:
+                    return
+                if generation == self._client_telemetry_generation:
+                    return
+                stub = self._telemetry_stub
+                generation = self._client_telemetry_generation
+
+    def _stabilize_client_telemetry(
+        self,
+        manager: ClientTelemetryManager,
+        binding_token: Any,
+        stub: Any,
+        generation: int,
+    ) -> None:
+        while True:
+            manager.rebind_transport(stub, binding_token)
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                if current is None or current[0] is not binding_token:
+                    return
+                if generation == self._client_telemetry_generation:
+                    return
+                stub = self._telemetry_stub
+                generation = self._client_telemetry_generation
+
+    def register_client_telemetry(
+        self, manager: ClientTelemetryManager, database: str = ""
+    ) -> None:
+        """Attach one logical client's manager to this authenticated transport."""
+
+        with self._client_telemetry_lock:
+            existing = self._client_telemetry_bindings.get(manager)
+            if existing is not None and existing[1] == database:
+                return
+            binding_token = existing[0] if existing is not None else object()
+            self._client_telemetry_bindings[manager] = (binding_token, database)
+            stub = self._telemetry_stub
+            generation = self._client_telemetry_generation
+        try:
+            manager.bind_transport(stub, database, binding_token)
+        except BaseException:
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                if current is not None and current[0] is binding_token:
+                    self._client_telemetry_bindings.pop(manager, None)
+            manager.unbind_transport(binding_token)
+            raise
+
+        while True:
+            with self._client_telemetry_lock:
+                current = self._client_telemetry_bindings.get(manager)
+                detached = current is None or current[0] is not binding_token
+                stable = generation == self._client_telemetry_generation
+                if not stable:
+                    stub = self._telemetry_stub
+                    generation = self._client_telemetry_generation
+            if detached:
+                manager.unbind_transport(binding_token)
+                return
+            if stable:
+                return
+            manager.rebind_transport(stub, binding_token)
+
+    def unregister_client_telemetry(self, manager: ClientTelemetryManager) -> None:
+        with self._client_telemetry_lock:
+            binding = self._client_telemetry_bindings.pop(manager, None)
+        if binding is not None:
+            manager.unbind_transport(binding[0])
 
     def register_reconnect_handler(self, handler: ReconnectHandler):
         if handler is not None:
@@ -270,10 +398,17 @@ class GrpcHandler:
                 self.close()
             raise
         else:
+            if update_self and self._telemetry is not None:
+                self._telemetry.start()
             return target_final_channel, target_stub
 
     def close(self):
+        # Command handlers can re-enter APIs that take _channel_swap_lock. Stop and
+        # join the telemetry worker before acquiring it to avoid lock inversion.
+        if self._telemetry is not None:
+            self._telemetry.stop()
         with self._channel_swap_lock:
+            self._rebind_telemetry_stub(None)
             self.deregister_state_change_callbacks()
             if self._channel:
                 self._channel.close()
@@ -331,15 +466,19 @@ class GrpcHandler:
             self._channel = new_channel
             self._final_channel = new_final_channel
             self._stub = new_stub
+            self._rebind_telemetry_stub(
+                milvus_pb2_grpc.ClientTelemetryServiceStub(new_final_channel)
+            )
             self._address = target_address
             self._move_state_change_callbacks(old_channel, new_channel)
 
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
 
-        This method is kept for backward compatibility but does nothing.
+        This method is kept for backward compatibility and updates telemetry identity.
         Use MilvusClient.use_database() instead.
         """
+        self._current_db_name = db_name
 
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         keys = []
@@ -423,10 +562,14 @@ class GrpcHandler:
             )
             final_channel = grpc.intercept_channel(final_channel, log_level_interceptor)
             self._log_level = None
+        if self._telemetry_interceptor is not None:
+            final_channel = grpc.intercept_channel(final_channel, self._telemetry_interceptor)
         stub = milvus_pb2_grpc.MilvusServiceStub(final_channel)
+        telemetry_stub = milvus_pb2_grpc.ClientTelemetryServiceStub(final_channel)
         if update_self:
             self._final_channel = final_channel
             self._stub = stub
+            self._rebind_telemetry_stub(telemetry_stub)
         return final_channel, stub
 
     def set_onetime_loglevel(self, log_level: str):
@@ -459,7 +602,22 @@ class GrpcHandler:
             self._identifier_interceptor = identifier_interceptor
             self._final_channel = target_final_channel
             self._stub = target_stub
+            self._rebind_telemetry_stub(
+                milvus_pb2_grpc.ClientTelemetryServiceStub(target_final_channel)
+            )
         return target_final_channel, target_stub
+
+    @property
+    def telemetry(self) -> Optional[ClientTelemetryManager]:
+        """Return the legacy direct-handler telemetry manager, if enabled."""
+
+        return self._telemetry
+
+    @property
+    def telemetry_stub(self) -> Any:
+        """Return the current authenticated heartbeat transport."""
+
+        return self._telemetry_stub
 
     @property
     def server_address(self):
@@ -955,6 +1113,7 @@ class GrpcHandler:
         check_status(status)
         return response.stats
 
+    @telemetry_operation("Insert")
     @retry_on_rpc_failure()
     @retry_on_schema_mismatch()
     def insert_rows(
@@ -1081,6 +1240,7 @@ class GrpcHandler:
             else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
         )
 
+    @telemetry_operation("Insert")
     @retry_on_rpc_failure()
     def batch_insert(
         self,
@@ -1127,6 +1287,7 @@ class GrpcHandler:
         else:
             return m
 
+    @telemetry_operation("Delete")
     @retry_on_rpc_failure()
     def delete(
         self,
@@ -1215,6 +1376,7 @@ class GrpcHandler:
             )
         )
 
+    @telemetry_operation("Upsert")
     @retry_on_rpc_failure()
     def upsert(
         self,
@@ -1295,6 +1457,7 @@ class GrpcHandler:
             field_ops=field_ops,
         )
 
+    @telemetry_operation("Upsert")
     @retry_on_rpc_failure()
     @retry_on_schema_mismatch()
     def upsert_rows(
@@ -1387,6 +1550,7 @@ class GrpcHandler:
                 return SearchFuture(None, None, e)
             raise
 
+    @telemetry_operation("Search")
     @retry_on_rpc_failure()
     def search(
         self,
@@ -1462,6 +1626,7 @@ class GrpcHandler:
             request, timeout, round_decimal=round_decimal, context=context, **kwargs
         )
 
+    @telemetry_operation("HybridSearch")
     @retry_on_rpc_failure()
     def hybrid_search(
         self,
@@ -2324,6 +2489,7 @@ class GrpcHandler:
         request = Prepare.dummy_request(request_type)
         return self._stub.Dummy(request, timeout=timeout, metadata=_api_level_md(context))
 
+    @telemetry_operation("Query")
     @retry_on_rpc_failure()
     def query(
         self,
@@ -3377,6 +3543,7 @@ class GrpcHandler:
         )
         check_status(resp)
 
+    @telemetry_operation("RunAnalyzer")
     @retry_on_rpc_failure()
     def run_analyzer(
         self,

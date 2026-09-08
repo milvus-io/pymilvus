@@ -1,6 +1,6 @@
 """Tests for GrpcHandler initialization and connection management."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 import grpc
 import pytest
@@ -45,6 +45,23 @@ class TestReconnectHandler:
         handler.is_idle_state = True
         handler.reconnect_on_idle(MagicMock(value=(None, "ready")))
         assert handler.is_idle_state is False
+
+    def test_idle_reconnect_preserves_existing_handler_and_telemetry(self):
+        mock_conns = MagicMock()
+        old_handler = MagicMock()
+        telemetry = object()
+        old_handler.telemetry = telemetry
+        mock_conns._fetch_handler.return_value = old_handler
+        handler = ReconnectHandler(mock_conns, "test", {"timeout": 1})
+        handler.is_idle_state = True
+
+        with patch("pymilvus.client.grpc_handler.time.sleep"):
+            handler.check_state_and_reconnect_later()
+
+        old_handler.reconnect.assert_called_once_with(timeout=1)
+        assert old_handler.telemetry is telemetry
+        mock_conns.disconnect.assert_not_called()
+        mock_conns.connect.assert_not_called()
 
 
 class TestGrpcHandlerInit:
@@ -331,7 +348,10 @@ class TestGrpcHandlerConnectionMgmt:
                     handler.set_onetime_loglevel("debug")
 
         mock_header.assert_called_once_with(["log_level"], ["debug"])
-        mock_intercept.assert_called_once_with(handler._channel, log_interceptor)
+        assert mock_intercept.call_args_list == [
+            call(handler._channel, log_interceptor),
+            call(final_channel, handler._telemetry_interceptor),
+        ]
         assert handler._log_level is None
         assert handler._stub is stub
 
@@ -417,6 +437,7 @@ class TestGrpcHandlerConnectionMgmt:
 
     def test_wait_for_channel_ready_register_rpc_error_reports_connect_failed(self):
         handler = GrpcHandler(channel=MagicMock())
+        handler._stub = MagicMock()
         handler._stub.Connect.side_effect = UnavailableRpcError()
 
         with pytest.raises(MilvusException) as exc_info:

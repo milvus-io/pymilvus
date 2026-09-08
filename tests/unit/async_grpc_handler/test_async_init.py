@@ -220,7 +220,8 @@ class TestAsyncGrpcHandlerInit:
             handler._build_stub(next_channel)
 
         assert authorization_interceptor in next_channel._unary_unary_interceptors
-        assert len(next_channel._unary_unary_interceptors) == 2
+        assert len(next_channel._unary_unary_interceptors) == 3
+        assert next_channel._unary_unary_interceptors[-1] is handler._telemetry_interceptor
         assert handler._log_level is None
 
     def test_setup_secure_channel(self) -> None:

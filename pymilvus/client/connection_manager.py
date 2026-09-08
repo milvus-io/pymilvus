@@ -36,6 +36,28 @@ logger = logging.getLogger(__name__)
 DEFAULT_PORT = 19530
 
 
+def _telemetry_connection_key(value: Any) -> str:
+    """Validate logical-client telemetry without splitting the transport pool.
+
+    Telemetry identity/configuration belongs to MilvusClient, not the pooled handler.
+    Different client IDs and sampling policies can therefore share one authenticated
+    transport safely. Retain this helper so invalid configs still fail before a handler
+    is acquired, and preserve the historical four-part structural key with an empty tail.
+    """
+    from pymilvus.client.telemetry import TelemetryConfig  # noqa: PLC0415
+
+    TelemetryConfig.from_value(value)
+    return ""
+
+
+def _pooled_handler_kwargs(config: "ConnectionConfig") -> Dict[str, Any]:
+    """Mark handlers as transport-only for logical MilvusClient pooling."""
+
+    kwargs = config.get_handler_kwargs()
+    kwargs["_client_owned_telemetry"] = True
+    return kwargs
+
+
 @dataclass
 class ConnectionConfig:
     """Configuration for a Milvus connection.
@@ -52,15 +74,18 @@ class ConnectionConfig:
     token: str = ""
     db_name: str = ""
     handler_kwargs: Tuple = ()
+    telemetry_key: str = ""
 
     def get_handler_kwargs(self) -> Dict[str, Any]:
         """Return handler_kwargs as a dict."""
         return dict(self.handler_kwargs)
 
     @property
-    def key(self) -> str:
-        """Return deduplication key: address|token."""
-        return f"{self.address}|{self.token}"
+    def key(self) -> Tuple[str, str, str, str]:
+        """Return deduplication key for connection-owned settings."""
+        # Keep field boundaries structural. Tokens and database names are
+        # caller-controlled strings and can contain any delimiter we choose.
+        return (self.address, self.token, self.db_name, self.telemetry_key)
 
     @property
     def is_global(self) -> bool:
@@ -120,6 +145,7 @@ class ConnectionConfig:
                 token=token or "",
                 db_name=db_name or "",
                 handler_kwargs=tuple(kwargs.items()),
+                telemetry_key=_telemetry_connection_key(kwargs.get("telemetry_config")),
             )
 
         # --- Normal URI parsing ---
@@ -157,6 +183,11 @@ class ConnectionConfig:
         # For token and db_name, empty string means "use URI value"
         final_token = token if token else uri_token
         final_db_name = db_name if db_name else uri_db_name
+        # A username-only URI is the supported token shorthand
+        # (https://<token>@host). Do not expose that credential as the telemetry
+        # user identity. Only user:password credentials contain a distinct user.
+        if parsed.username and parsed.password is not None and not token and "user" not in kwargs:
+            kwargs["user"] = parsed.username
 
         # Auto-detect secure from https:// scheme
         if parsed.scheme == "https" and "secure" not in kwargs:
@@ -168,6 +199,7 @@ class ConnectionConfig:
             token=final_token,
             db_name=final_db_name,
             handler_kwargs=tuple(kwargs.items()),
+            telemetry_key=_telemetry_connection_key(kwargs.get("telemetry_config")),
         )
 
 
@@ -295,7 +327,7 @@ class RegularStrategy(ConnectionStrategy):
             address=config.address,
             token=config.token,
             db_name=config.db_name,
-            **config.get_handler_kwargs(),
+            **_pooled_handler_kwargs(config),
         )
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
@@ -413,7 +445,7 @@ class GlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
             uri=primary.endpoint,
             token=config.token,
             db_name=config.db_name,
-            **config.get_handler_kwargs(),
+            **_pooled_handler_kwargs(config),
         )
 
     def close(self, managed: ManagedConnection) -> None:
@@ -442,7 +474,7 @@ class ConnectionManager:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._registry: Dict[str, ManagedConnection] = {}  # key -> ManagedConnection
+        self._registry: Dict[Tuple[str, str, str, str], ManagedConnection] = {}
         self._dedicated: Dict[int, ManagedConnection] = {}  # handler_id -> ManagedConnection
 
     @classmethod
@@ -488,13 +520,12 @@ class ConnectionManager:
             key = config.key
             if key in self._registry:
                 managed = self._registry[key]
-                if client:
-                    managed.add_client(client)
-
                 # Health check if idle too long (before touch so idle_time is accurate)
                 if managed.idle_time > IDLE_THRESHOLD_SECONDS and not self._check_health(managed):
                     self._recover(managed)
 
+                if client:
+                    managed.add_client(client)
                 managed.touch()
                 return managed.handler
 
@@ -521,16 +552,21 @@ class ConnectionManager:
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        # Wait for channel ready
-        handler._wait_for_channel_ready(timeout=timeout)
-
         managed = ManagedConnection(
             handler=handler,
             config=config,
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            # Wait for channel ready before publishing ownership.
+            handler._wait_for_channel_ready(timeout=timeout)
+        except Exception:
+            try:
+                strategy.close(managed)
+            except Exception:
+                logger.warning("Failed to close rejected shared connection", exc_info=True)
+            raise
         if client:
             managed.add_client(client)
 
@@ -547,16 +583,21 @@ class ConnectionManager:
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        # Wait for channel ready
-        handler._wait_for_channel_ready(timeout=timeout)
-
         managed = ManagedConnection(
             handler=handler,
             config=config,
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            # Wait for channel ready before publishing ownership.
+            handler._wait_for_channel_ready(timeout=timeout)
+        except Exception:
+            try:
+                strategy.close(managed)
+            except Exception:
+                logger.warning("Failed to close rejected dedicated connection", exc_info=True)
+            raise
         if client:
             managed.add_client(client)
 
@@ -610,6 +651,19 @@ class ConnectionManager:
             managed = self._get_managed(handler)
             if managed and client:
                 managed.remove_client(client)
+                if not managed.has_clients:
+                    key = next(
+                        (key for key, value in self._registry.items() if value is managed),
+                        None,
+                    )
+                    if key is not None:
+                        self._registry.pop(key, None)
+                        try:
+                            managed.strategy.close(managed)
+                        except Exception:
+                            logger.warning(
+                                "Failed to close unused shared connection", exc_info=True
+                            )
 
     def close_all(self) -> None:
         """Close all connections."""
@@ -719,6 +773,13 @@ class ConnectionManager:
 
         if should_recover:
             with self._lock:
+                # The last logical client may have released and closed this
+                # connection while on_unavailable() was doing network I/O
+                # outside the manager lock.  recovery_gen only fences another
+                # recovery; it does not prove that the manager still owns the
+                # handler.  Never resurrect an already-unpublished transport.
+                if self._get_managed(handler) is not managed:
+                    return False
                 # Re-verify no other thread has already recovered this
                 # connection while we were outside the lock.
                 if managed.recovery_gen != saved_gen:
@@ -736,7 +797,7 @@ class ConnectionManager:
         with self._lock:
             shared = [
                 {
-                    "key": key,
+                    "key": str(id(m.handler)),
                     "address": m.config.address,
                     "idle_time": m.idle_time,
                     "client_count": len(m.clients),
@@ -779,7 +840,7 @@ class AsyncRegularStrategy(ConnectionStrategy):
             address=config.address,
             token=config.token,
             db_name=config.db_name,
-            **config.get_handler_kwargs(),
+            **_pooled_handler_kwargs(config),
         )
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
@@ -826,7 +887,7 @@ class AsyncGlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
             uri=primary.endpoint,
             token=config.token,
             db_name=config.db_name,
-            **config.get_handler_kwargs(),
+            **_pooled_handler_kwargs(config),
         )
 
     async def close_async(self, managed: ManagedConnection) -> None:
@@ -860,7 +921,7 @@ class AsyncConnectionManager:
         # the current thread. Deferring creation to the first async call avoids
         # RuntimeError when get_instance() is called from sync code.
         self._lock: Optional[asyncio.Lock] = None
-        self._registry: Dict[str, ManagedConnection] = {}
+        self._registry: Dict[Tuple[str, str, str, str], ManagedConnection] = {}
         self._dedicated: Dict[int, ManagedConnection] = {}
 
     def _get_lock(self) -> asyncio.Lock:
@@ -918,15 +979,14 @@ class AsyncConnectionManager:
             key = config.key
             if key in self._registry:
                 managed = self._registry[key]
-                if client:
-                    managed.add_client(client)
-
                 # Health check if idle too long (before touch so idle_time is accurate)
                 if managed.idle_time > IDLE_THRESHOLD_SECONDS and not await self._check_health(
                     managed
                 ):
                     await self._recover(managed)
 
+                if client:
+                    managed.add_client(client)
                 managed.touch()
                 return managed.handler
 
@@ -962,15 +1022,23 @@ class AsyncConnectionManager:
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        await handler.ensure_channel_ready(timeout=timeout)
-
         managed = ManagedConnection(
             handler=handler,
             config=config,
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            await handler.ensure_channel_ready(timeout=timeout)
+        except BaseException:
+            try:
+                await strategy.close_async(managed)
+            except Exception:
+                logger.warning(
+                    "Failed to close rejected async shared connection",
+                    exc_info=True,
+                )
+            raise
         if client:
             managed.add_client(client)
 
@@ -987,15 +1055,23 @@ class AsyncConnectionManager:
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        await handler.ensure_channel_ready(timeout=timeout)
-
         managed = ManagedConnection(
             handler=handler,
             config=config,
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            await handler.ensure_channel_ready(timeout=timeout)
+        except BaseException:
+            try:
+                await strategy.close_async(managed)
+            except Exception:
+                logger.warning(
+                    "Failed to close rejected async dedicated connection",
+                    exc_info=True,
+                )
+            raise
         if client:
             managed.add_client(client)
 
@@ -1065,6 +1141,20 @@ class AsyncConnectionManager:
             managed = self._get_managed(handler)
             if managed and client:
                 managed.remove_client(client)
+                if not managed.has_clients:
+                    key = next(
+                        (key for key, value in self._registry.items() if value is managed),
+                        None,
+                    )
+                    if key is not None:
+                        self._registry.pop(key, None)
+                        try:
+                            await managed.strategy.close_async(managed)
+                        except Exception:
+                            logger.warning(
+                                "Failed to close unused async shared connection",
+                                exc_info=True,
+                            )
 
     async def handle_error(
         self,

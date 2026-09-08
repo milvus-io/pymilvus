@@ -2,8 +2,11 @@
 """Tests for ConnectionManager and related classes."""
 
 import asyncio
+import contextlib
+import gc
 import threading
 import time
+import weakref
 from unittest.mock import AsyncMock, Mock, patch
 
 import grpc
@@ -25,7 +28,15 @@ from pymilvus.client.connection_manager import (
 )
 from pymilvus.client.global_topology import ClusterInfo
 from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus.client.telemetry import (
+    AsyncClientTelemetryManager,
+    ClientCommand,
+    ClientTelemetryManager,
+    CommandReply,
+    TelemetryConfig,
+)
 from pymilvus.exceptions import ConnectionConfigException, MilvusException
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 
 # =============================================================================
 # Module-level helpers
@@ -66,6 +77,59 @@ class _NotFoundRpcError(grpc.RpcError):
 
     def code(self):
         return grpc.StatusCode.NOT_FOUND
+
+
+def _pooled_sync_handler(db_name: str = "") -> GrpcHandler:
+    return GrpcHandler(
+        uri="http://localhost:19530",
+        address="localhost:19530",
+        db_name=db_name,
+        channel=Mock(),
+        _client_owned_telemetry=True,
+    )
+
+
+def _pooled_async_handler(db_name: str = "") -> AsyncGrpcHandler:
+    channel = Mock()
+    channel._unary_unary_interceptors = []
+    channel.close = AsyncMock()
+    return AsyncGrpcHandler(
+        uri="http://localhost:19530",
+        address="localhost:19530",
+        db_name=db_name,
+        channel=channel,
+        _client_owned_telemetry=True,
+    )
+
+
+class _LogicalSyncPool:
+    def __init__(self, handlers):
+        self.handlers = handlers
+        self.fail_database = None
+        self.releases = []
+
+    def get_or_create(self, config, **_kwargs):
+        if config.db_name == self.fail_database:
+            raise RuntimeError("candidate failed")
+        return self.handlers[config.db_name]
+
+    def release(self, handler, client=None):
+        self.releases.append((handler, client))
+
+
+class _LogicalAsyncPool:
+    def __init__(self, handlers):
+        self.handlers = handlers
+        self.fail_database = None
+        self.releases = []
+
+    async def get_or_create(self, config, **_kwargs):
+        if config.db_name == self.fail_database:
+            raise RuntimeError("candidate failed")
+        return self.handlers[config.db_name]
+
+    async def release(self, handler, client=None):
+        self.releases.append((handler, client))
 
 
 def _make_topology(version, cluster_id, endpoint, capability=3):
@@ -202,17 +266,82 @@ class TestConnectionConfig:
         assert config.token == expected["token"]
         assert config.db_name == expected["db_name"]
 
+    def test_uri_username_is_forwarded_for_telemetry_identity(self):
+        config = ConnectionConfig.from_uri("https://alice:secret@host:19530")
+
+        assert config.get_handler_kwargs()["user"] == "alice"
+
+    def test_uri_token_is_not_forwarded_as_telemetry_identity(self):
+        config = ConnectionConfig.from_uri("https://secret-token@host:19530")
+
+        assert config.token == "secret-token"
+        assert "user" not in config.get_handler_kwargs()
+
     @pytest.mark.parametrize(
         "uri,expected_key",
         [
-            ("https://user:pass@host:19530", "host:19530|user:pass"),
-            ("http://localhost:19530", "localhost:19530|"),
+            ("https://user:pass@host:19530", ("host:19530", "user:pass", "", "")),
+            ("http://localhost:19530", ("localhost:19530", "", "", "")),
         ],
     )
     def test_key_property(self, uri, expected_key):
         """Test key property for connection deduplication."""
         config = ConnectionConfig.from_uri(uri)
         assert config.key == expected_key
+
+    def test_default_telemetry_keeps_historical_pool_key(self):
+        implicit = ConnectionConfig.from_uri("http://localhost:19530")
+        explicit = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={
+                "enabled": True,
+                "heartbeat_interval": 10.0,
+                "sampling_rate": 1.0,
+                "error_max_count": 100,
+                "client_id": "",
+            },
+        )
+
+        assert explicit.key == implicit.key
+
+    def test_custom_telemetry_config_does_not_split_transport_pool(self):
+        first = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={"client_id": "client-a"},
+        )
+        second = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            telemetry_config={"client_id": "client-b"},
+        )
+
+        assert first.key == second.key
+
+    def test_database_gets_dedicated_pool_key(self):
+        first = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="token",
+            db_name="database-a",
+        )
+        second = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="token",
+            db_name="database-b",
+        )
+
+        assert first.key != second.key
+
+    def test_pool_key_has_unambiguous_token_and_database_boundaries(self):
+        token_with_delimiter = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="token|db=database-a",
+        )
+        separate_database = ConnectionConfig.from_uri(
+            "http://localhost:19530",
+            token="token",
+            db_name="database-a",
+        )
+
+        assert token_with_delimiter.key != separate_database.key
 
     @pytest.mark.parametrize(
         "uri,expected_is_global",
@@ -349,6 +478,7 @@ class TestConnectionConfig:
                 token=config.token,
                 db_name=config.db_name,
                 secure=True,
+                _client_owned_telemetry=True,
             )
 
     def test_handler_kwargs_forwarded_async(self):
@@ -365,6 +495,7 @@ class TestConnectionConfig:
                 token=config.token,
                 db_name=config.db_name,
                 secure=True,
+                _client_owned_telemetry=True,
             )
 
     def test_empty_handler_kwargs(self):
@@ -396,6 +527,7 @@ class TestRegularStrategy:
                 token="mytoken",
                 db_name="mydb",
                 secure=True,
+                _client_owned_telemetry=True,
             )
             assert handler is mock_handler_cls.return_value
 
@@ -473,6 +605,7 @@ class TestGlobalStrategy:
             token="mytoken",
             db_name="",
             secure=True,
+            _client_owned_telemetry=True,
         )
         assert strategy.get_topology() is sample_topology
         assert handler is mock_handler_cls.return_value
@@ -597,6 +730,19 @@ class TestConnectionManager:
                 assert h1 is h2
                 assert mock_handler_cls.call_count == 1
 
+    def test_failed_connection_candidate_is_closed_before_publish(self):
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+        mgr = ConnectionManager.get_instance()
+        handler = _make_sync_handler()
+        handler._wait_for_channel_ready.side_effect = RuntimeError("not ready")
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            with pytest.raises(RuntimeError, match="not ready"):
+                mgr.get_or_create(config, client=Mock())
+
+        handler.close.assert_called_once()
+        assert mgr._registry == {}
+
     def test_release_removes_client_reference(self, mock_grpc_handler):
         """Test release removes client from managed connection."""
         config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
@@ -611,6 +757,28 @@ class TestConnectionManager:
 
             mgr.release(handler, client=client)
             assert client not in managed.clients
+            assert mgr._get_managed(handler) is None
+            mock_grpc_handler.close.assert_called_once()
+
+    def test_failed_recovery_does_not_add_candidate_owner(self):
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+        mgr = ConnectionManager.get_instance()
+        original_owner = Mock()
+        candidate_owner = Mock()
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler") as handler_cls:
+            handler_cls.return_value = _make_sync_handler()
+            handler = mgr.get_or_create(config, client=original_owner)
+            managed = mgr._get_managed(handler)
+            managed.last_used_at = time.time() - IDLE_THRESHOLD_SECONDS - 1
+            with patch.object(mgr, "_check_health", return_value=False), patch.object(
+                mgr, "_recover", side_effect=RuntimeError("recovery failed")
+            ):
+                with pytest.raises(RuntimeError, match="recovery failed"):
+                    mgr.get_or_create(config, client=candidate_owner)
+
+        assert original_owner in managed.clients
+        assert candidate_owner not in managed.clients
 
     def test_close_all(self):
         """Test close_all closes all connections."""
@@ -841,6 +1009,46 @@ class TestConnectionManager:
             # reconnect should NOT have been called - concurrent recovery detected
             handler.reconnect.assert_not_called()
 
+    def test_handle_error_does_not_resurrect_last_client_released_handler(self):
+        """A recovery decision made outside the lock cannot revive a removed handler."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+        handler = _make_sync_handler()
+        client = Mock()
+        entered = threading.Event()
+        proceed = threading.Event()
+        result = {}
+
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            mgr.get_or_create(config, client=client)
+            managed = mgr._get_managed(handler)
+
+            def wait_until_released(_managed):
+                entered.set()
+                assert proceed.wait(timeout=2)
+                return True
+
+            managed.strategy.on_unavailable = wait_until_released
+
+            recovery = threading.Thread(
+                target=lambda: result.setdefault(
+                    "retry", mgr.handle_error(handler, _MockRpcError())
+                )
+            )
+            recovery.start()
+            assert entered.wait(timeout=2)
+
+            mgr.release(handler, client=client)
+            assert mgr._get_managed(handler) is None
+            handler.close.assert_called_once()
+
+            proceed.set()
+            recovery.join(timeout=2)
+
+        assert not recovery.is_alive()
+        assert result == {"retry": False}
+        handler.reconnect.assert_not_called()
+
     def test_dedicated_connection_findable_after_recovery(self):
         """Test that after in-place recovery, dedicated connection is still findable."""
         mgr = ConnectionManager.get_instance()
@@ -955,6 +1163,7 @@ class TestAsyncGlobalStrategy:
             token="mytoken",
             db_name="",
             secure=True,
+            _client_owned_telemetry=True,
         )
         mock_refresher.start.assert_called_once()
         assert handler is mock_handler_cls.return_value
@@ -1082,6 +1291,20 @@ class TestAsyncConnectionManager:
                 assert h1 is h2
 
     @pytest.mark.asyncio
+    async def test_failed_async_connection_candidate_is_closed_before_publish(self):
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+        mgr = AsyncConnectionManager.get_instance()
+        handler = _make_async_handler()
+        handler.ensure_channel_ready.side_effect = RuntimeError("not ready")
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=handler):
+            with pytest.raises(RuntimeError, match="not ready"):
+                await mgr.get_or_create(config, client=Mock())
+
+        handler.close.assert_awaited_once()
+        assert mgr._registry == {}
+
+    @pytest.mark.asyncio
     async def test_release(self, mock_async_handler):
         """Test release removes client reference."""
         config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
@@ -1098,6 +1321,31 @@ class TestAsyncConnectionManager:
 
             await mgr.release(handler, client=client)
             assert client not in managed.clients
+            assert mgr._get_managed(handler) is None
+            mock_async_handler.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_failed_async_recovery_does_not_add_candidate_owner(self):
+        config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+        mgr = AsyncConnectionManager.get_instance()
+        original_owner = Mock()
+        candidate_owner = Mock()
+
+        with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as handler_cls:
+            handler_cls.return_value = _make_async_handler()
+            handler = await mgr.get_or_create(config, client=original_owner)
+            managed = mgr._get_managed(handler)
+            managed.last_used_at = time.time() - IDLE_THRESHOLD_SECONDS - 1
+            with patch.object(mgr, "_check_health", AsyncMock(return_value=False)), patch.object(
+                mgr,
+                "_recover",
+                AsyncMock(side_effect=RuntimeError("recovery failed")),
+            ):
+                with pytest.raises(RuntimeError, match="recovery failed"):
+                    await mgr.get_or_create(config, client=candidate_owner)
+
+        assert original_owner in managed.clients
+        assert candidate_owner not in managed.clients
 
     @pytest.mark.asyncio
     async def test_get_or_create_adds_client_to_existing(self):
@@ -2461,6 +2709,7 @@ class TestMilvusClientChangedCode:
             )
             client = MilvusClient(uri="http://localhost:19530", user="admin", password="secret")
             assert client._config.token == "admin:secret"
+            assert client._config.get_handler_kwargs()["user"] == "admin"
             client.close()
 
     def test_explicit_token_overrides_user_password(self):
@@ -2499,16 +2748,22 @@ class TestMilvusClientChangedCode:
                 client._get_connection()
 
     def test_use_database_updates_config(self):
-        """Test use_database updates _config.db_name."""
+        """Test use_database updates routing without replacing the live transport."""
         with patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
-            mock_handler_cls.return_value = _make_sync_handler(
+            original_handler = _make_sync_handler(
                 get_server_type=Mock(return_value="milvus"),
                 describe_database=Mock(return_value={}),
             )
+            mock_handler_cls.return_value = original_handler
             client = MilvusClient(uri="http://localhost:19530")
+            original_using = client._using
             assert client._config.db_name == ""
             client.use_database("mydb")
             assert client._config.db_name == "mydb"
+            assert client._handler is original_handler
+            assert client._using == original_using
+            assert mock_handler_cls.call_count == 1
+            original_handler.reset_db_name.assert_not_called()
             client.close()
 
     def test_dedicated_kwarg(self):
@@ -2537,12 +2792,16 @@ class TestAsyncMilvusClientChangedCode:
 
     def test_init_deferred_state(self):
         """Test __init__ sets deferred state without connecting."""
-        client = AsyncMilvusClient(uri="http://localhost:19530", token="test")
+        with patch("pymilvus.milvus_client.async_milvus_client.asyncio.Lock") as mock_lock:
+            client = AsyncMilvusClient(uri="http://localhost:19530", token="test")
+
+        mock_lock.assert_not_called()
         assert client._handler is None
         assert client._manager is None
         assert client._using is None
         assert client.is_self_hosted is None
         assert client._closed is False
+        assert client._lifecycle_lock is None
         assert client._config.address == "localhost:19530"
         assert client._config.token == "test"
 
@@ -2550,6 +2809,7 @@ class TestAsyncMilvusClientChangedCode:
         """Test that user/password are combined into token when no token given."""
         client = AsyncMilvusClient(uri="http://localhost:19530", user="admin", password="secret")
         assert client._config.token == "admin:secret"
+        assert client._config.get_handler_kwargs()["user"] == "admin"
 
     def test_explicit_token_overrides_user_password(self):
         """Test that explicit token takes precedence over user/password."""
@@ -2602,6 +2862,50 @@ class TestAsyncMilvusClientChangedCode:
             assert mock_handler_cls.call_count == 1
 
             await client.close()
+
+    @pytest.mark.asyncio
+    async def test_concurrent_dedicated_connect_publishes_one_candidate(self):
+        client = AsyncMilvusClient(uri="http://localhost:19530", dedicated=True)
+        manager = Mock()
+        candidate = Mock(get_server_type=Mock(return_value="milvus"))
+        manager.get_or_create = AsyncMock(return_value=candidate)
+        manager.release = AsyncMock()
+
+        with patch.object(AsyncConnectionManager, "get_instance", return_value=manager):
+            await asyncio.gather(client._connect(), client._connect())
+
+        manager.get_or_create.assert_awaited_once()
+        assert client._handler is candidate
+        await client.close()
+
+    @pytest.mark.asyncio
+    async def test_close_waits_for_connect_and_releases_published_candidate(self):
+        client = AsyncMilvusClient(uri="http://localhost:19530", dedicated=True)
+        manager = Mock()
+        candidate = Mock(get_server_type=Mock(return_value="milvus"))
+        started = asyncio.Event()
+        allow_ready = asyncio.Event()
+
+        async def get_or_create(*args, **kwargs):
+            started.set()
+            await allow_ready.wait()
+            return candidate
+
+        manager.get_or_create = AsyncMock(side_effect=get_or_create)
+        manager.release = AsyncMock()
+
+        with patch.object(AsyncConnectionManager, "get_instance", return_value=manager):
+            connect_task = asyncio.create_task(client._connect())
+            await started.wait()
+            close_task = asyncio.create_task(client.close())
+            await asyncio.sleep(0)
+            assert not close_task.done()
+            allow_ready.set()
+            await asyncio.gather(connect_task, close_task)
+
+        assert client._closed is True
+        assert client._handler is None
+        manager.release.assert_awaited_once_with(candidate, client=client)
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
@@ -2695,19 +2999,26 @@ class TestAsyncMilvusClientChangedCode:
 
     @pytest.mark.asyncio
     async def test_use_database_updates_config(self):
-        """Test use_database updates _config.db_name."""
+        """Test use_database updates routing without replacing the live transport."""
         client = AsyncMilvusClient(uri="http://localhost:19530")
 
         with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
-            mock_handler_cls.return_value = _make_async_handler(
+            original_handler = _make_async_handler(
                 get_server_type=Mock(return_value="milvus"),
                 describe_database=AsyncMock(return_value={}),
+                reset_db_name=Mock(),
             )
+            mock_handler_cls.return_value = original_handler
             await client._connect()
+            original_using = client._using
             assert client._config.db_name == ""
 
             await client.use_database("mydb")
             assert client._config.db_name == "mydb"
+            assert client._handler is original_handler
+            assert client._using == original_using
+            assert mock_handler_cls.call_count == 1
+            original_handler.reset_db_name.assert_not_called()
 
             await client.close()
 
@@ -2733,3 +3044,650 @@ class TestAsyncMilvusClientChangedCode:
 
             await client.close()
             mock_manager.release.assert_called_once()
+
+
+def test_sync_logical_clients_share_transport_but_isolate_telemetry_and_close(monkeypatch):
+    handler = _pooled_sync_handler()
+    pool = _LogicalSyncPool({"": handler})
+    captured = []
+
+    class HeartbeatStub:
+        def ClientHeartbeat(self, request, **_kwargs):
+            captured.append(request)
+            return milvus_pb2.ClientHeartbeatResponse(status=common_pb2.Status())
+
+    monkeypatch.setattr(
+        ClientTelemetryManager, "start", lambda manager: setattr(manager, "_ready", True)
+    )
+    with patch.object(ConnectionManager, "get_instance", return_value=pool):
+        client_a = MilvusClient(telemetry_config={"client_id": "logical-a", "sampling_rate": 1.0})
+        client_b = MilvusClient(telemetry_config={"client_id": "logical-b", "sampling_rate": 1.0})
+
+    assert client_a._handler is handler is client_b._handler
+    assert handler.telemetry is None
+    assert handler._telemetry_interceptor is None
+    assert len(handler._client_telemetry_bindings) == 2
+    assert client_a.get_telemetry() is client_a._telemetry
+    assert client_b.get_telemetry() is client_b._telemetry
+    assert client_a._telemetry is not client_b._telemetry
+
+    with pytest.raises(TypeError):
+        client_a.insert("books", "invalid")
+    assert client_a._telemetry._collectors["Insert"].global_bucket.request_count == 1
+    assert "Insert" not in client_b._telemetry._collectors
+
+    client_a._telemetry._queue_reply(CommandReply("only-a", True))
+    handler._rebind_telemetry_stub(HeartbeatStub())
+    client_a._telemetry._send_heartbeat()
+    client_b._telemetry._send_heartbeat()
+    assert [request.client_info.reserved["client_id"] for request in captured] == [
+        "logical-a",
+        "logical-b",
+    ]
+    assert [reply.command_id for reply in captured[0].command_replies] == ["only-a"]
+    assert not captured[1].command_replies
+
+    manager_a = client_a._telemetry
+    client_a.close()
+    assert len(handler._client_telemetry_bindings) == 1
+    assert manager_a._heartbeat_endpoint()[0] is None
+
+    captured.clear()
+    handler._rebind_telemetry_stub(HeartbeatStub())
+    client_b._telemetry._send_heartbeat()
+    assert captured[0].client_info.reserved["client_id"] == "logical-b"
+    assert client_b._telemetry.ready
+    client_b.close()
+    handler.close()
+
+
+def test_sync_close_does_not_hold_lifecycle_lock_while_joining_telemetry_worker():
+    client = MilvusClient.__new__(MilvusClient)
+    client._lifecycle_lock = threading.RLock()
+    client._config = ConnectionConfig.from_uri("http://localhost:19530")
+    client._handler = object()
+    client._manager = Mock()
+    client._bind_telemetry_handler = Mock()
+    client._unbind_telemetry_handler = Mock()
+    client.describe_database = Mock(return_value={})
+
+    command_entered = threading.Event()
+    allow_lifecycle_call = threading.Event()
+    command = common_pb2.ClientCommand(
+        command_id="lifecycle-command",
+        command_type="custom-lifecycle",
+        create_time=1,
+    )
+
+    class CommandStub:
+        @staticmethod
+        def ClientHeartbeat(*_args, **_kwargs):
+            return milvus_pb2.ClientHeartbeatResponse(
+                status=common_pb2.Status(), commands=[command]
+            )
+
+    manager = ClientTelemetryManager(CommandStub, TelemetryConfig(enabled=True))
+    client._telemetry = manager
+
+    def lifecycle_handler(local_command):
+        command_entered.set()
+        assert allow_lifecycle_call.wait(timeout=2)
+        client.use_database("analytics")
+        return CommandReply(local_command.command_id, True)
+
+    manager.register_command_handler("custom-lifecycle", lifecycle_handler)
+    manager.start()
+    assert command_entered.wait(timeout=1)
+
+    close_thread = threading.Thread(target=client.close, daemon=True)
+    close_thread.start()
+    assert manager._stop_event.wait(timeout=1)
+    allow_lifecycle_call.set()
+    close_thread.join(timeout=2)
+
+    assert not close_thread.is_alive()
+    assert client._handler is None
+    assert client._config.db_name == "analytics"
+    client._manager.release.assert_called_once()
+
+
+def test_sync_client_gc_wakes_telemetry_worker_without_retaining_owner():
+    client = MilvusClient.__new__(MilvusClient)
+    client._config = ConnectionConfig.from_uri("http://localhost:19530")
+    client._handler = None
+    manager = client._new_telemetry_manager()
+    client._telemetry = manager
+    owner = weakref.ref(client)
+    worker_waiting = threading.Event()
+    original_wait = manager._wait_for_stop
+
+    def wait_for_stop(delay):
+        worker_waiting.set()
+        return original_wait(delay)
+
+    manager._wait_for_stop = wait_for_stop
+
+    manager.start()
+    worker = manager._thread
+    assert worker_waiting.wait(timeout=2)
+    del client
+    gc.collect()
+    worker.join(timeout=2)
+
+    assert owner() is None
+    assert not worker.is_alive()
+
+
+def test_sync_use_database_retains_logical_state_and_failed_candidate_is_atomic(monkeypatch):
+    old_handler = _pooled_sync_handler()
+    pool = _LogicalSyncPool({"": old_handler})
+    monkeypatch.setattr(
+        ClientTelemetryManager, "start", lambda manager: setattr(manager, "_ready", True)
+    )
+    with patch.object(ConnectionManager, "get_instance", return_value=pool):
+        client_a = MilvusClient(telemetry_config={"client_id": "stable-a"})
+        client_b = MilvusClient(telemetry_config={"client_id": "stable-b"})
+
+    telemetry = client_a._telemetry
+    telemetry.record_operation("Search", "books", time.perf_counter())
+    telemetry._create_snapshot()
+    snapshots = telemetry.get_metrics_snapshots()
+    telemetry._handle_push_config(
+        ClientCommand("rate", "push_config", payload=b'{"sampling_rate":0.25}')
+    )
+    client_a.describe_database = Mock(return_value={})
+
+    client_a.use_database("analytics")
+    assert client_a._telemetry is telemetry
+    assert telemetry.client_id == "stable-a"
+    assert telemetry.get_metrics_snapshots() == snapshots
+    assert telemetry._config.sampling_rate == 0.25
+    assert telemetry._build_client_info().reserved["db_name"] == "analytics"
+    assert client_a._handler is old_handler is client_b._handler
+    assert client_b._telemetry.client_id == "stable-b"
+    assert len(old_handler._client_telemetry_bindings) == 2
+
+    bound_stub, _, bound_database = telemetry._heartbeat_endpoint()
+    original_bind = telemetry.bind_transport
+
+    def partially_bind_then_reject(stub, database, binding_token):
+        original_bind(stub, database, binding_token)
+        if database == "broken":
+            raise RuntimeError("binding failed")
+
+    monkeypatch.setattr(telemetry, "bind_transport", partially_bind_then_reject)
+    with pytest.raises(RuntimeError, match="binding failed"):
+        client_a.use_database("broken")
+    assert client_a._handler is old_handler
+    assert client_a._config.db_name == "analytics"
+    assert client_a._telemetry is telemetry
+    restored_stub, _, restored_database = telemetry._heartbeat_endpoint()
+    assert restored_stub is bound_stub
+    assert bound_database == restored_database == "analytics"
+    binding_token, binding_database = old_handler._client_telemetry_bindings[telemetry]
+    assert binding_token is telemetry._transport_binding_token
+    assert binding_database == "analytics"
+    assert len(old_handler._client_telemetry_bindings) == 2
+
+    client_a.close()
+    client_b.close()
+    old_handler.close()
+
+
+def test_sync_use_database_keeps_transport_for_in_flight_operation(monkeypatch):
+    handler = _pooled_sync_handler()
+    pool = _LogicalSyncPool({"": handler})
+    started = threading.Event()
+    proceed = threading.Event()
+    observed = []
+
+    def insert_rows(_collection, _data, **kwargs):
+        observed.append(kwargs["context"].get_db_name())
+        if len(observed) == 1:
+            started.set()
+            assert proceed.wait(timeout=2)
+        return Mock(insert_count=1, primary_keys=[1], cost=0)
+
+    monkeypatch.setattr(handler, "insert_rows", insert_rows)
+    monkeypatch.setattr(
+        ClientTelemetryManager, "start", lambda manager: setattr(manager, "_ready", True)
+    )
+    with patch.object(ConnectionManager, "get_instance", return_value=pool):
+        client = MilvusClient(telemetry_config={"enabled": False})
+    client.describe_database = Mock(return_value={})
+    result = {}
+
+    operation = threading.Thread(
+        target=lambda: result.setdefault("value", client.insert("books", [{"id": 1}]))
+    )
+    operation.start()
+    assert started.wait(timeout=2)
+
+    client.use_database("analytics")
+    assert client._handler is handler
+    assert pool.releases == []
+    new_result = client.insert("books", [{"id": 2}])
+    assert new_result["insert_count"] == 1
+    assert operation.is_alive()
+    assert observed == ["", "analytics"]
+    handler._channel.close.assert_not_called()
+
+    proceed.set()
+    operation.join(timeout=2)
+    assert not operation.is_alive()
+    assert result["value"]["insert_count"] == 1
+    assert observed == ["", "analytics"]
+
+    client.close()
+    assert pool.releases == [(handler, client)]
+    handler.close()
+
+
+def test_transport_binding_token_rejects_late_old_reconnect():
+    old_handler = _pooled_sync_handler()
+    new_handler = _pooled_sync_handler("analytics")
+    old_stub = object()
+    new_stub = object()
+    late_old_stub = object()
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    old_handler._rebind_telemetry_stub(old_stub)
+    new_handler._rebind_telemetry_stub(new_stub)
+    old_handler.register_client_telemetry(manager, "")
+    new_handler.register_client_telemetry(manager, "analytics")
+    old_handler._rebind_telemetry_stub(late_old_stub)
+    old_handler.unregister_client_telemetry(manager)
+
+    stub, _, database = manager._heartbeat_endpoint()
+    assert stub is new_stub
+    assert database == "analytics"
+    new_handler.close()
+    old_handler.close()
+
+
+def _assert_registration_serializes_with_rebind(handler, manager):
+    old_stub = object()
+    replacement_stub = object()
+    bind_entered = threading.Event()
+    release_bind = threading.Event()
+    rebind_attempted = threading.Event()
+    rebind_done = threading.Event()
+    errors = []
+    original_bind = manager.bind_transport
+
+    def blocking_bind(stub, database, binding_token):
+        bind_entered.set()
+        if not release_bind.wait(timeout=2):
+            raise TimeoutError("test did not release telemetry registration")
+        original_bind(stub, database, binding_token)
+
+    def register():
+        try:
+            handler.register_client_telemetry(manager, "books")
+        except BaseException as exc:
+            errors.append(exc)
+
+    def rebind():
+        rebind_attempted.set()
+        try:
+            handler._rebind_telemetry_stub(replacement_stub)
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            rebind_done.set()
+
+    handler._rebind_telemetry_stub(old_stub)
+    manager.bind_transport = blocking_bind
+    register_thread = threading.Thread(target=register)
+    rebind_thread = threading.Thread(target=rebind)
+    register_thread.start()
+    assert bind_entered.wait(timeout=2)
+    rebind_thread.start()
+    assert rebind_attempted.wait(timeout=2)
+    try:
+        # Manager callbacks run outside the handler lock, so reconnect cannot
+        # deadlock behind a blocked register callback. Register's generation
+        # stabilization must still observe this completed publication afterward.
+        assert rebind_done.wait(timeout=2)
+    finally:
+        release_bind.set()
+        register_thread.join(timeout=2)
+        rebind_thread.join(timeout=2)
+
+    assert not register_thread.is_alive()
+    assert not rebind_thread.is_alive()
+    assert not errors
+    stub, _, database = manager._heartbeat_endpoint()
+    assert stub is replacement_stub
+    assert database == "books"
+    handler.unregister_client_telemetry(manager)
+
+
+def test_sync_registration_and_reconnect_publish_one_atomic_binding():
+    handler = _pooled_sync_handler()
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    _assert_registration_serializes_with_rebind(handler, manager)
+
+    handler.close()
+
+
+@pytest.mark.asyncio
+async def test_async_registration_and_reconnect_publish_one_atomic_binding():
+    handler = _pooled_async_handler()
+    manager = AsyncClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+
+    _assert_registration_serializes_with_rebind(handler, manager)
+
+    await handler.close()
+
+
+def test_custom_command_lifecycle_does_not_invert_handler_and_endpoint_locks():
+    handler = _pooled_sync_handler()
+    manager = ClientTelemetryManager(lambda: None, TelemetryConfig(enabled=True))
+    command_entered = threading.Event()
+    allow_lifecycle = threading.Event()
+    reconnect_called_manager = threading.Event()
+    errors = []
+    command = common_pb2.ClientCommand(
+        command_id="lifecycle",
+        command_type="custom-lifecycle",
+        create_time=1,
+    )
+
+    class CommandStub:
+        def ClientHeartbeat(self, _request, **_kwargs):
+            return milvus_pb2.ClientHeartbeatResponse(
+                status=common_pb2.Status(), commands=[command]
+            )
+
+    replacement_stub = object()
+    handler._rebind_telemetry_stub(CommandStub())
+    handler.register_client_telemetry(manager, "books")
+
+    def lifecycle_handler(local_command):
+        command_entered.set()
+        if not allow_lifecycle.wait(timeout=2):
+            raise TimeoutError("test did not allow lifecycle callback")
+        handler.unregister_client_telemetry(manager)
+        handler.register_client_telemetry(manager, "books")
+        return CommandReply(local_command.command_id, True)
+
+    manager.register_command_handler("custom-lifecycle", lifecycle_handler)
+    original_rebind = manager.rebind_transport
+
+    def tracking_rebind(stub, binding_token):
+        reconnect_called_manager.set()
+        return original_rebind(stub, binding_token)
+
+    manager.rebind_transport = tracking_rebind
+
+    def heartbeat():
+        try:
+            manager._send_heartbeat()
+        except BaseException as exc:
+            errors.append(exc)
+
+    def reconnect():
+        try:
+            handler._rebind_telemetry_stub(replacement_stub)
+        except BaseException as exc:
+            errors.append(exc)
+
+    heartbeat_thread = threading.Thread(target=heartbeat)
+    reconnect_thread = threading.Thread(target=reconnect)
+    heartbeat_thread.start()
+    reconnect_started = False
+    try:
+        assert command_entered.wait(timeout=2)
+        reconnect_thread.start()
+        reconnect_started = True
+        assert reconnect_called_manager.wait(timeout=2)
+    finally:
+        allow_lifecycle.set()
+        heartbeat_thread.join(timeout=2)
+        if reconnect_started:
+            reconnect_thread.join(timeout=2)
+
+    assert not heartbeat_thread.is_alive()
+    assert not reconnect_started or not reconnect_thread.is_alive()
+    assert not errors
+    assert manager._heartbeat_endpoint()[0] is replacement_stub
+    handler.unregister_client_telemetry(manager)
+    handler.close()
+
+
+def test_global_client_telemetry_keeps_logical_identity_across_failover(monkeypatch):
+    handler = _pooled_sync_handler("sales")
+    handler._address = "physical-primary.example.com:19530"
+    first_stub = object()
+    replacement_stub = object()
+    handler._rebind_telemetry_stub(first_stub)
+    pool = _LogicalSyncPool({"sales": handler})
+    monkeypatch.setattr(
+        ClientTelemetryManager, "start", lambda manager: setattr(manager, "_ready", True)
+    )
+
+    with patch.object(ConnectionManager, "get_instance", return_value=pool):
+        client = MilvusClient(
+            uri="https://alice:secret@global-cluster.example.com:19530/sales",
+            telemetry_config={"client_id": "global-logical"},
+        )
+
+    config = client._telemetry._config_provider()
+    assert config["address"] == "global-cluster.example.com:19530"
+    assert config["username"] == "alice"
+    assert config["db_name"] == "sales"
+    assert config["secure"] is True
+    assert all("secret" not in str(value) for value in config.values())
+    info = client._telemetry._build_client_info()
+    assert info.user == "alice"
+    assert info.reserved["db_name"] == "sales"
+
+    _, generation, _ = client._telemetry._heartbeat_endpoint()
+    client._bind_telemetry_handler(handler, "sales")
+    assert client._telemetry._heartbeat_endpoint()[1] == generation
+
+    handler._rebind_telemetry_stub(replacement_stub)
+    rebound_stub, rebound_generation, database = client._telemetry._heartbeat_endpoint()
+    assert rebound_stub is replacement_stub
+    assert rebound_generation == generation + 1
+    assert database == "sales"
+    assert client._telemetry._config_provider()["address"] == ("global-cluster.example.com:19530")
+
+    client.close()
+    handler.close()
+
+
+@pytest.mark.asyncio
+async def test_async_logical_clients_share_transport_use_database_and_close(monkeypatch):
+    old_handler = _pooled_async_handler()
+    pool = _LogicalAsyncPool({"": old_handler})
+    captured = []
+
+    class HeartbeatStub:
+        async def ClientHeartbeat(self, request, **_kwargs):
+            captured.append(request)
+            return milvus_pb2.ClientHeartbeatResponse(status=common_pb2.Status())
+
+    monkeypatch.setattr(
+        AsyncClientTelemetryManager,
+        "start",
+        lambda manager: setattr(manager, "_ready", True),
+    )
+    with patch.object(AsyncConnectionManager, "get_instance", return_value=pool):
+        client_a = AsyncMilvusClient(telemetry_config={"client_id": "async-a"})
+        client_b = AsyncMilvusClient(telemetry_config={"client_id": "async-b"})
+        await asyncio.gather(client_a._connect(), client_b._connect())
+
+    assert client_a._handler is old_handler is client_b._handler
+    assert old_handler.telemetry is None
+    assert len(old_handler._client_telemetry_bindings) == 2
+    with pytest.raises(TypeError):
+        await client_a.insert("books", "invalid")
+    assert client_a._telemetry._collectors["Insert"].global_bucket.request_count == 1
+    assert "Insert" not in client_b._telemetry._collectors
+
+    old_handler._rebind_telemetry_stub(HeartbeatStub())
+    await client_a._telemetry._send_heartbeat_async()
+    await client_b._telemetry._send_heartbeat_async()
+    assert [request.client_info.reserved["client_id"] for request in captured] == [
+        "async-a",
+        "async-b",
+    ]
+
+    telemetry = client_a._telemetry
+    telemetry.record_operation("Search", "books", time.perf_counter())
+    telemetry._create_snapshot()
+    snapshots = telemetry.get_metrics_snapshots()
+    client_a.describe_database = AsyncMock(return_value={})
+    await client_a.use_database("analytics")
+    assert client_a._telemetry is telemetry
+    assert telemetry.client_id == "async-a"
+    assert telemetry.get_metrics_snapshots() == snapshots
+    assert telemetry._build_client_info().reserved["db_name"] == "analytics"
+    assert client_a._handler is old_handler is client_b._handler
+    assert len(old_handler._client_telemetry_bindings) == 2
+
+    bound_stub, _, bound_database = telemetry._heartbeat_endpoint()
+    original_bind = telemetry.bind_transport
+
+    def partially_bind_then_reject(stub, database, binding_token):
+        original_bind(stub, database, binding_token)
+        if database == "broken":
+            raise RuntimeError("binding failed")
+
+    monkeypatch.setattr(telemetry, "bind_transport", partially_bind_then_reject)
+    with pytest.raises(RuntimeError, match="binding failed"):
+        await client_a.use_database("broken")
+    assert client_a._handler is old_handler
+    assert client_a._config.db_name == "analytics"
+    restored_stub, _, restored_database = telemetry._heartbeat_endpoint()
+    assert restored_stub is bound_stub
+    assert bound_database == restored_database == "analytics"
+    binding_token, binding_database = old_handler._client_telemetry_bindings[telemetry]
+    assert binding_token is telemetry._transport_binding_token
+    assert binding_database == "analytics"
+
+    await client_a.close()
+    assert len(old_handler._client_telemetry_bindings) == 1
+    old_handler._rebind_telemetry_stub(HeartbeatStub())
+    captured.clear()
+    await client_b._telemetry._send_heartbeat_async()
+    assert captured[0].client_info.reserved["client_id"] == "async-b"
+    await client_b.close()
+    await old_handler.close()
+
+
+@pytest.mark.asyncio
+async def test_async_client_gc_cancels_telemetry_worker_without_retaining_owner():
+    client = AsyncMilvusClient.__new__(AsyncMilvusClient)
+    client._config = ConnectionConfig.from_uri("http://localhost:19530")
+    client._handler = None
+    manager = client._new_telemetry_manager()
+    client._telemetry = manager
+    owner = weakref.ref(client)
+    worker_waiting = asyncio.Event()
+    original_sleep = manager._sleep_until_next_heartbeat
+
+    async def sleep_until_next_heartbeat(delay):
+        worker_waiting.set()
+        await original_sleep(delay)
+
+    manager._sleep_until_next_heartbeat = sleep_until_next_heartbeat
+
+    manager.start()
+    worker = manager._task
+    await asyncio.wait_for(worker_waiting.wait(), timeout=2)
+    del client
+    gc.collect()
+    with contextlib.suppress(asyncio.CancelledError):
+        await asyncio.wait_for(worker, timeout=2)
+
+    assert owner() is None
+    assert worker.done()
+
+
+@pytest.mark.asyncio
+async def test_async_use_database_keeps_transport_for_in_flight_operation(monkeypatch):
+    handler = _pooled_async_handler()
+    pool = _LogicalAsyncPool({"": handler})
+    started = asyncio.Event()
+    proceed = asyncio.Event()
+    observed = []
+
+    async def insert_rows(_collection, _data, **kwargs):
+        observed.append(kwargs["context"].get_db_name())
+        if len(observed) == 1:
+            started.set()
+            await proceed.wait()
+        return Mock(insert_count=1, primary_keys=[1], cost=0)
+
+    monkeypatch.setattr(handler, "insert_rows", insert_rows)
+    monkeypatch.setattr(
+        AsyncClientTelemetryManager,
+        "start",
+        lambda manager: setattr(manager, "_ready", True),
+    )
+    with patch.object(AsyncConnectionManager, "get_instance", return_value=pool):
+        client = AsyncMilvusClient(telemetry_config={"enabled": False})
+        await client._connect()
+    client.describe_database = AsyncMock(return_value={})
+
+    operation = asyncio.create_task(client.insert("books", [{"id": 1}]))
+    await asyncio.wait_for(started.wait(), timeout=2)
+
+    await client.use_database("analytics")
+    assert client._handler is handler
+    assert pool.releases == []
+    new_result = await client.insert("books", [{"id": 2}])
+    assert new_result["insert_count"] == 1
+    assert not operation.done()
+    assert observed == ["", "analytics"]
+    handler._async_channel.close.assert_not_awaited()
+
+    proceed.set()
+    result = await asyncio.wait_for(operation, timeout=2)
+    assert result["insert_count"] == 1
+    assert observed == ["", "analytics"]
+
+    await client.close()
+    assert pool.releases == [(handler, client)]
+    await handler.close()
+
+
+@pytest.mark.asyncio
+async def test_legacy_direct_handlers_keep_one_fallback_manager_and_interceptor():
+    sync_handler = GrpcHandler(channel=Mock())
+    async_channel = Mock()
+    async_channel._unary_unary_interceptors = []
+    async_channel.close = AsyncMock()
+    async_handler = AsyncGrpcHandler(channel=async_channel)
+
+    assert sync_handler.telemetry is not None
+    assert sync_handler._telemetry_interceptor is not None
+    assert async_handler.telemetry is not None
+    assert async_handler._telemetry_interceptor is not None
+    assert len(sync_handler._client_telemetry_bindings) == 0
+    assert len(async_handler._client_telemetry_bindings) == 0
+
+    sync_handler.close()
+    await async_handler.close()
+
+
+@pytest.mark.asyncio
+async def test_async_client_close_releases_transport_after_telemetry_stop_failure():
+    client = AsyncMilvusClient(uri="http://localhost:19530")
+    manager = Mock()
+    manager.release = AsyncMock()
+    handler = Mock()
+    handler.unregister_client_telemetry = Mock(side_effect=RuntimeError("unbind failed"))
+    client._manager = manager
+    client._handler = handler
+    client._telemetry.stop_async = AsyncMock(side_effect=RuntimeError("telemetry failed"))
+
+    await client.close()
+
+    handler.unregister_client_telemetry.assert_called_once_with(client._telemetry)
+    manager.release.assert_awaited_once_with(handler, client=client)
+    assert client._handler is None

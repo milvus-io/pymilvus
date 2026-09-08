@@ -260,7 +260,8 @@ class TestAsyncGrpcHandlerRole:
         mock_stub.CreateRole = AsyncMock(return_value=mock_status)
         handler._async_stub = mock_stub
 
-        context = CallContext(db_name="db1", client_request_id="req1")
+        request_id = "0123456789abcdef0123456789abcdef"
+        context = CallContext(db_name="db1", client_request_id=request_id)
         await handler.create_role("test_role", 30, context)
 
         req = mock_stub.CreateRole.call_args.args[0]
@@ -268,7 +269,7 @@ class TestAsyncGrpcHandlerRole:
         assert req.entity.description == ""
         assert kwargs["timeout"] == 30
         assert ("dbname", "db1") in kwargs["metadata"]
-        assert ("client-request-id", "req1") in kwargs["metadata"]
+        assert ("client-request-id", request_id) in kwargs["metadata"]
 
     @pytest.mark.asyncio
     async def test_alter_role(self) -> None:

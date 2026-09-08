@@ -25,6 +25,7 @@ from pymilvus.client.constants import (
     REDUCE_STOP_FOR_BEST,
     UNLIMITED,
 )
+from pymilvus.client.telemetry import suppress_telemetry
 from pymilvus.client.types import DataType
 from pymilvus.client.utils import mkts_from_datetime
 from pymilvus.exceptions import MilvusException, ParamError
@@ -152,15 +153,16 @@ class QueryIterator:
                 if self._has_element_cursor():
                     query_params[QUERY_ITER_LAST_PK] = self._next_id
                     query_params[QUERY_ITER_LAST_ELEMENT_OFFSET] = self._next_element_offset
-                res = self._handler.query(
-                    collection_name=self._collection_name,
-                    expr=expr,
-                    output_fields=[],
-                    partition_names=self._partition_names,
-                    timeout=self._timeout,
-                    context=self._context,
-                    **query_params,
-                )
+                with suppress_telemetry():
+                    res = self._handler.query(
+                        collection_name=self._collection_name,
+                        expr=expr,
+                        output_fields=[],
+                        partition_names=self._partition_names,
+                        timeout=self._timeout,
+                        context=self._context,
+                        **query_params,
+                    )
                 self.__update_cursor(res)
                 return len(res)
 
@@ -286,15 +288,16 @@ class QueryIterator:
         init_ts_kwargs[OFFSET] = 0
         init_ts_kwargs[MILVUS_LIMIT] = 1
         # just to set up mvccTs for iterator, no need correct limit
-        res = self._handler.query(
-            collection_name=self._collection_name,
-            expr=self._expr,
-            output_fields=[],
-            partition_names=[],
-            timeout=self._timeout,
-            context=self._context,
-            **init_ts_kwargs,
-        )
+        with suppress_telemetry():
+            res = self._handler.query(
+                collection_name=self._collection_name,
+                expr=self._expr,
+                output_fields=[],
+                partition_names=[],
+                timeout=self._timeout,
+                context=self._context,
+                **init_ts_kwargs,
+            )
         if res is None:
             raise MilvusException(
                 message="failed to connect to milvus for setting up "
@@ -380,15 +383,16 @@ class QueryIterator:
             current_expr = self.__setup_next_expr()
             log.debug(f"query_iterator_next_expr:{current_expr}")
             query_params = self.__setup_query_params()
-            res = self._handler.query(
-                collection_name=self._collection_name,
-                expr=current_expr,
-                output_fields=self._output_fields,
-                partition_names=self._partition_names,
-                timeout=self._timeout,
-                context=self._context,
-                **query_params,
-            )
+            with suppress_telemetry():
+                res = self._handler.query(
+                    collection_name=self._collection_name,
+                    expr=current_expr,
+                    output_fields=self._output_fields,
+                    partition_names=self._partition_names,
+                    timeout=self._timeout,
+                    context=self._context,
+                    **query_params,
+                )
             self.__maybe_cache(res)
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
 
