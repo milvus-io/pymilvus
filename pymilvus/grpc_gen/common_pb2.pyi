@@ -260,6 +260,7 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RefreshExternalCollection: _ClassVar[MsgType]
     GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
     ListRefreshExternalCollectionJobs: _ClassVar[MsgType]
+    GetExportSnapshotState: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -656,6 +657,7 @@ AlterCollectionSchema: MsgType
 RefreshExternalCollection: MsgType
 GetRefreshExternalCollectionProgress: MsgType
 ListRefreshExternalCollectionJobs: MsgType
+GetExportSnapshotState: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
