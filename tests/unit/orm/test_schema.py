@@ -337,6 +337,160 @@ class TestFieldSchemaToDict:
         assert result["name"] == raw_dict["name"]
         assert result["type"] == raw_dict["type"]
 
+    def test_construct_from_dict_with_top_level_max_length(self):
+        raw_dict = {
+            "name": "text",
+            "type": DataType.VARCHAR,
+            "max_length": 256,
+        }
+
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == {"max_length": 256}
+        assert field.to_dict()["params"] == {"max_length": 256}
+
+    def test_construct_from_dict_with_top_level_dim(self):
+        raw_dict = {
+            "name": "vec",
+            "type": DataType.FLOAT_VECTOR,
+            "dim": 128,
+        }
+
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == {"dim": 128}
+        assert field.to_dict()["params"] == {"dim": 128}
+
+    @pytest.mark.parametrize(
+        "raw_dict,expected_params",
+        [
+            pytest.param(
+                {
+                    "name": "tags",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.VARCHAR,
+                    "max_capacity": 100,
+                },
+                {"max_capacity": 100},
+                id="max_capacity",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "enable_match": True,
+                    "enable_analyzer": False,
+                },
+                {"enable_match": True, "enable_analyzer": False},
+                id="analyzer_flags",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "analyzer_params": {"type": "standard"},
+                },
+                {"analyzer_params": '{"type":"standard"}'},
+                id="analyzer_params",
+            ),
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.TEXT,
+                    "multi_analyzer_params": {"analyzers": [{"type": "standard"}]},
+                },
+                {"multi_analyzer_params": '{"analyzers":[{"type":"standard"}]}'},
+                id="multi_analyzer_params",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "mmap_enabled": True,
+                },
+                {"mmap_enabled": True},
+                id="mmap_enabled",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "warmup": {"policy": "async"},
+                },
+                {"warmup": {"policy": "async"}},
+                id="warmup",
+            ),
+        ],
+    )
+    def test_construct_from_dict_with_top_level_common_type_params(self, raw_dict, expected_params):
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == expected_params
+        assert field.to_dict()["params"] == expected_params
+
+    def test_construct_from_dict_ignores_none_top_level_param(self):
+        raw_dict = {
+            "name": "vec",
+            "type": DataType.FLOAT_VECTOR,
+            "dim": None,
+        }
+
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == {}
+        assert "params" not in field.to_dict()
+
+    @pytest.mark.parametrize(
+        "raw_dict,expected_params",
+        [
+            pytest.param(
+                {
+                    "name": "text",
+                    "type": DataType.VARCHAR,
+                    "params": {"max_length": 256},
+                    "max_length": 512,
+                },
+                {"max_length": 256},
+                id="max_length",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"dim": 128},
+                    "dim": 256,
+                },
+                {"dim": 128},
+                id="dim",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"mmap_enabled": True},
+                    "mmap_enabled": False,
+                },
+                {"mmap_enabled": True},
+                id="mmap_enabled",
+            ),
+            pytest.param(
+                {
+                    "name": "vec",
+                    "type": DataType.FLOAT_VECTOR,
+                    "params": {"warmup": {"policy": "sync"}},
+                    "warmup": {"policy": "async"},
+                },
+                {"warmup": {"policy": "sync"}},
+                id="warmup",
+            ),
+        ],
+    )
+    def test_construct_from_dict_nested_params_take_precedence(self, raw_dict, expected_params):
+        field = FieldSchema.construct_from_dict(raw_dict)
+
+        assert field.params == expected_params
+        assert field.to_dict()["params"] == expected_params
+
 
 class TestFieldSchemaDeepCopy:
     """Tests for FieldSchema __deepcopy__ method."""
