@@ -395,7 +395,12 @@ class _Issue3541FakeAsyncChannel:
         self.closed_event = asyncio.Event()
         self.release_close = asyncio.Event()
         self.wait_for_release = wait_for_release
+        # A real grpc.aio channel keeps one interceptor list per call type. Modelling
+        # only unary-unary is what let the missing streaming registration go unnoticed.
         self._unary_unary_interceptors = []
+        self._unary_stream_interceptors = []
+        self._stream_unary_interceptors = []
+        self._stream_stream_interceptors = []
 
     async def close(self, grace=None):
         self.close_count += 1
