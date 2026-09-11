@@ -50,7 +50,7 @@ def validate_primary_key(primary_field: Any):
     if primary_field is None:
         raise PrimaryKeyException(message=ExceptionsMessage.NoPrimaryKey)
 
-    if primary_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
+    if primary_field.dtype not in [DataType.INT64, DataType.VARCHAR, DataType.UUID]:
         raise PrimaryKeyException(message=ExceptionsMessage.PrimaryKeyType)
 
 
@@ -62,7 +62,7 @@ def validate_partition_key(
         if partition_key_field.name == primary_field_name:
             PartitionKeyException(message=ExceptionsMessage.PartitionKeyNotPrimary)
 
-        if partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR]:
+        if partition_key_field.dtype not in [DataType.INT64, DataType.VARCHAR, DataType.UUID]:
             raise PartitionKeyException(message=ExceptionsMessage.PartitionKeyType)
     elif partition_key_field_name is not None:
         raise PartitionKeyException(
@@ -80,6 +80,7 @@ def validate_clustering_key(clustering_key_field_name: Any, clustering_key_field
             DataType.FLOAT,
             DataType.DOUBLE,
             DataType.VARCHAR,
+            DataType.UUID,
             DataType.FLOAT_VECTOR,
         ]:
             raise ClusteringKeyException(message=ExceptionsMessage.ClusteringKeyType)
@@ -631,6 +632,7 @@ class FieldSchema:
             DataType.BFLOAT16_VECTOR,
             DataType.VARCHAR,
             DataType.TEXT,
+            DataType.UUID,
             DataType.ARRAY,
             DataType.SPARSE_FLOAT_VECTOR,
             DataType.INT8_VECTOR,
@@ -1443,7 +1445,7 @@ def infer_default_value_bydata(data: Any, dtype: DataType = None):
         default_data.float_data = data
     elif d_type is DataType.DOUBLE:
         default_data.double_data = data
-    elif d_type is DataType.VARCHAR:
+    elif d_type in (DataType.VARCHAR, DataType.UUID):
         default_data.string_data = data
     else:
         raise ParamError(message=f"Default value unsupported data type: {d_type}")
