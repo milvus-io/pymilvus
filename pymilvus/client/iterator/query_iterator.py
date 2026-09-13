@@ -327,16 +327,22 @@ class QueryIterator:
                     # input cp file is not emtpy, init mvccTs by reading cp file
                     lines = self._cp_file_handler.readlines()
                     line_count = len(lines)
-                    if line_count < 2:
-                        raise ParamError(
-                            message=f"input cp file:{self._cp_file_path_str} should contain "
-                            f"at least two lines, but only:{line_count} lines"
-                        )
-                    self._session_ts = int(lines[0])
-                    self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
-                    if line_count > 1:
-                        self._buffer_cursor_lines_number = line_count - 1
-                        self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
+                    if line_count == 0:
+                        # cp file existed on disk but has no content -- most
+                        # likely left behind by a process that was
+                        # interrupted before it ever wrote a session_ts.
+                        # Treat this the same as "no cp file": start a
+                        # fresh session instead of failing outright, so an
+                        # interrupted run can actually be resumed/restarted
+                        # by just pointing at the same cp file path again.
+                        self.__setup_ts_by_request()
+                        io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+                    else:
+                        self._session_ts = int(lines[0])
+                        self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
+                        if line_count > 1:
+                            self._buffer_cursor_lines_number = line_count - 1
+                            self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
                 except OSError as ose:
                     raise MilvusException(
                         message=f"Failed to read cp info from file:{self._cp_file_path_str}"
@@ -393,8 +399,23 @@ class QueryIterator:
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
 
         ret = self.__check_reached_limit(ret)
+
+        # Remember pre-advance cursor state so we can roll back if the
+        # checkpoint write fails below -- otherwise a failed save leaves
+        # the in-memory cursor pointing past a batch that was never
+        # actually returned to the caller, and that batch is silently
+        # skipped on any retry.
+        prev_next_id = self._next_id
+        prev_next_element_offset = self._next_element_offset
+
         self.__update_cursor(ret)
-        io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        try:
+            io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        except Exception:
+            self._next_id = prev_next_id
+            self._next_element_offset = prev_next_element_offset
+            raise
+
         self._returned_count += len(ret)
         return ret
 
