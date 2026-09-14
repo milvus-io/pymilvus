@@ -321,6 +321,24 @@ class _GlobalStrategyMixin:
         self._refresher: Optional[TopologyRefresher] = None
         self._lock = threading.Lock()
 
+    def _accept_topology(self, new_topology: GlobalTopology) -> bool:
+        """Install new_topology only if it strictly advances the version.
+
+        Every write to the shared topology funnels through this compare-and-set
+        so no update path (initial fetch, background watcher, periodic refresh,
+        UNAVAILABLE recovery) can roll the version back, however the threads
+        interleave.
+        """
+        with self._lock:
+            current = self._topology
+            if current is None or new_topology.version > current.version:
+                self._topology = new_topology
+                return True
+            logger.debug(
+                f"Ignored stale topology version {new_topology.version} (current {current.version})"
+            )
+            return False
+
     def _fetch_and_start_refresher(self, config: ConnectionConfig) -> GlobalTopology:
         """Fetch initial topology and start background refresher.
 
@@ -331,8 +349,10 @@ class _GlobalStrategyMixin:
             config.uri, config.token, on_topology_change=self._on_topology_change
         )
 
+        # The background watcher may already have installed a newer topology
+        # via the callback while fetch_topology was returning the first answer.
+        self._accept_topology(topology)
         with self._lock:
-            self._topology = topology
             self._config = config
 
         self._refresher = TopologyRefresher(
@@ -347,17 +367,15 @@ class _GlobalStrategyMixin:
 
     def _on_topology_change(self, new_topology: GlobalTopology) -> None:
         """Callback when topology changes via background refresh."""
-        with self._lock:
-            self._topology = new_topology
+        self._accept_topology(new_topology)
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
         """Refresh topology and return True if primary changed."""
         if self._config is None:
             return True  # No config, trigger recovery
 
-        with self._lock:
-            old_topology = self._topology
-            old_primary = old_topology.primary.endpoint if old_topology else None
+        old_topology = self.get_topology()
+        old_primary = old_topology.primary.endpoint if old_topology else None
 
         # Fetch fresh topology
         try:
@@ -370,9 +388,13 @@ class _GlobalStrategyMixin:
             logger.warning("Failed to refresh topology on UNAVAILABLE", exc_info=True)
             return True  # Error fetching, trigger recovery anyway
 
-        with self._lock:
-            self._topology = new_topology
-            new_primary = new_topology.primary.endpoint
+        # None means no seed has anything newer; a stale answer is rejected by
+        # the compare-and-set either way, so the cached topology never regresses.
+        if new_topology is not None:
+            self._accept_topology(new_topology)
+
+        current = self.get_topology()
+        new_primary = current.primary.endpoint if current else None
 
         # Only recover if primary actually changed
         if old_primary != new_primary:

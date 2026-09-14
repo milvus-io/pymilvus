@@ -368,6 +368,27 @@ class TestFetchTopology:
             topology = fetch_topology(_GLOBAL_URL, _TOKEN)
             assert topology.version == 7
 
+    def test_returns_none_when_no_seed_beats_cached_version(self):
+        # Every seed is at or behind the cached version: no update available,
+        # and an answered round is not retried.
+        with _patch_srv(
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            side_effect=[_mock_response(version="5"), _mock_response(version="9")],
+        ) as mock_get:
+            assert fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=10) is None
+            assert mock_get.call_count == 2  # both seeds polled, single round
+
+    def test_returns_none_when_seed_matches_cached_version(self):
+        # Strictly-higher semantics: an equal version is not an update.
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+            "pymilvus.client.global_topology.requests.get",
+            return_value=_mock_response(version="9"),
+        ):
+            assert fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=9) is None
+
 
 # ── TestTopologyRefresher ─────────────────────────────────────────────────────
 
@@ -501,6 +522,67 @@ class TestTopologyRefresher:
             refresher.stop()
 
         assert refresher.get_topology().version == 1  # Still has original topology
+
+    def test_compares_against_shared_current_topology(self):
+        # With get_current set, version comparisons run against the shared
+        # copy: a stale private snapshot cannot trigger a rollback.
+        shared = _make_topology(version=9)
+        callback_received = []
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.example.com",
+            token="test-token",
+            topology=_make_topology(version=1),
+            on_topology_change=callback_received.append,
+            get_current=lambda: shared,
+        )
+
+        with patch(
+            "pymilvus.client.global_topology.fetch_topology",
+            return_value=_make_topology(version=7),
+        ) as mock_fetch:
+            refresher._try_refresh()
+
+        mock_fetch.assert_called_once_with(
+            "https://glo.global-cluster.example.com", "test-token", cached_version=9
+        )
+        assert callback_received == []
+        assert refresher.get_topology().version == 1  # private snapshot untouched
+
+    def test_shared_path_accepts_higher_version(self):
+        callback_received = []
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.example.com",
+            token="test-token",
+            topology=_make_topology(version=1),
+            on_topology_change=callback_received.append,
+            get_current=lambda: _make_topology(version=9),
+        )
+
+        with patch(
+            "pymilvus.client.global_topology.fetch_topology",
+            return_value=_make_topology(version=10),
+        ):
+            refresher._try_refresh()
+
+        assert [t.version for t in callback_received] == [10]
+        # The shared copy is authoritative: the private snapshot is not updated.
+        assert refresher.get_topology().version == 1
+
+    def test_ignores_fetch_when_no_seed_beats_cached_version(self):
+        # fetch_topology returns None when every seed is behind: no update.
+        callback_received = []
+        refresher = TopologyRefresher(
+            global_endpoint="https://glo.global-cluster.example.com",
+            token="test-token",
+            topology=_make_topology(version=9),
+            on_topology_change=callback_received.append,
+        )
+
+        with patch("pymilvus.client.global_topology.fetch_topology", return_value=None):
+            refresher._try_refresh()
+
+        assert callback_received == []
+        assert refresher.get_topology().version == 9
 
 
 # ── TestGlobalClusterConstant ─────────────────────────────────────────────────

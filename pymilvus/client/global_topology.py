@@ -320,7 +320,7 @@ def fetch_topology(
     token: str,
     cached_version: Optional[int] = None,
     on_topology_change: Optional[Callable[[GlobalTopology], None]] = None,
-) -> GlobalTopology:
+) -> Optional[GlobalTopology]:
     """Fetch the global cluster topology via SRV-based seed discovery.
 
     Resolves ``_grpc._tcp.<hostname>`` to ha-manager seeds, then concurrently
@@ -338,7 +338,9 @@ def fetch_topology(
             ``cached_version`` is None).
 
     Returns:
-        GlobalTopology object containing cluster information.
+        GlobalTopology object containing cluster information, or None when
+        ``cached_version`` is set and no seed reports a strictly higher
+        version (the cached topology is already up to date).
 
     Raises:
         MilvusException: If the endpoint has no SRV records, the server rejects
@@ -381,7 +383,11 @@ def fetch_topology(
             on_higher_version=on_topology_change if cached_version is None else None,
         )
         if best is not None:
-            return best
+            if cached_version is None or best.version > cached_version:
+                return best
+            # Every reachable seed is at or behind the cached version:
+            # nothing newer on the server side, keep the cached topology.
+            return None
         if api_error is not None:
             # Deterministic server-side rejection (e.g. auth): do not retry.
             raise api_error
@@ -493,13 +499,16 @@ class TopologyRefresher:
                 self._global_endpoint, self._token, cached_version=current.version
             )
 
-            if new_topology.version > current.version:
+            if new_topology is not None and new_topology.version > current.version:
                 logger.info(
                     f"Topology updated: version {current.version} -> {new_topology.version}"
                 )
                 if self._get_current is None:
                     with self._lock:
-                        self._topology = new_topology
+                        # Re-check under the lock: a concurrent trigger_refresh
+                        # may have installed an even newer version meanwhile.
+                        if new_topology.version > self._topology.version:
+                            self._topology = new_topology
 
                 if self._on_topology_change:
                     try:
