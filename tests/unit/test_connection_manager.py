@@ -565,6 +565,98 @@ class TestGlobalStrategy:
             result = strategy.on_unavailable(managed)
             assert result is True
 
+    def test_on_topology_change_rejects_stale_version(self):
+        """Topology callbacks are compare-and-set: versions never roll back."""
+        mixin = _GlobalStrategyMixin()
+        newer = _make_topology(9, "c1", "https://primary:19530", capability=0b11)
+
+        mixin._on_topology_change(newer)
+        assert mixin.get_topology() is newer
+
+        mixin._on_topology_change(_make_topology(5, "c2", "https://old:19530", capability=0b11))
+        assert mixin.get_topology() is newer
+
+        mixin._on_topology_change(_make_topology(9, "c3", "https://tie:19530", capability=0b11))
+        assert mixin.get_topology() is newer  # equal version does not replace either
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_initial_fetch_does_not_overwrite_newer_callback(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A background answer arriving during the first fetch must not be lost."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        first_answer = _make_topology(5, "c1", "https://primary:19530", capability=0b11)
+        background_newer = _make_topology(9, "c2", "https://new-primary:19530", capability=0b11)
+
+        def fetch_with_early_callback(uri, token, on_topology_change=None, **kwargs):
+            # The watcher fires before fetch_topology returns the first answer.
+            on_topology_change(background_newer)
+            return first_answer
+
+        mock_fetch.side_effect = fetch_with_early_callback
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        strategy.create_handler(config)
+
+        assert strategy.get_topology() is background_newer
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_rejects_stale_fetch(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A stale answer on the UNAVAILABLE path must not roll back topology."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        cached = _make_topology(9, "c1", "https://primary:19530", capability=0b11)
+        stale = _make_topology(5, "c2", "https://old-primary:19530", capability=0b11)
+        mock_fetch.side_effect = [cached, stale]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        result = strategy.on_unavailable(managed)
+
+        assert result is False  # stale answer rejected, primary unchanged
+        assert strategy.get_topology() is cached
+        mock_fetch.assert_called_with(
+            "https://global-cluster.example.com:19530", "mytoken", cached_version=9
+        )
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_handles_no_newer_topology(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls, sample_topology
+    ):
+        """fetch_topology returning None means no seed beat the cached version."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        mock_fetch.side_effect = [sample_topology, None]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        result = strategy.on_unavailable(managed)
+
+        assert result is False  # topology untouched, primary unchanged
+        assert strategy.get_topology() is sample_topology
+
 
 # =============================================================================
 # TestConnectionManager
