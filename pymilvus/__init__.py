@@ -32,12 +32,15 @@ from .client.search_aggregation import (
 from .client.search_result import Hit, Hits, SearchResult
 from .client.types import (
     BulkInsertState,
+    CompactionTaskState,
+    CompactionType,
     DataType,
     FunctionType,
     Group,
     IndexType,
     Replica,
     ResourceGroupInfo,
+    SegmentState,
     Shard,
     Status,
 )
@@ -105,6 +108,8 @@ __all__ = [
     "BulkInsertState",
     "Collection",
     "CollectionSchema",
+    "CompactionTaskState",
+    "CompactionType",
     "Connections",
     "DataType",
     "DefaultConfig",
@@ -138,6 +143,7 @@ __all__ = [
     "SearchAggregation",
     "SearchFuture",
     "SearchResult",
+    "SegmentState",
     "SemanticHighlighter",
     "Shard",
     "Status",

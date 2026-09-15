@@ -3,7 +3,7 @@ import datetime
 import json
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import orjson
@@ -67,6 +67,7 @@ from .types import (
     DataType,
     PlaceholderType,
     ResourceGroupConfig,
+    SegmentState,
     get_consistency_level,
 )
 from .utils import get_params, traverse_info, traverse_upsert_info
@@ -2292,8 +2293,32 @@ class Prepare:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name: str):
-        return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
+    def get_persistent_segment_info_request(
+        cls,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+    ):
+        if states is None:
+            normalized_states = []
+        else:
+            if isinstance(states, (str, bytes)) or not isinstance(states, Sequence):
+                message = "states must be a sequence of SegmentState values"
+                raise ParamError(message=message)
+            if not states:
+                message = "states must not be empty; use None for the default state filter"
+                raise ParamError(message=message)
+
+            normalized_states = []
+            for state in states:
+                if not isinstance(state, SegmentState):
+                    message = f"invalid SegmentState value: {state!r}"
+                    raise ParamError(message=message)
+                normalized_states.append(state.value)
+
+        return milvus_types.GetPersistentSegmentInfoRequest(
+            collectionName=collection_name,
+            states=normalized_states,
+        )
 
     @classmethod
     def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
@@ -2497,6 +2522,15 @@ class Prepare:
         request = milvus_types.GetCompactionPlansRequest()
         request.compactionID = compaction_id
         return request
+
+    @classmethod
+    def get_compaction_tasks(cls, collection_name: str):
+        if not isinstance(collection_name, str) or not collection_name:
+            raise ParamError(message=f"collection_name value {collection_name} is illegal")
+
+        return milvus_types.GetCompactionPlansRequest(
+            collection_name=collection_name,
+        )
 
     @classmethod
     def get_replicas(cls, collection_id: int):
