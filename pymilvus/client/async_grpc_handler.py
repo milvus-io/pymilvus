@@ -800,10 +800,15 @@ class AsyncGrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[List[Union[int, str]]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(
+            collection_name,
+            states=states,
+            db_name=context.get_db_name() if context else "",
+        )
         response = await self._async_stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )

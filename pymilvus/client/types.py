@@ -1,6 +1,6 @@
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
@@ -308,21 +308,50 @@ CompactionState
 
 
 class Plan:
-    def __init__(self, sources: list, target: int) -> None:
+    def __init__(
+        self,
+        sources: list,
+        target: int,
+        *,
+        plan_id: int = 0,
+        trigger_id: int = 0,
+        collection_id: int = 0,
+        partition_id: int = 0,
+        channel: str = "",
+        compaction_type: str = "",
+        state: str = "",
+        failure_reason: str = "",
+        targets: Optional[List[int]] = None,
+    ) -> None:
         self.sources = sources
         self.target = target
+        self.plan_id = plan_id
+        self.task_id = plan_id
+        self.trigger_id = trigger_id
+        self.collection_id = collection_id
+        self.partition_id = partition_id
+        self.channel = channel
+        self.compaction_type = compaction_type
+        self.state = state
+        self.failure_reason = failure_reason
+        self.targets = list(targets) if targets is not None else ([target] if target else [])
 
     def __repr__(self) -> str:
         return f"""
 Plan:
+ - plan id: {self.plan_id}
+ - trigger id: {self.trigger_id}
+ - type: {self.compaction_type}
+ - state: {self.state}
  - sources: {self.sources}
- - target: {self.target}
+ - targets: {self.targets}
 """
 
 
 class CompactionPlans:
-    def __init__(self, compaction_id: int, state: int) -> None:
+    def __init__(self, compaction_id: int, state: int, collection_name: str = "") -> None:
         self.compaction_id = compaction_id
+        self.collection_name = collection_name
         self.state = State.new(state)
         self.plans = []
 
@@ -330,6 +359,7 @@ class CompactionPlans:
         return f"""
 Compaction Plans:
  - compaction id: {self.compaction_id}
+ - collection name: {self.collection_name}
  - state: {self.state.name}
  - plans: {self.plans}
  """
@@ -1390,6 +1420,9 @@ class SegmentInfo:
     state: common_pb2.SegmentState
     level: common_pb2.SegmentLevel
     storage_version: int
+    partition_id: int = field(default=0, init=False)
+    insert_channel: str = field(default="", init=False)
+    compaction_from: List[int] = field(default_factory=list, init=False)
 
     @property
     def state_name(self) -> str:
@@ -1408,13 +1441,16 @@ class SegmentInfo:
             f"is_sorted={self.is_sorted}, "
             f"state='{self.state_name}', "
             f"level='{self.level_name}', "
-            f"storage_version={self.storage_version})"
+            f"storage_version={self.storage_version}, "
+            f"partition_id={self.partition_id}, "
+            f"insert_channel='{self.insert_channel}', "
+            f"compaction_from={self.compaction_from})"
         )
 
 
 @dataclass
 class LoadedSegmentInfo(SegmentInfo):
-    partition_id: int
+    partition_id: int = field()
     index_name: str
     index_id: int
     node_ids: List[int]

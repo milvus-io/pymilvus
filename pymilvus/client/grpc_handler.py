@@ -99,6 +99,60 @@ from .utils import (
 
 logger = logging.getLogger(__name__)
 
+# Keep the Plan API's names stable across the public protobuf enum migration.
+_COMPACTION_TYPE_NAMES = {
+    common_pb2.CompactionTypeUndefined: "UndefinedCompaction",
+    common_pb2.CompactionTypeMerge: "MergeCompaction",
+    common_pb2.CompactionTypeMix: "MixCompaction",
+    common_pb2.CompactionTypeSingle: "SingleCompaction",
+    common_pb2.CompactionTypeMinor: "MinorCompaction",
+    common_pb2.CompactionTypeMajor: "MajorCompaction",
+    common_pb2.CompactionTypeLevel0Delete: "Level0DeleteCompaction",
+    common_pb2.CompactionTypeClustering: "ClusteringCompaction",
+    common_pb2.CompactionTypeSort: "SortCompaction",
+    common_pb2.CompactionTypePartitionKeySort: "PartitionKeySortCompaction",
+    common_pb2.CompactionTypeClusteringPartitionKeySort: "ClusteringPartitionKeySortCompaction",
+    common_pb2.CompactionTypeBumpSchemaVersion: "BumpSchemaVersionCompaction",
+}
+_COMPACTION_TASK_STATE_NAMES = {
+    common_pb2.CompactionTaskStateUnknown: "unknown",
+    common_pb2.CompactionTaskStateExecuting: "executing",
+    common_pb2.CompactionTaskStatePipelining: "pipelining",
+    common_pb2.CompactionTaskStateCompleted: "completed",
+    common_pb2.CompactionTaskStateFailed: "failed",
+    common_pb2.CompactionTaskStateTimeout: "timeout",
+    common_pb2.CompactionTaskStateAnalyzing: "analyzing",
+    common_pb2.CompactionTaskStateIndexing: "indexing",
+    common_pb2.CompactionTaskStateCleaned: "cleaned",
+    common_pb2.CompactionTaskStateMetaSaved: "meta_saved",
+    common_pb2.CompactionTaskStateStatistic: "statistic",
+}
+
+
+def _parse_compaction_plans(
+    response: milvus_types.GetCompactionPlansResponse,
+    compaction_id: int = 0,
+    collection_name: str = "",
+) -> CompactionPlans:
+    plans = CompactionPlans(compaction_id, response.state, collection_name=collection_name)
+    plans.plans = [
+        Plan(
+            list(merge.sources),
+            merge.target,
+            plan_id=merge.plan_id,
+            trigger_id=merge.trigger_id,
+            collection_id=merge.collection_id,
+            partition_id=merge.partition_id,
+            channel=merge.channel,
+            compaction_type=_COMPACTION_TYPE_NAMES.get(merge.type, f"unknown({merge.type})"),
+            state=_COMPACTION_TASK_STATE_NAMES.get(merge.state, f"unknown({merge.state})"),
+            failure_reason=merge.failure_reason,
+            targets=list(merge.targets) or None,
+        )
+        for merge in response.mergeInfos
+    ]
+    return plans
+
 
 class ReconnectHandler:
     def __init__(self, conns: object, connection_name: str, kwargs: object) -> None:
@@ -1550,7 +1604,10 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[milvus_types.QuerySegmentInfo]:
-        req = Prepare.get_query_segment_info_request(collection_name)
+        req = Prepare.get_query_segment_info_request(
+            collection_name,
+            db_name=context.get_db_name() if context else "",
+        )
         response = self._stub.GetQuerySegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2224,9 +2281,14 @@ class GrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Iterable[Union[int, str]]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(
+            collection_name,
+            states=states,
+            db_name=context.get_db_name() if context else "",
+        )
         response = self._stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2532,11 +2594,25 @@ class GrpcHandler:
         )
         check_status(response.status)
 
-        cp = CompactionPlans(compaction_id, response.state)
+        return _parse_compaction_plans(response, compaction_id=compaction_id)
 
-        cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
-
-        return cp
+    @retry_on_rpc_failure()
+    def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(
+            collection_name,
+            db_name=context.get_db_name() if context else "",
+        )
+        response = self._stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return _parse_compaction_plans(response, collection_name=collection_name)
 
     @retry_on_rpc_failure()
     def get_replicas(

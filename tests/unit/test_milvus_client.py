@@ -189,18 +189,18 @@ class TestMilvusClient:
 
             # Different token - should get different handler
             client3 = MilvusClient(user="test", password="foobar")
-            assert (
-                client3._handler is not client1_handler
-            ), "Different token should get different handler"
+            assert client3._handler is not client1_handler, (
+                "Different token should get different handler"
+            )
 
             # Different token again - should get yet another handler
             client4 = MilvusClient(token="foobar")
-            assert (
-                client4._handler is not client1_handler
-            ), "Different token should get different handler"
-            assert (
-                client4._handler is not client3._handler
-            ), "Different token should get different handler"
+            assert client4._handler is not client1_handler, (
+                "Different token should get different handler"
+            )
+            assert client4._handler is not client3._handler, (
+                "Different token should get different handler"
+            )
 
             client1.close()
             client2.close()
@@ -1913,11 +1913,50 @@ class TestMilvusClientMiscOps:
         client, handler = mc
         handler.get_query_segment_info.return_value = []
         assert client.list_loaded_segments("col") == []
+        assert client.list_serving_segments("col") == []
 
     def test_list_persistent_segments(self, mc):
         client, handler = mc
+        segment = MagicMock(
+            segmentID=1,
+            collectionID=2,
+            partitionID=4,
+            num_rows=3,
+            is_sorted=True,
+            state=common_pb2.SegmentState.Flushed,
+            level=common_pb2.SegmentLevel.L1,
+            storage_version=3,
+            insert_channel="ch",
+            compaction_from=[10, 11],
+        )
+        handler.get_persistent_segment_infos.return_value = [segment]
+        result = client.list_persistent_segments("col", states=["Flushed", "Dropped"])
+        assert result[0].partition_id == 4
+        assert result[0].insert_channel == "ch"
+        assert result[0].compaction_from == [10, 11]
+        handler.get_persistent_segment_infos.assert_called_once_with(
+            "col", states=["Flushed", "Dropped"], timeout=None, context=ANY
+        )
+
+    def test_list_segments_defaults_to_all_lifecycle_states(self, mc):
+        client, handler = mc
         handler.get_persistent_segment_infos.return_value = []
-        assert client.list_persistent_segments("col") == []
+        assert client.list_segments("col") == []
+        assert handler.get_persistent_segment_infos.call_args.kwargs["states"] == [
+            "Growing",
+            "Sealed",
+            "Flushing",
+            "Flushed",
+            "Importing",
+            "Dropped",
+        ]
+
+    def test_list_compaction_tasks(self, mc):
+        client, handler = mc
+        expected = MagicMock()
+        handler.get_compaction_tasks.return_value = expected
+        assert client.list_compaction_tasks("col") is expected
+        handler.get_compaction_tasks.assert_called_once_with("col", timeout=None, context=ANY)
 
     def test_using_database(self, mc):
         client, handler = mc

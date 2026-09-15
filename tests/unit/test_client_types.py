@@ -265,9 +265,18 @@ class TestCompactionState:
 # TestPlan
 class TestPlan:
     def test_plan_init(self):
-        plan = Plan(sources=[1, 2, 3], target=100)
+        plan = Plan(
+            sources=[1, 2, 3],
+            target=100,
+            plan_id=10,
+            state="completed",
+            targets=[100, 101],
+        )
         assert plan.sources == [1, 2, 3]
         assert plan.target == 100
+        assert plan.task_id == 10
+        assert plan.state == "completed"
+        assert plan.targets == [100, 101]
 
     def test_plan_repr(self):
         r = repr(Plan(sources=[10, 20], target=200))

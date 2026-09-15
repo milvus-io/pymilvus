@@ -2292,8 +2292,17 @@ class Prepare:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name: str):
-        return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
+    def get_persistent_segment_info_request(
+        cls,
+        collection_name: str,
+        states: Optional[Iterable[Union[int, str]]] = None,
+        db_name: str = "",
+    ):
+        return milvus_types.GetPersistentSegmentInfoRequest(
+            dbName=db_name,
+            collectionName=collection_name,
+            states=states or [],
+        )
 
     @classmethod
     def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
@@ -2302,8 +2311,11 @@ class Prepare:
         )
 
     @classmethod
-    def get_query_segment_info_request(cls, collection_name: str):
-        return milvus_types.GetQuerySegmentInfoRequest(collectionName=collection_name)
+    def get_query_segment_info_request(cls, collection_name: str, db_name: str = ""):
+        return milvus_types.GetQuerySegmentInfoRequest(
+            dbName=db_name,
+            collectionName=collection_name,
+        )
 
     @classmethod
     def flush_param(cls, collection_names: List[str]):
@@ -2497,6 +2509,16 @@ class Prepare:
         request = milvus_types.GetCompactionPlansRequest()
         request.compactionID = compaction_id
         return request
+
+    @classmethod
+    def get_compaction_tasks(cls, collection_name: str, db_name: str = ""):
+        if not isinstance(collection_name, str) or not collection_name:
+            raise ParamError(message=f"collection_name value {collection_name} is illegal")
+
+        return milvus_types.GetCompactionPlansRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
 
     @classmethod
     def get_replicas(cls, collection_id: int):

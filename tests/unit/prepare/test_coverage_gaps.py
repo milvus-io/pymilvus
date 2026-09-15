@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import common_pb2
 
 
 class TestCreateCollectionNumPartitions:
@@ -259,13 +260,27 @@ class TestSegmentRequests:
 
     def test_get_persistent_segment_info(self):
         """Test get persistent segment info request."""
-        req = Prepare.get_persistent_segment_info_request("test_coll")
+        req = Prepare.get_persistent_segment_info_request(
+            "test_coll", states=["Growing", "Dropped"], db_name="test_db"
+        )
         assert req.collectionName == "test_coll"
+        assert req.dbName == "test_db"
+        assert list(req.states) == [
+            common_pb2.SegmentState.Growing,
+            common_pb2.SegmentState.Dropped,
+        ]
+
+    def test_get_compaction_tasks(self):
+        req = Prepare.get_compaction_tasks("test_coll", db_name="test_db")
+        assert req.collection_name == "test_coll"
+        assert req.db_name == "test_db"
+        assert req.compactionID == 0
 
     def test_get_query_segment_info(self):
         """Test get query segment info request."""
-        req = Prepare.get_query_segment_info_request("test_coll")
+        req = Prepare.get_query_segment_info_request("test_coll", db_name="test_db")
         assert req.collectionName == "test_coll"
+        assert req.dbName == "test_db"
 
 
 class TestPartitionRequests:

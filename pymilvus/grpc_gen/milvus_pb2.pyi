@@ -1600,7 +1600,7 @@ class FlushCollectionResult(_message.Message):
     def __init__(self, collection_name: _Optional[str] = ..., segment_ids: _Optional[_Union[_schema_pb2.LongArray, _Mapping]] = ..., flush_segment_ids: _Optional[_Union[_schema_pb2.LongArray, _Mapping]] = ..., seal_time: _Optional[int] = ..., flush_ts: _Optional[int] = ..., channel_cps: _Optional[_Mapping[str, _msg_pb2.MsgPosition]] = ...) -> None: ...
 
 class PersistentSegmentInfo(_message.Message):
-    __slots__ = ("segmentID", "collectionID", "partitionID", "num_rows", "state", "level", "is_sorted", "storage_version")
+    __slots__ = ("segmentID", "collectionID", "partitionID", "num_rows", "state", "level", "is_sorted", "storage_version", "insert_channel", "compaction_from")
     SEGMENTID_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONID_FIELD_NUMBER: _ClassVar[int]
     PARTITIONID_FIELD_NUMBER: _ClassVar[int]
@@ -1609,6 +1609,8 @@ class PersistentSegmentInfo(_message.Message):
     LEVEL_FIELD_NUMBER: _ClassVar[int]
     IS_SORTED_FIELD_NUMBER: _ClassVar[int]
     STORAGE_VERSION_FIELD_NUMBER: _ClassVar[int]
+    INSERT_CHANNEL_FIELD_NUMBER: _ClassVar[int]
+    COMPACTION_FROM_FIELD_NUMBER: _ClassVar[int]
     segmentID: int
     collectionID: int
     partitionID: int
@@ -1617,17 +1619,21 @@ class PersistentSegmentInfo(_message.Message):
     level: _common_pb2.SegmentLevel
     is_sorted: bool
     storage_version: int
-    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., num_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ..., level: _Optional[_Union[_common_pb2.SegmentLevel, str]] = ..., is_sorted: bool = ..., storage_version: _Optional[int] = ...) -> None: ...
+    insert_channel: str
+    compaction_from: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, segmentID: _Optional[int] = ..., collectionID: _Optional[int] = ..., partitionID: _Optional[int] = ..., num_rows: _Optional[int] = ..., state: _Optional[_Union[_common_pb2.SegmentState, str]] = ..., level: _Optional[_Union[_common_pb2.SegmentLevel, str]] = ..., is_sorted: bool = ..., storage_version: _Optional[int] = ..., insert_channel: _Optional[str] = ..., compaction_from: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class GetPersistentSegmentInfoRequest(_message.Message):
-    __slots__ = ("base", "dbName", "collectionName")
+    __slots__ = ("base", "dbName", "collectionName", "states")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DBNAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTIONNAME_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     dbName: str
     collectionName: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., dbName: _Optional[str] = ..., collectionName: _Optional[str] = ...) -> None: ...
+    states: _containers.RepeatedScalarFieldContainer[_common_pb2.SegmentState]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., dbName: _Optional[str] = ..., collectionName: _Optional[str] = ..., states: _Optional[_Iterable[_Union[_common_pb2.SegmentState, str]]] = ...) -> None: ...
 
 class GetPersistentSegmentInfoResponse(_message.Message):
     __slots__ = ("status", "infos")
@@ -1826,10 +1832,16 @@ class GetCompactionStateResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., state: _Optional[_Union[_common_pb2.CompactionState, str]] = ..., executingPlanNo: _Optional[int] = ..., timeoutPlanNo: _Optional[int] = ..., completedPlanNo: _Optional[int] = ..., failedPlanNo: _Optional[int] = ...) -> None: ...
 
 class GetCompactionPlansRequest(_message.Message):
-    __slots__ = ("compactionID",)
+    __slots__ = ("compactionID", "db_name", "collection_name", "collection_id")
     COMPACTIONID_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_ID_FIELD_NUMBER: _ClassVar[int]
     compactionID: int
-    def __init__(self, compactionID: _Optional[int] = ...) -> None: ...
+    db_name: str
+    collection_name: str
+    collection_id: int
+    def __init__(self, compactionID: _Optional[int] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collection_id: _Optional[int] = ...) -> None: ...
 
 class GetCompactionPlansResponse(_message.Message):
     __slots__ = ("status", "state", "mergeInfos")
@@ -1842,12 +1854,30 @@ class GetCompactionPlansResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., state: _Optional[_Union[_common_pb2.CompactionState, str]] = ..., mergeInfos: _Optional[_Iterable[_Union[CompactionMergeInfo, _Mapping]]] = ...) -> None: ...
 
 class CompactionMergeInfo(_message.Message):
-    __slots__ = ("sources", "target")
+    __slots__ = ("sources", "target", "plan_id", "trigger_id", "collection_id", "partition_id", "channel", "type", "state", "failure_reason", "targets")
     SOURCES_FIELD_NUMBER: _ClassVar[int]
     TARGET_FIELD_NUMBER: _ClassVar[int]
+    PLAN_ID_FIELD_NUMBER: _ClassVar[int]
+    TRIGGER_ID_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_ID_FIELD_NUMBER: _ClassVar[int]
+    CHANNEL_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_REASON_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
     sources: _containers.RepeatedScalarFieldContainer[int]
     target: int
-    def __init__(self, sources: _Optional[_Iterable[int]] = ..., target: _Optional[int] = ...) -> None: ...
+    plan_id: int
+    trigger_id: int
+    collection_id: int
+    partition_id: int
+    channel: str
+    type: _common_pb2.CompactionType
+    state: _common_pb2.CompactionTaskState
+    failure_reason: str
+    targets: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, sources: _Optional[_Iterable[int]] = ..., target: _Optional[int] = ..., plan_id: _Optional[int] = ..., trigger_id: _Optional[int] = ..., collection_id: _Optional[int] = ..., partition_id: _Optional[int] = ..., channel: _Optional[str] = ..., type: _Optional[_Union[_common_pb2.CompactionType, str]] = ..., state: _Optional[_Union[_common_pb2.CompactionTaskState, str]] = ..., failure_reason: _Optional[str] = ..., targets: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class GetFlushStateRequest(_message.Message):
     __slots__ = ("segmentIDs", "flush_ts", "db_name", "collection_name")

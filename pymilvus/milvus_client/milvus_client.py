@@ -2793,16 +2793,28 @@ class MilvusClient(BaseMilvusClient):
             for info in infos
         ]
 
+    def list_serving_segments(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[LoadedSegmentInfo]:
+        """List the collection segments currently serving queries."""
+        return self.list_loaded_segments(collection_name, timeout=timeout, **kwargs)
+
     def list_persistent_segments(
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[List[Union[int, str]]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[List[Union[int, str]]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2811,23 +2823,53 @@ class MilvusClient(BaseMilvusClient):
         """
         infos = self._get_connection().get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
-        return [
-            SegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
+        segments = [
+            (
+                SegmentInfo(
+                    info.segmentID,
+                    info.collectionID,
+                    collection_name,
+                    info.num_rows,
+                    info.is_sorted,
+                    info.state,
+                    info.level,
+                    info.storage_version,
+                ),
+                info,
             )
             for info in infos
         ]
+        for segment, info in segments:
+            segment.partition_id = info.partitionID
+            segment.insert_channel = info.insert_channel
+            segment.compaction_from = list(info.compaction_from)
+        return [segment for segment, _ in segments]
+
+    def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[List[Union[int, str]]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states.
+
+        Dropped segment metadata is subject to server-side garbage collection, so callers that
+        need lineage history must poll and cache it during the retention window.
+        """
+        if states is None:
+            states = ["Growing", "Sealed", "Flushing", "Flushed", "Importing", "Dropped"]
+        return self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def get_compaction_plans(
         self,
@@ -2847,6 +2889,24 @@ class MilvusClient(BaseMilvusClient):
         """
         return self._get_connection().get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection.
+
+        Terminal tasks are subject to server-side garbage collection and are not an audit log.
+        """
+        validate_param("collection_name", collection_name, str)
+        return self._get_connection().get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:

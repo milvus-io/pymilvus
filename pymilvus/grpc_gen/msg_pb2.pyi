@@ -210,12 +210,14 @@ class ReplicateMsg(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., is_end: bool = ..., is_cluster: bool = ..., database: _Optional[str] = ..., collection: _Optional[str] = ...) -> None: ...
 
 class ImportFile(_message.Message):
-    __slots__ = ("id", "paths")
+    __slots__ = ("id", "paths", "pre_allocated_auto_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     PATHS_FIELD_NUMBER: _ClassVar[int]
+    PRE_ALLOCATED_AUTO_IDS_FIELD_NUMBER: _ClassVar[int]
     id: int
     paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    pre_allocated_auto_ids: _common_pb2.IDRange
+    def __init__(self, id: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ..., pre_allocated_auto_ids: _Optional[_Union[_common_pb2.IDRange, _Mapping]] = ...) -> None: ...
 
 class ImportMsg(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "partitionIDs", "options", "files", "schema", "jobID")

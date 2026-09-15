@@ -1879,6 +1879,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[List[Union[int, str]]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
@@ -1895,23 +1896,32 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         infos = await conn.get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
-        return [
-            SegmentInfo(
-                segment_id=info.segmentID,
-                collection_id=info.collectionID,
-                collection_name=collection_name,
-                num_rows=info.num_rows,
-                is_sorted=info.is_sorted,
-                state=info.state,
-                level=info.level,
-                storage_version=info.storage_version,
+        segments = [
+            (
+                SegmentInfo(
+                    segment_id=info.segmentID,
+                    collection_id=info.collectionID,
+                    collection_name=collection_name,
+                    num_rows=info.num_rows,
+                    is_sorted=info.is_sorted,
+                    state=info.state,
+                    level=info.level,
+                    storage_version=info.storage_version,
+                ),
+                info,
             )
             for info in infos
         ]
+        for segment, info in segments:
+            segment.partition_id = info.partitionID
+            segment.insert_channel = info.insert_channel
+            segment.compaction_from = list(info.compaction_from)
+        return [segment for segment, _ in segments]
 
     async def compact(
         self,
