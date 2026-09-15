@@ -210,15 +210,17 @@ class ReplicateMsg(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., is_end: bool = ..., is_cluster: bool = ..., database: _Optional[str] = ..., collection: _Optional[str] = ...) -> None: ...
 
 class ImportFile(_message.Message):
-    __slots__ = ("id", "paths")
+    __slots__ = ("id", "paths", "pre_allocated_auto_ids")
     ID_FIELD_NUMBER: _ClassVar[int]
     PATHS_FIELD_NUMBER: _ClassVar[int]
+    PRE_ALLOCATED_AUTO_IDS_FIELD_NUMBER: _ClassVar[int]
     id: int
     paths: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, id: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ...) -> None: ...
+    pre_allocated_auto_ids: _common_pb2.IDRange
+    def __init__(self, id: _Optional[int] = ..., paths: _Optional[_Iterable[str]] = ..., pre_allocated_auto_ids: _Optional[_Union[_common_pb2.IDRange, _Mapping]] = ...) -> None: ...
 
 class ImportMsg(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "collectionID", "partitionIDs", "options", "files", "schema", "jobID")
+    __slots__ = ("base", "db_name", "collection_name", "collectionID", "partitionIDs", "options", "files", "schema", "jobID", "version")
     class OptionsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -235,6 +237,7 @@ class ImportMsg(_message.Message):
     FILES_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_FIELD_NUMBER: _ClassVar[int]
     JOBID_FIELD_NUMBER: _ClassVar[int]
+    VERSION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -244,4 +247,5 @@ class ImportMsg(_message.Message):
     files: _containers.RepeatedCompositeFieldContainer[ImportFile]
     schema: _schema_pb2.CollectionSchema
     jobID: int
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., partitionIDs: _Optional[_Iterable[int]] = ..., options: _Optional[_Mapping[str, str]] = ..., files: _Optional[_Iterable[_Union[ImportFile, _Mapping]]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., jobID: _Optional[int] = ...) -> None: ...
+    version: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., partitionIDs: _Optional[_Iterable[int]] = ..., options: _Optional[_Mapping[str, str]] = ..., files: _Optional[_Iterable[_Union[ImportFile, _Mapping]]] = ..., schema: _Optional[_Union[_schema_pb2.CollectionSchema, _Mapping]] = ..., jobID: _Optional[int] = ..., version: _Optional[int] = ...) -> None: ...
