@@ -1,6 +1,6 @@
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
@@ -133,6 +133,70 @@ class DataType(IntEnum):
 
     def __str__(self) -> str:
         return str(self.value)
+
+
+class _ProtoIntEnum(IntEnum):
+    @classmethod
+    def _missing_(cls, value: object):
+        if isinstance(value, int) and not isinstance(value, bool):
+            return cls._value2member_map_[0]
+        return None
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__}: {self._name_}>"
+
+    def __str__(self) -> str:
+        return self._name_
+
+
+class CompactionType(_ProtoIntEnum):
+    UndefinedCompaction = common_pb2.CompactionTypeUndefined
+    MergeCompaction = common_pb2.CompactionTypeMerge
+    MixCompaction = common_pb2.CompactionTypeMix
+    SingleCompaction = common_pb2.CompactionTypeSingle
+    MinorCompaction = common_pb2.CompactionTypeMinor
+    MajorCompaction = common_pb2.CompactionTypeMajor
+    Level0DeleteCompaction = common_pb2.CompactionTypeLevel0Delete
+    ClusteringCompaction = common_pb2.CompactionTypeClustering
+    SortCompaction = common_pb2.CompactionTypeSort
+    PartitionKeySortCompaction = common_pb2.CompactionTypePartitionKeySort
+    ClusteringPartitionKeySortCompaction = common_pb2.CompactionTypeClusteringPartitionKeySort
+    BumpSchemaVersionCompaction = common_pb2.CompactionTypeBumpSchemaVersion
+
+
+class CompactionTaskState(_ProtoIntEnum):
+    Unknown = common_pb2.CompactionTaskStateUnknown
+    Executing = common_pb2.CompactionTaskStateExecuting
+    Pipelining = common_pb2.CompactionTaskStatePipelining
+    Completed = common_pb2.CompactionTaskStateCompleted
+    Failed = common_pb2.CompactionTaskStateFailed
+    Timeout = common_pb2.CompactionTaskStateTimeout
+    Analyzing = common_pb2.CompactionTaskStateAnalyzing
+    Indexing = common_pb2.CompactionTaskStateIndexing
+    Cleaned = common_pb2.CompactionTaskStateCleaned
+    MetaSaved = common_pb2.CompactionTaskStateMetaSaved
+    Statistic = common_pb2.CompactionTaskStateStatistic
+
+
+class SegmentState(_ProtoIntEnum):
+    SegmentStateNone = common_pb2.SegmentStateNone
+    NotExist = common_pb2.NotExist
+    Growing = common_pb2.Growing
+    Sealed = common_pb2.Sealed
+    Flushed = common_pb2.Flushed
+    Flushing = common_pb2.Flushing
+    Dropped = common_pb2.Dropped
+    Importing = common_pb2.Importing
+
+
+_DEFAULT_RETAINED_SEGMENT_STATES = (
+    SegmentState.Growing,
+    SegmentState.Sealed,
+    SegmentState.Flushing,
+    SegmentState.Flushed,
+    SegmentState.Importing,
+    SegmentState.Dropped,
+)
 
 
 class FunctionType(IntEnum):
@@ -308,21 +372,50 @@ CompactionState
 
 
 class Plan:
-    def __init__(self, sources: list, target: int) -> None:
+    def __init__(
+        self,
+        sources: list,
+        target: int,
+        *,
+        plan_id: int = 0,
+        trigger_id: int = 0,
+        collection_id: int = 0,
+        partition_id: int = 0,
+        channel: str = "",
+        compaction_type: CompactionType = CompactionType.UndefinedCompaction,
+        state: CompactionTaskState = CompactionTaskState.Unknown,
+        failure_reason: str = "",
+        targets: Optional[List[int]] = None,
+    ) -> None:
         self.sources = sources
         self.target = target
+        self.plan_id = plan_id
+        self.task_id = plan_id
+        self.trigger_id = trigger_id
+        self.collection_id = collection_id
+        self.partition_id = partition_id
+        self.channel = channel
+        self.compaction_type = CompactionType(compaction_type)
+        self.state = CompactionTaskState(state)
+        self.failure_reason = failure_reason
+        self.targets = list(targets) if targets is not None else ([target] if target > 0 else [])
 
     def __repr__(self) -> str:
         return f"""
 Plan:
+ - plan id: {self.plan_id}
+ - trigger id: {self.trigger_id}
+ - type: {self.compaction_type}
+ - state: {self.state}
  - sources: {self.sources}
- - target: {self.target}
+ - targets: {self.targets}
 """
 
 
 class CompactionPlans:
-    def __init__(self, compaction_id: int, state: int) -> None:
+    def __init__(self, compaction_id: int, state: int, collection_name: str = "") -> None:
         self.compaction_id = compaction_id
+        self.collection_name = collection_name
         self.state = State.new(state)
         self.plans = []
 
@@ -330,9 +423,35 @@ class CompactionPlans:
         return f"""
 Compaction Plans:
  - compaction id: {self.compaction_id}
+ - collection name: {self.collection_name}
  - state: {self.state.name}
  - plans: {self.plans}
- """
+  """
+
+
+def parse_compaction_plans(
+    response: milvus_types.GetCompactionPlansResponse,
+    compaction_id: int = 0,
+    collection_name: str = "",
+) -> CompactionPlans:
+    plans = CompactionPlans(compaction_id, response.state, collection_name=collection_name)
+    plans.plans = [
+        Plan(
+            list(merge.sources),
+            merge.target,
+            plan_id=merge.plan_id,
+            trigger_id=merge.trigger_id,
+            collection_id=merge.collection_id,
+            partition_id=merge.partition_id,
+            channel=merge.channel,
+            compaction_type=CompactionType(merge.type),
+            state=CompactionTaskState(merge.state),
+            failure_reason=merge.failure_reason,
+            targets=list(merge.targets) or None,
+        )
+        for merge in response.mergeInfos
+    ]
+    return plans
 
 
 def cmp_consistency_level(l1: Union[str, int], l2: Union[str, int]):
@@ -1387,13 +1506,19 @@ class SegmentInfo:
     collection_name: str
     num_rows: int
     is_sorted: bool
-    state: common_pb2.SegmentState
+    state: SegmentState
     level: common_pb2.SegmentLevel
     storage_version: int
+    partition_id: int = 0
+    insert_channel: str = ""
+    compaction_from: List[int] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.state = SegmentState(self.state)
 
     @property
     def state_name(self) -> str:
-        return common_pb2.SegmentState.Name(self.state)
+        return self.state.name
 
     @property
     def level_name(self) -> str:
@@ -1408,13 +1533,19 @@ class SegmentInfo:
             f"is_sorted={self.is_sorted}, "
             f"state='{self.state_name}', "
             f"level='{self.level_name}', "
-            f"storage_version={self.storage_version})"
+            f"storage_version={self.storage_version}, "
+            f"partition_id={self.partition_id}, "
+            f"insert_channel='{self.insert_channel}', "
+            f"compaction_from={self.compaction_from})"
         )
 
 
 @dataclass
 class LoadedSegmentInfo(SegmentInfo):
-    partition_id: int
+    partition_id: int = field()
+    # Keep inherited defaults out of the legacy constructor's required positional fields.
+    insert_channel: str = field(default="", init=False)
+    compaction_from: List[int] = field(default_factory=list, init=False)
     index_name: str
     index_id: int
     node_ids: List[int]

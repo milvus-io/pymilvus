@@ -11,7 +11,7 @@
 
 import numpy as np
 import pytest
-from pymilvus import DataType
+from pymilvus import DataType, SegmentState
 from pymilvus.client.constants import DEFAULT_RESOURCE_GROUP
 from pymilvus.client.types import (
     ConsistencyLevel,
@@ -92,6 +92,66 @@ class TestReplica:
             1,
         }
         assert s.shard_leader == 1
+
+
+class TestSegmentInfoConstruction:
+    @pytest.fixture
+    def segment_kwargs(self):
+        return {
+            "segment_id": 123,
+            "collection_id": 456,
+            "collection_name": "test_col",
+            "num_rows": 1000,
+            "is_sorted": True,
+            "state": 4,
+            "level": 2,
+            "storage_version": 3,
+        }
+
+    @pytest.mark.parametrize("use_keywords", [False, True])
+    @pytest.mark.parametrize(
+        "segment_type,extra_kwargs",
+        [
+            (SegmentInfo, {}),
+            (
+                LoadedSegmentInfo,
+                {
+                    "partition_id": 100,
+                    "index_name": "idx_vec",
+                    "index_id": 200,
+                    "node_ids": [1, 2],
+                    "mem_size": 4096,
+                },
+            ),
+        ],
+    )
+    def test_legacy_constructor(self, segment_kwargs, segment_type, extra_kwargs, use_keywords):
+        kwargs = {**segment_kwargs, **extra_kwargs}
+        info = segment_type(**kwargs) if use_keywords else segment_type(*kwargs.values())
+
+        for name, expected in kwargs.items():
+            assert getattr(info, name) == expected
+        assert info.partition_id == extra_kwargs.get("partition_id", 0)
+        assert isinstance(info.state, SegmentState)
+        assert info.insert_channel == ""
+        assert info.compaction_from == []
+
+        other = segment_type(**kwargs)
+        info.compaction_from.append(10)
+        assert other.compaction_from == []
+
+    @pytest.mark.parametrize("use_keywords", [False, True])
+    def test_constructor_accepts_lifecycle_metadata(self, segment_kwargs, use_keywords):
+        kwargs = {
+            **segment_kwargs,
+            "partition_id": 100,
+            "insert_channel": "test-channel",
+            "compaction_from": [10, 11],
+        }
+        info = SegmentInfo(**kwargs) if use_keywords else SegmentInfo(*kwargs.values())
+
+        for name, expected in kwargs.items():
+            assert getattr(info, name) == expected
 
 
 class TestSegmentInfoRepr:
@@ -177,6 +237,20 @@ class TestSegmentInfoRepr:
             storage_version=1,
         )
         assert info.state_name == expected
+        assert isinstance(info.state, SegmentState)
+
+    def test_segment_info_unknown_state_falls_back_to_none(self):
+        info = SegmentInfo(
+            segment_id=1,
+            collection_id=2,
+            collection_name="c",
+            num_rows=0,
+            is_sorted=False,
+            state=99,
+            level=0,
+            storage_version=1,
+        )
+        assert info.state is SegmentState.SegmentStateNone
 
     @pytest.mark.parametrize(
         "level_val,expected",
