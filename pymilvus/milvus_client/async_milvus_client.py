@@ -861,15 +861,47 @@ class AsyncMilvusClient(BaseMilvusClient):
     async def refresh_load(
         self,
         collection_name: str,
-        partition_names: Optional[List[str]] = None,
+        partition_names: Optional[Union[str, List[str]]] = None,
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Refresh the loaded data of a collection, or of specific partitions.
+
+        Mirrors MilvusClient.refresh_load: the load request is re-issued with
+        ``_refresh=True`` so that data inserted after the initial load becomes
+        searchable.
+
+        Args:
+            collection_name (str): The name of the collection.
+            partition_names (str | List[str], optional): A partition name, or a list of
+                partition names, to refresh. If omitted, the whole collection is
+                refreshed. Defaults to None.
+            timeout (float, optional): An optional duration of time in seconds to allow
+                for the RPC. Defaults to None.
+
+        Returns:
+            None: nothing is returned; a MilvusException is raised on failure.
+        """
+        if isinstance(partition_names, str):
+            partition_names = [partition_names]
+
+        kwargs.pop("_refresh", None)
         conn = await self._get_connection()
-        return await conn.refresh_load(
+        if partition_names:
+            await conn.load_partitions(
+                collection_name,
+                partition_names,
+                timeout=timeout,
+                _refresh=True,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
+            return
+
+        await conn.load_collection(
             collection_name,
-            partition_names,
             timeout=timeout,
+            _refresh=True,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
