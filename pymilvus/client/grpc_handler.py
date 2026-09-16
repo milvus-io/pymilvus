@@ -520,7 +520,11 @@ class GrpcHandler:
         )
         check_status(status)
         # Invalidate global schema cache
-        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+        db_name = context.get_db_name() if context else ""
+        self._invalidate_schema(collection_name, db_name=db_name)
+        # The collection is gone, so its guarantee timestamp is stale. Keeping it
+        # would hand a recreated collection the previous incarnation's timestamp.
+        self._invalidate_collection_ts(collection_name, db_name=db_name)
 
     @retry_on_rpc_failure()
     def truncate_collection(
@@ -1051,6 +1055,20 @@ class GrpcHandler:
     def _invalidate_db_schemas(self, db_name: str) -> None:
         """Invalidate all cached schemas for a database."""
         GlobalCache.schema.invalidate_db(self.server_address, db_name)
+
+    def _invalidate_collection_ts(self, collection_name: str, db_name: str = "") -> None:
+        """Forget a dropped collection's guarantee timestamp.
+
+        Only safe once the collection itself is gone: while it still exists the
+        timestamp is what keeps a Session read from silently degrading to
+        eventual consistency.
+        """
+        GlobalCache.collection_ts.invalidate(self.server_address, db_name, collection_name)
+
+    def _invalidate_db_caches(self, db_name: str) -> None:
+        """Drop every cached schema and timestamp belonging to a database."""
+        self._invalidate_db_schemas(db_name)
+        GlobalCache.collection_ts.invalidate_db(self.server_address, db_name)
 
     def _prepare_batch_insert_request(
         self,
@@ -2080,6 +2098,8 @@ class GrpcHandler:
         request = Prepare.drop_database_req(db_name)
         status = self._stub.DropDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
+        # Every collection in the database went with it.
+        self._invalidate_db_caches(db_name)
 
     @retry_on_rpc_failure()
     def list_database(

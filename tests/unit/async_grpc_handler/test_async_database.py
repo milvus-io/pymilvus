@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.cache import GlobalCache
 
 
 class TestAsyncGrpcHandlerDatabase:
@@ -65,6 +66,40 @@ class TestAsyncGrpcHandlerDatabase:
             await handler.drop_database("test_db", timeout=30)
 
             mock_stub.DropDatabase.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_drop_database_evicts_that_database_from_both_caches(self) -> None:
+        """Dropping a database must not leave its schemas or timestamps behind."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_status.error_code = 0
+        mock_status.reason = ""
+        mock_stub.DropDatabase = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.schema.set(handler.server_address, "test_db", "coll", {"fields": []})
+            GlobalCache.collection_ts.set(handler.server_address, "test_db", "coll", 100)
+            GlobalCache.collection_ts.set(handler.server_address, "other", "coll", 200)
+
+            with patch("pymilvus.client.async_grpc_handler.Prepare"), patch(
+                "pymilvus.client.async_grpc_handler.check_status"
+            ):
+                await handler.drop_database("test_db", timeout=30)
+
+            assert GlobalCache.schema.get(handler.server_address, "test_db", "coll") is None
+            assert GlobalCache.collection_ts.get(handler.server_address, "test_db", "coll") == 0
+            assert GlobalCache.collection_ts.get(handler.server_address, "other", "coll") == 200
+        finally:
+            GlobalCache._reset_for_testing()
 
     @pytest.mark.asyncio
     async def test_list_database(self) -> None:
