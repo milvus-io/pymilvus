@@ -2228,6 +2228,13 @@ class Prepare:
             priority = kwargs.get("priority")
             req.load_params["load_priority"] = priority
 
+        if "warmup" in kwargs:
+            if kwargs["warmup"] != "sync":
+                raise ParamError(message="load parameter warmup only supports sync")
+            if req.refresh:
+                raise ParamError(message="load parameter warmup cannot be used with refresh")
+            req.load_params["warmup"] = "sync"
+
         return req
 
     @classmethod
