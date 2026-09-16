@@ -430,8 +430,9 @@ class RoaringBitmapBuilder:
             builder.add_int64_batch(chunk)
         blob = builder.build()
 
-    Build the bitmap from the SAME value domain as the target field: ``roaring_match`` matches
-    INT8/INT16/INT32/INT64 fields, and a narrow member is sign-extended, so ``INT8(-1)`` and
+    Build the bitmap from the SAME value domain as the target field:
+    ``membership_match(..., type=roaring)`` matches INT8/INT16/INT32/INT64 fields, and a narrow
+    member is sign-extended, so ``INT8(-1)`` and
     ``-1`` are the same member.
     """
 
@@ -519,7 +520,7 @@ class RoaringBitmapBuilder:
 
 
 def build_roaring_bitmap(members: Sequence[int]) -> bytes:
-    """Build an MRB1-wrapped portable Roaring64 bitmap for roaring_match.
+    """Build an MRB1-wrapped portable Roaring64 bitmap for ``membership_match(..., type=roaring)``.
 
     Members are signed integers targeting an INT8/INT16/INT32/INT64 field, in any order and with
     any number of duplicates. The returned bytes are passed through ``filter_params``, and are
