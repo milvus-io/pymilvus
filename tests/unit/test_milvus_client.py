@@ -14,6 +14,7 @@ from pymilvus import (
     FunctionType,
     PyMilvusDeprecationWarning,
     SearchAggregation,
+    SegmentState,
     StructFieldSchema,
     TopHits,
 )
@@ -1911,13 +1912,83 @@ class TestMilvusClientMiscOps:
 
     def test_list_loaded_segments(self, mc):
         client, handler = mc
-        handler.get_query_segment_info.return_value = []
-        assert client.list_loaded_segments("col") == []
+        handler.get_query_segment_info.return_value = [
+            MagicMock(
+                segmentID=1,
+                collectionID=2,
+                partitionID=4,
+                num_rows=3,
+                is_sorted=True,
+                state=common_pb2.SegmentState.Flushed,
+                level=common_pb2.SegmentLevel.L1,
+                storage_version=3,
+                index_name="idx",
+                indexID=5,
+                nodeIds=[6],
+                mem_size=7,
+            )
+        ]
+        result = client.list_loaded_segments("col")
+        assert result[0].state is SegmentState.Flushed
 
     def test_list_persistent_segments(self, mc):
         client, handler = mc
+        segment = MagicMock(
+            segmentID=1,
+            collectionID=2,
+            partitionID=4,
+            num_rows=3,
+            is_sorted=True,
+            state=common_pb2.SegmentState.Flushed,
+            level=common_pb2.SegmentLevel.L1,
+            storage_version=3,
+            insert_channel="ch",
+            compaction_from=[10, 11],
+        )
+        handler.get_persistent_segment_infos.return_value = [segment]
+        result = client.list_persistent_segments(
+            "col", states=[SegmentState.Flushed, SegmentState.Dropped]
+        )
+        assert len(result) == 1
+        assert result[0].segment_id == 1
+        assert result[0].collection_id == 2
+        assert result[0].collection_name == "col"
+        assert result[0].num_rows == 3
+        assert result[0].is_sorted is True
+        assert result[0].state is SegmentState.Flushed
+        assert result[0].level == common_pb2.SegmentLevel.L1
+        assert result[0].storage_version == 3
+        assert result[0].partition_id == 4
+        assert result[0].insert_channel == "ch"
+        assert result[0].compaction_from == [10, 11]
+        result[0].compaction_from.append(12)
+        assert segment.compaction_from == [10, 11]
+        handler.get_persistent_segment_infos.assert_called_once_with(
+            "col",
+            states=[SegmentState.Flushed, SegmentState.Dropped],
+            timeout=None,
+            context=ANY,
+        )
+
+    def test_list_segments_defaults_to_all_lifecycle_states(self, mc):
+        client, handler = mc
         handler.get_persistent_segment_infos.return_value = []
-        assert client.list_persistent_segments("col") == []
+        assert client.list_segments("col") == []
+        assert handler.get_persistent_segment_infos.call_args.kwargs["states"] == (
+            SegmentState.Growing,
+            SegmentState.Sealed,
+            SegmentState.Flushing,
+            SegmentState.Flushed,
+            SegmentState.Importing,
+            SegmentState.Dropped,
+        )
+
+    def test_list_compaction_tasks(self, mc):
+        client, handler = mc
+        expected = MagicMock()
+        handler.get_compaction_tasks.return_value = expected
+        assert client.list_compaction_tasks("col") is expected
+        handler.get_compaction_tasks.assert_called_once_with("col", timeout=None, context=ANY)
 
     def test_using_database(self, mc):
         client, handler = mc
