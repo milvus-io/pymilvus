@@ -1,7 +1,7 @@
 import copy
 import logging
 import time
-from typing import Callable, Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -12,6 +12,7 @@ from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIterat
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
 from pymilvus.client.types import (
+    _DEFAULT_RETAINED_SEGMENT_STATES,
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
@@ -23,6 +24,7 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     SegmentInfo,
+    SegmentState,
     SnapshotInfo,
 )
 from pymilvus.client.utils import (
@@ -2797,12 +2799,15 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[Sequence[SegmentState]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2811,23 +2816,48 @@ class MilvusClient(BaseMilvusClient):
         """
         infos = self._get_connection().get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
         return [
             SegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
+                segment_id=info.segmentID,
+                collection_id=info.collectionID,
+                collection_name=collection_name,
+                num_rows=info.num_rows,
+                is_sorted=info.is_sorted,
+                state=info.state,
+                level=info.level,
+                storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                insert_channel=info.insert_channel,
+                compaction_from=list(info.compaction_from),
             )
             for info in infos
         ]
+
+    def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states.
+
+        Dropped segment metadata is subject to server-side garbage collection, so callers that
+        need lineage history must poll and cache it during the retention window.
+        """
+        if states is None:
+            states = _DEFAULT_RETAINED_SEGMENT_STATES
+        return self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def get_compaction_plans(
         self,
@@ -2847,6 +2877,24 @@ class MilvusClient(BaseMilvusClient):
         """
         return self._get_connection().get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection.
+
+        Terminal tasks are subject to server-side garbage collection and are not an audit log.
+        """
+        validate_param("collection_name", collection_name, str)
+        return self._get_connection().get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:

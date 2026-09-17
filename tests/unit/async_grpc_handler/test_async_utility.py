@@ -6,7 +6,11 @@ Coverage: Server version, compaction, analyzer, replica operations.
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pymilvus import CompactionTaskState, CompactionType, SegmentState
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
+from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 
 class TestAsyncGrpcHandlerUtility:
@@ -250,6 +254,43 @@ class TestAsyncGrpcHandlerCompaction:
 
             assert result is not None
 
+    @pytest.mark.asyncio
+    async def test_get_compaction_tasks(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        response = milvus_types.GetCompactionPlansResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            state=common_pb2.Completed,
+            mergeInfos=[
+                milvus_types.CompactionMergeInfo(
+                    plan_id=10,
+                    sources=[1, 2],
+                    target=3,
+                    targets=[3, 4],
+                    type=common_pb2.CompactionTypeMix,
+                    state=common_pb2.CompactionTaskStateCompleted,
+                )
+            ],
+        )
+        mock_stub = AsyncMock()
+        mock_stub.GetCompactionStateWithPlans = AsyncMock(return_value=response)
+        handler._async_stub = mock_stub
+
+        result = await handler.get_compaction_tasks(
+            "test_collection", context=CallContext(db_name="test_db")
+        )
+
+        request = mock_stub.GetCompactionStateWithPlans.call_args.args[0]
+        metadata = mock_stub.GetCompactionStateWithPlans.call_args.kwargs["metadata"]
+        assert request.collection_name == "test_collection"
+        assert request.db_name == ""
+        assert ("dbname", "test_db") in metadata
+        assert result.plans[0].compaction_type is CompactionType.MixCompaction
+        assert result.plans[0].state is CompactionTaskState.Completed
+
 
 class TestAsyncGrpcHandlerReplica:
     """Tests for replica operations."""
@@ -313,5 +354,14 @@ class TestAsyncGrpcHandlerSegment:
             "pymilvus.client.async_grpc_handler.check_pass_param"
         ), patch("pymilvus.client.async_grpc_handler.check_status"):
             mock_prepare.get_persistent_segment_info_request.return_value = MagicMock()
-            result = await handler.get_persistent_segment_infos("test_coll")
+            result = await handler.get_persistent_segment_infos(
+                "test_coll",
+                states=[SegmentState.Growing, SegmentState.Dropped],
+                context=CallContext(db_name="test_db"),
+            )
             assert result == []
+            mock_prepare.get_persistent_segment_info_request.assert_called_once_with(
+                "test_coll", states=[SegmentState.Growing, SegmentState.Dropped]
+            )
+            metadata = mock_stub.GetPersistentSegmentInfo.call_args.kwargs["metadata"]
+            assert ("dbname", "test_db") in metadata

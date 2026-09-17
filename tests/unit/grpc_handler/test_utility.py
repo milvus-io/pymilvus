@@ -4,9 +4,16 @@ from itertools import count
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pymilvus import AnnSearchRequest, RRFRanker
+from pymilvus import (
+    AnnSearchRequest,
+    CompactionTaskState,
+    CompactionType,
+    RRFRanker,
+    SegmentState,
+)
 from pymilvus.client.cache import GlobalCache
-from pymilvus.exceptions import AmbiguousIndexName, MilvusException
+from pymilvus.client.call_context import CallContext
+from pymilvus.exceptions import AmbiguousIndexName, MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
@@ -58,6 +65,118 @@ class TestGrpcHandlerUtilityOps:
         handler._stub.GetCompactionStateWithPlans.return_value = mock_resp
         result = handler.get_compaction_plans(123)
         assert result is not None
+
+    def test_get_compaction_tasks(self, handler):
+        handler._stub.GetCompactionStateWithPlans.return_value = (
+            milvus_types.GetCompactionPlansResponse(
+                status=common_pb2.Status(error_code=common_pb2.Success),
+                state=common_pb2.Completed,
+                mergeInfos=[
+                    milvus_types.CompactionMergeInfo(
+                        sources=[1, 2],
+                        target=3,
+                        plan_id=10,
+                        trigger_id=20,
+                        collection_id=30,
+                        partition_id=40,
+                        channel="ch",
+                        type=common_pb2.CompactionTypeMix,
+                        state=common_pb2.CompactionTaskStateCleaned,
+                        failure_reason="DataNode reported compaction failure",
+                        targets=[3, 4],
+                    ),
+                    milvus_types.CompactionMergeInfo(sources=[5, 6], target=-1),
+                    milvus_types.CompactionMergeInfo(sources=[7, 8], target=9),
+                ],
+            )
+        )
+        result = handler.get_compaction_tasks("coll", context=CallContext(db_name="test_db"))
+        request = handler._stub.GetCompactionStateWithPlans.call_args.args[0]
+        metadata = handler._stub.GetCompactionStateWithPlans.call_args.kwargs["metadata"]
+        assert request.db_name == ""
+        assert ("dbname", "test_db") in metadata
+        assert request.collection_name == "coll"
+        assert result.collection_name == "coll"
+        assert result.plans[0].task_id == 10
+        assert result.plans[0].targets == [3, 4]
+        assert result.plans[0].state is CompactionTaskState.Cleaned
+        assert result.plans[0].compaction_type is CompactionType.MixCompaction
+        assert result.plans[0].failure_reason == "DataNode reported compaction failure"
+        assert result.plans[1].targets == []
+        assert result.plans[1].state is CompactionTaskState.Unknown
+        assert result.plans[1].compaction_type is CompactionType.UndefinedCompaction
+        assert result.plans[2].targets == [9]
+
+    @pytest.mark.parametrize("by_collection", [False, True])
+    @pytest.mark.parametrize(
+        "task_type,expected_type",
+        [
+            (0, CompactionType.UndefinedCompaction),
+            (2, CompactionType.MergeCompaction),
+            (3, CompactionType.MixCompaction),
+            (4, CompactionType.SingleCompaction),
+            (5, CompactionType.MinorCompaction),
+            (6, CompactionType.MajorCompaction),
+            (7, CompactionType.Level0DeleteCompaction),
+            (8, CompactionType.ClusteringCompaction),
+            (9, CompactionType.SortCompaction),
+            (10, CompactionType.PartitionKeySortCompaction),
+            (11, CompactionType.ClusteringPartitionKeySortCompaction),
+            (12, CompactionType.BumpSchemaVersionCompaction),
+            (99, CompactionType.UndefinedCompaction),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "task_state,expected_state",
+        [
+            (0, CompactionTaskState.Unknown),
+            (1, CompactionTaskState.Executing),
+            (2, CompactionTaskState.Pipelining),
+            (3, CompactionTaskState.Completed),
+            (4, CompactionTaskState.Failed),
+            (5, CompactionTaskState.Timeout),
+            (6, CompactionTaskState.Analyzing),
+            (7, CompactionTaskState.Indexing),
+            (8, CompactionTaskState.Cleaned),
+            (9, CompactionTaskState.MetaSaved),
+            (10, CompactionTaskState.Statistic),
+            (99, CompactionTaskState.Unknown),
+        ],
+    )
+    def test_compaction_enum_wire_roundtrip(
+        self, handler, by_collection, task_type, expected_type, task_state, expected_state
+    ):
+        response = milvus_types.GetCompactionPlansResponse(
+            status=common_pb2.Status(error_code=common_pb2.Success),
+            state=common_pb2.Completed,
+            mergeInfos=[
+                milvus_types.CompactionMergeInfo(
+                    plan_id=10,
+                    sources=[1, 2],
+                    target=3,
+                    targets=[3, 4],
+                    type=task_type,
+                    state=task_state,
+                    failure_reason="retained failure reason",
+                )
+            ],
+        )
+        # Exercise the real enum wire types, not mocked string attributes.
+        handler._stub.GetCompactionStateWithPlans.return_value = (
+            milvus_types.GetCompactionPlansResponse.FromString(response.SerializeToString())
+        )
+        result = (
+            handler.get_compaction_tasks("coll")
+            if by_collection
+            else handler.get_compaction_plans(123)
+        )
+        assert result.state.name == "Completed"
+        assert result.plans[0].compaction_type is expected_type
+        assert result.plans[0].state is expected_state
+        assert result.plans[0].failure_reason == "retained failure reason"
+        assert result.plans[0].sources == [1, 2]
+        assert result.plans[0].targets == [3, 4]
+        assert result.plans[0].target == 3
 
     def test_get_server_version(self, handler):
         handler._stub.GetVersion.return_value = make_response(version="v2.4.0")
@@ -182,14 +301,39 @@ class TestGrpcHandlerSegmentOps:
     def test_get_query_segment_info(self, handler):
         mock_seg = MagicMock(segmentID=1, collectionID=100)
         handler._stub.GetQuerySegmentInfo.return_value = make_response(infos=[mock_seg])
-        handler.get_query_segment_info("coll")
+        handler.get_query_segment_info("coll", context=CallContext(db_name="test_db"))
         handler._stub.GetQuerySegmentInfo.assert_called_once()
+        request = handler._stub.GetQuerySegmentInfo.call_args.args[0]
+        metadata = handler._stub.GetQuerySegmentInfo.call_args.kwargs["metadata"]
+        assert request.dbName == ""
+        assert ("dbname", "test_db") in metadata
 
     def test_get_persistent_segment_infos(self, handler):
         mock_seg = MagicMock(segmentID=1, num_rows=1000)
         handler._stub.GetPersistentSegmentInfo.return_value = make_response(infos=[mock_seg])
-        handler.get_persistent_segment_infos("coll")
+        handler.get_persistent_segment_infos(
+            "coll",
+            states=[SegmentState.Growing, SegmentState.Dropped],
+            context=CallContext(db_name="test_db"),
+        )
         handler._stub.GetPersistentSegmentInfo.assert_called_once()
+        request = handler._stub.GetPersistentSegmentInfo.call_args.args[0]
+        metadata = handler._stub.GetPersistentSegmentInfo.call_args.kwargs["metadata"]
+        assert request.dbName == ""
+        assert ("dbname", "test_db") in metadata
+        assert list(request.states) == [
+            common_pb2.SegmentState.Growing,
+            common_pb2.SegmentState.Dropped,
+        ]
+
+    @pytest.mark.parametrize(
+        "states", ["Flushed", iter([SegmentState.Dropped]), [], ["Dropped"], [6], [True]]
+    )
+    def test_get_persistent_segment_infos_rejects_invalid_states_before_rpc(self, handler, states):
+        with pytest.raises(ParamError):
+            handler.get_persistent_segment_infos("coll", states=states)
+
+        handler._stub.GetPersistentSegmentInfo.assert_not_called()
 
 
 class TestGrpcHandlerImportExport:
