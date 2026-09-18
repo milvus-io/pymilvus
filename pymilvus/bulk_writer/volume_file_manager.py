@@ -2,22 +2,26 @@ from __future__ import annotations
 
 import logging
 import math
-import posixpath
+import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
+import requests
 import urllib3
 from minio import Minio
-from minio.error import S3Error
+from minio.error import S3Error, ServerError
 
+from pymilvus.bulk_writer._upload_executor import run_bounded
+from pymilvus.bulk_writer._upload_manifest import _UploadEntry, _UploadManifest
+from pymilvus.bulk_writer._volume_listing import list_objects_page
 from pymilvus.bulk_writer.constants import ConnectType
 from pymilvus.bulk_writer.endpoint_resolver import EndpointResolver
-from pymilvus.bulk_writer.file_utils import FileUtils
+from pymilvus.bulk_writer.upload_policy import UploadPolicy
 from pymilvus.bulk_writer.volume_restful import apply_volume
 
 logging.basicConfig(level=logging.INFO)
@@ -68,10 +72,6 @@ def _format_part_size(part_size: int) -> str:
     return f"{part_size} bytes ({_format_bytes(part_size)})"
 
 
-def _format_timestamp(timestamp: float) -> str:
-    return datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
-
-
 @dataclass(frozen=True)
 class UploadProgress:
     uploaded_bytes: int
@@ -105,7 +105,6 @@ def _calculate_upload_part_size(file_size: int, requested_part_size: int = 0) ->
 
 class _UploadProgressTracker:
     _LOG_INTERVAL_SECONDS = 5.0
-    _LOG_PERCENT_STEP = 1.0
 
     def __init__(
         self,
@@ -117,10 +116,9 @@ class _UploadProgressTracker:
         self._total_files = total_files
         self._progress_callback = progress_callback
         self._file_progress: dict[str, int] = {}
-        self._completed_files: set[str] = set()
+        self._completed_files = 0
         self._uploaded_bytes = 0
         self._last_log_time = 0.0
-        self._last_logged_percent = -1.0
         self._start_time = time.time()
         self._lock = threading.Lock()
 
@@ -147,18 +145,15 @@ class _UploadProgressTracker:
 
     def finish_file(self, file_path: str, file_size: int) -> tuple[int, int, float]:
         with self._lock:
-            previous = self._file_progress.get(file_path, 0)
-            current = max(previous, file_size)
-            self._file_progress[file_path] = current
-            self._uploaded_bytes += current - previous
-            if file_path not in self._completed_files:
-                self._completed_files.add(file_path)
+            previous = self._file_progress.pop(file_path, 0)
+            self._uploaded_bytes += file_size - previous
+            self._completed_files += 1
             percent = self._percent()
-            progress = self._snapshot(file_path, current, file_size, percent)
+            progress = self._progress_if_needed(file_path, file_size, file_size)
             uploaded_bytes = self._uploaded_bytes
-            completed_files = len(self._completed_files)
-            self._mark_progress_emitted(percent)
-        self._emit_progress(progress)
+            completed_files = self._completed_files
+        if progress is not None:
+            self._emit_progress(progress)
         return uploaded_bytes, completed_files, percent
 
     def finish_upload(self) -> None:
@@ -177,7 +172,7 @@ class _UploadProgressTracker:
         return UploadProgress(
             uploaded_bytes=self._uploaded_bytes,
             total_bytes=self._total_bytes,
-            completed_files=len(self._completed_files),
+            completed_files=self._completed_files,
             total_files=self._total_files,
             current_file=current_file,
             current_file_uploaded_bytes=current_file_uploaded_bytes,
@@ -185,9 +180,8 @@ class _UploadProgressTracker:
             percent=self._percent() if percent is None else percent,
         )
 
-    def _mark_progress_emitted(self, percent: float) -> None:
+    def _mark_progress_emitted(self, _percent: float) -> None:
         self._last_log_time = time.time()
-        self._last_logged_percent = percent
 
     def speed_bps(self) -> int:
         with self._lock:
@@ -233,7 +227,11 @@ class _UploadProgressTracker:
 
     def _percent(self) -> float:
         if self._total_bytes == 0:
-            return 100.0
+            return (
+                100.0
+                if self._total_files == 0
+                else self._completed_files * 100.0 / self._total_files
+            )
         return min(100.0, self._uploaded_bytes / self._total_bytes * 100)
 
     def _progress_if_needed(
@@ -241,12 +239,8 @@ class _UploadProgressTracker:
     ) -> UploadProgress | None:
         now = time.time()
         percent = self._percent()
-        if (
-            percent - self._last_logged_percent >= self._LOG_PERCENT_STEP
-            or now - self._last_log_time >= self._LOG_INTERVAL_SECONDS
-        ):
+        if now - self._last_log_time >= self._LOG_INTERVAL_SECONDS:
             self._last_log_time = now
-            self._last_logged_percent = percent
             return self._snapshot(
                 current_file, current_file_uploaded_bytes, current_file_total_bytes, percent
             )
@@ -260,8 +254,10 @@ class _FileUploadProgress:
         file_path: str,
         file_size: int,
         idle_timeout_seconds: float = _UPLOAD_PROGRESS_IDLE_TIMEOUT_SECONDS,
+        stop: threading.Event | None = None,
     ):
         self._tracker = tracker
+        self._stop = stop
         self._file_path = file_path
         self._file_size = file_size
         self._idle_timeout_seconds = idle_timeout_seconds
@@ -280,6 +276,9 @@ class _FileUploadProgress:
         self._tracker.reset_file(self._file_path)
 
     def update(self, size: int) -> None:
+        if self._stop is not None and self._stop.is_set():
+            msg = "Volume upload stopped"
+            raise RuntimeError(msg)
         self._raise_if_idle_too_long()
         self._tracker.update_file(self._file_path, self._file_size, size)
         if size <= 0:
@@ -304,29 +303,66 @@ class _FileUploadProgress:
         raise _UploadProgressIdleTimeoutError(msg)
 
 
+@dataclass
+class _VolumeSession:
+    info: dict
+    client: Any
+    users: int = 0
+    retired: bool = False
+
+    def close(self) -> None:
+        http = getattr(self.client, "_http", None)
+        if http is not None:
+            http.clear()
+
+
 class _VolumeUploadContext:
     def __init__(self, volume_info: dict, client: Any, refresh_margin: timedelta):
-        self.volume_info = volume_info
-        self.client = client
+        self._session = _VolumeSession(volume_info, client)
         self.refresh_margin = refresh_margin
         self._state_lock = threading.RLock()
         self._refresh_lock = threading.Lock()
 
     def get_state(self) -> tuple[dict, Any]:
         with self._state_lock:
-            return self.volume_info, self.client
+            return self._session.info, self._session.client
+
+    @contextmanager
+    def borrow(self):
+        with self._state_lock:
+            session = self._session
+            session.users += 1
+        try:
+            yield session.info, session.client
+        finally:
+            with self._state_lock:
+                session.users -= 1
+                close = session.retired and session.users == 0
+            if close:
+                session.close()
 
     def set_state(self, volume_info: dict, client: Any) -> None:
         with self._state_lock:
-            self.volume_info = volume_info
-            self.client = client
+            previous = self._session
+            previous.retired = True
+            close = previous.users == 0
+            self._session = _VolumeSession(volume_info, client)
+        if close:
+            previous.close()
+
+    def close(self) -> None:
+        with self._state_lock:
+            session = self._session
+            close = not session.retired and session.users == 0
+            session.retired = True
+        if close:
+            session.close()
 
     def credential_expiring_soon(self) -> bool:
         volume_info, _ = self.get_state()
         expire_time_str = volume_info["credentials"]["expireTime"]
         expire_time = datetime.fromisoformat(expire_time_str.replace("Z", "+00:00"))
-        now = datetime.now(timezone.utc)
-        return now + self.refresh_margin >= expire_time
+        return datetime.now(timezone.utc) + self.refresh_margin >= expire_time
 
 
 class OAuthMinio(Minio):
@@ -411,14 +447,12 @@ class VolumeFileManager:
     def _convert_dir_path(self, input_path: str):
         if not input_path or input_path == "/":
             return ""
-        normalized_path = input_path.replace("\\", "/").lstrip("/")
-        normalized_path = posixpath.normpath(normalized_path)
-        if normalized_path in ("", "."):
-            return ""
-        if normalized_path == ".." or normalized_path.startswith("../"):
+        parts = input_path.replace("\\", "/").split("/")
+        if ".." in parts:
             msg = f"target volume path must not escape the volume root: {input_path}"
             raise ValueError(msg)
-        return normalized_path.rstrip("/") + "/"
+        normalized_path = "/".join(part for part in parts if part not in ("", "."))
+        return normalized_path + "/" if normalized_path else ""
 
     def _create_volume_state(self, path: str):
         logger.info("refreshing volume info...")
@@ -429,34 +463,38 @@ class VolumeFileManager:
         creds = volume_info["credentials"]
         http_client = _create_minio_http_client()
 
-        cloud = volume_info["cloud"]
-        region = volume_info["region"]
-        endpoint = EndpointResolver.resolve_endpoint(
-            volume_info["endpoint"],
-            cloud,
-            region,
-            self.connect_type,
-        )
+        try:
+            cloud = volume_info["cloud"]
+            region = volume_info["region"]
+            endpoint = EndpointResolver.resolve_endpoint(
+                volume_info["endpoint"],
+                cloud,
+                region,
+                self.connect_type,
+            )
 
-        session_token = creds["sessionToken"]
-        if cloud == "gcp":
-            client = OAuthMinio(
-                endpoint=endpoint,
-                region=region,
-                secure=True,
-                oauth_token=session_token,
-                http_client=http_client,
-            )
-        else:
-            client = Minio(
-                endpoint=endpoint,
-                access_key=creds["tmpAK"],
-                secret_key=creds["tmpSK"],
-                session_token=session_token,
-                region=region,
-                secure=True,
-                http_client=http_client,
-            )
+            session_token = creds["sessionToken"]
+            if cloud == "gcp":
+                client = OAuthMinio(
+                    endpoint=endpoint,
+                    region=region,
+                    secure=True,
+                    oauth_token=session_token,
+                    http_client=http_client,
+                )
+            else:
+                client = Minio(
+                    endpoint=endpoint,
+                    access_key=creds["tmpAK"],
+                    secret_key=creds["tmpSK"],
+                    session_token=session_token,
+                    region=region,
+                    secure=True,
+                    http_client=http_client,
+                )
+        except BaseException:
+            http_client.clear()
+            raise
         return volume_info, client
 
     def _refresh_volume_and_client(self, path: str):
@@ -503,15 +541,18 @@ class VolumeFileManager:
 
     def _validate_size(
         self,
-        local_file_paths: list[str] | None = None,
+        local_file_paths: list[str] | int | None = None,
         total_bytes: int | None = None,
         volume_info: dict | None = None,
     ):
         local_file_paths = self.local_file_paths if local_file_paths is None else local_file_paths
         file_size_total = self.total_bytes if total_bytes is None else total_bytes
         volume_info = self.volume_info if volume_info is None else volume_info
-        file_size_limit = volume_info["condition"]["maxContentLength"]
-        if file_size_total > file_size_limit:
+        file_count = (
+            local_file_paths if isinstance(local_file_paths, int) else len(local_file_paths)
+        )
+        file_size_limit = volume_info["condition"].get("maxContentLength")
+        if file_size_limit is not None and file_size_total > file_size_limit:
             error_message = (
                 f"localFileTotalSize {file_size_total} exceeds "
                 f"the maximum contentLength limit {file_size_limit} defined in the condition."
@@ -521,9 +562,9 @@ class VolumeFileManager:
             raise ValueError(error_message)
 
         file_number_limit = volume_info["condition"].get("maxFileNumber")
-        if file_number_limit is not None and len(local_file_paths) > file_number_limit:
+        if file_number_limit is not None and file_count > file_number_limit:
             error_message = (
-                f"localFileTotalNumber {len(local_file_paths)} exceeds "
+                f"localFileTotalNumber {file_count} exceeds "
                 f"the maximum fileNumber limit {file_number_limit} defined in the condition."
                 f"If you are using the free tier, "
                 f"you may switch to the pay-as-you-go volume plan to support uploading larger files."
@@ -539,156 +580,329 @@ class VolumeFileManager:
         retry_interval: float = 5.0,
         progress_callback: Callable[[UploadProgress], None] | None = None,
         part_size: int = 0,
+        upload_policy: UploadPolicy = UploadPolicy.SKIP_IF_SAME_SIZE,
+        temporary_directory: str | None = None,
     ):
+        """Upload a local file/directory using paginated LIST checks (no HEAD/GET).
+
+        ``upload_policy`` defaults to skipping exact target keys with equal sizes.
+        ``OVERWRITE`` avoids LIST; ``SIZE_AND_MTIME`` also requires the local mtime
+        to be no newer than the remote server LastModified, comparing milliseconds.
+        These are heuristics, not checksums. Target paths containing a ``..`` segment
+        are rejected. VolumeBulkWriter always uses OVERWRITE for generated chunks.
+
+        At most ``upload_concurrency`` files are in flight. ``max_retries`` counts
+        additional attempts (zero disables retry). Preparation progress is logged;
+        ``progress_callback`` receives throttled upload snapshots outside the tracker
+        lock, plus a final snapshot. Callbacks may run on different worker threads.
+
+        Small manifests stay in memory; large ones automatically use stdlib SQLite
+        under ``temporary_directory`` (default: system temp). Temporary files are
+        removed after workers stop, including on failure. Abrupt process termination
+        may leave them behind. Symlinks retain their logical upload paths; cycles,
+        broken links and special files fail planning. Keep sources unchanged.
         """
-        uploads a local file or directory to the specified path within the Volume.
-
-        Args:
-            source_file_path: the source local file or directory path
-            target_volume_path: the target directory path in the Volume
-            upload_concurrency: the maximum number of files to upload concurrently
-            max_retries: the maximum retry count for each file
-            retry_interval: retry interval in seconds
-            progress_callback: callback invoked with upload progress snapshots
-            part_size: multipart upload part size in bytes, 0 means automatic
-        Raises:
-            Exception: If an error occurs during the upload process.
-        """
-
-        upload_concurrency = max(1, upload_concurrency)
-        max_retries = max(1, max_retries)
-        retry_interval = max(0.0, retry_interval)
-        part_size = max(0, part_size)
-
-        local_file_paths, total_bytes = FileUtils.process_local_path(source_file_path)
+        policy = UploadPolicy(upload_policy)
+        root = Path(source_file_path).absolute()
         volume_path = self._convert_dir_path(target_volume_path)
-        file_count = len(local_file_paths)
-        start_time = time.time()
+        concurrency = max(1, upload_concurrency)
+        max_retries = max(0, max_retries)
+        retry_interval = max(0.0, retry_interval)
+        stop = threading.Event()
+        context = None
+        started_at = time.monotonic()
         logger.info(
-            "Starting volume upload: sourcePath:%s, volumeName:%s, volumePath:%s, "
-            "totalFileCount:%s, totalFileSize:%s bytes (%s), uploadConcurrency:%s, "
-            "maxRetries:%s, retryInterval:%s, partSize:%s, startTime:%s",
-            source_file_path,
-            self.volume_name,
+            "Planning volume upload: sourcePath:%s, volumePath:%s, policy:%s",
+            root,
             volume_path,
-            file_count,
-            total_bytes,
-            _format_bytes(total_bytes),
-            upload_concurrency,
-            max_retries,
-            _format_duration(retry_interval),
-            _format_part_size(part_size),
-            _format_timestamp(start_time),
+            policy.value,
         )
-
         try:
-            upload_context = self._refresh_volume_and_client(volume_path)
-            volume_info, _ = upload_context.get_state()
-            self._validate_size(local_file_paths, total_bytes, volume_info)
-            with self._state_lock:
-                self.local_file_paths = local_file_paths
-                self.total_bytes = total_bytes
-
-            root_path = Path(source_file_path).resolve()
-            progress_tracker = _UploadProgressTracker(total_bytes, file_count, progress_callback)
-
-            def _upload_task(
-                file_path: str,
-                root_path: Path,
-                volume_path: str,
-                context: _VolumeUploadContext,
-            ):
-                path_obj = Path(file_path).resolve()
-                if root_path.is_file():
-                    relative_path = path_obj.name
-                else:
-                    relative_path = path_obj.relative_to(root_path).as_posix()
-
-                volume_info, _ = context.get_state()
-                volume_prefix = f"{volume_info['volumePrefix']}"
-                file_start_time = time.time()
-                try:
-                    size = Path(file_path).stat().st_size
-                    logger.info(f"uploading file, fileName:{file_path}, size:{size} bytes")
-                    remote_file_path = volume_prefix + volume_path + relative_path
-                    progress = _FileUploadProgress(progress_tracker, file_path, size)
-                    self._put_object(
-                        file_path,
-                        remote_file_path,
+            with _UploadManifest(temporary_directory) as manifest:
+                single = manifest.scan(root)
+                context = self._refresh_volume_and_client(volume_path)
+                info, _ = context.get_state()
+                prefix = info["volumePrefix"] + volume_path
+                if policy is not UploadPolicy.OVERWRITE:
+                    self._filter_existing(
+                        manifest,
+                        prefix,
+                        prefix + root.name if single else prefix,
+                        policy,
                         volume_path,
                         max_retries,
                         retry_interval,
-                        progress=progress,
-                        context=context,
-                        file_size=size,
-                        part_size=part_size,
+                        context,
                     )
-                    uploaded_bytes, uploaded_count, percent = progress_tracker.finish_file(
-                        file_path, size
-                    )
-                    elapsed = time.time() - file_start_time
-                    logger.info(
-                        "Uploaded file %s/%s: %s (%s bytes) elapsed:%s, "
-                        "progress(total bytes): %s/%s bytes, progress(total percentage):%.2f%%, "
-                        "speedBPS:%s, estimatedRemainingTime:%s",
-                        uploaded_count,
-                        file_count,
-                        file_path,
-                        size,
-                        _format_duration(elapsed),
-                        uploaded_bytes,
-                        total_bytes,
-                        percent,
-                        progress_tracker.speed_bps(),
-                        progress_tracker.estimated_remaining_time(),
-                    )
-                except S3Error as e:
-                    logger.error(f"Failed to upload {file_path}: {e!s}")
-                    raise
+                info, _ = context.get_state()
+                self._validate_size(manifest.remaining_count, manifest.remaining_bytes, info)
+                logger.info(
+                    "Volume upload plan: filesToUpload:%s, skippedFiles:%s, bytesToUpload:%s",
+                    manifest.remaining_count,
+                    manifest.file_count - manifest.remaining_count,
+                    manifest.remaining_bytes,
+                )
+                tracker = _UploadProgressTracker(
+                    manifest.remaining_bytes, manifest.remaining_count, progress_callback
+                )
+                base = root.parent if single else root
 
-            with ThreadPoolExecutor(max_workers=upload_concurrency) as executor:
-                futures = []
-                for _, file_path in enumerate(local_file_paths):
-                    futures.append(
-                        executor.submit(
-                            _upload_task, file_path, root_path, volume_path, upload_context
-                        )
+                def upload(entry: _UploadEntry):
+                    path = base / entry.path
+                    self._validate_source(path, entry.size, entry.mtime_ns)
+                    progress = _FileUploadProgress(tracker, str(path), entry.size, stop=stop)
+                    self._put_object(
+                        str(path),
+                        prefix + entry.path,
+                        volume_path,
+                        max_retries,
+                        retry_interval,
+                        progress,
+                        context,
+                        entry.size,
+                        max(0, part_size),
+                        policy,
+                        entry.mtime_ns,
+                        stop,
                     )
-                for f in futures:
-                    f.result()  # wait for all
+                    self._validate_source(path, entry.size, entry.mtime_ns)
+                    tracker.finish_file(str(path), entry.size)
 
-            progress_tracker.finish_upload()
-            end_time = time.time()
-            volume_info, _ = upload_context.get_state()
-            logger.info(
-                "Volume upload completed: sourcePath:%s, volumeName:%s, volumePath:%s, "
-                "totalFileCount:%s, totalFileSize:%s bytes (%s), endTime:%s, totalElapsed:%s",
-                source_file_path,
-                volume_info["volumeName"],
-                volume_path,
-                file_count,
-                total_bytes,
-                _format_bytes(total_bytes),
-                _format_timestamp(end_time),
-                _format_duration(end_time - start_time),
-            )
-            return {
-                "volumeName": volume_info["volumeName"],
-                "volume_name": volume_info["volumeName"],
-                "path": volume_path,
-            }
+                run_bounded(manifest.entries(), upload, concurrency, stop)
+                tracker.finish_upload()
+                logger.info(
+                    "Volume upload completed: files:%s, skippedFiles:%s, elapsedSeconds:%.3f",
+                    manifest.remaining_count,
+                    manifest.file_count - manifest.remaining_count,
+                    time.monotonic() - started_at,
+                )
+                info, _ = context.get_state()
+                return {
+                    "volumeName": info["volumeName"],
+                    "volume_name": info["volumeName"],
+                    "path": volume_path,
+                }
         except Exception:
-            end_time = time.time()
-            logger.warning(
-                "Volume upload failed: sourcePath:%s, volumeName:%s, volumePath:%s, "
-                "endTime:%s, totalElapsed:%s",
-                source_file_path,
-                self.volume_name,
-                volume_path,
-                _format_timestamp(end_time),
-                _format_duration(end_time - start_time),
-            )
+            logger.warning("Volume upload failed: sourcePath:%s, volumePath:%s", root, volume_path)
             raise
+        finally:
+            if context is not None:
+                context.close()
+
+    @staticmethod
+    def _validate_source(path: Path, size: int, mtime_ns: int) -> None:
+        attrs = path.stat()
+        if not path.is_file() or attrs.st_size != size or attrs.st_mtime_ns != mtime_ns:
+            msg = f"Local file changed after upload planning: {path}"
+            raise ValueError(msg)
+
+    def _filter_existing(
+        self,
+        manifest: _UploadManifest,
+        target_prefix: str,
+        listing_prefix: str,
+        policy: UploadPolicy,
+        volume_path: str,
+        retries: int,
+        interval: float,
+        context: _VolumeUploadContext,
+    ) -> None:
+        if not manifest.remaining_count:
+            logger.info(
+                "Volume existence check skipped: prefix:%s, reason:no local files", listing_prefix
+            )
+            return
+        token = None
+        pages = objects = 0
+        started_at = last_log = time.monotonic()
+        logger.info(
+            "Volume existence check started: prefix:%s, localFiles:%s",
+            listing_prefix,
+            manifest.file_count,
+        )
+        while True:
+            page, next_token = self._with_retry(
+                lambda info, client, attempt, page_token=token: list_objects_page(
+                    client, info["bucketName"], listing_prefix, page_token
+                ),
+                volume_path,
+                retries,
+                interval,
+                context,
+            )
+            pages += 1
+            objects += len(page)
+            for key, size, modified in page:
+                if key.startswith(target_prefix):
+                    manifest.match(key[len(target_prefix) :], size, modified, policy)
+            done = next_token is None or manifest.unmatched_count == 0
+            now = time.monotonic()
+            if done or now - last_log >= 5:
+                logger.info(
+                    "Volume existence check %s: prefix:%s, pages:%s, objects:%s, skippedFiles:%s, "
+                    "unmatchedLocalFiles:%s, filesToUpload:%s, elapsedMillis:%s, stopReason:%s",
+                    "completed" if done else "progress",
+                    listing_prefix,
+                    pages,
+                    objects,
+                    manifest.file_count - manifest.remaining_count,
+                    manifest.unmatched_count,
+                    manifest.remaining_count,
+                    int((now - started_at) * 1000),
+                    (
+                        (
+                            "all local keys checked"
+                            if manifest.unmatched_count == 0
+                            else "end of listing"
+                        )
+                        if done
+                        else "in progress"
+                    ),
+                )
+                last_log = now
+            if done:
+                return
+            token = next_token
+
+    @staticmethod
+    def _retryable(error: Exception) -> bool:
+        chain = []
+        seen = set()
+        current = error
+        while isinstance(current, BaseException) and id(current) not in seen:
+            seen.add(id(current))
+            chain.append(current)
+            current = (
+                current.__cause__
+                or getattr(current, "reason", None)
+                or (current.__context__ if not current.__suppress_context__ else None)
+            )
+        if any(
+            isinstance(
+                item,
+                (
+                    ValueError,
+                    TypeError,
+                    FileNotFoundError,
+                    PermissionError,
+                    _UploadProgressCallbackError,
+                    KeyboardInterrupt,
+                    SystemExit,
+                ),
+            )
+            for item in chain
+        ):
+            return False
+        for item in chain:
+            if isinstance(item, S3Error):
+                status = getattr(item.response, "status", 0)
+                return (
+                    status in {408, 429}
+                    or status >= 500
+                    or item.code
+                    in {
+                        "ExpiredToken",
+                        "SecurityTokenExpired",
+                        "RequestTimeout",
+                        "SlowDown",
+                        "InternalError",
+                        "ServiceUnavailable",
+                        "Throttling",
+                        "ThrottlingException",
+                        "RequestLimitExceeded",
+                    }
+                )
+            if isinstance(item, ServerError):
+                status = getattr(item, "status_code", None)
+                if status is None:
+                    # MinIO 7.0 reports the HTTP status only in this fixed message.
+                    match = re.fullmatch(r"server failed with HTTP status code (\d{3})", str(item))
+                    status = int(match[1]) if match else 0
+                return status in {408, 429} or status >= 500
+            if isinstance(item, requests.RequestException):
+                response = getattr(item, "response", None)
+                status = getattr(response, "status_code", 0) if response is not None else 0
+                if status:
+                    return status in {408, 429} or status >= 500
+        return any(
+            isinstance(
+                item,
+                (
+                    TimeoutError,
+                    ConnectionError,
+                    OSError,
+                    urllib3.exceptions.TimeoutError,
+                    urllib3.exceptions.ProtocolError,
+                    urllib3.exceptions.MaxRetryError,
+                ),
+            )
+            for item in chain
+        )
+
+    def _refresh_failed_session(
+        self, volume_path: str, context: _VolumeUploadContext | None, failed_client: Any
+    ) -> None:
+        if context is None:
+            self._refresh_volume_and_client(volume_path)
+            return
+        with context._refresh_lock:
+            if context.get_state()[1] is failed_client:
+                info, client = self._create_volume_state(volume_path)
+                context.set_state(info, client)
+                with self._state_lock:
+                    self.volume_info, self._client = info, client
+
+    def _with_retry(
+        self,
+        action: Callable,
+        volume_path: str,
+        retries: int,
+        interval: float,
+        context: _VolumeUploadContext | None = None,
+        stop: threading.Event | None = None,
+    ):
+        attempt = 0
+        failed_client = None
+        while True:
+            if stop is not None and stop.is_set():
+                msg = "Volume upload stopped"
+                raise RuntimeError(msg)
+            client = None
+            phase = "proactive refresh"
+            try:
+                if failed_client is not None:
+                    phase = "reactive refresh"
+                    self._refresh_failed_session(volume_path, context, failed_client)
+                    failed_client = None
+                phase = "proactive refresh"
+                self._refresh_volume_and_client_if_needed(volume_path, context)
+                phase = "storage request"
+                if context is None:
+                    info, client = self._get_volume_state()
+                    return action(info, client, attempt)
+                with context.borrow() as (info, client):
+                    return action(info, client, attempt)
+            except Exception as exc:
+                if not self._retryable(exc):
+                    raise
+                if attempt >= max(0, retries):
+                    msg = f"Upload failed after {attempt + 1} attempts"
+                    raise RuntimeError(msg) from exc
+                logger.warning(
+                    "Volume upload %s failed; retry %s/%s: %s",
+                    phase,
+                    attempt + 1,
+                    retries,
+                    type(exc).__name__,
+                )
+                attempt += 1
+                if phase == "storage request":
+                    failed_client = client
+                if stop is None:
+                    time.sleep(interval)
+                elif stop.wait(interval):
+                    msg = "Volume upload stopped"
+                    raise RuntimeError(msg) from exc
 
     def _put_object(
         self,
@@ -701,9 +915,10 @@ class VolumeFileManager:
         context: _VolumeUploadContext | None = None,
         file_size: int | None = None,
         part_size: int = 0,
+        upload_policy: UploadPolicy = UploadPolicy.OVERWRITE,
+        mtime_ns: int | None = None,
+        stop: threading.Event | None = None,
     ):
-        self._refresh_volume_and_client_if_needed(volume_path, context)
-
         self._upload_with_retry(
             file_path,
             remote_file_path,
@@ -714,6 +929,9 @@ class VolumeFileManager:
             context,
             file_size,
             part_size,
+            upload_policy,
+            mtime_ns,
+            stop,
         )
 
     def _upload_with_retry(
@@ -727,51 +945,49 @@ class VolumeFileManager:
         context: _VolumeUploadContext | None = None,
         file_size: int | None = None,
         part_size: int = 0,
+        upload_policy: UploadPolicy = UploadPolicy.OVERWRITE,
+        mtime_ns: int | None = None,
+        stop: threading.Event | None = None,
     ):
         if file_size is None:
-            try:
-                file_size = Path(file_path).stat().st_size
-            except OSError:
-                file_size = 0
-        upload_part_size = _calculate_upload_part_size(file_size, part_size)
-        attempt = 0
-        while attempt < max_retries:
-            try:
-                if progress is not None:
-                    progress.reset()
-                volume_info, client = (
-                    context.get_state() if context is not None else self._get_volume_state()
-                )
-                if client is None:
-                    msg = "Storage client is not initialized"
-                    raise RuntimeError(msg)
-                kwargs = {
-                    "bucket_name": volume_info["bucketName"],
-                    "object_name": object_name,
-                    "file_path": file_path,
-                    "part_size": upload_part_size,
-                }
-                if progress is not None:
-                    kwargs["progress"] = progress
-                client.fput_object(**kwargs)
-                break
-            except _UploadProgressCallbackError:
-                raise
-            except Exception as e:
-                attempt += 1
-                logger.warning(f"Attempt {attempt} failed to upload {file_path}: {e}")
+            file_size = Path(file_path).stat().st_size if Path(file_path).exists() else 0
+        part_size = _calculate_upload_part_size(file_size, part_size)
 
-                if attempt == max_retries:
-                    error_message = f"Upload failed after {max_retries} attempts"
-                    raise RuntimeError(error_message) from e
+        put_attempted = False
 
-                if context is None:
-                    self._refresh_volume_and_client(volume_path)
-                else:
-                    volume_info, client = self._create_volume_state(volume_path)
-                    context.set_state(volume_info, client)
-                    with self._state_lock:
-                        self.volume_info = volume_info
-                        self._client = client
-                    logger.info("storage client refreshed")
-                time.sleep(retry_interval)
+        def put(info: dict, client: Any, _attempt: int):
+            nonlocal put_attempted
+            if client is None:
+                msg = "Storage client is not initialized"
+                raise RuntimeError(msg)
+            if progress is not None:
+                progress.reset()
+            if mtime_ns is not None:
+                self._validate_source(Path(file_path), file_size, mtime_ns)
+            # A failed PUT may have committed. Retry checks are exact-key LIST requests,
+            # separate from the single prefix scan used by normal preflight planning.
+            if put_attempted and upload_policy is not UploadPolicy.OVERWRITE:
+                token = None
+                while True:
+                    page, token = list_objects_page(client, info["bucketName"], object_name, token)
+                    found = False
+                    for key, size, modified in page:
+                        if key == object_name:
+                            if upload_policy.should_skip(file_size, mtime_ns or 0, size, modified):
+                                return
+                            found = True
+                            break
+                    if found or token is None:
+                        break
+            kwargs = {
+                "bucket_name": info["bucketName"],
+                "object_name": object_name,
+                "file_path": file_path,
+                "part_size": part_size,
+            }
+            if progress is not None:
+                kwargs["progress"] = progress
+            put_attempted = True
+            client.fput_object(**kwargs)
+
+        self._with_retry(put, volume_path, max_retries, retry_interval, context, stop)
