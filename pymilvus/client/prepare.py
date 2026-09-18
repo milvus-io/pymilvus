@@ -271,7 +271,12 @@ class Prepare:
 
             for k, v in field_params.items():
                 kv_pair = common_types.KeyValuePair(
-                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
+                    key=str(k) if k != "mmap_enabled" else "mmap.enabled",
+                    value=(
+                        orjson.dumps(v).decode(Config.EncodeProtocol)
+                        if not isinstance(v, str)
+                        else v
+                    ),
                 )
                 field_schema.type_params.append(kv_pair)
             struct_schema.fields.append(field_schema)
