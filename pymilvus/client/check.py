@@ -80,7 +80,8 @@ def is_correct_date_str(param: str) -> bool:
 def is_legal_dimension(dim: Any) -> bool:
     try:
         _ = int(dim)
-    except ValueError:
+    except (TypeError, ValueError):
+        # int() raises TypeError, not ValueError, for a non-numeric type such as None
         return False
 
     return True
