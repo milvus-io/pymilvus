@@ -343,7 +343,7 @@ class _GlobalStrategyMixin:
         """Fetch initial topology and start background refresher.
 
         Returns:
-            The fetched GlobalTopology (caller uses it to connect to primary).
+            The accepted GlobalTopology (caller uses it to connect to primary).
         """
         topology = fetch_topology(
             config.uri, config.token, on_topology_change=self._on_topology_change
@@ -351,31 +351,43 @@ class _GlobalStrategyMixin:
 
         # The background watcher may already have installed a newer topology
         # via the callback while fetch_topology was returning the first answer.
+        # Hand out the accepted cache, not the raw first answer, so the handler
+        # is always built on the topology the cache actually routes on.
         self._accept_topology(topology)
+        accepted = self.get_topology()
         with self._lock:
             self._config = config
 
         self._refresher = TopologyRefresher(
             global_endpoint=config.uri,
             token=config.token,
-            topology=topology,
-            on_topology_change=self._on_topology_change,
             get_current=self.get_topology,
+            on_topology_change=self._on_topology_change,
         )
         self._refresher.start()
-        return topology
+        return accepted
 
-    def _on_topology_change(self, new_topology: GlobalTopology) -> None:
-        """Callback when topology changes via background refresh."""
-        self._accept_topology(new_topology)
+    def _on_topology_change(self, new_topology: GlobalTopology) -> bool:
+        """Callback when topology changes via background refresh.
+
+        Returns whether the compare-and-set accepted the new topology.
+        """
+        return self._accept_topology(new_topology)
+
+    @staticmethod
+    def _primary_host_port(topology: GlobalTopology) -> str:
+        """Normalize the primary endpoint to bare 'host:port' for comparison."""
+        parsed = urlparse(topology.primary.endpoint)
+        host = parsed.hostname or "localhost"
+        port = parsed.port or DEFAULT_PORT
+        return f"{host}:{port}"
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
-        """Refresh topology and return True if primary changed."""
+        """Refresh topology; recover if the handler is not on the current primary."""
         if self._config is None:
             return True  # No config, trigger recovery
 
         old_topology = self.get_topology()
-        old_primary = old_topology.primary.endpoint if old_topology else None
 
         # Fetch fresh topology
         try:
@@ -394,11 +406,22 @@ class _GlobalStrategyMixin:
             self._accept_topology(new_topology)
 
         current = self.get_topology()
-        new_primary = current.primary.endpoint if current else None
+        if current is None:
+            return True
 
-        # Only recover if primary actually changed
-        if old_primary != new_primary:
-            logger.info(f"Primary changed: {old_primary} -> {new_primary}")
+        # The cache may have advanced past the handler via the watcher or the
+        # refresher, so compare the current primary against the address the
+        # handler is actually connected to - not against a previously cached
+        # primary, which would leave a handler stuck on a demoted primary
+        # looking healthy and never recovering.
+        try:
+            primary_address = self._primary_host_port(current)
+        except ValueError:
+            return True  # No writable cluster right now; recover and let it re-fail
+
+        connected = managed.handler.server_address  # host:port, updated on reconnect
+        if primary_address != connected:
+            logger.info(f"Primary changed: {connected} -> {primary_address}")
             return True
 
         return False
@@ -411,11 +434,11 @@ class _GlobalStrategyMixin:
     def get_recovery_address(self, managed: ManagedConnection) -> Optional[str]:
         """Return the current primary's address for in-place reconnection."""
         topology = self.get_topology()
-        if topology and topology.primary:
-            parsed = urlparse(topology.primary.endpoint)
-            host = parsed.hostname or "localhost"
-            port = parsed.port or DEFAULT_PORT
-            return f"{host}:{port}"
+        if topology:
+            try:
+                return self._primary_host_port(topology)
+            except ValueError:
+                pass
         logger.warning("Global strategy has no topology; reconnecting to current address")
         return None
 

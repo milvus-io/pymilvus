@@ -2,9 +2,9 @@ import logging
 import random
 import threading
 import time
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Tuple
+from queue import Queue
+from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import dns.exception
@@ -82,8 +82,9 @@ REQUEST_TIMEOUT = 10  # seconds
 SRV_SERVICE_PREFIX = "_grpc._tcp."
 # Query parameter carrying the raw endpoint hostname to the topology API.
 ENDPOINT_QUERY_PARAM = "endpoint"
-# Minimum number of seeds to probe concurrently, spanning priorities so a slow
-# or dead nearest region does not stall discovery.
+# Number of seeds probed concurrently on the first fetch (nothing cached yet),
+# spanning priorities so a slow or dead nearest region does not stall discovery.
+# Refresh paths (a version is already cached) probe every seed instead.
 DEFAULT_PROBE_COUNT = 2
 
 
@@ -140,15 +141,17 @@ def _resolve_srv(hostname: str) -> List[SrvTarget]:
     except dns.exception.DNSException as e:
         raise MilvusException(message=f"SRV resolution failed for {srv_name}: {e}") from e
 
-    targets = [
-        SrvTarget(
-            priority=rr.priority,
-            weight=rr.weight,
-            port=rr.port,
-            target=str(rr.target).rstrip("."),
+    targets = []
+    for rr in answers:
+        target = str(rr.target).rstrip(".")
+        # RFC 2782: a target of "." means "service decidedly not available".
+        # It strips down to an empty hostname, so skip it and let an empty
+        # result take the "not provisioned" path like NXDOMAIN / NoAnswer.
+        if not target:
+            continue
+        targets.append(
+            SrvTarget(priority=rr.priority, weight=rr.weight, port=rr.port, target=target)
         )
-        for rr in answers
-    ]
     # Nearest first: lower priority wins; higher weight breaks ties.
     targets.sort(key=lambda t: (t.priority, -t.weight))
     return targets
@@ -210,38 +213,51 @@ def _probe_seed(base_url: str, hostname: str, token: str) -> GlobalTopology:
     return _parse_topology_response(result["data"])
 
 
+# Every probe thread posts exactly one of these: (target, topology, error).
+_ProbeResult = Tuple[SrvTarget, Optional[GlobalTopology], Optional[BaseException]]
+
+
+def _probe_into_queue(
+    results: "Queue[_ProbeResult]",
+    target: SrvTarget,
+    hostname: str,
+    token: str,
+) -> None:
+    """Probe one seed and always post exactly one result to the queue."""
+    try:
+        topology = _probe_seed(f"https://{target.target}:{target.port}", hostname, token)
+    except BaseException as e:
+        results.put((target, None, e))
+    else:
+        results.put((target, topology, None))
+
+
 def _watch_remaining(
-    executor: ThreadPoolExecutor,
-    futures: Dict[Future, SrvTarget],
-    answered: Future,
+    results: "Queue[_ProbeResult]",
+    remaining: int,
     topology: GlobalTopology,
     on_higher_version: Callable[[GlobalTopology], None],
 ) -> None:
-    """Watch the seeds still in flight and trigger replacement on newer answers.
+    """Drain the answers still in flight and trigger replacement on a newer one.
 
     Runs in a daemon thread after the first answer is handed over, so a slow
     seed does not stall the initial connection while a newer version from the
-    remaining seeds can still win the replacement flow.
+    remaining seeds can still win the replacement flow. Only results the caller
+    did not consume arrive here, so each seed is logged at most once.
     """
 
     def watch() -> None:
-        try:
-            for future in as_completed(futures):
-                if future is answered:
-                    continue
+        for _ in range(remaining):
+            target, new_topology, error = results.get()
+            if error is not None:  # one bad seed must not fail the rest
+                logger.warning(f"Topology probe failed for {target.target}: {error}")
+                continue
+            if new_topology.version > topology.version:
                 try:
-                    new_topology = future.result()
-                except Exception as e:  # one bad seed must not fail the rest
-                    logger.warning(f"Topology probe failed: {e}")
-                    continue
-                if new_topology.version > topology.version:
-                    try:
-                        on_higher_version(new_topology)
-                    except Exception:
-                        logger.warning("Topology replacement callback failed", exc_info=True)
-                    return  # one replacement is enough; the refresher keeps polling
-        finally:
-            executor.shutdown(wait=False, cancel_futures=True)
+                    on_higher_version(new_topology)
+                except Exception:
+                    logger.warning("Topology replacement callback failed", exc_info=True)
+                return  # one replacement is enough; the refresher keeps polling
 
     threading.Thread(target=watch, daemon=True).start()
 
@@ -252,8 +268,8 @@ def _probe_candidates(
     token: str,
     wait_all: bool,
     on_higher_version: Optional[Callable[[GlobalTopology], None]] = None,
-) -> Tuple[Optional[GlobalTopology], Optional[MilvusException]]:
-    """Probe seeds concurrently; return (best topology, sticky API error).
+) -> Tuple[Optional[GlobalTopology], Optional[MilvusException], Optional[BaseException]]:
+    """Probe seeds concurrently; return (best topology, sticky API error, last error).
 
     With ``wait_all`` (a topology version is already cached locally) every seed
     is polled and the highest version wins, guarding the cache against stale
@@ -263,56 +279,48 @@ def _probe_candidates(
     ``on_higher_version`` triggers the replacement flow when one returns a
     newer version. An API-level error (e.g. auth failure) is the same across
     seeds, so it is captured and surfaced when no seed succeeds instead of a
-    generic "unreachable".
+    generic "unreachable". The last non-API error is returned as well so the
+    caller can keep the underlying cause in its final exception.
+
+    Probes run in plain daemon threads (not a ThreadPoolExecutor, whose
+    non-daemon workers are joined at interpreter exit): once the caller has
+    its answer, leftover probes must never delay process shutdown.
     """
     best: Optional[GlobalTopology] = None
     api_error: Optional[MilvusException] = None
-    executor = ThreadPoolExecutor(max_workers=len(candidates))
-    futures = {
-        executor.submit(_probe_seed, f"https://{t.target}:{t.port}", hostname, token): t
-        for t in candidates
-    }
-    answered: Optional[Future] = None
-    try:
-        for future in as_completed(futures):
-            target = futures[future]
-            try:
-                topology = future.result()
-            except MilvusException as e:
-                api_error = e
-                continue
-            except Exception as e:  # one bad seed must not fail the rest
-                logger.warning(f"Topology probe failed for {target.target}: {e}")
-                continue
-            if best is None or topology.version > best.version:
-                best = topology
-            if not wait_all:
-                answered = future
-                break
-    except BaseException:
-        executor.shutdown(wait=False, cancel_futures=True)
-        raise
+    last_error: Optional[BaseException] = None
+    results: Queue[_ProbeResult] = Queue()
+    for t in candidates:
+        threading.Thread(
+            target=_probe_into_queue, args=(results, t, hostname, token), daemon=True
+        ).start()
 
-    if wait_all:
-        # Every seed was polled; the highest version seen wins.
-        executor.shutdown(wait=False, cancel_futures=True)
-    elif best is not None and on_higher_version is not None and answered is not None:
-        # First fetch: hand the seeds still in flight to a background watcher.
-        _watch_remaining(executor, futures, answered, best, on_higher_version)
-    else:
-        executor.shutdown(wait=False, cancel_futures=True)
-    return best, api_error
+    pending = len(candidates)
+    while pending > 0:
+        target, topology, error = results.get()
+        pending -= 1
+        if error is not None:
+            if isinstance(error, MilvusException):
+                api_error = error
+            else:
+                last_error = error
+                logger.warning(f"Topology probe failed for {target.target}: {error}")
+            continue
+        if best is None or topology.version > best.version:
+            best = topology
+        if not wait_all:
+            break  # First answer wins; the watcher keeps an eye on the rest.
+
+    if not wait_all and best is not None and on_higher_version is not None and pending > 0:
+        # First fetch: hand the results still in flight to a background watcher.
+        _watch_remaining(results, pending, best, on_higher_version)
+    return best, api_error, last_error
 
 
-def _backoff_sleep(attempt: int) -> float:
-    """Sleep with exponential backoff (+jitter) before the next attempt.
-
-    Returns the computed delay so callers can include it in log messages.
-    """
+def _backoff_delay(attempt: int) -> float:
+    """Compute the exponential backoff delay (+jitter) for the next attempt."""
     delay = min(BASE_DELAY * (2**attempt), MAX_DELAY)
-    delay += random.uniform(0, delay * 0.1)  # noqa: S311
-    time.sleep(delay)
-    return delay
+    return delay + random.uniform(0, delay * 0.1)  # noqa: S311
 
 
 def fetch_topology(
@@ -348,6 +356,7 @@ def fetch_topology(
     """
     hostname = _endpoint_hostname(global_endpoint)
     candidates: List[SrvTarget] = []
+    last_error: Optional[BaseException] = None
 
     for attempt in range(MAX_RETRIES):
         # Resolve inside the retry loop: DNS timeouts / unreachable nameservers
@@ -359,11 +368,12 @@ def fetch_topology(
         except MilvusException as e:
             if attempt == MAX_RETRIES - 1:
                 raise
-            delay = _backoff_sleep(attempt)
+            delay = _backoff_delay(attempt)
             logger.warning(
                 f"SRV resolution failed for '{hostname}' (attempt {attempt + 1}): "
                 f"{e}; retrying in {delay:.1f}s"
             )
+            time.sleep(delay)
             continue
 
         if not targets:
@@ -373,15 +383,23 @@ def fetch_topology(
                     f"'{hostname}' ({SRV_SERVICE_PREFIX}{hostname})"
                 )
             )
-        candidates = _pick_candidates(targets)
+        # First fetch: probe the nearest DEFAULT_PROBE_COUNT seeds so a slow
+        # region does not stall the initial connection. With a cached version
+        # the cache must not regress, so probe every seed and take the highest
+        # version - partial replication means the nearest seeds may lag.
+        candidates = _pick_candidates(
+            targets, count=len(targets) if cached_version is not None else DEFAULT_PROBE_COUNT
+        )
 
-        best, api_error = _probe_candidates(
+        best, api_error, probe_error = _probe_candidates(
             candidates,
             hostname,
             token,
             wait_all=cached_version is not None,
             on_higher_version=on_topology_change if cached_version is None else None,
         )
+        if probe_error is not None:
+            last_error = probe_error
         if best is not None:
             if cached_version is None or best.version > cached_version:
                 return best
@@ -392,18 +410,20 @@ def fetch_topology(
             # Deterministic server-side rejection (e.g. auth): do not retry.
             raise api_error
         if attempt < MAX_RETRIES - 1:
-            delay = _backoff_sleep(attempt)
+            delay = _backoff_delay(attempt)
             logger.warning(
                 f"All {len(candidates)} topology seeds unreachable "
                 f"(attempt {attempt + 1}); retrying in {delay:.1f}s"
             )
+            time.sleep(delay)
 
-    raise MilvusException(
-        message=(
-            f"Failed to fetch global topology from {len(candidates)} seed(s) "
-            f"for '{hostname}' after {MAX_RETRIES} attempts"
-        )
+    msg = (
+        f"Failed to fetch global topology from {len(candidates)} seed(s) "
+        f"for '{hostname}' after {MAX_RETRIES} attempts"
     )
+    if last_error is not None:
+        msg += f"; last error: {last_error}"
+    raise MilvusException(message=msg)
 
 
 # Default refresh interval
@@ -411,27 +431,28 @@ DEFAULT_REFRESH_INTERVAL = 300  # 5 minutes
 
 
 class TopologyRefresher:
-    """Background thread that periodically refreshes the global cluster topology."""
+    """Background thread that periodically refreshes the global cluster topology.
+
+    The connection strategy is the single owner of the shared topology: the
+    refresher keeps no private snapshot. ``get_current`` provides the
+    authoritative copy for version comparisons, and every candidate update is
+    handed to ``on_topology_change`` (the strategy's compare-and-set), whose
+    return value decides whether the update was accepted.
+    """
 
     def __init__(
         self,
         global_endpoint: str,
         token: str,
-        topology: GlobalTopology,
+        get_current: Callable[[], Optional[GlobalTopology]],
         refresh_interval: float = DEFAULT_REFRESH_INTERVAL,
-        on_topology_change: Optional[Callable] = None,
-        get_current: Optional[Callable[[], Optional[GlobalTopology]]] = None,
+        on_topology_change: Optional[Callable[[GlobalTopology], bool]] = None,
     ):
         self._global_endpoint = global_endpoint
         self._token = token
-        self._topology = topology
+        self._get_current = get_current
         self._refresh_interval = refresh_interval
         self._on_topology_change = on_topology_change
-        # Optional provider of the authoritative current topology (the shared
-        # copy owned by the connection strategy). When set, version comparisons
-        # and cached_version derive from it so the refresher's private snapshot
-        # cannot diverge and trigger a version rollback.
-        self._get_current = get_current
 
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -458,11 +479,6 @@ class TopologyRefresher:
         """Check if the refresh thread is running."""
         return self._thread is not None and self._thread.is_alive()
 
-    def get_topology(self) -> GlobalTopology:
-        """Get the current topology (thread-safe)."""
-        with self._lock:
-            return self._topology
-
     def trigger_refresh(self) -> None:
         """Trigger an immediate topology refresh (async, debounced)."""
         with self._lock:
@@ -478,43 +494,31 @@ class TopologyRefresher:
         while not self._stop_event.wait(self._refresh_interval):
             self._try_refresh()
 
-    def _current_topology(self) -> GlobalTopology:
-        """The authoritative current topology for version comparisons.
-
-        Uses the provider's shared copy when set, so refreshes never regress
-        the version the connection strategy is actually routing on.
-        """
-        if self._get_current is not None:
-            current = self._get_current()
-            if current is not None:
-                return current
-        with self._lock:
-            return self._topology
-
     def _try_refresh(self) -> None:
         """Attempt to refresh the topology."""
         try:
-            current = self._current_topology()
+            current = self._get_current()
+            if current is None:
+                return
             new_topology = fetch_topology(
                 self._global_endpoint, self._token, cached_version=current.version
             )
 
             if new_topology is not None and new_topology.version > current.version:
-                logger.info(
-                    f"Topology updated: version {current.version} -> {new_topology.version}"
-                )
-                if self._get_current is None:
-                    with self._lock:
-                        # Re-check under the lock: a concurrent trigger_refresh
-                        # may have installed an even newer version meanwhile.
-                        if new_topology.version > self._topology.version:
-                            self._topology = new_topology
-
+                accepted = False
                 if self._on_topology_change:
                     try:
-                        self._on_topology_change(new_topology)
+                        accepted = bool(self._on_topology_change(new_topology))
                     except Exception:
                         logger.warning("Topology change callback failed", exc_info=True)
+                # Log only when the compare-and-set actually accepted the
+                # update: a concurrent on_unavailable may have installed an
+                # even newer version, and claiming v_old -> v_new then would
+                # read as a rollback.
+                if accepted:
+                    logger.info(
+                        f"Topology updated: version {current.version} -> {new_topology.version}"
+                    )
 
         except Exception:
             logger.warning("Topology refresh failed", exc_info=True)
