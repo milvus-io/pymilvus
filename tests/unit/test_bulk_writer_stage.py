@@ -12,6 +12,7 @@ import pymilvus.bulk_writer as bw
 import pytest
 import requests
 from pymilvus.bulk_writer.constants import BulkFileType, ConnectType
+from pymilvus.bulk_writer.upload_policy import UploadPolicy
 from pymilvus.bulk_writer.volume_bulk_writer import VolumeBulkWriter
 from pymilvus.bulk_writer.volume_file_manager import (
     UploadProgress,
@@ -538,27 +539,28 @@ class TestVolumeFileManager:
         with pytest.raises(ValueError, match="exceeds the maximum fileNumber limit"):
             volume_file_manager._validate_size(["a", "b"], 2, volume_info)
 
-    @patch("pymilvus.bulk_writer.volume_file_manager.FileUtils.process_local_path")
     @patch.object(VolumeFileManager, "_refresh_volume_and_client")
     def test_upload_file_to_volume_logs_failure(
         self,
         mock_refresh: Mock,
-        mock_process: Mock,
         volume_file_manager: VolumeFileManager,
         mock_volume_info: Dict[str, Any],
     ) -> None:
         volume_info = mock_volume_info.copy()
         volume_info["condition"] = mock_volume_info["condition"].copy()
         volume_info["condition"]["maxContentLength"] = 0
-        mock_process.return_value = (["missing.txt"], 1)
         mock_refresh.return_value = _VolumeUploadContext(
             volume_info, Mock(), volume_file_manager.credential_refresh_margin
         )
 
-        with pytest.raises(ValueError, match="maximum contentLength limit"):
-            volume_file_manager.upload_file_to_volume("missing.txt", "data/")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file = Path(temp_dir) / "data.txt"
+            file.write_text("data")
+            with pytest.raises(ValueError, match="maximum contentLength limit"):
+                volume_file_manager.upload_file_to_volume(
+                    str(file), "data/", upload_policy=UploadPolicy.OVERWRITE
+                )
 
-    @patch("pymilvus.bulk_writer.volume_file_manager.FileUtils.process_local_path")
     @patch.object(VolumeFileManager, "_refresh_volume_and_client")
     @patch.object(VolumeFileManager, "_validate_size")
     @patch.object(VolumeFileManager, "_put_object")
@@ -567,40 +569,49 @@ class TestVolumeFileManager:
         mock_put_object: Mock,
         mock_validate: Mock,
         mock_refresh: Mock,
-        mock_process: Mock,
         volume_file_manager: VolumeFileManager,
         mock_volume_info: Dict[str, Any],
     ) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             test_file = Path(temp_dir) / "test.txt"
             test_file.write_text("test content")
-            mock_process.return_value = ([str(test_file)], 12)
             volume_file_manager.volume_info = mock_volume_info
             mock_refresh.return_value = _VolumeUploadContext(
                 mock_volume_info, Mock(), volume_file_manager.credential_refresh_margin
             )
-            result = volume_file_manager.upload_file_to_volume(str(test_file), "data/")
+            result = volume_file_manager.upload_file_to_volume(
+                str(test_file), "data/", upload_policy=UploadPolicy.OVERWRITE
+            )
             assert result["volumeName"] == "test_volume"
             assert result["volume_name"] == "test_volume"
             assert result["path"] == "data/"
             mock_refresh.assert_called_once_with("data/")
             mock_validate.assert_called_once()
 
-    @patch.object(VolumeFileManager, "_upload_with_retry")
     @patch.object(VolumeFileManager, "_refresh_volume_and_client")
     def test_put_object_refresh_on_expiry(
         self,
         mock_refresh: Mock,
-        mock_upload: Mock,
         volume_file_manager: VolumeFileManager,
         mock_volume_info: Dict[str, Any],
     ) -> None:
-        expired_info = mock_volume_info.copy()
-        expired_info["credentials"]["expireTime"] = "2020-01-01T00:00:00Z"
+        expired_info = {
+            **mock_volume_info,
+            "credentials": {
+                **mock_volume_info["credentials"],
+                "expireTime": "2020-01-01T00:00:00Z",
+            },
+        }
         volume_file_manager.volume_info = expired_info
+        volume_file_manager._client = Mock()
+
+        def refresh(_path):
+            volume_file_manager.volume_info = mock_volume_info
+
+        mock_refresh.side_effect = refresh
         volume_file_manager._put_object("test.txt", "remote/test.txt", "data/")
         mock_refresh.assert_called_once_with("data/")
-        mock_upload.assert_called_once()
+        volume_file_manager._client.fput_object.assert_called_once()
 
     @patch("pymilvus.bulk_writer.volume_file_manager.Minio")
     def test_upload_with_retry_success(
@@ -672,7 +683,7 @@ class TestVolumeFileManager:
         tracker.finish_file("test.txt", 10)
         tracker.finish_upload()
 
-        assert [event.percent for event in progress_events] == [40.0, 100.0, 100.0, 100.0]
+        assert [event.percent for event in progress_events] == [40.0, 100.0]
         assert progress_events[0].current_file == "test.txt"
         assert progress_events[0].current_file_uploaded_bytes == 4
         assert progress_events[-1].current_file == ""
@@ -701,7 +712,7 @@ class TestVolumeFileManager:
                 "test.txt",
                 "remote/test.txt",
                 "data/",
-                max_retries=2,
+                max_retries=1,
                 retry_interval=0,
                 progress=progress,
                 file_size=10,
@@ -799,12 +810,14 @@ class TestVolumeFileManager:
                         str(file_a),
                         "a/",
                         1,
+                        upload_policy=UploadPolicy.OVERWRITE,
                     )
                     future_b = executor.submit(
                         volume_file_manager.upload_file_to_volume,
                         str(file_b),
                         "b/",
                         1,
+                        upload_policy=UploadPolicy.OVERWRITE,
                     )
 
                     assert future_a.result()["path"] == "a/"
@@ -826,11 +839,11 @@ class TestVolumeFileManager:
     ) -> None:
         volume_file_manager.volume_info = mock_volume_info
         mock_client = mock_minio.return_value
-        mock_client.fput_object.side_effect = Exception("Upload failed")
+        mock_client.fput_object.side_effect = TimeoutError("Upload failed")
         volume_file_manager._client = mock_client
         with pytest.raises(RuntimeError, match="Upload failed after 2 attempts"):
             volume_file_manager._upload_with_retry(
-                "test.txt", "remote/test.txt", "data/", max_retries=2, retry_interval=0
+                "test.txt", "remote/test.txt", "data/", max_retries=1, retry_interval=0
             )
         assert mock_client.fput_object.call_count == 2
         assert mock_refresh.call_count == 1
@@ -919,7 +932,9 @@ class TestVolumeBulkWriter:
     ) -> None:
         volume_bulk_writer._upload_object("local_file.parquet", "remote_file.parquet")
         volume_bulk_writer._volume_file_manager.upload_file_to_volume.assert_called_once_with(
-            "local_file.parquet", volume_bulk_writer._remote_path
+            "local_file.parquet",
+            volume_bulk_writer._remote_path,
+            upload_policy=UploadPolicy.OVERWRITE,
         )
 
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:
