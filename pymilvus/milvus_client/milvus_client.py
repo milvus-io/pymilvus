@@ -360,19 +360,26 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: Union[BaseRanker, Function],
+        ranker: Optional[Union[BaseRanker, Function]] = None,
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
             collection_name(``string``): The name of collection.
-            reqs (``List[AnnSearchRequest]``): The vector search requests.
-            ranker (``Union[BaseRanker, Function]``): The ranker.
+            reqs (``List[AnnSearchRequest]``): The vector search requests. Each request
+                can provide its own ``function_chains``. Supported stages are
+                determined by the server.
+            ranker (``Union[BaseRanker, Function]``): The ranker. A Function ranker
+                cannot be combined with per-request function chains.
+            function_chains (``FunctionChain`` or ``List[FunctionChain]``, optional):
+                Top-level fusion/reranking chain, separate from per-request chains.
+                Mutually exclusive with ranker. Use an L2 chain starting with merge.
             limit (``int``): The max number of returned record, also known as `topk`.
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
@@ -415,6 +422,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             output_fields=output_fields,
             timeout=timeout,
+            function_chains=function_chains,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
