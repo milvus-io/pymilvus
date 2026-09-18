@@ -7,6 +7,7 @@ from pymilvus.orm.schema import CollectionSchema
 
 from .constants import MB, BulkFileType, ConnectType
 from .local_bulk_writer import LocalBulkWriter
+from .upload_policy import UploadPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -110,5 +111,7 @@ class VolumeBulkWriter(LocalBulkWriter):
 
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
-        self._volume_file_manager.upload_file_to_volume(file_path, self._remote_path)
+        self._volume_file_manager.upload_file_to_volume(
+            file_path, self._remote_path, upload_policy=UploadPolicy.OVERWRITE
+        )
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")
