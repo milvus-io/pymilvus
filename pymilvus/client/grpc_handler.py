@@ -4,7 +4,7 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -69,7 +69,6 @@ from .types import (
     HybridExtraList,
     IndexState,
     LoadState,
-    Plan,
     PrivilegeGroupInfo,
     RefreshExternalCollectionJobInfo,
     Replica,
@@ -78,12 +77,14 @@ from .types import (
     ResourceGroupInfo,
     RestoreSnapshotJobInfo,
     RoleInfo,
+    SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     UserInfo,
     get_extra_info,
+    parse_compaction_plans,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -2224,9 +2225,10 @@ class GrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(collection_name, states=states)
         response = self._stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2532,11 +2534,22 @@ class GrpcHandler:
         )
         check_status(response.status)
 
-        cp = CompactionPlans(compaction_id, response.state)
+        return parse_compaction_plans(response, compaction_id=compaction_id)
 
-        cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
-
-        return cp
+    @retry_on_rpc_failure()
+    def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(collection_name)
+        response = self._stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, collection_name=collection_name)
 
     @retry_on_rpc_failure()
     def get_replicas(

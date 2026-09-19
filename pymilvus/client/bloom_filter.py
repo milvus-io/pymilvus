@@ -464,7 +464,8 @@ class BloomFilterBuilder:
 
 
 def build_bloom_filter(members: Sequence[Union[int, str]], fpr: float = _DEFAULT_FPR) -> bytes:
-    """Build an MBF1-wrapped Parquet Split-Block Bloom filter for bloom_match.
+    """Build an MBF1-wrapped Parquet Split-Block Bloom filter for
+    ``membership_match(..., type=bloom)``.
 
     Integer members target INT8/INT16/INT32/INT64 fields; string members target
     VARCHAR fields. The returned bytes are passed through ``filter_params``.

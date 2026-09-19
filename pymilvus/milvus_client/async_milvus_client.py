@@ -3,7 +3,7 @@ import copy
 import time
 import types
 from contextlib import suppress
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -11,6 +11,8 @@ from pymilvus.client.connection_manager import AsyncConnectionManager, Connectio
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
+    _DEFAULT_RETAINED_SEGMENT_STATES,
+    CompactionPlans,
     ExceptionsMessage,
     FunctionType,
     LoadState,
@@ -20,6 +22,7 @@ from pymilvus.client.types import (
     RestoreSnapshotJobInfo,
     RoleInfo,
     SegmentInfo,
+    SegmentState,
     SnapshotInfo,
     UserInfo,
 )
@@ -1880,12 +1883,15 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[Sequence[SegmentState]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -1896,6 +1902,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         infos = await conn.get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1910,9 +1917,29 @@ class AsyncMilvusClient(BaseMilvusClient):
                 state=info.state,
                 level=info.level,
                 storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                insert_channel=info.insert_channel,
+                compaction_from=list(info.compaction_from),
             )
             for info in infos
         ]
+
+    async def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states."""
+        if states is None:
+            states = _DEFAULT_RETAINED_SEGMENT_STATES
+        return await self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     async def compact(
         self,
@@ -1998,6 +2025,22 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         return await conn.get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    async def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection."""
+        validate_param("collection_name", collection_name, str)
+        conn = await self._get_connection()
+        return await conn.get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     async def run_analyzer(

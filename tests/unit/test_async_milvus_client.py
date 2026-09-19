@@ -16,6 +16,7 @@ from pymilvus import (
     FunctionType,
     PyMilvusDeprecationWarning,
     SearchAggregation,
+    SegmentState,
     TopHits,
 )
 from pymilvus.client.abstract import AnnSearchRequest
@@ -163,11 +164,14 @@ class TestAsyncMilvusClientNewFeatures:
         mock_segment_info = MagicMock()
         mock_segment_info.segmentID = 1001
         mock_segment_info.collectionID = 2001
+        mock_segment_info.partitionID = 3001
         mock_segment_info.num_rows = 1000
         mock_segment_info.is_sorted = True
-        mock_segment_info.state = 3  # FLUSHED
+        mock_segment_info.state = common_pb2.SegmentState.Flushed
         mock_segment_info.level = 1
         mock_segment_info.storage_version = 1
+        mock_segment_info.insert_channel = "test-channel"
+        mock_segment_info.compaction_from = [10, 11]
 
         mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[mock_segment_info])
 
@@ -188,16 +192,41 @@ class TestAsyncMilvusClientNewFeatures:
             assert segment_info.segment_id == 1001
             assert segment_info.collection_id == 2001
             assert segment_info.collection_name == "test_collection"
+            assert segment_info.partition_id == 3001
             assert segment_info.num_rows == 1000
             assert segment_info.is_sorted is True
-            assert segment_info.state == 3
+            assert segment_info.state is SegmentState.Flushed
             assert segment_info.level == 1
             assert segment_info.storage_version == 1
+            assert segment_info.insert_channel == "test-channel"
+            assert segment_info.compaction_from == [10, 11]
+            segment_info.compaction_from.append(12)
+            assert mock_segment_info.compaction_from == [10, 11]
 
             # Verify call arguments
             mock_handler.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None, context=ANY
+                "test_collection", states=None, timeout=None, context=ANY
             )
+
+    @pytest.mark.asyncio
+    async def test_list_segments_defaults_to_all_lifecycle_states(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[])
+
+        assert await client.list_segments("test_collection") == []
+        mock_handler.get_persistent_segment_infos.assert_awaited_once_with(
+            "test_collection",
+            states=(
+                SegmentState.Growing,
+                SegmentState.Sealed,
+                SegmentState.Flushing,
+                SegmentState.Flushed,
+                SegmentState.Importing,
+                SegmentState.Dropped,
+            ),
+            timeout=None,
+            context=ANY,
+        )
 
     @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self, client_and_handler):
@@ -378,6 +407,19 @@ class TestAsyncMilvusClientNewFeatures:
 
         assert result == mock_plans
         mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10, context=ANY)
+
+    @pytest.mark.asyncio
+    async def test_list_compaction_tasks(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_plans = MagicMock(spec=CompactionPlans)
+        mock_handler.get_compaction_tasks = AsyncMock(return_value=mock_plans)
+
+        result = await client.list_compaction_tasks("test_collection", timeout=10)
+
+        assert result is mock_plans
+        mock_handler.get_compaction_tasks.assert_awaited_once_with(
+            "test_collection", timeout=10, context=ANY
+        )
 
     @pytest.mark.asyncio
     async def test_update_replicate_configuration(self, client_and_handler):
