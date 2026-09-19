@@ -13,8 +13,8 @@ from pymilvus.client.types import DataType
 
 
 class MockQueryResult(list):
-    """Minimal stand-in for the real query response, with the `.extra`
-    mapping the iterator reads the session timestamp from."""
+    """Stand-in for a real query response, with the `.extra` mapping the
+    iterator reads the session timestamp from."""
 
     def __init__(self, rows, ts=100):
         super().__init__(rows)
@@ -33,12 +33,10 @@ class TestQueryIteratorCheckpoint:
         return handler
 
     def make_iterator(self, handler, cp_path, schema, pages):
-        # When there's no valid checkpoint to read a session_ts from yet
-        # (no cp file, or an empty one), the constructor itself issues one
-        # internal query() call just to establish the timestamp -- before
-        # any explicit `.next()` call happens. We prepend a dummy leading
-        # response to absorb that call, so `pages` maps 1:1 onto the
-        # actual `.next()` calls the test makes.
+        # The constructor issues one internal query() call to establish
+        # the session timestamp when there's no valid checkpoint to read
+        # it from. Prepend a dummy response to absorb that call, so
+        # `pages` maps 1:1 onto the explicit `.next()` calls a test makes.
         queue = [MockQueryResult([])] + [MockQueryResult(p) for p in pages]
 
         def query_side_effect(*args, **kwargs):
@@ -57,9 +55,9 @@ class TestQueryIteratorCheckpoint:
         )
 
     def test_empty_cp_file_starts_fresh_instead_of_raising(self, mock_handler, schema):
-        """An empty checkpoint file (e.g. left behind by a process that
-        crashed before writing anything) should be treated the same as
-        no checkpoint file at all -- not raise ParamError."""
+        """An empty checkpoint file, e.g. left behind by a process that
+        crashed before writing anything, is treated like a missing file
+        and does not raise."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cp_path = Path(tmpdir) / "cursor.cp"
             cp_path.touch()  # exists, but zero bytes
@@ -70,9 +68,9 @@ class TestQueryIteratorCheckpoint:
             assert iterator._next_id is None
 
     def test_one_line_cp_file_restores_ts_without_cursor(self, mock_handler, schema):
-        """A one-line checkpoint file (session_ts saved, but no batch
-        completed yet -- e.g. crash right after the first save) should
-        restore the timestamp and start with no cursor, not raise."""
+        """A one-line checkpoint file (session_ts saved, no batch
+        completed yet) restores the timestamp and starts with no cursor,
+        instead of raising."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cp_path = Path(tmpdir) / "cursor.cp"
             cp_path.write_text("12345\n")
@@ -83,19 +81,23 @@ class TestQueryIteratorCheckpoint:
             assert iterator._next_id is None
 
     def test_failed_checkpoint_save_does_not_advance_cursor(self, mock_handler, schema):
-        """If persisting the checkpoint fails, the in-memory cursor must
-        not advance -- otherwise the batch that was already fetched from
-        Milvus is silently dropped and skipped on retry."""
+        """If the checkpoint write fails, the cursor must not advance,
+        and a retry must re-deliver the batch that failed to save
+        instead of skipping past it."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cp_path = Path(tmpdir) / "cursor.cp"
             iterator = self.make_iterator(
                 mock_handler, cp_path, schema, pages=[[{"pk": 1}, {"pk": 2}]]
             )
+            # Use a fixed return_value instead of the queue: since the
+            # cursor rolls back and the query filter is unchanged, a
+            # real server would return the same page again on retry.
+            mock_handler.query.side_effect = None
+            mock_handler.query.return_value = MockQueryResult([{"pk": 1}, {"pk": 2}])
 
             prev_next_id = iterator._next_id
+            prev_next_element_offset = iterator._next_element_offset
 
-            # Simulate a disk failure on the checkpoint write specifically,
-            # independent of the (already-succeeded) Milvus query.
             broken_handle = Mock()
             broken_handle.writelines.side_effect = OSError("simulated disk failure")
             iterator._cp_file_handler = broken_handle
@@ -106,10 +108,20 @@ class TestQueryIteratorCheckpoint:
             assert (
                 iterator._next_id == prev_next_id
             ), "cursor must not advance when the checkpoint save fails"
+            assert (
+                iterator._next_element_offset == prev_next_element_offset
+            ), "element offset must not advance when the checkpoint save fails"
+
+            iterator._cp_file_handler = Mock()
+            retried = iterator.next()
+            assert [r["pk"] for r in retried] == [
+                1,
+                2,
+            ], "retry after a failed save must re-deliver the same batch, not skip ahead"
 
     def test_successful_checkpoint_save_advances_cursor(self, mock_handler, schema):
-        """Sanity check: the happy path still works after the fix --
-        cursor advances normally when the save succeeds."""
+        """Sanity check: the cursor still advances normally when the save
+        succeeds."""
         with tempfile.TemporaryDirectory() as tmpdir:
             cp_path = Path(tmpdir) / "cursor.cp"
             iterator = self.make_iterator(
@@ -120,3 +132,37 @@ class TestQueryIteratorCheckpoint:
 
             assert len(ret) == 2
             assert iterator._next_id == 2
+
+    def test_failed_checkpoint_save_does_not_skip_cached_batch(self, mock_handler, schema):
+        """A failed save must roll back the internal result cache too,
+        not just the cursor fields -- otherwise a batch served from
+        cache (rather than fetched fresh) is silently skipped on retry.
+
+        With BATCH_SIZE=10 and a single 40-row query result:
+          next() #1 -> caches rows 10-39, delivers rows 0-9 (fresh fetch)
+          next() #2 -> serves rows 10-19 from cache, advances the cache
+                       to rows 20-39. If the save fails here without a
+                       cache rollback, a retry delivers rows 20-29 and
+                       silently drops rows 10-19.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cp_path = Path(tmpdir) / "cursor.cp"
+            batch_size = 10
+            rows = [{"pk": i} for i in range(40)]
+            iterator = self.make_iterator(mock_handler, cp_path, schema, pages=[rows])
+
+            first = iterator.next()
+            assert [r["pk"] for r in first] == list(range(batch_size))
+
+            broken_handle = Mock()
+            broken_handle.writelines.side_effect = OSError("simulated disk failure")
+            iterator._cp_file_handler = broken_handle
+
+            with pytest.raises(Exception, match="failed to save pk cursor"):
+                iterator.next()
+
+            iterator._cp_file_handler = Mock()
+            retried = iterator.next()
+            assert [r["pk"] for r in retried] == list(
+                range(10, 20)
+            ), "retry after a failed save must re-serve the same batch, not skip ahead"

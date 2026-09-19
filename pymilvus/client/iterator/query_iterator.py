@@ -328,13 +328,9 @@ class QueryIterator:
                     lines = self._cp_file_handler.readlines()
                     line_count = len(lines)
                     if line_count == 0:
-                        # cp file existed on disk but has no content -- most
-                        # likely left behind by a process that was
-                        # interrupted before it ever wrote a session_ts.
-                        # Treat this the same as "no cp file": start a
-                        # fresh session instead of failing outright, so an
-                        # interrupted run can actually be resumed/restarted
-                        # by just pointing at the same cp file path again.
+                        # File exists but is empty, e.g. left behind by a
+                        # process interrupted before writing a session_ts.
+                        # Treat this like a missing file: start fresh.
                         self.__setup_ts_by_request()
                         io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
                     else:
@@ -375,12 +371,20 @@ class QueryIterator:
         )
 
     def next(self):
+        prev_cache_id_in_use = self._cache_id_in_use
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
         ret = None
+        restore_cache = None
         if self.__is_res_sufficient(cached_res):
             ret = cached_res[0 : self._query_options[BATCH_SIZE]]
             res_to_cache = cached_res[self._query_options[BATCH_SIZE] :]
             iterator_cache.cache(res_to_cache, self._cache_id_in_use)
+
+            def restore_cache():
+                # Put the full result back under the same id, undoing
+                # the shrink above.
+                iterator_cache.cache(cached_res, prev_cache_id_in_use)
+
         else:
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
@@ -397,14 +401,22 @@ class QueryIterator:
             )
             self.__maybe_cache(res)
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
+            new_cache_id_in_use = self._cache_id_in_use
+
+            def restore_cache():
+                # Release whatever __maybe_cache created above, if
+                # anything, and go back to having no cache in use. The
+                # old entry released above was already insufficient, so
+                # there's nothing to restore for it.
+                if new_cache_id_in_use != prev_cache_id_in_use:
+                    iterator_cache.release_cache(new_cache_id_in_use)
 
         ret = self.__check_reached_limit(ret)
 
-        # Remember pre-advance cursor state so we can roll back if the
-        # checkpoint write fails below -- otherwise a failed save leaves
-        # the in-memory cursor pointing past a batch that was never
-        # actually returned to the caller, and that batch is silently
-        # skipped on any retry.
+        # Snapshot cursor state so it can be rolled back if the
+        # checkpoint write fails below. Without this, a failed save
+        # leaves the cursor (and cache) past a batch that was never
+        # returned to the caller, which gets silently skipped on retry.
         prev_next_id = self._next_id
         prev_next_element_offset = self._next_element_offset
 
@@ -414,6 +426,8 @@ class QueryIterator:
         except Exception:
             self._next_id = prev_next_id
             self._next_element_offset = prev_next_element_offset
+            self._cache_id_in_use = prev_cache_id_in_use
+            restore_cache()
             raise
 
         self._returned_count += len(ret)
