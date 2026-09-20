@@ -568,6 +568,9 @@ class TestIssue3541:
 
         old_ref = weakref.ref(old_channel)
         old_channel_holder.clear()
+        # Python 3.9 retains completed coroutine frames while their Task objects
+        # are referenced. Drop caller-owned tasks before checking handler-owned refs.
+        del fast_rpc, straggler_rpc
         del old_channel
         _collect_until_released(old_ref)
 

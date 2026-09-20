@@ -4,7 +4,7 @@ import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -26,6 +26,7 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.orm.schema import Function, FunctionScore, Highlighter, StructFieldSchema
@@ -68,7 +69,6 @@ from .types import (
     HybridExtraList,
     IndexState,
     LoadState,
-    Plan,
     PrivilegeGroupInfo,
     RefreshExternalCollectionJobInfo,
     Replica,
@@ -77,12 +77,14 @@ from .types import (
     ResourceGroupInfo,
     RestoreSnapshotJobInfo,
     RoleInfo,
+    SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     UserInfo,
     get_extra_info,
+    parse_compaction_plans,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -90,6 +92,7 @@ from .utils import (
     check_status,
     get_server_type,
     immutable_message_to_dict,
+    is_external_collection_schema_alter_unsupported,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -546,11 +549,31 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.add_collection_field_request(collection_name, field_schema)
-        status = self._stub.AddCollectionField(
-            request, timeout=timeout, metadata=_api_level_md(context)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
         )
-        check_status(status)
+        fallback_to_legacy = False
+        try:
+            response = self._stub.AlterCollectionSchema(
+                request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            if is_external_collection_schema_alter_unsupported(response.alter_status):
+                fallback_to_legacy = True
+            else:
+                check_status(response.alter_status)
+        except grpc.RpcError as e:
+            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+                raise
+            fallback_to_legacy = True
+
+        if fallback_to_legacy:
+            legacy_request = Prepare.add_collection_field_request(collection_name, field_schema)
+            status = self._stub.AddCollectionField(
+                legacy_request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     def add_collection_struct_field(
@@ -623,14 +646,13 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        self._alter_collection_schema_drop(
-            collection_name,
-            function_name=function_name,
-            timeout=timeout,
-            context=context,
-            **kwargs,
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.drop_collection_function_request(collection_name, function_name)
+
+        status = self._stub.DropCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
-        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+        check_status(status)
 
     @retry_on_rpc_failure()
     def add_collection_function(
@@ -681,6 +703,8 @@ class GrpcHandler:
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -692,6 +716,8 @@ class GrpcHandler:
             drop_field_id=drop_field_id,
             drop_function_name=drop_function_name,
             drop_function_output_fields=drop_function_output_fields,
+            index_name=index_name,
+            index_extra_params=index_extra_params,
         )
         response = self._stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -1377,6 +1403,7 @@ class GrpcHandler:
         round_decimal: int = -1,
         timeout: Optional[float] = None,
         ranker: Union[Function, FunctionScore] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -1427,6 +1454,7 @@ class GrpcHandler:
             output_fields=output_fields,
             round_decimal=round_decimal,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             use_default_consistency=use_default_consistency,
             **kwargs,
@@ -1449,6 +1477,8 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -2195,9 +2225,10 @@ class GrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(collection_name, states=states)
         response = self._stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2503,11 +2534,22 @@ class GrpcHandler:
         )
         check_status(response.status)
 
-        cp = CompactionPlans(compaction_id, response.state)
+        return parse_compaction_plans(response, compaction_id=compaction_id)
 
-        cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
-
-        return cp
+    @retry_on_rpc_failure()
+    def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(collection_name)
+        response = self._stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, collection_name=collection_name)
 
     @retry_on_rpc_failure()
     def get_replicas(

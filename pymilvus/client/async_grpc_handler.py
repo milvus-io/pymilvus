@@ -4,7 +4,7 @@ import logging
 import socket
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -26,9 +26,10 @@ from pymilvus.exceptions import (
     MilvusException,
     ParamError,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
-from pymilvus.orm.schema import Function, Highlighter, StructFieldSchema
+from pymilvus.orm.schema import Function, FunctionScore, Highlighter, StructFieldSchema
 from pymilvus.settings import Config
 
 from . import entity_helper, ts_utils, utils
@@ -47,6 +48,7 @@ from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
+    CompactionPlans,
     CompactionState,
     DatabaseInfo,
     FileResourceInfo,
@@ -56,11 +58,13 @@ from .types import (
     RefreshExternalCollectionJobInfo,
     ReplicaInfo,
     RestoreSnapshotJobInfo,
+    SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     get_extra_info,
+    parse_compaction_plans,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -68,6 +72,7 @@ from .utils import (
     check_status,
     get_server_type,
     immutable_message_to_dict,
+    is_external_collection_schema_alter_unsupported,
     is_successful,
     len_of,
     replicate_checkpoint_to_dict,
@@ -798,10 +803,11 @@ class AsyncGrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(collection_name, states=states)
         response = await self._async_stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -1016,7 +1022,8 @@ class AsyncGrpcHandler:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         timeout: Optional[float] = None,
-        ranker: Optional[Function] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         context: Optional[CallContext] = None,
         **kwargs,
@@ -1072,6 +1079,7 @@ class AsyncGrpcHandler:
             output_fields=output_fields,
             round_decimal=round_decimal,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             use_default_consistency=use_default_consistency,
             **kwargs,
@@ -1094,6 +1102,8 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
@@ -1587,11 +1597,31 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.add_collection_field_request(collection_name, field_schema)
-        status = await self._async_stub.AddCollectionField(
-            request, timeout=timeout, metadata=_api_level_md(context)
+        request = Prepare.alter_collection_schema_request(
+            collection_name=collection_name,
+            field_schema=field_schema,
         )
-        check_status(status)
+        fallback_to_legacy = False
+        try:
+            response = await self._async_stub.AlterCollectionSchema(
+                request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            if is_external_collection_schema_alter_unsupported(response.alter_status):
+                fallback_to_legacy = True
+            else:
+                check_status(response.alter_status)
+        except grpc.RpcError as e:
+            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+                raise
+            fallback_to_legacy = True
+
+        if fallback_to_legacy:
+            legacy_request = Prepare.add_collection_field_request(collection_name, field_schema)
+            status = await self._async_stub.AddCollectionField(
+                legacy_request, timeout=timeout, metadata=_api_level_md(context)
+            )
+            check_status(status)
+        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
 
     @retry_on_rpc_failure()
     async def add_collection_struct_field(
@@ -1665,14 +1695,13 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        await self._alter_collection_schema_drop(
-            collection_name,
-            function_name=function_name,
-            timeout=timeout,
-            context=context,
-            **kwargs,
+        check_pass_param(collection_name=collection_name, timeout=timeout)
+        request = Prepare.drop_collection_function_request(collection_name, function_name)
+
+        status = await self._async_stub.DropCollectionFunction(
+            request, timeout=timeout, metadata=_api_level_md(context)
         )
-        self._invalidate_schema(collection_name, db_name=(context.get_db_name() if context else ""))
+        check_status(status)
 
     @retry_on_rpc_failure()
     async def add_collection_function(
@@ -1723,6 +1752,8 @@ class AsyncGrpcHandler:
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
@@ -1734,6 +1765,8 @@ class AsyncGrpcHandler:
             drop_field_id=drop_field_id,
             drop_function_name=drop_function_name,
             drop_function_output_fields=drop_function_output_fields,
+            index_name=index_name,
+            index_extra_params=index_extra_params,
         )
         response = await self._async_stub.AlterCollectionSchema(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2635,6 +2668,21 @@ class AsyncGrpcHandler:
             response.timeoutPlanNo,
             response.completedPlanNo,
         )
+
+    @retry_on_rpc_failure()
+    async def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(collection_name)
+        response = await self._async_stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, collection_name=collection_name)
 
     @retry_on_rpc_failure()
     async def run_analyzer(

@@ -2,7 +2,7 @@ import asyncio
 import copy
 import time
 import types
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Sequence, Type, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -10,6 +10,8 @@ from pymilvus.client.connection_manager import AsyncConnectionManager, Connectio
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
+    _DEFAULT_RETAINED_SEGMENT_STATES,
+    CompactionPlans,
     ExceptionsMessage,
     FunctionType,
     LoadState,
@@ -19,6 +21,7 @@ from pymilvus.client.types import (
     RestoreSnapshotJobInfo,
     RoleInfo,
     SegmentInfo,
+    SegmentState,
     SnapshotInfo,
     UserInfo,
 )
@@ -32,6 +35,7 @@ from pymilvus.exceptions import (
     ParamError,
     PrimaryKeyException,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
@@ -39,7 +43,7 @@ from pymilvus.orm.types import DataType
 from .async_optimize_task import AsyncOptimizeTask
 from .base import BaseMilvusClient
 from .check import validate_param
-from .index import IndexParam, IndexParams
+from .index import IndexParam, IndexParams, extract_bound_index_param
 from .optimize_task import OptimizeResult, ProgressStage, parse_target_size
 
 
@@ -574,6 +578,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
@@ -594,6 +599,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            function_chains=function_chains,
             search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1008,10 +1014,18 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "AsyncMilvusClient.add_collection_function",
+        replacement="AsyncMilvusClient.add_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     async def add_collection_function(
         self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
     ):
-        """Add a new function to the collection.
+        """Deprecated: Use add_function_field instead.
+
+        Milvus 3.0 and later do not support adding a function separately. The replacement
+        adds the function together with its output field and index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1065,10 +1079,18 @@ class AsyncMilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "AsyncMilvusClient.drop_collection_function",
+        replacement="AsyncMilvusClient.drop_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     async def drop_collection_function(
         self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        """Drop a function from the collection.
+        """Deprecated: Use drop_function_field instead.
+
+        Milvus 3.0 and later do not support dropping a function separately. The replacement
+        also removes the function's output field and its index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1081,10 +1103,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
-        await self._alter_collection_schema(
-            collection_name=collection_name,
-            drop_function_name=function_name,
+        conn = await self._get_connection()
+        await conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -1127,6 +1151,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
@@ -1177,6 +1203,8 @@ class AsyncMilvusClient(BaseMilvusClient):
                 field_schema=field_schema,
                 func=func,
                 timeout=timeout,
+                index_name=index_name,
+                index_extra_params=index_extra_params,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,
             )
@@ -1207,29 +1235,46 @@ class AsyncMilvusClient(BaseMilvusClient):
         collection_name: str,
         field_schema: FieldSchema,
         func: Function,
+        index_params: IndexParams,
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        """Add a function-backed field (e.g. BM25 sparse vector) to an existing collection."""
+        """Add a function-backed field (e.g. BM25 sparse vector or MinHash binary vector)."""
         validate_param("collection_name", collection_name, str)
         validate_param("field_schema", field_schema, FieldSchema)
         validate_param("func", func, Function)
 
-        # Only BM25 + SPARSE_FLOAT_VECTOR is currently supported on the server side.
-        if func.type != FunctionType.BM25:
+        supported_function_outputs = {
+            FunctionType.BM25: DataType.SPARSE_FLOAT_VECTOR,
+            FunctionType.MINHASH: DataType.BINARY_VECTOR,
+        }
+        expected_dtype = supported_function_outputs.get(func.type)
+        if expected_dtype is None:
             raise ParamError(
-                message=f"add_function_field only supports FunctionType.BM25 for now, got {func.type}"
+                message=(
+                    "add_function_field only supports FunctionType.BM25 with SPARSE_FLOAT_VECTOR "
+                    f"or FunctionType.MINHASH with BINARY_VECTOR for now, got {func.type}"
+                )
             )
-        if field_schema.dtype != DataType.SPARSE_FLOAT_VECTOR:
+        if field_schema.dtype != expected_dtype:
             raise ParamError(
-                message=f"add_function_field only supports SPARSE_FLOAT_VECTOR output field for now, got {field_schema.dtype}"
+                message=(
+                    f"add_function_field requires {expected_dtype.name} output field for {func.type}, "
+                    f"got {field_schema.dtype}"
+                )
             )
+
+        bound_index_name, bound_index_extra_params = extract_bound_index_param(
+            field_schema.name, index_params
+        )
 
         await self._alter_collection_schema(
             collection_name=collection_name,
             field_schema=field_schema,
             func=func,
             timeout=timeout,
+            index_name=bound_index_name,
+            index_extra_params=bound_index_extra_params,
             **kwargs,
         )
 
@@ -1837,12 +1882,15 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[Sequence[SegmentState]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -1853,6 +1901,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         infos = await conn.get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1867,9 +1916,29 @@ class AsyncMilvusClient(BaseMilvusClient):
                 state=info.state,
                 level=info.level,
                 storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                insert_channel=info.insert_channel,
+                compaction_from=list(info.compaction_from),
             )
             for info in infos
         ]
+
+    async def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states."""
+        if states is None:
+            states = _DEFAULT_RETAINED_SEGMENT_STATES
+        return await self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     async def compact(
         self,
@@ -1906,9 +1975,13 @@ class AsyncMilvusClient(BaseMilvusClient):
             for subsequent state inquiries.
         """
         if target_size is not None:
-            if not isinstance(target_size, int):
+            if not isinstance(target_size, int) or isinstance(target_size, bool):
                 raise ParamError(
                     message=f"target_size must be an int, got {type(target_size).__name__}"
+                )
+            if target_size <= 0:
+                raise ParamError(
+                    message=f"target_size must be a positive integer, got {target_size}"
                 )
             target_size = parse_target_size(f"{target_size}{target_size_unit}")
 
@@ -1951,6 +2024,22 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         return await conn.get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    async def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection."""
+        validate_param("collection_name", collection_name, str)
+        conn = await self._get_connection()
+        return await conn.get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     async def run_analyzer(
@@ -2148,7 +2237,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self, collection_name: str, timeout: Optional[float] = None, **kwargs
     ) -> List[str]:
         conn = await self._get_connection()
-        schema_dict = await conn._get_schema(
+        schema_dict, _ = await conn._get_schema(
             collection_name,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),

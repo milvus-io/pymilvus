@@ -1,5 +1,4 @@
 import logging
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -8,6 +7,7 @@ from pymilvus.orm.schema import CollectionSchema
 
 from .constants import MB, BulkFileType, ConnectType
 from .local_bulk_writer import LocalBulkWriter
+from .upload_policy import UploadPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +25,10 @@ class VolumeBulkWriter(LocalBulkWriter):
         chunk_size: int = 1024 * MB,
         file_type: BulkFileType = BulkFileType.PARQUET,
         config: Optional[dict] = None,
+        connect_type: ConnectType = ConnectType.AUTO,
         **kwargs,
     ):
-        local_path = Path(sys.argv[0]).resolve().parent / "bulk_writer"
+        local_path = Path.cwd() / "bulk_writer"
         super().__init__(schema, str(local_path), chunk_size, file_type, config, **kwargs)
 
         remote_dir_path = Path(remote_path) / super().uuid
@@ -38,7 +39,7 @@ class VolumeBulkWriter(LocalBulkWriter):
             cloud_endpoint=cloud_endpoint,
             api_key=api_key,
             volume_name=volume_name,
-            connect_type=ConnectType.AUTO,
+            connect_type=connect_type,
         )
 
         logger.info(f"Remote buffer writer initialized, target path: {self._remote_path}")
@@ -62,7 +63,11 @@ class VolumeBulkWriter(LocalBulkWriter):
         return self._remote_files
 
     def get_volume_upload_result(self) -> Dict[str, str]:
-        return {"volume_name": self._volume_name, "path": str(self._remote_path)}
+        return {
+            "volume_name": self._volume_name,
+            "volumeName": self._volume_name,
+            "path": str(self._remote_path),
+        }
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
         super().__exit__(exc_type, exc_val, exc_tb)
@@ -90,11 +95,12 @@ class VolumeBulkWriter(LocalBulkWriter):
         for file_path in file_list:
             path = Path(file_path)
             relative_file_path = path.relative_to(super().data_path)
-            remote_file_path = self._remote_path / relative_file_path
+            relative_remote_path = str(relative_file_path).replace("\\", "/").lstrip("/")
+            remote_file_path = f"{self._remote_path.rstrip('/')}/{relative_remote_path}"
 
             try:
-                self._upload_object(file_path=str(path), object_name=str(remote_file_path))
-                uploaded_files.append(str(remote_file_path))
+                self._upload_object(file_path=str(path), object_name=remote_file_path)
+                uploaded_files.append(remote_file_path)
                 self._local_rm(str(path))
             except Exception as e:
                 self._throw(f"Failed to upload file '{file_path}', error: {e}")
@@ -105,5 +111,7 @@ class VolumeBulkWriter(LocalBulkWriter):
 
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
-        self._volume_file_manager.upload_file_to_volume(file_path, self._remote_path)
+        self._volume_file_manager.upload_file_to_volume(
+            file_path, self._remote_path, upload_policy=UploadPolicy.OVERWRITE
+        )
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")

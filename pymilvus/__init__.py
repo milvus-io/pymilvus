@@ -19,8 +19,10 @@ __path__ = extend_path(__path__, __name__)
 from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
+from .client.bloom_filter import BloomFilterBuilder, build_bloom_filter
 from .client.field_ops import FieldOp, FieldOpType
 from .client.prepare import Prepare
+from .client.roaring_filter import RoaringBitmapBuilder, build_roaring_bitmap
 from .client.search_aggregation import (
     AggregationBucket,
     AggregationHit,
@@ -30,12 +32,15 @@ from .client.search_aggregation import (
 from .client.search_result import Hit, Hits, SearchResult
 from .client.types import (
     BulkInsertState,
+    CompactionTaskState,
+    CompactionType,
     DataType,
     FunctionType,
     Group,
     IndexType,
     Replica,
     ResourceGroupInfo,
+    SegmentState,
     Shard,
     Status,
 )
@@ -45,6 +50,7 @@ from .exceptions import (
     MilvusException,
     MilvusUnavailableException,
 )
+from .function_chain import FunctionChain, FunctionChainStage
 from .milvus_client import AsyncMilvusClient, MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
@@ -98,9 +104,12 @@ __all__ = [
     "AggregationHit",
     "AnnSearchRequest",
     "AsyncMilvusClient",
+    "BloomFilterBuilder",
     "BulkInsertState",
     "Collection",
     "CollectionSchema",
+    "CompactionTaskState",
+    "CompactionType",
     "Connections",
     "DataType",
     "DefaultConfig",
@@ -109,6 +118,8 @@ __all__ = [
     "FieldOpType",
     "FieldSchema",
     "Function",
+    "FunctionChain",
+    "FunctionChainStage",
     "FunctionScore",
     "FunctionType",
     "Group",
@@ -127,10 +138,12 @@ __all__ = [
     "RRFRanker",
     "Replica",
     "ResourceGroupInfo",
+    "RoaringBitmapBuilder",
     "Role",
     "SearchAggregation",
     "SearchFuture",
     "SearchResult",
+    "SegmentState",
     "SemanticHighlighter",
     "Shard",
     "Status",
@@ -138,6 +151,8 @@ __all__ = [
     "TopHits",
     "WeightedRanker",
     "__version__",
+    "build_bloom_filter",
+    "build_roaring_bitmap",
     "connections",
     "create_resource_group",
     "create_user",

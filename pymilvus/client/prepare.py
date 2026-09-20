@@ -3,12 +3,13 @@ import datetime
 import json
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import orjson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.function_chain import FunctionChain, FunctionChainStage
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
@@ -66,6 +67,7 @@ from .types import (
     DataType,
     PlaceholderType,
     ResourceGroupConfig,
+    SegmentState,
     get_consistency_level,
 )
 from .utils import get_params, traverse_info, traverse_upsert_info
@@ -396,6 +398,8 @@ class Prepare:
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
     ) -> milvus_types.AlterCollectionSchemaRequest:
         is_drop = any(
             identifier is not None
@@ -442,7 +446,14 @@ class Prepare:
 
                 field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
                     field_schema=field_schema_proto,
+                    index_name=index_name,
                 )
+                if index_extra_params:
+                    for tk, tv in index_extra_params.items():
+                        if tv is not None:
+                            field_info.extra_params.append(
+                                common_types.KeyValuePair(key=str(tk), value=utils.dumps(tv))
+                            )
                 field_infos.append(field_info)
 
             if func is not None:
@@ -817,6 +828,34 @@ class Prepare:
         return field_name
 
     @staticmethod
+    def _match_struct_sub_field_name(
+        field_name: str, struct_sub_field_info: Dict[str, Dict[str, Dict]]
+    ) -> Optional[str]:
+        """Return the parent struct when field_name uses known struct[sub-field] storage form."""
+        m = _STRUCT_FIELD_RE.match(field_name)
+        if m:
+            struct_name, sub_field_name = m.groups()
+            if sub_field_name in struct_sub_field_info.get(struct_name, {}):
+                return struct_name
+        return None
+
+    @staticmethod
+    def _raise_struct_sub_field_update_error(
+        field_name: str, struct_name: str, partial_update: bool
+    ) -> None:
+        if partial_update:
+            msg = (
+                f"Partial struct update is unsupported for struct sub-field `{field_name}`; "
+                f"update the whole struct field `{struct_name}` instead"
+            )
+        else:
+            msg = (
+                f"Struct sub-field `{field_name}` cannot be used as a top-level field; "
+                f"write the whole struct field `{struct_name}` instead"
+            )
+        raise DataNotMatchException(message=msg)
+
+    @staticmethod
     def _setup_struct_data_structures(struct_fields_info: Optional[List[Dict]]):
         """Setup common data structures for struct field processing.
 
@@ -841,12 +880,25 @@ class Prepare:
             for struct_field_info in struct_fields_info:
                 struct_name = struct_field_info["name"]
                 normalized_struct = dict(struct_field_info)
+                normalized_struct["type"] = normalized_struct.get("type", DataType._ARRAY_OF_STRUCT)
                 normalized_fields = []
                 for field in struct_field_info["fields"]:
                     normalized_field = dict(field)
                     normalized_field["name"] = Prepare._strip_struct_sub_field_name(
                         struct_name, field["name"]
                     )
+                    field_type = normalized_field["type"]
+                    if field_type not in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR}:
+                        normalized_field["element_type"] = field_type
+                        normalized_field["type"] = (
+                            DataType._ARRAY_OF_VECTOR
+                            if isVectorDataType(field_type)
+                            else DataType.ARRAY
+                        )
+                    params = dict(normalized_field.get("params", {}) or {})
+                    if "max_capacity" not in params and "max_capacity" in normalized_struct:
+                        params["max_capacity"] = normalized_struct["max_capacity"]
+                    normalized_field["params"] = params
                     normalized_fields.append(normalized_field)
                 normalized_struct["fields"] = normalized_fields
                 normalized_struct_fields_info.append(normalized_struct)
@@ -1046,10 +1098,6 @@ class Prepare:
         entities: List,
         partial_update: bool = False,
     ):
-        # For partial update, struct fields are not supported
-        if partial_update and struct_fields_info:
-            raise ParamError(message="Struct fields are not supported in partial update")
-
         input_fields_info = [
             field for field in fields_info if Prepare._is_input_field(field, is_upsert=True)
         ]
@@ -1065,21 +1113,15 @@ class Prepare:
         # key: field_data object id, value: list of bytes
         vector_bytes_cache: Dict[int, List[bytes]] = {}
 
-        # Use common struct data setup (only if not partial update)
-        if partial_update:
-            struct_fields_data = {}
-            struct_info_map = {}
-            struct_sub_fields_data = {}
-            struct_sub_field_info = {}
-            input_struct_field_info = []
-        else:
-            (
-                struct_fields_data,
-                struct_info_map,
-                struct_sub_fields_data,
-                struct_sub_field_info,
-                input_struct_field_info,
-            ) = Prepare._setup_struct_data_structures(struct_fields_info)
+        (
+            struct_fields_data,
+            struct_info_map,
+            struct_sub_fields_data,
+            struct_sub_field_info,
+            input_struct_field_info,
+        ) = Prepare._setup_struct_data_structures(struct_fields_info)
+        for struct in input_struct_field_info:
+            field_len[struct["name"]] = 0
 
         if enable_dynamic:
             d_field = schema_types.FieldData(
@@ -1099,6 +1141,12 @@ class Prepare:
                         if k in function_output_field_names:
                             raise DataNotMatchException(
                                 message=ExceptionsMessage.InsertUnexpectedFunctionOutputField % k
+                            )
+
+                        struct_name = Prepare._match_struct_sub_field_name(k, struct_sub_field_info)
+                        if struct_name is not None:
+                            Prepare._raise_struct_sub_field_update_error(
+                                k, struct_name, partial_update
                             )
 
                         if not enable_dynamic:
@@ -1130,6 +1178,7 @@ class Prepare:
                             raise DataNotMatchException(
                                 message=f"{ExceptionsMessage.FieldDataInconsistent % (k, 'struct array', type(v))} Detail: {e!s}"
                             ) from e
+                        field_len[k] += 1
                 for field in input_fields_info:
                     key = field["name"]
                     if key in entity:
@@ -1193,10 +1242,21 @@ class Prepare:
 
         request.fields_data.extend(fields_data.values())
 
-        if struct_fields_data:
+        if partial_update:
+            struct_field_names = [
+                struct["name"]
+                for struct in input_struct_field_info
+                if field_len[struct["name"]] > 0
+            ]
+        else:
+            struct_field_names = [struct["name"] for struct in input_struct_field_info]
+
+        if struct_field_names:
             # reconstruct the struct array fields data (same as in insert)
             for struct in input_struct_field_info:
                 struct_name = struct["name"]
+                if struct_name not in struct_field_names:
+                    continue
                 struct_field_data = struct_fields_data[struct_name]
                 for field_info in struct["fields"]:
                     # Use two-level map to get the correct sub-field data
@@ -1204,7 +1264,9 @@ class Prepare:
                     struct_field_data.struct_arrays.fields.append(
                         struct_sub_fields_data[struct_name][field_name]
                     )
-            request.fields_data.extend(struct_fields_data.values())
+            request.fields_data.extend(
+                struct_fields_data[struct_name] for struct_name in struct_field_names
+            )
 
         for field in input_fields_info:
             is_dynamic = False
@@ -1611,12 +1673,49 @@ class Prepare:
             if dtype in (schema_types.Array,):
                 data.array_val.CopyFrom(add_array_data(v))
                 return data
+            if isinstance(v, bytes):
+                data.bytes_val = v
+                return data
             raise ParamError(message=f"Unsupported element type: {dtype}")
 
         expression_template_values = {}
         for k, v in values.items():
             expression_template_values[k] = add_data(v)
         return expression_template_values
+
+    @staticmethod
+    def function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+        ranker: Optional[Union[Function, FunctionScore]] = None,
+    ) -> List[schema_types.FunctionChain]:
+        if function_chains is None:
+            return []
+        if isinstance(function_chains, list) and len(function_chains) == 0:
+            return []
+        if ranker is not None:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if not isinstance(chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in chains
+        ):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+
+        for chain in chains:
+            if chain.stage == FunctionChainStage.UNSPECIFIED:
+                raise ParamError(
+                    message="UNSPECIFIED function chain stage is not supported for search"
+                )
+        return [chain.to_proto() for chain in chains]
+
+    @staticmethod
+    def check_no_hybrid_function_chains(function_chains: Any) -> None:
+        if function_chains is not None:
+            raise ParamError(message="function_chains is not supported for hybrid_search yet")
 
     @classmethod
     def search_requests_with_expr(
@@ -1632,6 +1731,7 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         use_default_consistency: bool = True,
         **kwargs,
@@ -1716,6 +1816,21 @@ class Prepare:
             raise ParamError(message="search_aggregation and group_by_field are mutually exclusive")
         if group_by_field is not None:
             search_params[GROUP_BY_FIELD] = group_by_field
+
+        # Plural group_by_fields must not be silently dropped on the search path.
+        # Mirror the singular handling above: reject the search_aggregation combination
+        # client-side, and otherwise forward the value so the proxy's group_by_fields
+        # validation and group-by search apply. See milvus-io/milvus#50960.
+        group_by_fields = kwargs.get(QUERY_GROUP_BY_FIELDS)
+        if group_by_fields is not None:
+            if not isinstance(group_by_fields, list):
+                raise ParamError(message="group_by_fields must be a list")
+            if len(group_by_fields) > 0:
+                if search_aggregation is not None:
+                    raise ParamError(
+                        message="search_aggregation and group_by_fields are mutually exclusive"
+                    )
+                search_params[QUERY_GROUP_BY_FIELDS] = ",".join(group_by_fields)
 
         group_size = kwargs.get(GROUP_SIZE)
         if group_size is not None:
@@ -1833,6 +1948,8 @@ class Prepare:
 
         if expr is not None:
             request.dsl = expr
+
+        request.function_chains.extend(Prepare.function_chains_schema(function_chains, ranker))
 
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
@@ -2176,8 +2293,32 @@ class Prepare:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name: str):
-        return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
+    def get_persistent_segment_info_request(
+        cls,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+    ):
+        if states is None:
+            normalized_states = []
+        else:
+            if isinstance(states, (str, bytes)) or not isinstance(states, Sequence):
+                message = "states must be a sequence of SegmentState values"
+                raise ParamError(message=message)
+            if not states:
+                message = "states must not be empty; use None for the default state filter"
+                raise ParamError(message=message)
+
+            normalized_states = []
+            for state in states:
+                if not isinstance(state, SegmentState):
+                    message = f"invalid SegmentState value: {state!r}"
+                    raise ParamError(message=message)
+                normalized_states.append(state.value)
+
+        return milvus_types.GetPersistentSegmentInfoRequest(
+            collectionName=collection_name,
+            states=normalized_states,
+        )
 
     @classmethod
     def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
@@ -2381,6 +2522,15 @@ class Prepare:
         request = milvus_types.GetCompactionPlansRequest()
         request.compactionID = compaction_id
         return request
+
+    @classmethod
+    def get_compaction_tasks(cls, collection_name: str):
+        if not isinstance(collection_name, str) or not collection_name:
+            raise ParamError(message=f"collection_name value {collection_name} is illegal")
+
+        return milvus_types.GetCompactionPlansRequest(
+            collection_name=collection_name,
+        )
 
     @classmethod
     def get_replicas(cls, collection_id: int):

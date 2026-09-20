@@ -1,16 +1,18 @@
 import copy
 import logging
 import time
-from typing import Dict, List, Optional, Union
+from typing import Callable, Dict, List, Optional, Sequence, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
-from pymilvus.client.search_iterator import SearchIteratorV2
+from pymilvus.client.search_result import Hit, Hits
 from pymilvus.client.types import (
+    _DEFAULT_RETAINED_SEGMENT_STATES,
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
@@ -22,6 +24,7 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     SegmentInfo,
+    SegmentState,
     SnapshotInfo,
 )
 from pymilvus.client.utils import (
@@ -37,15 +40,15 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     ServerVersionIncompatibleException,
 )
+from pymilvus.function_chain import FunctionChain
 from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.constants import FIELDS, METRIC_TYPE, TYPE, UNLIMITED
-from pymilvus.orm.iterator import QueryIterator, SearchIterator
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
 
 from .base import BaseMilvusClient
 from .check import validate_param
-from .index import IndexParam, IndexParams
+from .index import IndexParam, IndexParams, extract_bound_index_param
 from .optimize_task import OptimizeResult, OptimizeTask, ProgressStage, parse_target_size
 
 logger = logging.getLogger(__name__)
@@ -428,6 +431,7 @@ class MilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
@@ -447,6 +451,8 @@ class MilvusClient(BaseMilvusClient):
                 specified, only primary fields including distances will be returned.
             search_params (dict, optional): The search params to use for the search.
             ranker (Function, optional): The ranker to use for the search.
+            function_chains (FunctionChain or List[FunctionChain], optional): Function chain or
+                function chains to apply to ordinary search. Mutually exclusive with ranker.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
             ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
@@ -482,6 +488,7 @@ class MilvusClient(BaseMilvusClient):
             expr_params=kwargs.pop("filter_params", {}),
             timeout=timeout,
             ranker=ranker,
+            function_chains=function_chains,
             highlighter=highlighter,
             search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
@@ -564,17 +571,19 @@ class MilvusClient(BaseMilvusClient):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
         conn = self._get_connection()
+        context = self._generate_call_context(**kwargs)
         # set up schema for iterator from cache
         schema_dict, _ = conn._get_schema(
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
+            context=context,
             **kwargs,
         )
 
         kwargs = self._with_cluster_id(kwargs)
         return QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=context,
             collection_name=collection_name,
             batch_size=batch_size,
             limit=limit,
@@ -583,8 +592,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             schema=schema_dict,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     def search_iterator(
@@ -600,6 +608,8 @@ class MilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         anns_field: Optional[str] = None,
         round_decimal: int = -1,
+        *,
+        external_filter_func: Optional[Callable[[Hits], Union[Hits, List[Hit]]]] = None,
         **kwargs,
     ) -> Union[SearchIteratorV2, SearchIterator]:
         """Creates an iterator for searching vectors in batches.
@@ -625,6 +635,9 @@ class MilvusClient(BaseMilvusClient):
                 there is only one vector field in the collection.
             round_decimal (int, optional): Number of decimal places for distance values.
                 Defaults to -1 (no rounding).
+            external_filter_func (Callable, optional): A client-side callback that filters each
+                page of search hits. The callback receives Hits and returns Hits or a list of Hit
+                objects. This argument is keyword-only and is supported by Search Iterator V2.
             **kwargs: Additional arguments to pass to the search operation.
 
         Returns:
@@ -646,11 +659,13 @@ class MilvusClient(BaseMilvusClient):
 
         conn = self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
+        context = self._generate_call_context(**kwargs)
 
         # compatibility logic, change this when support get version from server
         try:
             return SearchIteratorV2(
-                connection=conn,
+                handler=conn,
+                context=context,
                 collection_name=collection_name,
                 data=data,
                 batch_size=batch_size,
@@ -662,8 +677,8 @@ class MilvusClient(BaseMilvusClient):
                 partition_names=partition_names,
                 anns_field=anns_field or "",
                 round_decimal=round_decimal,
-                context=self._generate_call_context(**kwargs),
-                **kwargs,
+                external_filter_func=external_filter_func,
+                rpc_options=kwargs,
             )
         except ServerVersionIncompatibleException:
             # for compatibility, return search_iterator V1
@@ -677,7 +692,7 @@ class MilvusClient(BaseMilvusClient):
         schema_dict, _ = conn._get_schema(
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(**kwargs),
+            context=context,
             **kwargs,
         )
         # if anns_field is not provided
@@ -711,9 +726,7 @@ class MilvusClient(BaseMilvusClient):
         if search_params is None:
             search_params = {}
         if METRIC_TYPE not in search_params:
-            indexes = conn.list_indexes(
-                collection_name, context=self._generate_call_context(**kwargs)
-            )
+            indexes = conn.list_indexes(collection_name, context=context)
             for index in indexes:
                 if anns_field == index.index_name:
                     params = index.params
@@ -728,7 +741,8 @@ class MilvusClient(BaseMilvusClient):
         search_params["params"] = get_params(search_params)
 
         return SearchIterator(
-            connection=self._get_connection(),
+            handler=conn,
+            context=context,
             collection_name=collection_name,
             data=data,
             ann_field=anns_field,
@@ -741,8 +755,7 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             round_decimal=round_decimal,
             schema=schema_dict,
-            context=self._generate_call_context(**kwargs),
-            **kwargs,
+            rpc_options=kwargs,
         )
 
     def get(
@@ -1070,18 +1083,15 @@ class MilvusClient(BaseMilvusClient):
         )
 
     def list_indexes(self, collection_name: str, field_name: Optional[str] = "", **kwargs):
-        """List all indexes of collection. If `field_name` is not specified,
-            return all the indexes of this collection, otherwise this interface will return
-            all indexes on this field of the collection.
+        """List indexes in a collection.
 
-        :param collection_name: The name of collection.
-        :type  collection_name: str
+        Args:
+            collection_name (str): The name of the collection.
+            field_name (str, optional): The name of the field. If omitted, indexes for all
+                fields are returned. Defaults to "".
 
-        :param field_name: The name of field.  If no field name is specified, all indexes
-                of this collection will be returned.
-
-        :return: The name list of all indexes.
-        :rtype: str list
+        Returns:
+            List[str]: The names of the indexes.
         """
         conn = self._get_connection()
         indexes = conn.list_indexes(
@@ -1281,10 +1291,18 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "MilvusClient.add_collection_function",
+        replacement="MilvusClient.add_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     def add_collection_function(
         self, collection_name: str, function: Function, timeout: Optional[float] = None, **kwargs
     ):
-        """Add a new function to the collection.
+        """Deprecated: Use add_function_field instead.
+
+        Milvus 3.0 and later do not support adding a function separately. The replacement
+        adds the function together with its output field and index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1338,10 +1356,18 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    @deprecated(
+        "MilvusClient.drop_collection_function",
+        replacement="MilvusClient.drop_function_field",
+        reason="is unsupported by Milvus 3.0 and later",
+    )
     def drop_collection_function(
         self, collection_name: str, function_name: str, timeout: Optional[float] = None, **kwargs
     ):
-        """Drop a function from the collection.
+        """Deprecated: Use drop_function_field instead.
+
+        Milvus 3.0 and later do not support dropping a function separately. The replacement
+        also removes the function's output field and its index.
 
         Args:
             collection_name(``string``): The name of collection.
@@ -1354,10 +1380,12 @@ class MilvusClient(BaseMilvusClient):
         Raises:
             MilvusException: If anything goes wrong
         """
-        self._alter_collection_schema(
-            collection_name=collection_name,
-            drop_function_name=function_name,
+        conn = self._get_connection()
+        conn.drop_collection_function(
+            collection_name,
+            function_name,
             timeout=timeout,
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 
@@ -1400,6 +1428,8 @@ class MilvusClient(BaseMilvusClient):
         drop_field_id: Optional[int] = None,
         drop_function_name: Optional[str] = None,
         drop_function_output_fields: bool = False,
+        index_name: str = "",
+        index_extra_params: Optional[Dict] = None,
         **kwargs,
     ):
         """Alter collection schema supporting both Add and Drop operations.
@@ -1450,6 +1480,8 @@ class MilvusClient(BaseMilvusClient):
                 field_schema=field_schema,
                 func=func,
                 timeout=timeout,
+                index_name=index_name,
+                index_extra_params=index_extra_params,
                 context=self._generate_call_context(**kwargs),
                 **kwargs,
             )
@@ -1480,21 +1512,30 @@ class MilvusClient(BaseMilvusClient):
         collection_name: str,
         field_schema: FieldSchema,
         func: Function,
+        index_params: IndexParams,
         timeout: Optional[float] = None,
         **kwargs,
     ):
         """Add a function-backed field (e.g. BM25 sparse vector) to an existing collection.
 
         This is a high-level convenience wrapper that commits the schema change
-        (new output field + function definition). Create indexes separately with
-        ``create_index`` after the schema change succeeds.
+        (new output field + function definition) together with the index meta bound
+        to the new output field. The server creates the index meta atomically with
+        the schema change, so backfill compaction is never blocked on a missing
+        vector index. ``index_params`` must contain exactly one entry with an
+        explicit ``index_type`` for the output field; the server rejects vector
+        output fields without bound index params.
 
         Args:
             collection_name(``str``): Name of the collection to modify.
             field_schema(``FieldSchema``): Schema of the new output field produced by
-                the function (e.g. a ``SPARSE_FLOAT_VECTOR`` field for BM25).
+                the function (e.g. a ``SPARSE_FLOAT_VECTOR`` field for BM25 or
+                a ``BINARY_VECTOR`` field for MinHash).
             func(``Function``): Function definition that generates the output field
-                (e.g. a ``FunctionType.BM25`` function).
+                (e.g. a ``FunctionType.BM25`` or ``FunctionType.MINHASH`` function).
+            index_params(``IndexParams``): Index definition bound to the new output
+                field, exactly one entry with an explicit ``index_type``
+                (e.g. ``SPARSE_INVERTED_INDEX``/``BM25`` or ``MINHASH_LSH``/``MHJACCARD``).
             timeout(``float``, optional): Timeout in seconds for the schema-change RPC.
             **kwargs: Additional keyword arguments forwarded to the underlying calls.
 
@@ -1506,23 +1547,37 @@ class MilvusClient(BaseMilvusClient):
         validate_param("field_schema", field_schema, FieldSchema)
         validate_param("func", func, Function)
 
-        # Only BM25 + SPARSE_FLOAT_VECTOR is currently supported on the server side.
-        # The Proxy and RootCoord both enforce this; reject early here for a clearer
-        # error message before any RPC is sent.
-        if func.type != FunctionType.BM25:
+        supported_function_outputs = {
+            FunctionType.BM25: DataType.SPARSE_FLOAT_VECTOR,
+            FunctionType.MINHASH: DataType.BINARY_VECTOR,
+        }
+        expected_dtype = supported_function_outputs.get(func.type)
+        if expected_dtype is None:
             raise ParamError(
-                message=f"add_function_field only supports FunctionType.BM25 for now, got {func.type}"
+                message=(
+                    "add_function_field only supports FunctionType.BM25 with SPARSE_FLOAT_VECTOR "
+                    f"or FunctionType.MINHASH with BINARY_VECTOR for now, got {func.type}"
+                )
             )
-        if field_schema.dtype != DataType.SPARSE_FLOAT_VECTOR:
+        if field_schema.dtype != expected_dtype:
             raise ParamError(
-                message=f"add_function_field only supports SPARSE_FLOAT_VECTOR output field for now, got {field_schema.dtype}"
+                message=(
+                    f"add_function_field requires {expected_dtype.name} output field for {func.type}, "
+                    f"got {field_schema.dtype}"
+                )
             )
+
+        bound_index_name, bound_index_extra_params = extract_bound_index_param(
+            field_schema.name, index_params
+        )
 
         self._alter_collection_schema(
             collection_name=collection_name,
             field_schema=field_schema,
             func=func,
             timeout=timeout,
+            index_name=bound_index_name,
+            index_extra_params=bound_index_extra_params,
             **kwargs,
         )
 
@@ -2093,9 +2148,13 @@ class MilvusClient(BaseMilvusClient):
             for subsequent state inquiries.
         """
         if target_size is not None:
-            if not isinstance(target_size, int):
+            if not isinstance(target_size, int) or isinstance(target_size, bool):
                 raise ParamError(
                     message=f"target_size must be an int, got {type(target_size).__name__}"
+                )
+            if target_size <= 0:
+                raise ParamError(
+                    message=f"target_size must be a positive integer, got {target_size}"
                 )
             target_size = parse_target_size(f"{target_size}{target_size_unit}")
 
@@ -2740,12 +2799,15 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[Sequence[SegmentState]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2754,23 +2816,48 @@ class MilvusClient(BaseMilvusClient):
         """
         infos = self._get_connection().get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
         return [
             SegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
+                segment_id=info.segmentID,
+                collection_id=info.collectionID,
+                collection_name=collection_name,
+                num_rows=info.num_rows,
+                is_sorted=info.is_sorted,
+                state=info.state,
+                level=info.level,
+                storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                insert_channel=info.insert_channel,
+                compaction_from=list(info.compaction_from),
             )
             for info in infos
         ]
+
+    def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states.
+
+        Dropped segment metadata is subject to server-side garbage collection, so callers that
+        need lineage history must poll and cache it during the retention window.
+        """
+        if states is None:
+            states = _DEFAULT_RETAINED_SEGMENT_STATES
+        return self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def get_compaction_plans(
         self,
@@ -2790,6 +2877,24 @@ class MilvusClient(BaseMilvusClient):
         """
         return self._get_connection().get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection.
+
+        Terminal tasks are subject to server-side garbage collection and are not an audit log.
+        """
+        validate_param("collection_name", collection_name, str)
+        return self._get_connection().get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:

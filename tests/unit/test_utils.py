@@ -255,6 +255,10 @@ class TestCheckInvalidBinaryVector:
         entities = [{"type": DataType.BINARY_VECTOR, "values": [[0, 1], [2, 3]]}]
         assert utils.check_invalid_binary_vector(entities) is False
 
+    def test_empty_values(self):
+        entities = [{"type": DataType.BINARY_VECTOR, "values": []}]
+        assert utils.check_invalid_binary_vector(entities) is False
+
 
 class TestSparseParseSingleRow:
     def test_basic_parsing(self):

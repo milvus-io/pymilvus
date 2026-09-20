@@ -1347,6 +1347,27 @@ class TestEmptyResultArrayField:
         extract_array_rows(fd, entity_rows, 0, has_valid=True)
 
 
+class TestArrayResultMaterialization:
+    def test_extract_row_data_v2_materializes_array_as_python_list(self):
+        fd = schema_types.FieldData()
+        fd.type = DataType.ARRAY
+        fd.field_name = "arr_field"
+        fd.scalars.array_data.element_type = DataType.INT64
+        fd.scalars.array_data.data.append(
+            schema_types.ScalarField(long_data=schema_types.LongArray(data=[1, 2]))
+        )
+        fd.scalars.array_data.data.append(
+            schema_types.ScalarField(long_data=schema_types.LongArray(data=[3, 4]))
+        )
+
+        entity_rows: List[Dict] = [{}, {}]
+        extract_row_data_from_fields_data_v2(fd, entity_rows)
+
+        assert entity_rows == [{"arr_field": [1, 2]}, {"arr_field": [3, 4]}]
+        assert isinstance(entity_rows[0]["arr_field"], list)
+        assert isinstance(entity_rows[1]["arr_field"], list)
+
+
 class TestLogicalTypeRowInsertPaths:
     @staticmethod
     def _byte_vector_payload(dtype, dim, seed=0):

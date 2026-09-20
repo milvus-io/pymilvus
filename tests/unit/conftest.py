@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio
 from pymilvus import MilvusClient
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.grpc_handler import GrpcHandler
@@ -420,8 +421,8 @@ def mock_async_stub():
     return stub
 
 
-@pytest.fixture
-def mock_async_grpc_handler(mock_async_channel, mock_async_stub):
+@pytest_asyncio.fixture
+async def mock_async_grpc_handler(mock_async_channel, mock_async_stub):
     """Create an AsyncGrpcHandler with mocked async channel and stub."""
 
     handler = AsyncGrpcHandler(channel=mock_async_channel)

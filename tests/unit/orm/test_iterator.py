@@ -50,8 +50,8 @@ from pymilvus.orm.types import DataType
 
 
 class TestFallBackToLatestSessionTs:
-    @patch("pymilvus.orm.iterator.datetime")
-    @patch("pymilvus.orm.iterator.mkts_from_datetime")
+    @patch("pymilvus.client.iterator.query_iterator.datetime")
+    @patch("pymilvus.client.iterator.query_iterator.mkts_from_datetime")
     def test_returns_timestamp_from_now(self, mock_mkts, mock_datetime):
         mock_now = Mock()
         mock_datetime.datetime.now.return_value = mock_now
@@ -345,7 +345,8 @@ class TestQueryIteratorInit:
     def test_basic_init(self):
         conn = _make_mock_conn()
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -360,7 +361,8 @@ class TestQueryIteratorInit:
     def test_varchar_pk(self):
         conn = _make_mock_conn()
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr='pk != ""',
@@ -372,7 +374,8 @@ class TestQueryIteratorInit:
     def test_default_expr_int_pk(self):
         conn = _make_mock_conn()
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr=None,
@@ -385,7 +388,8 @@ class TestQueryIteratorInit:
     def test_default_expr_varchar_pk(self):
         conn = _make_mock_conn()
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr=None,
@@ -398,7 +402,8 @@ class TestQueryIteratorInit:
         conn = _make_mock_conn()
         with pytest.raises(ParamError, match="less than zero"):
             QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=-1,
                 expr="pk > 0",
@@ -410,7 +415,8 @@ class TestQueryIteratorInit:
         conn = _make_mock_conn()
         with pytest.raises(ParamError, match="larger than"):
             QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=MAX_BATCH_SIZE + 1,
                 expr="pk > 0",
@@ -421,7 +427,8 @@ class TestQueryIteratorInit:
     def test_session_ts_set(self):
         conn = _make_mock_conn(session_ts=5000)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -433,9 +440,13 @@ class TestQueryIteratorInit:
     def test_session_ts_fallback(self):
         """When server returns ts <= 0, fallback to client-side ts."""
         conn = _make_mock_conn(session_ts=0)
-        with patch("pymilvus.orm.iterator.fall_back_to_latest_session_ts", return_value=9999):
+        with patch(
+            "pymilvus.client.iterator.query_iterator.fall_back_to_latest_session_ts",
+            return_value=9999,
+        ):
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
@@ -451,7 +462,8 @@ class TestQueryIteratorInit:
         conn.query.return_value = None
         with pytest.raises(MilvusException, match="failed to connect"):
             QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
@@ -466,7 +478,8 @@ class TestQueryIteratorNext:
         conn = _make_mock_conn(session_ts=100)
 
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -493,7 +506,8 @@ class TestQueryIteratorNext:
     def test_next_empty_returns_empty(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -516,12 +530,32 @@ class TestQueryIteratorNext:
         result = qi.next()
         assert len(result) == 0
 
+    def test_next_propagates_handler_exception_unchanged(self):
+        conn = _make_mock_conn(session_ts=100)
+        qi = QueryIterator(
+            handler=conn,
+            context=None,
+            collection_name="test",
+            batch_size=10,
+            expr="pk > 0",
+            output_fields=["pk"],
+            schema=_SCHEMA_DICT,
+        )
+        error = MilvusException(message="page failed")
+        conn.query.side_effect = error
+
+        with pytest.raises(MilvusException) as caught:
+            qi.next()
+
+        assert caught.value is error
+
 
 class TestQueryIteratorClose:
     def test_close_releases_cache(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -536,7 +570,8 @@ class TestQueryIteratorLimit:
     def test_limit_truncates_result(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             limit=1,
@@ -565,7 +600,8 @@ class TestQueryIteratorNextExpr:
     def test_setup_next_expr_no_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -579,7 +615,8 @@ class TestQueryIteratorNextExpr:
     def test_setup_next_expr_with_int_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -598,7 +635,8 @@ class TestQueryIteratorNextExpr:
         conn = _make_mock_conn(session_ts=100)
         user_filter = "element_filter(structA, $[int_val] >= 20000)"
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr=user_filter,
@@ -614,7 +652,8 @@ class TestQueryIteratorNextExpr:
         conn = _make_mock_conn(session_ts=100)
         user_filter = "element_filter(structA, $[int_val] >= 20000)"
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr=user_filter,
@@ -629,7 +668,8 @@ class TestQueryIteratorNextExpr:
     def test_setup_next_expr_with_varchar_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr='pk != ""',
@@ -643,7 +683,8 @@ class TestQueryIteratorNextExpr:
     def test_setup_next_expr_empty_expr_with_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -660,7 +701,8 @@ class TestQueryIteratorGetCursor:
     def test_get_cursor_int_pk(self):
         conn = _make_mock_conn(session_ts=200)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -675,7 +717,8 @@ class TestQueryIteratorGetCursor:
     def test_get_cursor_varchar_pk(self):
         conn = _make_mock_conn(session_ts=200)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr='pk != ""',
@@ -690,7 +733,8 @@ class TestQueryIteratorGetCursor:
     def test_get_cursor_element_offset(self):
         conn = _make_mock_conn(session_ts=200)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="element_filter(structA, $[int_val] >= 20000)",
@@ -750,7 +794,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="multiple vectors"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4], [5, 6, 7, 8]],
                 ann_field="vec",
@@ -763,7 +808,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="cannot be empty"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[],
                 ann_field="vec",
@@ -776,21 +822,23 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="offset"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
                 param={METRIC_TYPE: "L2", PARAMS: {}},
                 batch_size=10,
                 schema=_SEARCH_SCHEMA_DICT,
-                **{OFFSET: 5},
+                rpc_options={OFFSET: 5},
             )
 
     def test_no_metric_type_raises(self):
         conn = _make_search_conn()
         with pytest.raises(ParamError, match="metrics type"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -803,7 +851,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="hnsw"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -819,7 +868,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -834,7 +884,8 @@ class TestSearchIteratorInit:
         """When init page is empty, _init_success should be False."""
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -849,7 +900,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="radius must be"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -863,7 +915,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises(MilvusException, match="radius must be"):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -877,7 +930,8 @@ class TestSearchIteratorInit:
         conn = _make_search_conn()
         with pytest.raises((ParamError, KeyError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -893,7 +947,8 @@ class TestSearchIteratorInit:
         # param=None with no metric raises the right error
         with pytest.raises((ParamError, KeyError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -908,7 +963,8 @@ class TestSearchIteratorNext:
         """When init fails, next() returns empty page."""
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -927,7 +983,8 @@ class TestSearchIteratorNext:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -948,7 +1005,8 @@ class TestSearchIteratorClose:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -965,7 +1023,8 @@ class TestSearchIteratorFilteredExpr:
     def test_no_filtered_ids(self):
         conn = _make_search_conn(hits=[], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -981,7 +1040,8 @@ class TestSearchIteratorFilteredExpr:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1011,7 +1071,8 @@ class TestSearchIteratorFilteredExpr:
         conn.search.return_value = mock_res
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1028,7 +1089,8 @@ class TestSearchIteratorFilteredExpr:
         hit0 = Mock(id=1, distance=0.1)
         conn = _make_search_conn(hits=[hit0], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1047,7 +1109,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1066,7 +1129,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1083,7 +1147,8 @@ class TestSearchIteratorNextParams:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1128,17 +1193,21 @@ class TestQueryIteratorSeekToOffset:
         conn.query.side_effect = [init_res, seek_res]
 
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
             output_fields=["pk"],
             schema=_SCHEMA_DICT,
-            **{OFFSET: 2},
+            rpc_options={OFFSET: 2},
         )
         # offset was consumed; next_id updated to last pk
         assert qi._next_id == 2
-        assert qi._kwargs[OFFSET] == 0
+        conn.query.side_effect = None
+        conn.query.return_value = []
+        qi.next()
+        assert conn.query.call_args.kwargs[OFFSET] == 0
 
     def test_seek_offset_drained(self):
         """Offset seek breaks when query returns 0 results."""
@@ -1156,15 +1225,19 @@ class TestQueryIteratorSeekToOffset:
         conn.query.side_effect = [init_res, empty_res]
 
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
             output_fields=["pk"],
             schema=_SCHEMA_DICT,
-            **{OFFSET: 5},
+            rpc_options={OFFSET: 5},
         )
-        assert qi._kwargs[OFFSET] == 0
+        conn.query.side_effect = None
+        conn.query.return_value = []
+        qi.next()
+        assert conn.query.call_args.kwargs[OFFSET] == 0
 
     def test_seek_offset_skipped_when_next_id_set(self):
         """When _next_id is already set (cp file), skip offset."""
@@ -1176,13 +1249,14 @@ class TestQueryIteratorSeekToOffset:
 
         try:
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path, OFFSET: 10},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path, OFFSET: 10},
             )
             assert qi._next_id == "42"
         finally:
@@ -1198,7 +1272,8 @@ class TestQueryIteratorConnQueryArgs:
         conn = _make_mock_conn(session_ts=100)
 
         QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -1233,14 +1308,15 @@ class TestQueryIteratorConnQueryArgs:
         conn.query.side_effect = [init_res, seek_res]
 
         QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
             output_fields=["pk"],
             partition_names=["part_a"],
             schema=_SCHEMA_DICT,
-            **{OFFSET: 2},
+            rpc_options={OFFSET: 2},
         )
 
         kwargs = conn.query.call_args_list[1].kwargs
@@ -1257,7 +1333,8 @@ class TestQueryIteratorConnQueryArgs:
         conn = _make_mock_conn(session_ts=100)
 
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
@@ -1287,7 +1364,8 @@ class TestQueryIteratorConnQueryArgs:
         user_filter = "element_filter(structA, $[int_val] >= 20000)"
 
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr=user_filter,
@@ -1320,13 +1398,14 @@ class TestQueryIteratorCpFile:
         with tempfile.TemporaryDirectory() as td:
             cp_path = str(Path(td) / "new_iter.cp")
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
             assert qi._need_save_cp is True
             assert qi._session_ts == 200
@@ -1342,13 +1421,14 @@ class TestQueryIteratorCpFile:
 
         try:
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
             assert qi._session_ts == 300
             assert qi._next_id == "99"
@@ -1367,13 +1447,14 @@ class TestQueryIteratorCpFile:
 
         try:
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="element_filter(structA, $[int_val] >= 20000)",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
             assert qi._session_ts == 300
             assert qi._next_id == 99
@@ -1398,13 +1479,14 @@ class TestQueryIteratorCpFile:
         try:
             with pytest.raises(ParamError, match="at least two lines"):
                 QueryIterator(
-                    connection=conn,
+                    handler=conn,
+                    context=None,
                     collection_name="test",
                     batch_size=10,
                     expr="pk > 0",
                     output_fields=["pk"],
                     schema=_SCHEMA_DICT,
-                    **{ITERATOR_SESSION_CP_FILE: cp_path},
+                    rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
                 )
         finally:
             if Path(cp_path).exists():
@@ -1421,13 +1503,14 @@ class TestQueryIteratorCpFile:
         try:
             with pytest.raises(ParamError, match="cannot parse"):
                 QueryIterator(
-                    connection=conn,
+                    handler=conn,
+                    context=None,
                     collection_name="test",
                     batch_size=10,
                     expr="pk > 0",
                     output_fields=["pk"],
                     schema=_SCHEMA_DICT,
-                    **{ITERATOR_SESSION_CP_FILE: cp_path},
+                    rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
                 )
         finally:
             if Path(cp_path).exists():
@@ -1443,13 +1526,14 @@ class TestQueryIteratorSavePkCursor:
         with tempfile.TemporaryDirectory() as td:
             cp_path = str(Path(td) / "cursor.cp")
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
 
             # Set up next() to return rows
@@ -1477,13 +1561,14 @@ class TestQueryIteratorSavePkCursor:
         with tempfile.TemporaryDirectory() as td:
             cp_path = str(Path(td) / "cursor.cp")
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="element_filter(structA, $[int_val] >= 20000)",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
 
             conn.query.return_value = _make_query_res([{"pk": 20, OFFSET: 4}])
@@ -1493,19 +1578,42 @@ class TestQueryIteratorSavePkCursor:
             assert cursor == {"pk": 20, "last_element_offset": 4}
             qi.close()
 
+    def test_deleted_cp_file_is_recreated_during_iteration(self):
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.TemporaryDirectory() as td:
+            cp_path = Path(td) / "cursor.cp"
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: str(cp_path)},
+            )
+            cp_path.unlink()
+            conn.query.return_value = _make_query_res([{"pk": 20}])
+
+            qi.next()
+
+            assert cp_path.read_text().splitlines() == ["200", "20"]
+            qi.close()
+
     def test_save_pk_cursor_truncates_after_100_lines(self):
         """CP file is truncated when buffer lines >= 100."""
         conn = _make_mock_conn(session_ts=200)
         with tempfile.TemporaryDirectory() as td:
             cp_path = str(Path(td) / "cursor.cp")
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
 
             # Simulate 100 buffered lines
@@ -1526,7 +1634,8 @@ class TestQueryIteratorMaybeCache:
         """When result has >= 2*batch_size items, cache the overflow."""
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=2,
             expr="pk > 0",
@@ -1557,7 +1666,8 @@ class TestQueryIteratorMaybeCache:
         """Second next() call uses cached results."""
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=2,
             expr="pk > 0",
@@ -1596,7 +1706,8 @@ class TestQueryIteratorCheckReachedLimit:
         """With large limit, results pass through untruncated."""
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             limit=100,
@@ -1626,16 +1737,17 @@ class TestQueryIteratorReduceStopForBest:
 
     def test_reduce_stop_for_best_false(self):
         conn = _make_mock_conn(session_ts=100)
-        qi = QueryIterator(
-            connection=conn,
+        QueryIterator(
+            handler=conn,
+            context=None,
             collection_name="test",
             batch_size=10,
             expr="pk > 0",
             output_fields=["pk"],
             schema=_SCHEMA_DICT,
-            **{REDUCE_STOP_FOR_BEST: False},
+            rpc_options={REDUCE_STOP_FOR_BEST: False},
         )
-        assert qi._kwargs[REDUCE_STOP_FOR_BEST] == "False"
+        assert conn.query.call_args.kwargs[REDUCE_STOP_FOR_BEST] == "False"
 
 
 class TestQueryIteratorMissingPk:
@@ -1654,7 +1766,8 @@ class TestQueryIteratorMissingPk:
         conn = _make_mock_conn(session_ts=100)
         with pytest.raises((MilvusException, AttributeError)):
             QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
@@ -1671,13 +1784,14 @@ class TestQueryIteratorCloseWithCpFile:
         with tempfile.TemporaryDirectory() as td:
             cp_path = str(Path(td) / "close_test.cp")
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",
                 output_fields=["pk"],
                 schema=_SCHEMA_DICT,
-                **{ITERATOR_SESSION_CP_FILE: cp_path},
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
             )
             assert qi._cp_file_handler is not None
             qi.close()
@@ -1698,11 +1812,12 @@ class TestSearchIteratorSessionTsFallback:
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=0)
 
         with patch(
-            "pymilvus.orm.iterator.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=7777,
         ):
             si = SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -1731,7 +1846,8 @@ class TestSearchIteratorMissingPk:
         conn = _make_search_conn(hits=[], session_ts=500)
         with pytest.raises((ParamError, AttributeError)):
             SearchIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 data=[[1, 2, 3, 4]],
                 ann_field="vec",
@@ -1747,7 +1863,8 @@ class TestSearchIteratorUpdateFilteredIds:
     def _make_si(self, hits):
         conn = _make_search_conn(hits=hits, session_ts=500)
         return SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1815,7 +1932,8 @@ class TestSearchIteratorCacheHelpers:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         return SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1926,7 +2044,8 @@ class TestSearchIteratorNextFull:
             next_hits_list=[],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1951,7 +2070,8 @@ class TestSearchIteratorNextFull:
             next_hits_list=[],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -1996,7 +2116,8 @@ class TestSearchIteratorNextFull:
             ],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2044,7 +2165,8 @@ class TestSearchIteratorNextFull:
             ],
         )
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2098,7 +2220,8 @@ class TestSearchIteratorTrySearchFill:
         conn.search.side_effect = search_side_effect
 
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2123,7 +2246,8 @@ class TestSearchIteratorNextParamsWithRadius:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2147,7 +2271,8 @@ class TestSearchIteratorNextParamsWithRadius:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2173,7 +2298,8 @@ class TestSearchIteratorUpdateWidth:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2190,7 +2316,8 @@ class TestSearchIteratorUpdateWidth:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2210,7 +2337,8 @@ class TestSearchIteratorCheckReachedLimit:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2228,7 +2356,8 @@ class TestSearchIteratorCheckReachedLimit:
         hit1 = Mock(id=2, distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2250,7 +2379,8 @@ class TestSearchIteratorVarcharPk:
         hit1 = Mock(id="b", distance=0.5)
         conn = _make_search_conn(hits=[hit0, hit1], session_ts=500)
         si = SearchIterator(
-            connection=conn,
+            handler=conn,
+            context=None,
             collection_name="test",
             data=[[1, 2, 3, 4]],
             ann_field="vec",
@@ -2275,11 +2405,12 @@ class TestQueryIteratorExtraIsNone:
         conn.query.return_value = mock_res
 
         with patch(
-            "pymilvus.orm.iterator.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.query_iterator.fall_back_to_latest_session_ts",
             return_value=8888,
         ):
             qi = QueryIterator(
-                connection=conn,
+                handler=conn,
+                context=None,
                 collection_name="test",
                 batch_size=10,
                 expr="pk > 0",

@@ -9,8 +9,12 @@ from pymilvus import (
     DataType,
     FieldSchema,
     Function,
+    FunctionChain,
+    FunctionChainStage,
     FunctionType,
+    PyMilvusDeprecationWarning,
     SearchAggregation,
+    SegmentState,
     StructFieldSchema,
     TopHits,
 )
@@ -895,6 +899,15 @@ class TestMilvusClientCRUD:
 
         assert handler.search.call_args.kwargs["search_aggregation"] is agg
 
+    def test_search_passes_function_chains(self, mc):
+        client, handler = mc
+        handler.search.return_value = [[{"id": 1, "distance": 0.1}]]
+        chain = FunctionChain(FunctionChainStage.L2_RERANK, name="score_rerank")
+
+        client.search("test_collection", data=[[0.1, 0.2]], function_chains=chain)
+
+        assert handler.search.call_args.kwargs["function_chains"] is chain
+
     def test_insert_dict_converts_to_list(self):
         result = MagicMock()
         result.insert_count = 1
@@ -1627,7 +1640,11 @@ class TestMilvusClientCollectionMgmt:
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            client.add_collection_function("col", MagicMock())
+            with pytest.warns(
+                PyMilvusDeprecationWarning,
+                match=r"MilvusClient\.add_collection_function.*Milvus 3\.0.*MilvusClient\.add_function_field",
+            ):
+                client.add_collection_function("col", MagicMock())
             handler.add_collection_function.assert_called_once()
 
     def test_alter_collection_function_delegates(self):
@@ -1641,13 +1658,13 @@ class TestMilvusClientCollectionMgmt:
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            client.drop_collection_function("col", "fn")
-            handler.alter_collection_schema.assert_called_once()
-            assert handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
-            assert not handler.alter_collection_schema.call_args.kwargs[
-                "drop_function_output_fields"
-            ]
-            handler.drop_collection_function.assert_not_called()
+            with pytest.warns(
+                PyMilvusDeprecationWarning,
+                match=r"MilvusClient\.drop_collection_function.*Milvus 3\.0.*MilvusClient\.drop_function_field",
+            ):
+                client.drop_collection_function("col", "fn")
+            handler.drop_collection_function.assert_called_once()
+            handler.alter_collection_schema.assert_not_called()
 
     def test_drop_function_field_delegates(self):
         handler = _make_handler()
@@ -1723,19 +1740,39 @@ class TestMilvusClientCollectionMgmt:
             with pytest.raises(ParamError, match="field_schema is required"):
                 client._alter_collection_schema("col", func=MagicMock())
 
-    def test_add_function_field_delegates(self):
+    @pytest.mark.parametrize(
+        ("field", "func"),
+        [
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function(
+                    name="bm25",
+                    function_type=FunctionType.BM25,
+                    input_field_names=["text"],
+                    output_field_names=["sparse"],
+                ),
+            ),
+            (
+                FieldSchema("minhash", DataType.BINARY_VECTOR, dim=512),
+                Function(
+                    name="minhash",
+                    function_type=FunctionType.MINHASH,
+                    input_field_names=["text"],
+                    output_field_names=["minhash"],
+                ),
+            ),
+        ],
+    )
+    def test_add_function_field_delegates(self, field, func):
         handler = _make_handler()
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(field_name=field.name, index_type="SPARSE_INVERTED_INDEX")
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
-            func = Function(
-                name="bm25",
-                function_type=FunctionType.BM25,
-                input_field_names=["text"],
-                output_field_names=["sparse"],
-            )
-            client.add_function_field("col", field, func)
+            client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_called_once()
+            call_kwargs = handler.alter_collection_schema.call_args.kwargs
+            assert call_kwargs["index_extra_params"]["index_type"] == "SPARSE_INVERTED_INDEX"
 
     def test_add_function_field_rejects_unsupported_function_type(self):
         handler = _make_handler()
@@ -1748,23 +1785,47 @@ class TestMilvusClientCollectionMgmt:
                 input_field_names=["text"],
                 output_field_names=["sparse"],
             )
-            with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
-                client.add_function_field("col", field, func)
+            index_params = MilvusClient.prepare_index_params()
+            index_params.add_index(field_name="sparse", index_type="SPARSE_INVERTED_INDEX")
+            with pytest.raises(
+                ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
+            ):
+                client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_not_called()
 
-    def test_add_function_field_rejects_non_sparse_output(self):
+    @pytest.mark.parametrize(
+        ("field", "func", "expected"),
+        [
+            (
+                FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8),
+                Function(
+                    name="bm25",
+                    function_type=FunctionType.BM25,
+                    input_field_names=["text"],
+                    output_field_names=["dense"],
+                ),
+                "requires SPARSE_FLOAT_VECTOR output field",
+            ),
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function(
+                    name="minhash",
+                    function_type=FunctionType.MINHASH,
+                    input_field_names=["text"],
+                    output_field_names=["sparse"],
+                ),
+                "requires BINARY_VECTOR output field",
+            ),
+        ],
+    )
+    def test_add_function_field_rejects_invalid_output(self, field, func, expected):
         handler = _make_handler()
+        index_params = MilvusClient.prepare_index_params()
+        index_params.add_index(field_name="", index_type="SPARSE_INVERTED_INDEX")
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()
-            field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
-            func = Function(
-                name="bm25",
-                function_type=FunctionType.BM25,
-                input_field_names=["text"],
-                output_field_names=["dense"],
-            )
-            with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
-                client.add_function_field("col", field, func)
+            with pytest.raises(ParamError, match=expected):
+                client.add_function_field("col", field, func, index_params=index_params)
             handler.alter_collection_schema.assert_not_called()
 
 
@@ -1851,13 +1912,83 @@ class TestMilvusClientMiscOps:
 
     def test_list_loaded_segments(self, mc):
         client, handler = mc
-        handler.get_query_segment_info.return_value = []
-        assert client.list_loaded_segments("col") == []
+        handler.get_query_segment_info.return_value = [
+            MagicMock(
+                segmentID=1,
+                collectionID=2,
+                partitionID=4,
+                num_rows=3,
+                is_sorted=True,
+                state=common_pb2.SegmentState.Flushed,
+                level=common_pb2.SegmentLevel.L1,
+                storage_version=3,
+                index_name="idx",
+                indexID=5,
+                nodeIds=[6],
+                mem_size=7,
+            )
+        ]
+        result = client.list_loaded_segments("col")
+        assert result[0].state is SegmentState.Flushed
 
     def test_list_persistent_segments(self, mc):
         client, handler = mc
+        segment = MagicMock(
+            segmentID=1,
+            collectionID=2,
+            partitionID=4,
+            num_rows=3,
+            is_sorted=True,
+            state=common_pb2.SegmentState.Flushed,
+            level=common_pb2.SegmentLevel.L1,
+            storage_version=3,
+            insert_channel="ch",
+            compaction_from=[10, 11],
+        )
+        handler.get_persistent_segment_infos.return_value = [segment]
+        result = client.list_persistent_segments(
+            "col", states=[SegmentState.Flushed, SegmentState.Dropped]
+        )
+        assert len(result) == 1
+        assert result[0].segment_id == 1
+        assert result[0].collection_id == 2
+        assert result[0].collection_name == "col"
+        assert result[0].num_rows == 3
+        assert result[0].is_sorted is True
+        assert result[0].state is SegmentState.Flushed
+        assert result[0].level == common_pb2.SegmentLevel.L1
+        assert result[0].storage_version == 3
+        assert result[0].partition_id == 4
+        assert result[0].insert_channel == "ch"
+        assert result[0].compaction_from == [10, 11]
+        result[0].compaction_from.append(12)
+        assert segment.compaction_from == [10, 11]
+        handler.get_persistent_segment_infos.assert_called_once_with(
+            "col",
+            states=[SegmentState.Flushed, SegmentState.Dropped],
+            timeout=None,
+            context=ANY,
+        )
+
+    def test_list_segments_defaults_to_all_lifecycle_states(self, mc):
+        client, handler = mc
         handler.get_persistent_segment_infos.return_value = []
-        assert client.list_persistent_segments("col") == []
+        assert client.list_segments("col") == []
+        assert handler.get_persistent_segment_infos.call_args.kwargs["states"] == (
+            SegmentState.Growing,
+            SegmentState.Sealed,
+            SegmentState.Flushing,
+            SegmentState.Flushed,
+            SegmentState.Importing,
+            SegmentState.Dropped,
+        )
+
+    def test_list_compaction_tasks(self, mc):
+        client, handler = mc
+        expected = MagicMock()
+        handler.get_compaction_tasks.return_value = expected
+        assert client.list_compaction_tasks("col") is expected
+        handler.get_compaction_tasks.assert_called_once_with("col", timeout=None, context=ANY)
 
     def test_using_database(self, mc):
         client, handler = mc

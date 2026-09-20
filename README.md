@@ -26,11 +26,12 @@ The following collection shows Milvus versions and recommended PyMilvus versions
 | 2.4.\* | 2.4.X |
 | 2.5.\* | 2.5.X |
 | 2.6.\* | 2.6.X |
+| 3.0.\* | 3.0.X |
 
 
 ## Installation
 
-You can install PyMilvus via `pip` or `pip3` for Python 3.8+:
+You can install PyMilvus via `pip` or `pip3` for Python 3.9+:
 
 ```shell
 $ pip3 install pymilvus

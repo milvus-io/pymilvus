@@ -3,6 +3,11 @@ UV_RUN_DEV = $(UV) run --group dev
 UV_RUN_DEV_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_DEV)
 UV_RUN_LITE = $(UV) run --group dev --extra milvus-lite
 UV_RUN_LITE_PYTHONPATH = PYTHONPATH=$(CURDIR) $(UV_RUN_LITE)
+# Keep aligned with the codegen group's requires-python constraint in pyproject.toml.
+CODEGEN_PYTHON = >=3.9,<3.14
+# vcs-versioning 2.x changes .dev0 handling away from PyMilvus' intended
+# master dev line, so keep all local/workflow version reads on <2.
+VERSION_DEPS = --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" --with "vcs-versioning<2"
 
 sync:
 	$(UV) sync --group dev
@@ -40,13 +45,13 @@ get_proto:
 	git submodule update --init
 
 gen_proto:
-	cd pymilvus/grpc_gen && PYTHON_CMD='$(UV) run --group dev python' ./python_gen.sh
+	cd pymilvus/grpc_gen && PYTHON_CMD='$(UV) run --isolated --frozen --only-group codegen --python $(CODEGEN_PYTHON) python' ./python_gen.sh
 
 check_proto_product: gen_proto
 	./check_proto_product.sh
 
 version:
-	$(UV) run --no-project --with "hatchling>=1.27,<1.28" --with "setuptools-scm[toml]>=8" python -m hatchling version
+	@$(UV) run --no-project $(VERSION_DEPS) python -m hatchling version
 
 install:
 	$(UV) sync

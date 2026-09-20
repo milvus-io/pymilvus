@@ -3,7 +3,11 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from pymilvus.client.call_context import CallContext
-from pymilvus.client.constants import GUARANTEE_TIMESTAMP
+from pymilvus.client.constants import (
+    GUARANTEE_TIMESTAMP,
+    ITER_SEARCH_ID_KEY,
+)
+from pymilvus.client.iterator import SearchPage
 from pymilvus.client.search_iterator import SearchIteratorV2
 from pymilvus.client.search_result import SearchResult
 from pymilvus.exceptions import ParamError, ServerVersionIncompatibleException
@@ -42,7 +46,8 @@ class TestSearchIteratorV2:
     def test_init_basic(self, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -55,7 +60,8 @@ class TestSearchIteratorV2:
     def test_init_with_limit(self, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -67,7 +73,8 @@ class TestSearchIteratorV2:
     def test_invalid_batch_size(self, mock_connection, search_data):
         with pytest.raises(ParamError):
             SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=-1,
@@ -76,17 +83,19 @@ class TestSearchIteratorV2:
     def test_invalid_offset(self, mock_connection, search_data):
         with pytest.raises(ParamError):
             SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=100,
-                offset=10,
+                rpc_options={"offset": 10},
             )
 
     def test_multiple_vectors_error(self, mock_connection):
         with pytest.raises(ParamError):
             SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=[[1, 2], [3, 4]],  # Multiple vectors
                 batch_size=100,
@@ -98,11 +107,11 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = self.create_mock_search_result()
 
         SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=ctx,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
-            context=ctx,
         )
 
         mock_connection.describe_collection.assert_called_once_with("test_collection", context=ctx)
@@ -111,7 +120,8 @@ class TestSearchIteratorV2:
     def test_next_without_external_filter(self, mock_probe, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -125,7 +135,8 @@ class TestSearchIteratorV2:
     def test_next_with_limit(self, mock_probe, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -136,6 +147,83 @@ class TestSearchIteratorV2:
         assert result is not None
         assert len(result) == 5  # Limited to 5 results
 
+    def test_limit_spans_pages_then_exhausts(self, mock_connection, search_data):
+        mock_connection.search.side_effect = [
+            self.create_mock_search_result(num_results=1),
+            self.create_mock_search_result(num_results=2),
+            self.create_mock_search_result(num_results=2),
+        ]
+        iterator = SearchIteratorV2(
+            handler=mock_connection,
+            context=None,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=2,
+            limit=3,
+        )
+
+        assert len(iterator.next()) == 2
+        assert len(iterator.next()) == 1
+        assert iterator.next() is None
+
+    def test_token_stays_fixed_when_later_responses_change_it(self, mock_connection, search_data):
+        probe_result = self.create_mock_search_result(num_results=1)
+        first_page = self.create_mock_search_result(num_results=1)
+        later_page = self.create_mock_search_result(num_results=1)
+        probe_result._search_iterator_v2_results.token = "probe-token"
+        first_page._search_iterator_v2_results.token = "page-token"
+        later_page._search_iterator_v2_results.token = "changed-token"
+        mock_connection.search.side_effect = [probe_result, first_page, later_page]
+
+        iterator = SearchIteratorV2(
+            handler=mock_connection,
+            context=None,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=1,
+        )
+
+        iterator.next()
+        iterator.next()
+
+        assert mock_connection.search.call_args_list[2].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
+
+    def test_external_filter_surplus_is_cached_for_next_page(self, mock_connection, search_data):
+        mock_connection.search.side_effect = [
+            self.create_mock_search_result(num_results=1),
+            self.create_mock_search_result(num_results=3),
+            self.create_mock_search_result(num_results=1),
+        ]
+        iterator = SearchIteratorV2(
+            handler=mock_connection,
+            context=None,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=2,
+            external_filter_func=lambda hits: hits,
+        )
+
+        assert iterator.next().ids() == [0, 1]
+        assert iterator.next().ids() == [2, 0]
+
+    def test_empty_server_result_returns_empty_search_page(self, mock_connection, search_data):
+        mock_connection.search.side_effect = [
+            self.create_mock_search_result(num_results=1),
+            self.create_mock_search_result(num_results=0),
+        ]
+        iterator = SearchIteratorV2(
+            handler=mock_connection,
+            context=None,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=2,
+        )
+
+        page = iterator.next()
+
+        assert isinstance(page, SearchPage)
+        assert len(page) == 0
+
     def test_server_incompatible(self, mock_connection, search_data):
         # Mock search result with empty token
         mock_result = self.create_mock_search_result()
@@ -144,7 +232,8 @@ class TestSearchIteratorV2:
 
         with pytest.raises(ServerVersionIncompatibleException):
             SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=100,
@@ -161,7 +250,8 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = probe_result
 
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -185,11 +275,12 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = probe_result
 
         with patch(
-            "pymilvus.client.search_iterator.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=99999,
         ) as mock_fallback:
             iterator = SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=100,
@@ -207,16 +298,19 @@ class TestSearchIteratorV2:
         mock_connection.search.return_value = probe_result
 
         with patch(
-            "pymilvus.client.search_iterator.fall_back_to_latest_session_ts",
+            "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
             return_value=99999,
         ) as mock_fallback:
             iterator = SearchIteratorV2(
-                connection=mock_connection,
+                handler=mock_connection,
+                context=None,
                 collection_name="test_collection",
                 data=search_data,
                 batch_size=100,
-                consistency_level="Customized",
-                guarantee_timestamp=42,
+                rpc_options={
+                    "consistency_level": "Customized",
+                    "guarantee_timestamp": 42,
+                },
             )
             mock_fallback.assert_not_called()
 
@@ -230,7 +324,8 @@ class TestSearchIteratorV2:
             return [hit for hit in hits if hit["distance"] < 5.0]
 
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,
@@ -258,7 +353,8 @@ class TestSearchIteratorV2:
             ]  # Only hits with distance < 5.0 should pass
 
         iterator = SearchIteratorV2(
-            connection=mock_connection,
+            handler=mock_connection,
+            context=None,
             collection_name="test_collection",
             data=search_data,
             batch_size=100,

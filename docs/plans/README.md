@@ -39,3 +39,4 @@ Every design document must start with:
 |--------|-------|--------|---------|
 | 001 | [Global Client Design](pymilvus-001-global-client-design.md) | @bigsheeper | 2026-01-28 |
 | 002 | [Connection Manager Design](pymilvus-002-connection-manager-design.md) | @XuanYang-cn | 2026-02-03 |
+| 003 | [Function Chain API Design](pymilvus-003-function-chain-api-design.md) | @junjie.jiang | 2026-06-23 |

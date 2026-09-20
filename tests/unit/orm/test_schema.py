@@ -628,6 +628,100 @@ class TestCollectionSchemaAddField:
         assert field.max_length == 256
         assert field.nullable is True
 
+    def test_add_field_updates_key_field_metadata(self):
+        """Test adding key fields updates schema metadata for incremental schema building."""
+        schema = CollectionSchema(
+            [],
+            check_fields=False,
+            auto_id=True,
+            primary_field="id",
+            partition_key_field="category",
+            clustering_key_field="timestamp",
+        )
+        schema.add_field("id", DataType.INT64)
+        schema.add_field("category", DataType.VARCHAR, max_length=256)
+        schema.add_field("timestamp", DataType.INT64)
+        schema.add_field("vec", DataType.FLOAT_VECTOR, dim=128)
+
+        assert schema.primary_field.name == "id"
+        assert schema.primary_field.is_primary is True
+        assert schema.primary_field.auto_id is True
+        assert schema.auto_id is True
+        assert schema.partition_key_field.name == "category"
+        assert schema.partition_key_field.is_partition_key is True
+        assert schema._clustering_key_field.name == "timestamp"
+        assert schema._clustering_key_field.is_clustering_key is True
+
+    @pytest.mark.parametrize(
+        "fields,field_name,datatype,kwargs,error_type",
+        [
+            pytest.param(
+                [FieldSchema("id1", DataType.INT64, is_primary=True)],
+                "id2",
+                DataType.INT64,
+                {"is_primary": True},
+                PrimaryKeyException,
+                id="primary",
+            ),
+            pytest.param(
+                [
+                    FieldSchema("id", DataType.INT64, is_primary=True),
+                    FieldSchema("cat1", DataType.VARCHAR, max_length=100, is_partition_key=True),
+                ],
+                "cat2",
+                DataType.VARCHAR,
+                {"max_length": 100, "is_partition_key": True},
+                PartitionKeyException,
+                id="partition_key",
+            ),
+            pytest.param(
+                [
+                    FieldSchema("id", DataType.INT64, is_primary=True),
+                    FieldSchema("ts1", DataType.INT64, is_clustering_key=True),
+                ],
+                "ts2",
+                DataType.INT64,
+                {"is_clustering_key": True},
+                ClusteringKeyException,
+                id="clustering_key",
+            ),
+        ],
+    )
+    def test_add_field_rejects_multiple_key_fields(
+        self, fields, field_name, datatype, kwargs, error_type
+    ):
+        """Test add_field rejects adding a second key field of the same kind."""
+        schema = CollectionSchema(fields)
+        fields_before = [field.to_dict() for field in schema.fields]
+        key_fields_before = (
+            schema.primary_field.name if schema.primary_field else None,
+            schema.partition_key_field.name if schema.partition_key_field else None,
+            schema._clustering_key_field.name if schema._clustering_key_field else None,
+        )
+
+        with pytest.raises(error_type, match="only one"):
+            schema.add_field(field_name, datatype, **kwargs)
+
+        assert [field.to_dict() for field in schema.fields] == fields_before
+        assert (
+            schema.primary_field.name if schema.primary_field else None,
+            schema.partition_key_field.name if schema.partition_key_field else None,
+            schema._clustering_key_field.name if schema._clustering_key_field else None,
+        ) == key_fields_before
+
+    def test_add_field_rolls_back_key_metadata_when_later_validation_fails(self):
+        """Test a failed add_field leaves fields and key metadata unchanged."""
+        schema = CollectionSchema([], check_fields=False)
+        schema.add_field("category", DataType.VARCHAR, max_length=100, is_partition_key=True)
+        fields_before = [field.to_dict() for field in schema.fields]
+
+        with pytest.raises(PartitionKeyException, match="only one"):
+            schema.add_field("id", DataType.INT64, is_primary=True, is_partition_key=True)
+
+        assert [field.to_dict() for field in schema.fields] == fields_before
+        assert schema.primary_field is None
+        assert schema.partition_key_field.name == "category"
+
     def test_add_struct_field_missing_struct_schema(self):
         """Test adding struct field without struct_schema raises error."""
         schema = CollectionSchema(
@@ -769,6 +863,48 @@ class TestCollectionSchemaToDict:
         }
         schema = CollectionSchema.construct_from_dict(d)
         assert len(schema.struct_fields) == 1
+
+    def test_construct_with_user_struct_array_field_format(self):
+        """Test constructing schema from MilvusClient.describe_collection struct array format."""
+        d = {
+            "description": "",
+            "fields": [
+                {"name": "id", "type": DataType.INT64, "is_primary": True},
+                {
+                    "field_id": 100,
+                    "name": "metadata",
+                    "description": "struct values",
+                    "type": DataType.ARRAY,
+                    "element_type": DataType.STRUCT,
+                    "nullable": True,
+                    "params": {"max_capacity": 10, "mmap_enabled": True},
+                    "struct_fields": [
+                        {"field_id": 101, "name": "score", "type": DataType.FLOAT},
+                        {
+                            "field_id": 102,
+                            "name": "embedding",
+                            "type": DataType.FLOAT_VECTOR,
+                            "params": {"dim": 4},
+                        },
+                    ],
+                },
+            ],
+        }
+
+        schema = CollectionSchema.construct_from_dict(d)
+
+        assert [field.name for field in schema.fields] == ["id"]
+        assert schema.primary_field.name == "id"
+        assert len(schema.struct_fields) == 1
+        struct = schema.struct_fields[0]
+        assert struct.name == "metadata"
+        assert struct.description == "struct values"
+        assert struct.nullable is True
+        assert struct.max_capacity == 10
+        assert struct.params["mmap_enabled"] is True
+        assert [field.name for field in struct.fields] == ["score", "embedding"]
+        assert struct.fields[1].dtype == DataType.FLOAT_VECTOR
+        assert struct.fields[1].params["dim"] == 4
 
 
 class TestCollectionSchemaProperties:
@@ -1619,6 +1755,18 @@ class TestCheckInsertSchema:
         insert_data = pd.DataFrame({"id": [1, 2], "vec": [[1.0, 2.0], [3.0, 4.0]]})
         with pytest.raises(DataNotMatchException, match="auto_id"):
             check_insert_schema(schema, insert_data)
+
+    def test_check_insert_schema_auto_id_with_null_pk_column(self):
+        """Test auto_id DataFrame inserts tolerate an all-null pk column."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True, auto_id=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=2),
+            ]
+        )
+        insert_data = pd.DataFrame({"id": [None, None], "vec": [[1.0, 2.0], [3.0, 4.0]]})
+
+        check_insert_schema(schema, insert_data)
 
 
 class TestCheckUpsertSchema:

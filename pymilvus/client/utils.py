@@ -77,6 +77,14 @@ def check_status(status: common_pb2.Status):
         raise MilvusException.from_status(status)
 
 
+def is_external_collection_schema_alter_unsupported(status: common_pb2.Status) -> bool:
+    is_parameter_invalid = status.code == 1100 or status.error_code == common_pb2.IllegalArgument
+    return is_parameter_invalid and (
+        "alter collection schema operation is not supported for external collection"
+        in status.reason
+    )
+
+
 def is_successful(status: common_pb2.Status):
     return status.code == 0 and status.error_code == 0
 
@@ -148,7 +156,7 @@ def mkts_from_datetime(
 def check_invalid_binary_vector(entities: List) -> bool:
     for entity in entities:
         if entity["type"] == DataType.BINARY_VECTOR:
-            if not isinstance(entity["values"], list) and len(entity["values"]) == 0:
+            if not isinstance(entity["values"], list) or len(entity["values"]) == 0:
                 return False
 
             dim = len(entity["values"][0]) * 8
@@ -418,11 +426,13 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
 
 
 def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> List[Dict]:
-    """
-    Convert internal struct_array_fields representation to user-friendly format.
+    """Convert internal struct array fields to a user-friendly format.
 
-    :param struct_array_fields: List of struct field info from server
-    :return: List of user-friendly field dictionaries
+    Args:
+        struct_array_fields (List[Dict]): Struct field information from the server.
+
+    Returns:
+        List[Dict]: User-friendly field dictionaries.
     """
     converted_fields = []
 

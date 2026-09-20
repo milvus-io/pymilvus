@@ -11,8 +11,12 @@ from pymilvus import (
     DataType,
     FieldSchema,
     Function,
+    FunctionChain,
+    FunctionChainStage,
     FunctionType,
+    PyMilvusDeprecationWarning,
     SearchAggregation,
+    SegmentState,
     TopHits,
 )
 from pymilvus.client.abstract import AnnSearchRequest
@@ -160,11 +164,14 @@ class TestAsyncMilvusClientNewFeatures:
         mock_segment_info = MagicMock()
         mock_segment_info.segmentID = 1001
         mock_segment_info.collectionID = 2001
+        mock_segment_info.partitionID = 3001
         mock_segment_info.num_rows = 1000
         mock_segment_info.is_sorted = True
-        mock_segment_info.state = 3  # FLUSHED
+        mock_segment_info.state = common_pb2.SegmentState.Flushed
         mock_segment_info.level = 1
         mock_segment_info.storage_version = 1
+        mock_segment_info.insert_channel = "test-channel"
+        mock_segment_info.compaction_from = [10, 11]
 
         mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[mock_segment_info])
 
@@ -185,16 +192,41 @@ class TestAsyncMilvusClientNewFeatures:
             assert segment_info.segment_id == 1001
             assert segment_info.collection_id == 2001
             assert segment_info.collection_name == "test_collection"
+            assert segment_info.partition_id == 3001
             assert segment_info.num_rows == 1000
             assert segment_info.is_sorted is True
-            assert segment_info.state == 3
+            assert segment_info.state is SegmentState.Flushed
             assert segment_info.level == 1
             assert segment_info.storage_version == 1
+            assert segment_info.insert_channel == "test-channel"
+            assert segment_info.compaction_from == [10, 11]
+            segment_info.compaction_from.append(12)
+            assert mock_segment_info.compaction_from == [10, 11]
 
             # Verify call arguments
             mock_handler.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None, context=ANY
+                "test_collection", states=None, timeout=None, context=ANY
             )
+
+    @pytest.mark.asyncio
+    async def test_list_segments_defaults_to_all_lifecycle_states(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[])
+
+        assert await client.list_segments("test_collection") == []
+        mock_handler.get_persistent_segment_infos.assert_awaited_once_with(
+            "test_collection",
+            states=(
+                SegmentState.Growing,
+                SegmentState.Sealed,
+                SegmentState.Flushing,
+                SegmentState.Flushed,
+                SegmentState.Importing,
+                SegmentState.Dropped,
+            ),
+            timeout=None,
+            context=ANY,
+        )
 
     @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self, client_and_handler):
@@ -233,6 +265,27 @@ class TestAsyncMilvusClientNewFeatures:
         await client.search("test_collection", data=[[0.1, 0.2]], search_aggregation=agg)
 
         assert mock_handler.search.call_args.kwargs["search_aggregation"] is agg
+
+    @pytest.mark.asyncio
+    async def test_search_passes_group_by_fields(self, client_and_handler):
+        # group_by_fields must be forwarded to the handler, not dropped at the
+        # high-level client boundary. See milvus-io/milvus#50960.
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+
+        await client.search("test_collection", data=[[0.1, 0.2]], group_by_fields=["brand"])
+
+        assert mock_handler.search.call_args.kwargs["group_by_fields"] == ["brand"]
+
+    @pytest.mark.asyncio
+    async def test_search_passes_function_chains(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+        chain = FunctionChain(FunctionChainStage.L2_RERANK, name="score_rerank")
+
+        await client.search("test_collection", data=[[0.1, 0.2]], function_chains=chain)
+
+        assert mock_handler.search.call_args.kwargs["function_chains"] is chain
 
     @pytest.mark.asyncio
     async def test_hybrid_search_with_function_ranker(self, client_and_handler):
@@ -354,6 +407,19 @@ class TestAsyncMilvusClientNewFeatures:
 
         assert result == mock_plans
         mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10, context=ANY)
+
+    @pytest.mark.asyncio
+    async def test_list_compaction_tasks(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_plans = MagicMock(spec=CompactionPlans)
+        mock_handler.get_compaction_tasks = AsyncMock(return_value=mock_plans)
+
+        result = await client.list_compaction_tasks("test_collection", timeout=10)
+
+        assert result is mock_plans
+        mock_handler.get_compaction_tasks.assert_awaited_once_with(
+            "test_collection", timeout=10, context=ANY
+        )
 
     @pytest.mark.asyncio
     async def test_update_replicate_configuration(self, client_and_handler):
@@ -1452,14 +1518,27 @@ class TestAsyncAlterCollectionSchema:
         mock_handler.alter_collection_schema = AsyncMock()
         mock_handler.drop_collection_function = AsyncMock()
 
-        await client.drop_collection_function("col", "fn")
+        with pytest.warns(
+            PyMilvusDeprecationWarning,
+            match=r"AsyncMilvusClient\.drop_collection_function.*Milvus 3\.0.*AsyncMilvusClient\.drop_function_field",
+        ):
+            await client.drop_collection_function("col", "fn")
 
-        mock_handler.alter_collection_schema.assert_called_once()
-        assert mock_handler.alter_collection_schema.call_args.kwargs["drop_function_name"] == "fn"
-        assert not mock_handler.alter_collection_schema.call_args.kwargs[
-            "drop_function_output_fields"
-        ]
-        mock_handler.drop_collection_function.assert_not_called()
+        mock_handler.drop_collection_function.assert_called_once()
+        mock_handler.alter_collection_schema.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_add_collection_function_delegates(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.add_collection_function = AsyncMock()
+
+        with pytest.warns(
+            PyMilvusDeprecationWarning,
+            match=r"AsyncMilvusClient\.add_collection_function.*Milvus 3\.0.*AsyncMilvusClient\.add_function_field",
+        ):
+            await client.add_collection_function("col", MagicMock())
+
+        mock_handler.add_collection_function.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_drop_function_field_delegates(self, client_and_handler):
@@ -1495,15 +1574,30 @@ class TestAsyncAlterCollectionSchema:
         mock_handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_add_function_field_delegates(self, client_and_handler):
+    @pytest.mark.parametrize(
+        ("field", "func"),
+        [
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function("bm25", FunctionType.BM25, ["text"], ["sparse"]),
+            ),
+            (
+                FieldSchema("minhash", DataType.BINARY_VECTOR, dim=512),
+                Function("minhash", FunctionType.MINHASH, ["text"], ["minhash"]),
+            ),
+        ],
+    )
+    async def test_add_function_field_delegates(self, client_and_handler, field, func):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
-        field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
-        func = Function("bm25", FunctionType.BM25, ["text"], ["sparse"])
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name=field.name, index_type="SPARSE_INVERTED_INDEX")
 
-        await client.add_function_field("col", field, func)
+        await client.add_function_field("col", field, func, index_params=index_params)
 
         mock_handler.alter_collection_schema.assert_called_once()
+        call_kwargs = mock_handler.alter_collection_schema.call_args.kwargs
+        assert call_kwargs["index_extra_params"]["index_type"] == "SPARSE_INVERTED_INDEX"
 
     @pytest.mark.asyncio
     async def test_add_function_field_rejects_unsupported_function_type(self, client_and_handler):
@@ -1512,19 +1606,40 @@ class TestAsyncAlterCollectionSchema:
         field = FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR)
         func = Function("embed", FunctionType.TEXTEMBEDDING, ["text"], ["sparse"])
 
-        with pytest.raises(ParamError, match=r"only supports FunctionType\.BM25"):
-            await client.add_function_field("col", field, func)
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name="sparse", index_type="SPARSE_INVERTED_INDEX")
+        with pytest.raises(
+            ParamError, match=r"only supports FunctionType\.BM25.*FunctionType\.MINHASH"
+        ):
+            await client.add_function_field("col", field, func, index_params=index_params)
         mock_handler.alter_collection_schema.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_add_function_field_rejects_non_sparse_output(self, client_and_handler):
+    @pytest.mark.parametrize(
+        ("field", "func", "expected"),
+        [
+            (
+                FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8),
+                Function("bm25", FunctionType.BM25, ["text"], ["dense"]),
+                "requires SPARSE_FLOAT_VECTOR output field",
+            ),
+            (
+                FieldSchema("sparse", DataType.SPARSE_FLOAT_VECTOR),
+                Function("minhash", FunctionType.MINHASH, ["text"], ["sparse"]),
+                "requires BINARY_VECTOR output field",
+            ),
+        ],
+    )
+    async def test_add_function_field_rejects_invalid_output(
+        self, client_and_handler, field, func, expected
+    ):
         client, mock_handler = client_and_handler
         mock_handler.alter_collection_schema = AsyncMock()
-        field = FieldSchema("dense", DataType.FLOAT_VECTOR, dim=8)
-        func = Function("bm25", FunctionType.BM25, ["text"], ["dense"])
+        index_params = AsyncMilvusClient.prepare_index_params()
+        index_params.add_index(field_name="", index_type="SPARSE_INVERTED_INDEX")
 
-        with pytest.raises(ParamError, match="only supports SPARSE_FLOAT_VECTOR"):
-            await client.add_function_field("col", field, func)
+        with pytest.raises(ParamError, match=expected):
+            await client.add_function_field("col", field, func, index_params=index_params)
         mock_handler.alter_collection_schema.assert_not_called()
 
 

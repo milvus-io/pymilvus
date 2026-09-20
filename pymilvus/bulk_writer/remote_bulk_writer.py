@@ -291,13 +291,16 @@ class RemoteBulkWriter(LocalBulkWriter):
 
             for file_path in file_list:
                 ext = Path(file_path).suffix
-                if ext not in [".json", ".npy", ".parquet", ".csv"]:
+                if ext not in [".json", ".jsonl", ".npy", ".parquet", ".csv"]:
                     continue
 
-                relative_file_path = str(file_path).replace(str(super().data_path), "")
-                minio_file_path = str(
-                    Path.joinpath(self._remote_path, relative_file_path.lstrip("/"))
-                ).lstrip("/")
+                relative_file_path = (
+                    Path(file_path)
+                    .resolve()
+                    .relative_to(Path(super().data_path).resolve())
+                    .as_posix()
+                )
+                minio_file_path = f"{self._remote_path.as_posix().strip('/')}/{relative_file_path}"
 
                 if self._object_exists(minio_file_path):
                     logger.info(

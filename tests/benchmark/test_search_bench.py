@@ -1,4 +1,5 @@
 import pytest
+from pymilvus import DataType, MilvusClient
 
 from . import mock_responses
 from .conftest import (
@@ -8,6 +9,51 @@ from .conftest import (
 
 
 class TestSearchBench:
+    @pytest.mark.benchmark(group="nullable_large_topk_varchar")
+    def test_search_nullable_varchar_256_topk_100000(self, benchmark, mocked_milvus_client):
+        schema = MilvusClient.create_schema()
+        schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True)
+        schema.add_field(field_name="embedding", datatype=DataType.FLOAT_VECTOR, dim=128)
+        schema.add_field(
+            field_name="varchar_field",
+            datatype=DataType.VARCHAR,
+            max_length=256,
+            nullable=True,
+        )
+
+        query_vectors = [[0.1] * 128]
+        top_k = 100_000
+        output_fields = ["varchar_field"]
+        precomputed_results = mock_responses.create_search_results_from_schema(
+            schema=schema,
+            num_queries=1,
+            top_k=top_k,
+            output_fields=output_fields,
+        )
+        precomputed_results.results.fields_data[0].valid_data.extend([True] * top_k)
+
+        def custom_search(request, timeout=None, metadata=None):
+            return precomputed_results
+
+        setup_search_mock(mocked_milvus_client, custom_search)
+
+        # One measured round bounds the cost of allocating 100,000 result objects.
+        result = benchmark.pedantic(
+            mocked_milvus_client.search,
+            kwargs={
+                "collection_name": "test_collection",
+                "data": query_vectors,
+                "limit": top_k,
+                "output_fields": output_fields,
+            },
+            rounds=1,
+            iterations=1,
+        )
+
+        assert len(result) == 1
+        assert len(result[0]) == top_k
+        assert len(result[0].get_raw_item(top_k - 1).entity["varchar_field"]) == 256
+
     @pytest.mark.parametrize(
         "output_fields",
         [None, ["id"], ["id", "age"], ["id", "age", "score"], ["id", "age", "score", "name"]],

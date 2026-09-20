@@ -210,6 +210,64 @@ class CollectionSchema:
         elif self._kwargs.get("auto_id", False):
             raise ParamError(message="External collections do not support auto_id")
 
+    def _update_key_field_metadata(self, field: Any):
+        primary_field = self._primary_field
+        partition_key_field = self._partition_key_field
+        clustering_key_field = self._clustering_key_field
+        primary_field_name = self._kwargs.get("primary_field", None)
+        partition_key_field_name = self._kwargs.get("partition_key_field", None)
+        clustering_key_field_name = self._kwargs.get("clustering_key_field", None)
+
+        try:
+            if primary_field_name and primary_field_name == field.name:
+                field.is_primary = True
+
+            if partition_key_field_name and partition_key_field_name == field.name:
+                field.is_partition_key = True
+
+            if clustering_key_field_name and clustering_key_field_name == field.name:
+                field.is_clustering_key = True
+
+            if field.is_primary:
+                if self._primary_field is not None and self._primary_field.name != field.name:
+                    msg = ExceptionsMessage.PrimaryKeyOnlyOne % (
+                        self._primary_field.name,
+                        field.name,
+                    )
+                    raise PrimaryKeyException(message=msg)
+                self._primary_field = field
+                if self._kwargs.get("auto_id", False):
+                    self._primary_field.auto_id = True
+
+            if field.is_partition_key:
+                if (
+                    self._partition_key_field is not None
+                    and self._partition_key_field.name != field.name
+                ):
+                    msg = ExceptionsMessage.PartitionKeyOnlyOne % (
+                        self._partition_key_field.name,
+                        field.name,
+                    )
+                    raise PartitionKeyException(message=msg)
+                self._partition_key_field = field
+
+            if field.is_clustering_key:
+                if (
+                    self._clustering_key_field is not None
+                    and self._clustering_key_field.name != field.name
+                ):
+                    msg = ExceptionsMessage.ClusteringKeyOnlyOne % (
+                        self._clustering_key_field.name,
+                        field.name,
+                    )
+                    raise ClusteringKeyException(message=msg)
+                self._clustering_key_field = field
+        except Exception:
+            self._primary_field = primary_field
+            self._partition_key_field = partition_key_field
+            self._clustering_key_field = clustering_key_field
+            raise
+
     def _check_functions(self):
         for function in self._functions:
             for output_field_name in function.output_field_names:
@@ -265,11 +323,15 @@ class CollectionSchema:
 
     @classmethod
     def construct_from_dict(cls, raw: Dict):
-        fields = [FieldSchema.construct_from_dict(field_raw) for field_raw in raw["fields"]]
+        fields = []
+        struct_fields = []
+        for field_raw in raw["fields"]:
+            if cls._is_struct_array_field_dict(field_raw):
+                struct_fields.append(StructFieldSchema.construct_from_dict(field_raw))
+            else:
+                fields.append(FieldSchema.construct_from_dict(field_raw))
 
-        struct_fields = None
         if raw.get("struct_fields"):
-            struct_fields = []
             for struct_field_raw in raw["struct_fields"]:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_raw))
 
@@ -277,7 +339,6 @@ class CollectionSchema:
             converted_struct_fields = convert_struct_fields_to_user_format(
                 raw["struct_array_fields"]
             )
-            struct_fields = []
             for struct_field_dict in converted_struct_fields:
                 struct_fields.append(StructFieldSchema.construct_from_dict(struct_field_dict))
 
@@ -298,6 +359,23 @@ class CollectionSchema:
             enable_namespace=enable_namespace,
             external_source=raw.get("external_source", ""),
             external_spec=raw.get("external_spec", ""),
+        )
+
+    @staticmethod
+    def _is_struct_array_field_dict(field_raw: Any):
+        if not isinstance(field_raw, dict):
+            return False
+
+        try:
+            field_type = DataType(field_raw.get("type"))
+            element_type = DataType(field_raw.get("element_type"))
+        except (TypeError, ValueError):
+            return False
+
+        return (
+            field_type == DataType.ARRAY
+            and element_type == DataType.STRUCT
+            and "struct_fields" in field_raw
         )
 
     @property
@@ -463,6 +541,7 @@ class CollectionSchema:
             return self
 
         field = FieldSchema(field_name, datatype, **kwargs)
+        self._update_key_field_metadata(field)
         self._fields.append(field)
         self._mark_output_fields()
         return self
@@ -1249,7 +1328,7 @@ def check_insert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
             msg = f"Expect no data for auto_id primary field: {schema.primary_field.name}"
             raise DataNotMatchException(message=msg)
         columns = list(data.columns)
-        columns.remove(schema.primary_field)
+        columns.remove(schema.primary_field.name)
         data = data[columns]
 
     tmp_fields = list(

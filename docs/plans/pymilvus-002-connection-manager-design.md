@@ -14,7 +14,7 @@ A new ConnectionManager component that replaces the `connections` singleton for 
 - Strategy pattern for regular vs global endpoints
 - Shared recovery logic on UNAVAILABLE errors
 
-**Tech Stack:** Python 3.8+, grpc, threading (sync), asyncio (async), dataclasses, weakref
+**Tech Stack:** Python 3.9+, grpc, threading (sync), asyncio (async), dataclasses, weakref
 
 ## Architecture
 
