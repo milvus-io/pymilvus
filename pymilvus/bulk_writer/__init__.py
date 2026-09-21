@@ -14,7 +14,7 @@ from .bulk_import import (
     get_import_progress,
     list_import_jobs,
 )
-from .constants import BulkFileType
+from .constants import IDEMPOTENCY_KEY_HEADER, BulkFileType
 from .local_bulk_writer import LocalBulkWriter
 from .remote_bulk_writer import RemoteBulkWriter
 from .upload_policy import UploadPolicy
@@ -23,6 +23,7 @@ from .volume_file_manager import UploadProgress, VolumeFileManager
 from .volume_manager import VolumeManager
 
 __all__ = [
+    "IDEMPOTENCY_KEY_HEADER",
     "BulkFileType",
     "LocalBulkWriter",
     "RemoteBulkWriter",
