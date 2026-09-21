@@ -12,7 +12,7 @@
 
 import json
 import logging
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import requests
 
@@ -21,8 +21,8 @@ from pymilvus.exceptions import MilvusException
 logger = logging.getLogger(__name__)
 
 
-def _http_headers(api_key: str, db_name: str = ""):
-    headers = {
+def _http_headers(api_key: str, db_name: str = "", headers: Optional[Dict[str, str]] = None):
+    result = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_0) AppleWebKit/535.11 (KHTML, like Gecko) "
         "Chrome/17.0.963.56 Safari/535.11",
         "Accept": "application/json",
@@ -31,8 +31,10 @@ def _http_headers(api_key: str, db_name: str = ""):
         "Authorization": f"Bearer {api_key}",
     }
     if db_name:
-        headers["DB-Name"] = db_name
-    return headers
+        result["DB-Name"] = db_name
+    if headers:
+        result.update(headers)
+    return result
 
 
 def _throw(msg: str):
@@ -72,10 +74,11 @@ def _post_request(
         requests.Response: Response object.
     """
     db_name = kwargs.pop("db_name", "")
+    headers = kwargs.pop("headers", None)
     try:
         resp = requests.post(
             url=url,
-            headers=_http_headers(api_key, db_name),
+            headers=_http_headers(api_key, db_name, headers),
             json=params,
             timeout=timeout,
             verify=verify,
@@ -124,6 +127,7 @@ def bulk_import(
     data_paths: [List[List[str]]] = None,
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **kwargs,
 ) -> requests.Response:
     """call bulkinsert restful interface to import files
@@ -153,6 +157,12 @@ def bulk_import(
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
                                      if Tuple, ('cert', 'key') pair.
+        headers (dict, optional): Extra HTTP headers merged into the request; a
+             caller's value overrides the SDK default for the same name. For example,
+             ``{IDEMPOTENCY_KEY_HEADER: "nightly-batch-3"}`` makes a retry with the same key
+             resolve to the original import job instead of creating a second one
+             (at most 256 bytes of printable ASCII, else error 1100; see the Milvus
+             idempotent requests guide).
 
     Returns:
         response of the restful interface
@@ -221,6 +231,19 @@ def bulk_import(
         ...     secret_key="your-secret-key",
         ...     token="your-token" # for short-term credentials, also include `token`
         ... )
+
+        >>> # 5. Make an import retry-safe with an idempotency key (Milvus with
+        >>> #    idempotent bulk import). Reuse the same key when retrying one logical
+        >>> #    request; a retry then resolves to the original job instead of
+        >>> #    creating a second one. Use a new key for a new request.
+        >>> from pymilvus.bulk_writer import IDEMPOTENCY_KEY_HEADER
+        >>> bulk_import(
+        ...    url="http://127.0.0.1:19530",
+        ...    api_key="username:password",
+        ...    collection_name="my_collection",
+        ...    files=[["parquet-folder/1.parquet"]],
+        ...    headers={IDEMPOTENCY_KEY_HEADER: "nightly-2026-09-07-batch-3"},
+        ... )
     """
     request_url = url + "/v2/vectordb/jobs/import/create"
 
@@ -253,6 +276,7 @@ def bulk_import(
         verify=verify,
         cert=cert,
         db_name=db_name,
+        headers=headers,
         **kwargs,
     )
     _handle_response(request_url, resp.json())
@@ -269,6 +293,7 @@ def get_import_progress(
     db_name: str = "",
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **kwargs,
 ) -> requests.Response:
     """get job progress
@@ -285,6 +310,8 @@ def get_import_progress(
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
                                      if Tuple, ('cert', 'key') pair.
+        headers (dict, optional): Extra HTTP headers merged into the request; a
+             caller's value overrides the SDK default for the same name.
 
     Returns:
         response of the restful interface
@@ -305,6 +332,7 @@ def get_import_progress(
         verify=verify,
         cert=cert,
         db_name=db_name,
+        headers=headers,
         **kwargs,
     )
     _handle_response(request_url, resp.json())
@@ -321,6 +349,7 @@ def commit_import(
     db_name: str = "",
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **kwargs,
 ) -> requests.Response:
     """commit an import job (2PC). Makes imported data visible.
@@ -337,6 +366,8 @@ def commit_import(
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
                                      if Tuple, ('cert', 'key') pair.
+        headers (dict, optional): Extra HTTP headers merged into the request; a
+             caller's value overrides the SDK default for the same name.
 
     Returns:
         response of the restful interface
@@ -357,6 +388,7 @@ def commit_import(
         verify=verify,
         cert=cert,
         db_name=db_name,
+        headers=headers,
         **kwargs,
     )
     _handle_response(request_url, resp.json())
@@ -373,6 +405,7 @@ def abort_import(
     db_name: str = "",
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **kwargs,
 ) -> requests.Response:
     """abort an import job (2PC). Discards the imported data.
@@ -389,6 +422,8 @@ def abort_import(
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
                                      if Tuple, ('cert', 'key') pair.
+        headers (dict, optional): Extra HTTP headers merged into the request; a
+             caller's value overrides the SDK default for the same name.
 
     Returns:
         response of the restful interface
@@ -409,6 +444,7 @@ def abort_import(
         verify=verify,
         cert=cert,
         db_name=db_name,
+        headers=headers,
         **kwargs,
     )
     _handle_response(request_url, resp.json())
@@ -427,6 +463,7 @@ def list_import_jobs(
     current_page: int = 1,
     verify: Optional[Union[bool, str]] = True,
     cert: Optional[Union[str, tuple]] = None,
+    headers: Optional[Dict[str, str]] = None,
     **kwargs,
 ) -> requests.Response:
     """list jobs in a cluster
@@ -444,6 +481,8 @@ def list_import_jobs(
              or a string, which must be server's certificate path. Defaults to `True`.
         cert (str, tuple, optional): if String, path to ssl client cert file.
                                      if Tuple, ('cert', 'key') pair.
+        headers (dict, optional): Extra HTTP headers merged into the request; a
+             caller's value overrides the SDK default for the same name.
 
     Returns:
         response of the restful interface
@@ -467,6 +506,7 @@ def list_import_jobs(
         verify=verify,
         cert=cert,
         db_name=db_name,
+        headers=headers,
         **kwargs,
     )
     _handle_response(request_url, resp.json())
