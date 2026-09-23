@@ -103,6 +103,76 @@ class TestAsyncClientIndexOps:
 
 class TestAsyncClientPartitionOps:
     @pytest.mark.asyncio
+    async def test_namespace_lifecycle_delegates_to_partition_ops(self):
+        client, handler = _make_client()
+        handler.has_partition.return_value = True
+        handler.list_partitions.return_value = ["_default", "tenant_a"]
+        stat = MagicMock()
+        stat.key = "row_count"
+        stat.value = "100"
+        handler.get_partition_stats.return_value = [stat]
+
+        await client.create_namespace("col", "tenant_a", timeout=10, trace_id="t1")
+        await client.drop_namespace("col", "tenant_a", timeout=11, trace_id="t2")
+        assert await client.has_namespace("col", "tenant_a", timeout=12, trace_id="t3") is True
+        assert await client.list_namespaces("col", timeout=13, trace_id="t4") == {
+            "namespaces": ["_default", "tenant_a"],
+            "next_page_token": "",
+        }
+        assert await client.get_namespace_stats("col", "tenant_a", timeout=14, trace_id="t5") == {
+            "row_count": 100
+        }
+
+        handler.create_partition.assert_awaited_once_with(
+            "col", "tenant_a", timeout=10, context=ANY, trace_id="t1"
+        )
+        handler.drop_partition.assert_awaited_once_with(
+            "col", "tenant_a", timeout=11, context=ANY, trace_id="t2"
+        )
+        handler.has_partition.assert_awaited_once_with(
+            "col", "tenant_a", timeout=12, context=ANY, trace_id="t3"
+        )
+        handler.list_partitions.assert_awaited_once_with(
+            "col", timeout=13, context=ANY, trace_id="t4"
+        )
+        handler.get_partition_stats.assert_awaited_once_with(
+            "col", "tenant_a", timeout=14, context=ANY, trace_id="t5"
+        )
+
+    @pytest.mark.asyncio
+    async def test_list_namespaces_supports_prefix_and_page_token(self):
+        client, handler = _make_client()
+        handler.list_partitions.return_value = ["_default", "tenant_a", "tenant_b", "team_a"]
+
+        first_page = await client.list_namespaces("col", prefix="tenant_", page_size=1)
+        second_page = await client.list_namespaces(
+            "col", prefix="tenant_", page_size=1, page_token=first_page["next_page_token"]
+        )
+
+        assert first_page == {"namespaces": ["tenant_a"], "next_page_token": "1"}
+        assert second_page == {"namespaces": ["tenant_b"], "next_page_token": ""}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"page_token": "bad"},
+            {"page_token": "-1"},
+            {"page_size": 0},
+            {"page_size": True},
+            {"prefix": 1},
+        ],
+    )
+    async def test_list_namespaces_rejects_invalid_pagination_params(self, kwargs):
+        client, handler = _make_client()
+        handler.list_partitions.return_value = ["_default", "tenant_a"]
+
+        with pytest.raises(ParamError):
+            await client.list_namespaces("col", **kwargs)
+
+        handler.list_partitions.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_load_partitions_str_converts(self):
         client, handler = _make_client()
         await client.load_partitions("col", "part1")
