@@ -1,10 +1,13 @@
 """Tests for collection-related Prepare methods."""
 
 import inspect
+import json
 
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema, Function, FunctionType
+from pymilvus.client.abstract import StructArrayFieldSchema as ResponseStructArrayFieldSchema
 from pymilvus.client.prepare import Prepare
+from pymilvus.client.utils import convert_struct_fields_to_user_format
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import schema_pb2
 from pymilvus.orm.schema import StructFieldSchema
@@ -418,6 +421,104 @@ class TestAddCollectionFieldRequest:
 
         assert params["mmap.enabled"] == "true"
         assert params["warmup"] == '{"policy":"async"}'
+
+
+class TestStructSchemaRoundTrip:
+    @pytest.mark.parametrize("parent_nullable", [False, True])
+    @pytest.mark.parametrize("sub_field_nullable", [False, True])
+    def test_nullable_struct_schema_round_trip(self, parent_nullable, sub_field_nullable):
+        struct = StructFieldSchema()
+        struct.add_field("score", DataType.FLOAT, nullable=sub_field_nullable)
+        struct.add_field("embedding", DataType.FLOAT_VECTOR, dim=2, nullable=sub_field_nullable)
+        schema = CollectionSchema([FieldSchema("pk", DataType.INT64, is_primary=True)])
+        schema.add_field(
+            "metadata",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct,
+            max_capacity=16,
+            nullable=parent_nullable,
+        )
+        if sub_field_nullable and not parent_nullable:
+            with pytest.raises(ParamError, match="set nullable on the struct"):
+                Prepare.create_collection_request("test_coll", schema)
+            return
+
+        request = Prepare.create_collection_request("test_coll", schema)
+        wire = schema_pb2.CollectionSchema.FromString(request.schema).struct_array_fields[0]
+        assert wire.nullable is parent_nullable
+        assert all(field.nullable is parent_nullable for field in wire.fields)
+
+        response = ResponseStructArrayFieldSchema(wire).dict()
+        public = convert_struct_fields_to_user_format([response])[0]
+        rebuilt = StructFieldSchema.construct_from_dict(public)
+        assert Prepare.get_struct_array_field_schema(rebuilt) == wire
+
+    @pytest.mark.parametrize("sub_field_nullable", [False, True])
+    def test_parent_params_survive_describe(self, sub_field_nullable):
+        schema = CollectionSchema([FieldSchema("pk", DataType.INT64, is_primary=True)])
+        struct = StructFieldSchema().add_field("embedding", DataType.FLOAT_VECTOR, dim=4)
+        schema.add_field(
+            "metadata",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct,
+            max_capacity=16,
+            nullable=True,
+            mmap_enabled=False,
+            warmup="sync",
+        )
+        original = schema.struct_fields[0]
+        wire = Prepare.get_struct_array_field_schema(original)
+        wire.fields[0].nullable = sub_field_nullable
+        internal = ResponseStructArrayFieldSchema(wire).dict()
+        public = convert_struct_fields_to_user_format([internal])[0]
+
+        assert public["params"] == {
+            "max_capacity": 16,
+            "mmap_enabled": False,
+            "warmup": "sync",
+        }
+        assert public["nullable"] is True
+        assert "nullable" not in public["struct_fields"][0]
+        rebuilt = StructFieldSchema.construct_from_dict(public)
+        assert rebuilt.to_dict() == original.to_dict()
+        assert Prepare.get_struct_array_field_schema(rebuilt) == (
+            Prepare.get_struct_array_field_schema(original)
+        )
+        public["params"]["warmup"] = "async"
+        assert internal["params"]["warmup"] == "sync"
+
+    def test_sub_field_string_params_survive_describe(self):
+        struct = StructFieldSchema()
+        struct.name = "metadata"
+        struct.max_capacity = 16
+        struct.add_field(
+            "text",
+            DataType.VARCHAR,
+            max_length=128,
+            warmup="sync",
+            mmap_enabled=False,
+            enable_analyzer=True,
+            analyzer_params={"tokenizer": "standard"},
+        )
+        wire = Prepare.get_struct_array_field_schema(struct)
+        params = {kv.key: kv.value for kv in wire.fields[0].type_params}
+        assert params["warmup"] == "sync"
+        assert json.loads(params["analyzer_params"]) == {"tokenizer": "standard"}
+        assert params["mmap.enabled"] == "false"
+        assert params["enable_analyzer"] == "true"
+        assert params["max_length"] == "128"
+
+        rebuilt = struct
+        for _ in range(2):
+            response = ResponseStructArrayFieldSchema(
+                Prepare.get_struct_array_field_schema(rebuilt)
+            ).dict()
+            public = convert_struct_fields_to_user_format([response])[0]
+            rebuilt = StructFieldSchema.construct_from_dict(public)
+            assert rebuilt.to_dict() == struct.to_dict()
+            assert Prepare.get_struct_array_field_schema(rebuilt) == wire
 
 
 class TestAlterCollectionSchemaRequest:

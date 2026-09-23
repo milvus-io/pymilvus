@@ -1,3 +1,4 @@
+import copy
 import datetime
 import importlib.util
 import struct
@@ -444,7 +445,7 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
             "description": struct_field_info.get("description", ""),
             "type": DataType.ARRAY,
             "element_type": DataType.STRUCT,
-            "params": {},
+            "params": copy.deepcopy(struct_field_info.get("params", {})),
         }
         if struct_field_info.get("nullable", False):
             user_struct_field["nullable"] = True

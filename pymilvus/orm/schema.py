@@ -812,7 +812,8 @@ class StructFieldSchema:
                     message=f"Field '{field.name}' in struct '{self.name}' cannot be dynamic field"
                 )
 
-            if field.nullable:
+            # Sub-fields may repeat the nullable flag inherited from the parent.
+            if field.nullable and not self.nullable:
                 raise ParamError(
                     message=(
                         f"Field '{field.name}' in struct '{self.name}' cannot be nullable "
