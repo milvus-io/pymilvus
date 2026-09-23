@@ -1,9 +1,16 @@
 import logging.config
 import os
 
-from dotenv import load_dotenv
-
-load_dotenv()
+if os.getenv("PYTHON_DOTENV_DISABLED") != "1":
+    try:
+        from dotenv import dotenv_values, find_dotenv
+        dotenv_path = find_dotenv(usecwd=True)
+        if dotenv_path:
+            for k, v in dotenv_values(dotenv_path).items():
+                if k.startswith("MILVUS_") and v is not None and k not in os.environ:
+                    os.environ[k] = v
+    except ImportError:
+        pass
 
 
 class Config:
