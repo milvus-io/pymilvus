@@ -1,3 +1,6 @@
+import pathlib
+import uuid
+
 import numpy as np
 import pytest
 from pymilvus.client.types import DataType
@@ -102,6 +105,15 @@ class TestInferDtypeByScalarData:
             (b"\x00\x01", None, DataType.BINARY_VECTOR),
             # unknown type -> UNKNOWN
             (object(), None, DataType.UNKNOWN),
+            # uuid.UUID -> VARCHAR (GH-2917)
+            (uuid.uuid4(), None, DataType.VARCHAR),
+            # pathlib.Path variants -> VARCHAR (GH-2917). Pure variants are used
+            # here since concrete PosixPath/WindowsPath can only be instantiated
+            # on their matching OS on Python < 3.13; pathlib.Path (the OS-native
+            # concrete class) is exercised separately below.
+            (pathlib.PurePosixPath("/tmp/foo"), None, DataType.VARCHAR),
+            (pathlib.PureWindowsPath("C:\\Users\\a"), None, DataType.VARCHAR),
+            (pathlib.Path("/tmp/foo/bar.txt"), None, DataType.VARCHAR),
         ],
     )
     def test_inference(self, data, dtype, expected):
@@ -254,6 +266,18 @@ class TestInferDtypeBydataFallbacks:
                 raise IndexError
 
         assert infer_dtype_bydata(NotListLikeFloat()) == DataType.FLOAT
+
+    def test_pathlike_returns_varchar_instead_of_crashing(self):
+        """GH-2917: pandas' is_scalar() is False for PurePath, so without the
+        explicit PathLike guard this used to fall through to the data[0] probe,
+        which raises TypeError (PurePath isn't subscriptable) since only
+        IndexError was caught."""
+        assert infer_dtype_bydata(pathlib.PurePosixPath("/tmp/foo")) == DataType.VARCHAR
+
+    def test_uuid_returns_varchar(self):
+        """GH-2917: uuid.UUID is scalar per pandas, but infer_dtype_by_scalar_data
+        had no branch for it and fell through to UNKNOWN."""
+        assert infer_dtype_bydata(uuid.uuid4()) == DataType.VARCHAR
 
 
 # ---------------------------------------------------------------------------
