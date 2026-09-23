@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Union
 import orjson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, ParamError
+from pymilvus.function_chain import FunctionChain
 from pymilvus.settings import Config
 
 from . import utils
@@ -514,6 +515,19 @@ class WeightedRanker(BaseRanker):
 
 
 class AnnSearchRequest:
+    """An individual ANN recall request for hybrid search.
+
+    ``function_chains`` accepts a single FunctionChain or a list of chains
+    belonging only to this request. Supported stages and execution order are
+    determined by the server. For example, L0_RERANK runs per segment and
+    L1_RERANK runs after the QueryNode worker reduces segment results, before
+    top-level fusion.
+
+    Nested chains can be used with a legacy ranker or a top-level L2 chain,
+    but cannot be combined with a top-level Function ranker. Operator and
+    expression semantics are validated by the server.
+    """
+
     def __init__(
         self,
         data: Union[List, utils.SparseMatrixInputType],
@@ -523,11 +537,13 @@ class AnnSearchRequest:
         expr: Optional[str] = None,
         expr_params: Optional[dict] = None,
         filter: Optional[str] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
     ):
         self._data = data
         self._anns_field = anns_field
         self._param = param
         self._limit = limit
+        self._function_chains = function_chains
 
         if expr is not None and filter is not None:
             raise ParamError(message="Provide either 'expr' or 'filter', not both.")
@@ -564,6 +580,11 @@ class AnnSearchRequest:
     @property
     def expr_params(self):
         return self._expr_params
+
+    @property
+    def function_chains(self) -> Optional[Union[FunctionChain, List[FunctionChain]]]:
+        """Function chains belonging to this individual ANN request."""
+        return self._function_chains
 
     def __str__(self):
         return {

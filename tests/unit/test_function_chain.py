@@ -1,6 +1,5 @@
 import pytest
-from pymilvus import FunctionChain, FunctionChainStage, FunctionType
-from pymilvus.client.grpc_handler import GrpcHandler
+from pymilvus import FunctionChain, FunctionChainStage, FunctionType, RRFRanker
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import ParamError
 from pymilvus.function_chain import FunctionChainExpr, FunctionChainOp, col, fn
@@ -261,6 +260,41 @@ class TestFunctionChain:
         assert proto.ops[3].params["limit"].int64_value == 20
         assert proto.ops[3].params["offset"].int64_value == 2
 
+    @pytest.mark.parametrize(
+        "strategy, kwargs",
+        [
+            ("rrf", {}),
+            ("weighted", {"weights": [0.4, 0.6]}),
+            ("max", {}),
+            ("sum", {}),
+            ("avg", {}),
+        ],
+    )
+    def test_merge_to_proto(self, strategy, kwargs):
+        proto = FunctionChain(FunctionChainStage.L2_RERANK).merge(strategy, **kwargs).to_proto()
+
+        assert proto.ops[0].op == "merge"
+        assert proto.ops[0].params["strategy"].string_value == strategy
+        if strategy == "rrf":
+            assert proto.ops[0].params["k"].int64_value == 60
+        else:
+            assert proto.ops[0].params["norm_score"].bool_value is True
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("invalid"),
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf", k=0),
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf", weights=[1.0]),
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("weighted"),
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("weighted", weights=[True]),
+            lambda: FunctionChain(FunctionChainStage.L2_RERANK).merge("max", weights=[1.0]),
+        ],
+    )
+    def test_merge_defers_semantic_validation_to_server(self, call):
+        proto = call().to_proto()
+        assert proto.ops[0].op == "merge"
+
     def test_sort_with_string_columns(self):
         proto = (
             FunctionChain(FunctionChainStage.L2_RERANK).sort("score", tie_break_col="id").to_proto()
@@ -350,13 +384,96 @@ class TestSearchIntegration:
         with pytest.raises(ParamError, match="function_chains"):
             _prepare_search(function_chains=bad)
 
-    def test_hybrid_search_rejects_function_chains(self):
-        with pytest.raises(ParamError, match="hybrid_search"):
-            GrpcHandler.hybrid_search(
-                object.__new__(GrpcHandler),
-                collection_name="c",
-                reqs=[],
-                rerank=None,
-                limit=10,
-                function_chains=[FunctionChain(FunctionChainStage.L2_RERANK)],
+    def test_prepare_hybrid_search_with_function_chain(self):
+        sub_requests = [_prepare_search(), _prepare_search()]
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("weighted", weights=[0.4, 0.6])
+
+        request = Prepare.hybrid_search_request_with_ranker(
+            "c", sub_requests, None, 10, function_chains=chain
+        )
+
+        assert len(request.function_chains) == 1
+        assert request.function_chains[0].ops[0].op == "merge"
+        assert not any(param.key == "strategy" for param in request.rank_params)
+
+    def test_prepare_hybrid_search_with_weighted_rrf(self):
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf", k=80, weights=[0.7, 0.3])
+        request = Prepare.hybrid_search_request_with_ranker(
+            "c", [_prepare_search(), _prepare_search()], None, 10, function_chains=chain
+        )
+        request = type(request).FromString(request.SerializeToString())
+
+        params = request.function_chains[0].ops[0].params
+        assert params["strategy"].string_value == "rrf"
+        assert params["k"].int64_value == 80
+        assert [value.double_value for value in params["weights"].array_value.values] == [0.7, 0.3]
+        assert "norm_score" not in params
+        assert not request.HasField("function_score")
+        assert not any(param.key in {"strategy", "params"} for param in request.rank_params)
+
+    def test_prepare_hybrid_search_with_pre_and_post_process_chains(self):
+        sub_requests = [_prepare_search(), _prepare_search()]
+        chains = [
+            FunctionChain(FunctionChainStage.PRE_PROCESS),
+            FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf"),
+            FunctionChain(FunctionChainStage.POST_PROCESS),
+        ]
+
+        request = Prepare.hybrid_search_request_with_ranker(
+            "c", sub_requests, None, 10, function_chains=chains
+        )
+
+        assert [chain.stage for chain in request.function_chains] == [
+            schema_pb2.FunctionChainStagePreProcess,
+            schema_pb2.FunctionChainStageL2Rerank,
+            schema_pb2.FunctionChainStagePostProcess,
+        ]
+
+    def test_prepare_hybrid_search_rejects_ranker_and_function_chain(self):
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf")
+        with pytest.raises(ParamError, match="function_chains and ranker"):
+            Prepare.hybrid_search_request_with_ranker(
+                "c", [_prepare_search()], RRFRanker(), 10, function_chains=chain
+            )
+
+    @pytest.mark.parametrize(
+        "chain",
+        [
+            FunctionChain(FunctionChainStage.L2_RERANK).limit(2),
+            FunctionChain(FunctionChainStage.L2_RERANK).limit(2).merge("rrf"),
+            FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf").merge("rrf"),
+            FunctionChain(FunctionChainStage.L2_RERANK).merge("weighted", weights=[1.0]),
+        ],
+    )
+    def test_prepare_hybrid_search_defers_merge_validation_to_server(self, chain):
+        request = Prepare.hybrid_search_request_with_ranker(
+            "c", [_prepare_search(), _prepare_search()], None, 10, function_chains=chain
+        )
+
+        assert len(request.function_chains) == 1
+
+    @pytest.mark.parametrize(
+        "chain, message",
+        [
+            (
+                FunctionChain(FunctionChainStage.L1_RERANK).merge("rrf"),
+                "is not supported",
+            ),
+            (
+                [
+                    FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf"),
+                    FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf"),
+                ],
+                "exactly one L2_RERANK function chain",
+            ),
+            (
+                FunctionChain(FunctionChainStage.POST_PROCESS),
+                "exactly one L2_RERANK function chain",
+            ),
+        ],
+    )
+    def test_prepare_hybrid_search_rejects_invalid_chain(self, chain, message):
+        with pytest.raises(ParamError, match=message):
+            Prepare.hybrid_search_request_with_ranker(
+                "c", [_prepare_search(), _prepare_search()], None, 10, function_chains=chain
             )
