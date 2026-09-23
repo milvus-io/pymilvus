@@ -1093,7 +1093,7 @@ class AsyncGrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Union[BaseRanker, Function],
+        rerank: Optional[Union[BaseRanker, Function]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1102,7 +1102,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+        function_chains = kwargs.pop("function_chains", None)
 
         check_pass_param(
             limit=limit,
@@ -1130,6 +1130,7 @@ class AsyncGrpcHandler:
         for req in reqs:
             data = req.data
             req_kwargs = dict(kwargs)
+            req_kwargs.pop("function_chains", None)
             # Convert EmbeddingList to flat array if present
             if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
@@ -1148,6 +1149,7 @@ class AsyncGrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                function_chains=req.function_chains,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
@@ -1162,6 +1164,7 @@ class AsyncGrpcHandler:
             output_fields,
             round_decimal,
             use_default_consistency=use_default_consistency,
+            function_chains=function_chains,
             **kwargs,
         )
         return await self._execute_hybrid_search(
