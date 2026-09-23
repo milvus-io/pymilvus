@@ -544,13 +544,21 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: Union[BaseRanker, Function],
+        ranker: Optional[Union[BaseRanker, Function]] = None,
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[List[dict]]:
+        """Run hybrid search with optional per-request function chains.
+
+        Set ``AnnSearchRequest.function_chains`` for each recall source and
+        ``function_chains`` here for top-level L2 fusion. Nested chains support
+        legacy rankers or top-level L2, but not a Function ranker. Supported
+        per-request stages are determined by the server.
+        """
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
@@ -562,6 +570,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             output_fields=output_fields,
             timeout=timeout,
+            function_chains=function_chains,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
