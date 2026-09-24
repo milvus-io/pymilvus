@@ -53,11 +53,13 @@ def is_legal_host(host: Any) -> bool:
 def is_legal_port(port: Any) -> bool:
     if isinstance(port, (str, int)):
         try:
-            int(port)
+            number = int(port)
         except ValueError:
             return False
         else:
-            return True
+            # Same range convention as Connections.__verify_host_port, so every address
+            # path rejects an out-of-range port up front instead of failing later from grpc.
+            return 0 <= number < 65535
     return False
 
 
