@@ -82,10 +82,18 @@ def io_operation(io_func: Callable[[Any], None], message: str):
         raise MilvusException(message=message) from ose
 
 
-class QueryIterator:
+class _QueryIteratorBase:
+    """Transport-agnostic state machine shared by QueryIterator and AsyncQueryIterator.
+
+    Holds every piece of pure logic: cursor bookkeeping, expression assembly, batch and
+    limit accounting, the result cache and the checkpoint file. Subclasses own the RPCs:
+    they call a ``_*_kwargs`` builder, block on or await the handler, then feed the
+    response back through the matching ``_consume_*`` method.
+    """
+
     def __init__(
         self,
-        handler: QueryIteratorHandler,
+        handler: Any,
         context: CallContext | None,
         collection_name: str,
         batch_size: int | None = 1000,
@@ -96,20 +104,19 @@ class QueryIterator:
         schema: Mapping[str, Any] | None = None,
         timeout: float | None = None,
         rpc_options: Mapping[str, Any] | None = None,
-    ) -> QueryIterator:
+    ) -> None:
         self._handler = handler
         self._context = context
         self._rpc_options = dict(rpc_options or {})
         self._query_options = self._rpc_options.copy()
         self._collection_name = collection_name
-        self.__set_up_collection_id()
+        self._collection_id = None
         self._output_fields = output_fields
         self._partition_names = partition_names
         self._schema = schema
         self._timeout = timeout
         self._session_ts = 0
         self._query_options[ITERATOR_FIELD] = "True"
-        self._query_options[COLLECTION_ID] = self._collection_id
         self.__check_set_batch_size(batch_size)
         self._limit = limit
         self.__check_set_reduce_stop_for_best()
@@ -121,67 +128,169 @@ class QueryIterator:
         self._is_element_filter_iterator = self.__is_element_filter_expr(self._expr)
         self._cache_id_in_use = NO_CACHE_ID
         self._cp_file_handler = None
-        self.__set_up_ts_cp()
-        self.__seek_to_offset()
 
-    def __set_up_collection_id(self):
-        res = self._handler.describe_collection(
-            self._collection_name,
-            context=self._context,
-            **self._rpc_options,
-        )
+    def _describe_kwargs(self) -> dict[str, Any]:
+        return {"context": self._context, **self._rpc_options}
+
+    def _apply_collection_id(self, res: Mapping[str, Any]) -> None:
         self._collection_id = res[COLLECTION_ID]
+        self._query_options[COLLECTION_ID] = self._collection_id
 
-    def __seek_to_offset(self):
+    def _ts_query_kwargs(self) -> dict[str, Any]:
+        init_ts_kwargs = self._query_options.copy()
+        init_ts_kwargs[OFFSET] = 0
+        # just to set up mvccTs for iterator, no need correct limit
+        init_ts_kwargs[MILVUS_LIMIT] = 1
+        return {
+            "collection_name": self._collection_name,
+            "expr": self._expr,
+            "output_fields": [],
+            "partition_names": [],
+            "timeout": self._timeout,
+            "context": self._context,
+            **init_ts_kwargs,
+        }
+
+    def _consume_ts_response(self, res: Any) -> None:
+        if res is None:
+            raise MilvusException(
+                message="failed to connect to milvus for setting up "
+                "mvccTs, check milvus servers' status"
+            )
+        if res.extra is not None:
+            self._session_ts = res.extra.get(ITERATOR_SESSION_TS_FIELD, 0)
+        if self._session_ts <= 0:
+            log.warning("failed to get mvccTs from milvus server, use client-side ts instead")
+            self._session_ts = fall_back_to_latest_session_ts()
+        self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
+
+    def _prepare_ts_cp(self) -> bool:
+        """Set up checkpoint state.
+
+        Returns True when the caller still has to issue the mvccTs query, False when the
+        session ts and the pk cursor were restored from an existing checkpoint file.
+        """
+        self._buffer_cursor_lines_number = 0
+        self._cp_file_path_str = self._query_options.get(ITERATOR_SESSION_CP_FILE, None)
+        self._cp_file_path = None
+        if self._cp_file_path_str is None:
+            self._need_save_cp = False
+            return True
+        self._need_save_cp = True
+        self._cp_file_path = Path(self._cp_file_path_str)
+        if not self.__init_cp_file_handler():
+            # input cp file is empty, set up mvccTs by query request
+            return True
+        try:
+            # input cp file is not emtpy, init mvccTs by reading cp file
+            lines = self._cp_file_handler.readlines()
+            line_count = len(lines)
+            if line_count < 2:
+                raise ParamError(
+                    message=f"input cp file:{self._cp_file_path_str} should contain "
+                    f"at least two lines, but only:{line_count} lines"
+                )
+            self._session_ts = int(lines[0])
+            self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
+            if line_count > 1:
+                self._buffer_cursor_lines_number = line_count - 1
+                self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
+        except OSError as ose:
+            raise MilvusException(
+                message=f"Failed to read cp info from file:{self._cp_file_path_str}"
+            ) from ose
+        except ValueError as e:
+            raise ParamError(message=f"cannot parse input cp session_ts:{lines[0]}") from e
+        return False
+
+    def _save_mvcc_ts_if_needed(self) -> None:
+        if self._need_save_cp:
+            io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+
+    def _seek_offset_start(self) -> int:
         # read pk cursor from cp file, no need to seek offset
         if self._next_id is not None:
-            return
-        offset = self._query_options.get(OFFSET, 0)
-        if offset > 0:
-            seek_params = self._query_options.copy()
-            seek_params[OFFSET] = 0
-            seek_params[ITERATOR_FIELD] = "False"
-            seek_params[REDUCE_STOP_FOR_BEST] = "False"
-            start_time = time.time()
+            return 0
+        return self._query_options.get(OFFSET, 0)
 
-            def seek_offset_by_batch(batch: int, expr: str) -> int:
-                seek_params[MILVUS_LIMIT] = batch
-                query_params = seek_params.copy()
-                query_params.pop(QUERY_ITER_LAST_PK, None)
-                query_params.pop(QUERY_ITER_LAST_ELEMENT_OFFSET, None)
-                if self._has_element_cursor():
-                    query_params[QUERY_ITER_LAST_PK] = self._next_id
-                    query_params[QUERY_ITER_LAST_ELEMENT_OFFSET] = self._next_element_offset
-                res = self._handler.query(
-                    collection_name=self._collection_name,
-                    expr=expr,
-                    output_fields=[],
-                    partition_names=self._partition_names,
-                    timeout=self._timeout,
-                    context=self._context,
-                    **query_params,
-                )
-                self.__update_cursor(res)
-                return len(res)
+    def _seek_query_kwargs(self, batch: int) -> dict[str, Any]:
+        seek_params = self._query_options.copy()
+        seek_params[OFFSET] = 0
+        seek_params[ITERATOR_FIELD] = "False"
+        seek_params[REDUCE_STOP_FOR_BEST] = "False"
+        seek_params[MILVUS_LIMIT] = batch
+        seek_params.pop(QUERY_ITER_LAST_PK, None)
+        seek_params.pop(QUERY_ITER_LAST_ELEMENT_OFFSET, None)
+        if self._has_element_cursor():
+            seek_params[QUERY_ITER_LAST_PK] = self._next_id
+            seek_params[QUERY_ITER_LAST_ELEMENT_OFFSET] = self._next_element_offset
+        return {
+            "collection_name": self._collection_name,
+            "expr": self._setup_next_expr(),
+            "output_fields": [],
+            "partition_names": self._partition_names,
+            "timeout": self._timeout,
+            "context": self._context,
+            **seek_params,
+        }
 
-            while offset > 0:
-                batch_size = min(MAX_BATCH_SIZE, offset)
-                next_expr = self.__setup_next_expr()
-                seeked_count = seek_offset_by_batch(batch_size, next_expr)
-                log.debug(
-                    f"seeked offset, seek_expr:{next_expr} batch_size:{batch_size} seeked_count:{seeked_count}"
-                )
-                if seeked_count == 0:
-                    log.info(
-                        "seek offset has drained all matched results for query iterator, break"
-                    )
-                    break
-                offset -= seeked_count
-            self._query_options[OFFSET] = 0
-            seek_offset_duration = time.time() - start_time
-            log.info(
-                f"Finish seek offset for query iterator, offset:{offset}, current_pk_cursor:{self._next_id}, "
-                f"duration:{seek_offset_duration}"
+    def _consume_seek_batch(self, res: Any) -> int:
+        self.__update_cursor(res)
+        return len(res)
+
+    def _finish_seek(self, offset: int, start_time: float) -> None:
+        self._query_options[OFFSET] = 0
+        log.info(
+            f"Finish seek offset for query iterator, offset:{offset}, "
+            f"current_pk_cursor:{self._next_id}, duration:{time.time() - start_time}"
+        )
+
+    def _take_from_cache(self) -> list | None:
+        cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
+        if self.__is_res_sufficient(cached_res):
+            batch = self._query_options[BATCH_SIZE]
+            ret = cached_res[0:batch]
+            iterator_cache.cache(cached_res[batch:], self._cache_id_in_use)
+            return ret
+        iterator_cache.release_cache(self._cache_id_in_use)
+        return None
+
+    def _next_query_kwargs(self) -> dict[str, Any]:
+        current_expr = self._setup_next_expr()
+        log.debug(f"query_iterator_next_expr:{current_expr}")
+        return {
+            "collection_name": self._collection_name,
+            "expr": current_expr,
+            "output_fields": self._output_fields,
+            "partition_names": self._partition_names,
+            "timeout": self._timeout,
+            "context": self._context,
+            **self.__setup_query_params(),
+        }
+
+    def _consume_next_response(self, res: Any) -> list:
+        self.__maybe_cache(res)
+        return res[0 : min(self._query_options[BATCH_SIZE], len(res))]
+
+    def _finalize_batch(self, ret: list) -> list:
+        ret = self.__check_reached_limit(ret)
+        self.__update_cursor(ret)
+        io_operation(self._save_pk_cursor, "failed to save pk cursor")
+        self._returned_count += len(ret)
+        return ret
+
+    def _close_common(self) -> None:
+        # release cache in use
+        iterator_cache.release_cache(self._cache_id_in_use)
+        if self._cp_file_handler is not None:
+
+            def inner_close():
+                self._cp_file_handler.close()
+                self._cp_file_path.unlink()
+                log.info(f"removed cp file:{self._cp_file_path_str} for query iterator")
+
+            io_operation(
+                inner_close, f"failed to clear cp file:{self._cp_file_path_str} for query iterator"
             )
 
     def __init_cp_file_handler(self) -> bool:
@@ -203,7 +312,7 @@ class QueryIterator:
         )
         self._cp_file_handler.writelines(str(self._session_ts) + "\n")
 
-    def __save_pk_cursor(self):
+    def _save_pk_cursor(self):
         if self._need_save_cp and self._next_id is not None:
             if not self._cp_file_path.exists():
                 self._cp_file_handler.close()
@@ -281,69 +390,6 @@ class QueryIterator:
     def __is_element_filter_expr(expr: str) -> bool:
         return expr is not None and "element_filter" in expr.lower()
 
-    def __setup_ts_by_request(self):
-        init_ts_kwargs = self._query_options.copy()
-        init_ts_kwargs[OFFSET] = 0
-        init_ts_kwargs[MILVUS_LIMIT] = 1
-        # just to set up mvccTs for iterator, no need correct limit
-        res = self._handler.query(
-            collection_name=self._collection_name,
-            expr=self._expr,
-            output_fields=[],
-            partition_names=[],
-            timeout=self._timeout,
-            context=self._context,
-            **init_ts_kwargs,
-        )
-        if res is None:
-            raise MilvusException(
-                message="failed to connect to milvus for setting up "
-                "mvccTs, check milvus servers' status"
-            )
-        if res.extra is not None:
-            self._session_ts = res.extra.get(ITERATOR_SESSION_TS_FIELD, 0)
-        if self._session_ts <= 0:
-            log.warning("failed to get mvccTs from milvus server, use client-side ts instead")
-            self._session_ts = fall_back_to_latest_session_ts()
-        self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
-
-    def __set_up_ts_cp(self):
-        self._buffer_cursor_lines_number = 0
-        self._cp_file_path_str = self._query_options.get(ITERATOR_SESSION_CP_FILE, None)
-        self._cp_file_path = None
-        # no input cp_file, set up mvccTs by query request
-        if self._cp_file_path_str is None:
-            self._need_save_cp = False
-            self.__setup_ts_by_request()
-        else:
-            self._need_save_cp = True
-            self._cp_file_path = Path(self._cp_file_path_str)
-            if not self.__init_cp_file_handler():
-                # input cp file is empty, set up mvccTs by query request
-                self.__setup_ts_by_request()
-                io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
-            else:
-                try:
-                    # input cp file is not emtpy, init mvccTs by reading cp file
-                    lines = self._cp_file_handler.readlines()
-                    line_count = len(lines)
-                    if line_count < 2:
-                        raise ParamError(
-                            message=f"input cp file:{self._cp_file_path_str} should contain "
-                            f"at least two lines, but only:{line_count} lines"
-                        )
-                    self._session_ts = int(lines[0])
-                    self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
-                    if line_count > 1:
-                        self._buffer_cursor_lines_number = line_count - 1
-                        self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
-                except OSError as ose:
-                    raise MilvusException(
-                        message=f"Failed to read cp info from file:{self._cp_file_path_str}"
-                    ) from ose
-                except ValueError as e:
-                    raise ParamError(message=f"cannot parse input cp session_ts:{lines[0]}") from e
-
     def __maybe_cache(self, result: list):
         if len(result) < 2 * self._query_options[BATCH_SIZE]:
             return
@@ -368,36 +414,6 @@ class QueryIterator:
             last_element_offset=self._next_element_offset,
         )
 
-    def next(self):
-        cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
-        ret = None
-        if self.__is_res_sufficient(cached_res):
-            ret = cached_res[0 : self._query_options[BATCH_SIZE]]
-            res_to_cache = cached_res[self._query_options[BATCH_SIZE] :]
-            iterator_cache.cache(res_to_cache, self._cache_id_in_use)
-        else:
-            iterator_cache.release_cache(self._cache_id_in_use)
-            current_expr = self.__setup_next_expr()
-            log.debug(f"query_iterator_next_expr:{current_expr}")
-            query_params = self.__setup_query_params()
-            res = self._handler.query(
-                collection_name=self._collection_name,
-                expr=current_expr,
-                output_fields=self._output_fields,
-                partition_names=self._partition_names,
-                timeout=self._timeout,
-                context=self._context,
-                **query_params,
-            )
-            self.__maybe_cache(res)
-            ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
-
-        ret = self.__check_reached_limit(ret)
-        self.__update_cursor(ret)
-        io_operation(self.__save_pk_cursor, "failed to save pk cursor")
-        self._returned_count += len(ret)
-        return ret
-
     def __check_reached_limit(self, ret: list):
         if self._limit == UNLIMITED:
             return ret
@@ -420,7 +436,7 @@ class QueryIterator:
         if self._pk_field_name is None or self._pk_field_name == "":
             raise MilvusException(message="schema must contain pk field, broke")
 
-    def __setup_next_expr(self) -> str:
+    def _setup_next_expr(self) -> str:
         current_expr = self._expr
         if self._next_id is None:
             return current_expr
@@ -456,19 +472,73 @@ class QueryIterator:
         self._next_id = res[-1][self._pk_field_name]
         self._next_element_offset = res[-1].get(OFFSET)
 
-    def close(self) -> None:
-        # release cache in use
-        iterator_cache.release_cache(self._cache_id_in_use)
-        if self._cp_file_handler is not None:
 
-            def inner_close():
-                self._cp_file_handler.close()
-                self._cp_file_path.unlink()
-                log.info(f"removed cp file:{self._cp_file_path_str} for query iterator")
+class QueryIterator(_QueryIteratorBase):
+    def __init__(
+        self,
+        handler: QueryIteratorHandler,
+        context: CallContext | None,
+        collection_name: str,
+        batch_size: int | None = 1000,
+        limit: int | None = -1,
+        expr: str | None = None,
+        output_fields: list[str] | None = None,
+        partition_names: list[str] | None = None,
+        schema: Mapping[str, Any] | None = None,
+        timeout: float | None = None,
+        rpc_options: Mapping[str, Any] | None = None,
+    ) -> None:
+        super().__init__(
+            handler=handler,
+            context=context,
+            collection_name=collection_name,
+            batch_size=batch_size,
+            limit=limit,
+            expr=expr,
+            output_fields=output_fields,
+            partition_names=partition_names,
+            schema=schema,
+            timeout=timeout,
+            rpc_options=rpc_options,
+        )
+        self._setup()
 
-            io_operation(
-                inner_close, f"failed to clear cp file:{self._cp_file_path_str} for query iterator"
+    def _setup(self) -> None:
+        self._apply_collection_id(
+            self._handler.describe_collection(self._collection_name, **self._describe_kwargs())
+        )
+        if self._prepare_ts_cp():
+            self._consume_ts_response(self._handler.query(**self._ts_query_kwargs()))
+            self._save_mvcc_ts_if_needed()
+        self._seek_to_offset()
+
+    def _seek_to_offset(self) -> None:
+        offset = self._seek_offset_start()
+        if offset <= 0:
+            return
+        start_time = time.time()
+        while offset > 0:
+            batch_size = min(MAX_BATCH_SIZE, offset)
+            query_kwargs = self._seek_query_kwargs(batch_size)
+            seeked_count = self._consume_seek_batch(self._handler.query(**query_kwargs))
+            log.debug(
+                f"seeked offset, seek_expr:{query_kwargs['expr']} "
+                f"batch_size:{batch_size} seeked_count:{seeked_count}"
             )
+            if seeked_count == 0:
+                log.info("seek offset has drained all matched results for query iterator, break")
+                break
+            offset -= seeked_count
+        self._finish_seek(offset, start_time)
+
+    def next(self):
+        ret = self._take_from_cache()
+        if ret is None:
+            ret = self._consume_next_response(self._handler.query(**self._next_query_kwargs()))
+        return self._finalize_batch(ret)
+
+    def close(self) -> None:
+        self._close_common()
 
 
 class IteratorCache:
