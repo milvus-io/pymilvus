@@ -327,16 +327,18 @@ class QueryIterator:
                     # input cp file is not emtpy, init mvccTs by reading cp file
                     lines = self._cp_file_handler.readlines()
                     line_count = len(lines)
-                    if line_count < 2:
-                        raise ParamError(
-                            message=f"input cp file:{self._cp_file_path_str} should contain "
-                            f"at least two lines, but only:{line_count} lines"
-                        )
-                    self._session_ts = int(lines[0])
-                    self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
-                    if line_count > 1:
-                        self._buffer_cursor_lines_number = line_count - 1
-                        self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
+                    if line_count == 0:
+                        # File exists but is empty, e.g. left behind by a
+                        # process interrupted before writing a session_ts.
+                        # Treat this like a missing file: start fresh.
+                        self.__setup_ts_by_request()
+                        io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+                    else:
+                        self._session_ts = int(lines[0])
+                        self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
+                        if line_count > 1:
+                            self._buffer_cursor_lines_number = line_count - 1
+                            self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
                 except OSError as ose:
                     raise MilvusException(
                         message=f"Failed to read cp info from file:{self._cp_file_path_str}"
@@ -369,12 +371,20 @@ class QueryIterator:
         )
 
     def next(self):
+        prev_cache_id_in_use = self._cache_id_in_use
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
         ret = None
+        restore_cache = None
         if self.__is_res_sufficient(cached_res):
             ret = cached_res[0 : self._query_options[BATCH_SIZE]]
             res_to_cache = cached_res[self._query_options[BATCH_SIZE] :]
             iterator_cache.cache(res_to_cache, self._cache_id_in_use)
+
+            def restore_cache():
+                # Put the full result back under the same id, undoing
+                # the shrink above.
+                iterator_cache.cache(cached_res, prev_cache_id_in_use)
+
         else:
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
@@ -391,10 +401,35 @@ class QueryIterator:
             )
             self.__maybe_cache(res)
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
+            new_cache_id_in_use = self._cache_id_in_use
+
+            def restore_cache():
+                # Release whatever __maybe_cache created above, if
+                # anything, and go back to having no cache in use. The
+                # old entry released above was already insufficient, so
+                # there's nothing to restore for it.
+                if new_cache_id_in_use != prev_cache_id_in_use:
+                    iterator_cache.release_cache(new_cache_id_in_use)
 
         ret = self.__check_reached_limit(ret)
+
+        # Snapshot cursor state so it can be rolled back if the
+        # checkpoint write fails below. Without this, a failed save
+        # leaves the cursor (and cache) past a batch that was never
+        # returned to the caller, which gets silently skipped on retry.
+        prev_next_id = self._next_id
+        prev_next_element_offset = self._next_element_offset
+
         self.__update_cursor(ret)
-        io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        try:
+            io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        except Exception:
+            self._next_id = prev_next_id
+            self._next_element_offset = prev_next_element_offset
+            self._cache_id_in_use = prev_cache_id_in_use
+            restore_cache()
+            raise
+
         self._returned_count += len(ret)
         return ret
 

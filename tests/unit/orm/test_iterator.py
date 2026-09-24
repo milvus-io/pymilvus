@@ -1469,25 +1469,62 @@ class TestQueryIteratorCpFile:
                 Path(cp_path).unlink()
             raise
 
-    def test_cp_file_too_few_lines_raises(self):
-        """CP file with only 1 line raises ParamError."""
+    def test_cp_file_one_line_restores_ts_only(self):
+        """CP file with exactly 1 line (session_ts saved, but no batch
+        completed yet -- e.g. the process was interrupted right after the
+        first save) restores the timestamp and starts with no cursor,
+        rather than raising. This is a valid, resumable state: it used to
+        incorrectly raise ParamError (see #3744) since the file "only" had
+        1 of an assumed-required 2+ lines, even though a cp file with just
+        a saved ts and no cursor yet is exactly what a fresh iterator
+        produces after its very first successful save."""
         conn = _make_mock_conn(session_ts=100)
         with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
             f.write("300\n")
             cp_path = f.name
 
         try:
-            with pytest.raises(ParamError, match="at least two lines"):
-                QueryIterator(
-                    handler=conn,
-                    context=None,
-                    collection_name="test",
-                    batch_size=10,
-                    expr="pk > 0",
-                    output_fields=["pk"],
-                    schema=_SCHEMA_DICT,
-                    rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-                )
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._session_ts == 300
+            assert qi._next_id is None
+            qi.close()
+        finally:
+            if Path(cp_path).exists():
+                Path(cp_path).unlink()
+
+    def test_cp_file_empty_starts_fresh(self):
+        """A cp file that exists but is completely empty (0 lines -- e.g.
+        left behind by a process that crashed before writing anything)
+        is treated the same as no cp file at all: start a fresh session
+        instead of raising. See #3744."""
+        conn = _make_mock_conn(session_ts=200)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
+            cp_path = f.name  # zero bytes written
+
+        try:
+            qi = QueryIterator(
+                handler=conn,
+                context=None,
+                collection_name="test",
+                batch_size=10,
+                expr="pk > 0",
+                output_fields=["pk"],
+                schema=_SCHEMA_DICT,
+                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
+            )
+            assert qi._need_save_cp is True
+            assert qi._session_ts == 200
+            assert qi._next_id is None
+            qi.close()
         finally:
             if Path(cp_path).exists():
                 Path(cp_path).unlink()
