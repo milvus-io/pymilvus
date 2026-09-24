@@ -2,6 +2,7 @@ import asyncio
 import copy
 import time
 import types
+from contextlib import suppress
 from typing import Dict, List, Optional, Sequence, Type, Union
 
 from pymilvus.client import type_info
@@ -2362,6 +2363,7 @@ class AsyncMilvusClient(BaseMilvusClient):
                 If not provided, uses system default.
             wait (bool): Whether to wait for optimization to complete. Defaults to True.
                 If False, returns an OptimizeTask for async tracking.
+                If True, a wait timeout or caller cancellation stops the client-side task.
             timeout (Optional[float]): Maximum time in seconds to wait for optimization.
                 Only applies when wait=True.
             **kwargs: Additional arguments.
@@ -2408,7 +2410,14 @@ class AsyncMilvusClient(BaseMilvusClient):
         task.start()
 
         if wait:
-            return await task.result(timeout=timeout)
+            try:
+                return await task.result(timeout=timeout)
+            finally:
+                # No task handle is returned on this path; stop and retrieve unfinished work.
+                if not task.done():
+                    task.cancel()
+                    with suppress(MilvusException):
+                        await task.result()
 
         return task
 
