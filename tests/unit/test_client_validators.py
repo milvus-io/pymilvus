@@ -89,6 +89,8 @@ class TestValidateNullableStrs:
         (1234, False),
         (":19530", False),
         ("localhost:abc", False),
+        ("localhost:99999", False),
+        ("localhost:-1", False),
     ],
 )
 def test_is_legal_address(value, expected):
@@ -113,8 +115,17 @@ def test_is_legal_host(value, expected):
     [
         (19530, True),
         ("19530", True),
+        (0, True),
+        ("65534", True),
         ("abc", False),
         (3.14, False),
+        # Out-of-range ports must be rejected here, like Connections.__verify_host_port
+        # already does for the host/port path, instead of failing later from grpc.
+        (65535, False),
+        ("65535", False),
+        ("99999", False),
+        (-1, False),
+        ("-1", False),
     ],
 )
 def test_is_legal_port(value, expected):
