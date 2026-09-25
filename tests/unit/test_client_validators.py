@@ -261,6 +261,26 @@ class TestIsLegalPartitionNameArray:
         assert is_legal_partition_name_array("p1") is False
 
 
+class TestPartitionNamesErrorMessage:
+    def test_reports_the_public_parameter_name(self):
+        """The message must name `partition_names`, the argument callers actually pass.
+
+        The checker was registered under the internal key `partition_name_array`, and
+        `_raise_param_error` formats the registry key straight into the message, so an
+        invalid value reported a name that appears nowhere in the public API (#2589).
+        """
+        with pytest.raises(ParamError, match=r"`partition_names` value 1 is illegal"):
+            check_pass_param(partition_names=1)
+
+    def test_valid_value_passes(self):
+        check_pass_param(partition_names=["p1", "p2"])
+
+    def test_internal_key_still_validates(self):
+        """Back-compat: anything still passing the old key keeps being checked."""
+        with pytest.raises(ParamError, match=r"`partition_name_array` value 1 is illegal"):
+            check_pass_param(partition_name_array=1)
+
+
 class TestIsLegalDropRatio:
     def test_valid(self):
         assert is_legal_drop_ratio(0.5) is True

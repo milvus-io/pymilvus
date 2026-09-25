@@ -353,6 +353,8 @@ class ParamChecker(metaclass=Singleton):
             "nlist": is_legal_nlist,
             "cmd": is_legal_cmd,
             "partition_name": is_legal_partition_name,
+            "partition_names": is_legal_partition_name_array,
+            # Kept so callers still passing the internal name keep validating.
             "partition_name_array": is_legal_partition_name_array,
             "limit": is_legal_limit,
             "anns_field": is_legal_anns_field,
