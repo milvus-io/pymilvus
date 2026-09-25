@@ -3,10 +3,13 @@
 Coverage: User, role, privilege, grant, resource group operations.
 """
 
+import base64
 import inspect
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+
+from pymilvus import AsyncMilvusClient, MilvusClient
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.call_context import CallContext
 
@@ -796,3 +799,108 @@ class TestAsyncGrpcHandlerResourceGroup:
             mock_prepare.transfer_replica.return_value = MagicMock()
             await handler.transfer_replica("src_rg", "tgt_rg", "test_coll", 1)
             mock_stub.TransferReplica.assert_called_once()
+
+
+class TestAsyncGrpcHandlerCredentialRotation:
+    """Tests for rotating the credential attached to a live async channel."""
+
+    @staticmethod
+    def _installed_authorizations(channel) -> list:
+        """Decode the authorization headers every installed interceptor would add."""
+        authorizations = []
+        for interceptor in channel._unary_unary_interceptors:
+            details = MagicMock()
+            details.metadata = None
+            new_details, _ = interceptor._fn(details, MagicMock())
+            authorizations.extend(
+                base64.b64decode(value).decode()
+                for header, value in new_details.metadata
+                if header == "authorization"
+            )
+        return authorizations
+
+    def _handler(self) -> AsyncGrpcHandler:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        return AsyncGrpcHandler(channel=mock_channel, user="root", password="old_pass")
+
+    def test_rotating_the_credential_replaces_the_stale_one(self) -> None:
+        """A rotated credential must not leave the superseded one on the channel.
+
+        Interceptors are appended to the channel's list, and each authorization
+        interceptor appends its own header, so a stale one left in place keeps
+        sending the old credential ahead of the new one.
+        """
+        handler = self._handler()
+        assert self._installed_authorizations(handler._async_channel) == ["root:old_pass"]
+
+        handler._setup_authorization_interceptor("root", "new_pass", None)
+        handler._setup_grpc_channel()
+        assert self._installed_authorizations(handler._async_channel) == ["root:new_pass"]
+
+        handler._setup_authorization_interceptor("root", "newer_pass", None)
+        handler._setup_grpc_channel()
+        assert self._installed_authorizations(handler._async_channel) == ["root:newer_pass"]
+
+    def test_rotating_the_credential_installs_exactly_one_interceptor(self) -> None:
+        handler = self._handler()
+        for password in ("new_pass", "newer_pass", "newest_pass"):
+            handler._setup_authorization_interceptor("root", password, None)
+            handler._setup_grpc_channel()
+            interceptors = handler._async_channel._unary_unary_interceptors
+            assert len(interceptors) == 1
+            assert handler._async_authorization_interceptor in interceptors
+
+    def test_uninstall_is_a_no_op_without_an_installed_interceptor(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        assert handler._async_authorization_interceptor is None
+
+        handler._uninstall_authorization_interceptor()
+
+        assert handler._async_authorization_interceptor is None
+        assert handler._async_channel._unary_unary_interceptors == []
+
+
+class TestAsyncMilvusClientUpdatePassword:
+    """Tests for AsyncMilvusClient.update_password's reset_connection flag."""
+
+    @staticmethod
+    def _client_with_connection() -> tuple:
+        client = AsyncMilvusClient.__new__(AsyncMilvusClient)
+        conn = MagicMock()
+        conn.update_password = AsyncMock()
+        client._get_connection = AsyncMock(return_value=conn)
+        client._generate_call_context = MagicMock(return_value=None)
+        return client, conn
+
+    @pytest.mark.asyncio
+    async def test_reset_connection_rebinds_the_channel(self) -> None:
+        """reset_connection must re-authorize the live connection, as the sync client does.
+
+        Without it, every later call on the same client keeps sending the password
+        that was just replaced.
+        """
+        client, conn = self._client_with_connection()
+
+        await client.update_password("root", "old_pass", "new_pass", reset_connection=True)
+
+        conn.update_password.assert_awaited_once()
+        conn._setup_authorization_interceptor.assert_called_once_with("root", "new_pass", None)
+        conn._setup_grpc_channel.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_connection_is_left_alone_by_default(self) -> None:
+        client, conn = self._client_with_connection()
+
+        await client.update_password("root", "old_pass", "new_pass")
+
+        conn.update_password.assert_awaited_once()
+        conn._setup_authorization_interceptor.assert_not_called()
+        conn._setup_grpc_channel.assert_not_called()
+
+    def test_signature_matches_the_sync_client(self) -> None:
+        sync_params = inspect.signature(MilvusClient.update_password).parameters
+        async_params = inspect.signature(AsyncMilvusClient.update_password).parameters
+        assert set(sync_params) == set(async_params)
