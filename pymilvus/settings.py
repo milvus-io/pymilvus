@@ -1,4 +1,4 @@
-import logging.config
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -59,44 +59,47 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
         return self.format_col(message_str, level_name=record.levelname)
 
 
+LOG_FORMAT = "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)"
+LOG_HANDLER_NAME = "pymilvus_console"
+_LOGGER_LEVELS = (
+    ("pymilvus.milvus_client", "INFO"),
+    ("pymilvus.bulk_writer", "INFO"),
+)
+
+
+def _get_console_handler() -> logging.Handler:
+    """Return the shared pymilvus console handler, creating it on first use.
+
+    The handler is looked up on the ``pymilvus`` logger tree by name so that
+    re-running :func:`init_log` (e.g. ``importlib.reload``) does not stack
+    duplicate handlers.
+    """
+    for name in ("pymilvus", *(name for name, _ in _LOGGER_LEVELS)):
+        for handler in logging.getLogger(name).handlers:
+            if handler.get_name() == LOG_HANDLER_NAME:
+                return handler
+    handler = logging.StreamHandler()
+    handler.set_name(LOG_HANDLER_NAME)
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    return handler
+
+
 def init_log(log_level: str):
-    logging_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)",
-            },
-            "colorful_console": {
-                "format": "%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)",
-                "()": ColorfulFormatter,
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "colorful_console",
-            },
-            "no_color_console": {
-                "class": "logging.StreamHandler",
-                "formatter": "default",
-            },
-        },
-        "loggers": {
-            "pymilvus": {"handlers": ["no_color_console"], "level": log_level, "propagate": False},
-            "pymilvus.milvus_client": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "pymilvus.bulk_writer": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-        },
-    }
-    logging.config.dictConfig(logging_config)
+    """Configure logging for the ``pymilvus`` logger tree only.
+
+    Only the ``pymilvus*`` loggers are touched. In particular, this must not go
+    through ``logging.config.dictConfig``: in its default (non-incremental)
+    mode that helper closes every handler already registered in the process
+    and strips handlers the application attached to the ``pymilvus`` logger,
+    silently breaking logging configured before ``import pymilvus``.
+    """
+    handler = _get_console_handler()
+    for name, level in (("pymilvus", log_level), *_LOGGER_LEVELS):
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        logger.propagate = False
+        if handler not in logger.handlers:
+            logger.addHandler(handler)
 
 
 init_log("WARNING")
