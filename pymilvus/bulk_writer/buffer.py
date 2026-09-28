@@ -324,12 +324,10 @@ class Buffer:
         data = {}
         for k, v in self._buffer.items():
             field_schema = self._fields[k]
-            if field_schema.dtype in {DataType.JSON, DataType.SPARSE_FLOAT_VECTOR}:
-                # for JSON and SPARSE_VECTOR field, store as string array
-                str_arr = []
-                for val in v:
-                    str_arr.append(json.dumps(val))
-                data[k] = str_arr
+            if field_schema.dtype == DataType.JSON:
+                data[k] = [json.dumps(val) for val in v]
+            elif field_schema.dtype == DataType.SPARSE_FLOAT_VECTOR:
+                data[k] = [None if val is None else json.dumps(val) for val in v]
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 arr = []
                 for val in v:
@@ -432,6 +430,9 @@ class Buffer:
                 # data.to_csv() converts numpy type with unexpected string, we need a raw struct
                 raw_arr = []
                 for structs in v:
+                    if structs is None:
+                        raw_arr.append(None)
+                        continue
                     raw_structs = []
                     for struct in structs:
                         raw_structs.append(to_raw_type(struct))
