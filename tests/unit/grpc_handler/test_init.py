@@ -46,6 +46,16 @@ class TestReconnectHandler:
         handler.reconnect_on_idle(MagicMock(value=(None, "ready")))
         assert handler.is_idle_state is False
 
+    def test_reconnect_logs_disconnect_error(self, caplog):
+        mock_conns = MagicMock()
+        mock_conns.disconnect.side_effect = RuntimeError("socket closed")
+        handler = ReconnectHandler(mock_conns, "test", {})
+        handler.is_idle_state = True
+        with patch("pymilvus.client.grpc_handler.time.sleep"):
+            handler.check_state_and_reconnect_later()
+        assert "disconnect failed: socket closed" in caplog.text
+        mock_conns.connect.assert_called_once_with("test")
+
 
 class TestGrpcHandlerInit:
     """Tests for GrpcHandler initialization."""
