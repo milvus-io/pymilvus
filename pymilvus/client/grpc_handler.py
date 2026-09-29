@@ -335,6 +335,18 @@ class GrpcHandler:
             self._address = target_address
             self._move_state_change_callbacks(old_channel, new_channel)
 
+        if old_channel is not None:
+            def _delayed_close(ch):
+                try:
+                    ch.close()
+                except Exception as exc:
+                    logger.debug("Failed to reclaim retired gRPC channel: %s", exc)
+            
+            # Start a daemon thread that waits 30 seconds before closing
+            timer = threading.Timer(30.0, _delayed_close, args=[old_channel])
+            timer.daemon = True
+            timer.start()
+
     def reset_db_name(self, db_name: str):
         """Deprecated: db_name is now passed per-request via kwargs.
 
