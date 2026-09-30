@@ -1,5 +1,6 @@
 """Tests for GrpcHandler initialization and connection management."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import grpc
@@ -46,7 +47,12 @@ class TestReconnectHandler:
         handler.reconnect_on_idle(MagicMock(value=(None, "ready")))
         assert handler.is_idle_state is False
 
-    def test_reconnect_logs_disconnect_error(self, caplog):
+    def test_reconnect_logs_disconnect_error(self, caplog, monkeypatch):
+        # The "pymilvus" logger doesn't propagate to the root logger, where caplog listens
+        monkeypatch.setattr(
+            logging.getLogger("pymilvus.client.grpc_handler"), "handlers", [caplog.handler]
+        )
+        caplog.set_level("WARNING")
         mock_conns = MagicMock()
         mock_conns.disconnect.side_effect = RuntimeError("socket closed")
         handler = ReconnectHandler(mock_conns, "test", {})
