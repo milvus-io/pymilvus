@@ -5,6 +5,7 @@ every handler that already exists in the process. Logging configured by the
 application before the import must survive untouched.
 """
 
+import contextlib
 import io
 import logging
 import logging.handlers
@@ -17,6 +18,26 @@ from pymilvus import settings
 
 PYMILVUS_LOGGERS = ("pymilvus", "pymilvus.milvus_client", "pymilvus.bulk_writer")
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+@contextlib.contextmanager
+def only_pymilvus_handlers():
+    """Run with only pymilvus' own handlers on the pymilvus loggers, then restore them.
+
+    pytest attaches its log-capture handlers to every non-propagating logger
+    once a test starts running, and :func:`settings.init_log` would otherwise
+    treat them as application handlers.
+    """
+    saved = {name: list(logging.getLogger(name).handlers) for name in PYMILVUS_LOGGERS}
+    for name, handlers in saved.items():
+        logging.getLogger(name).handlers[:] = [
+            h for h in handlers if h.get_name() == settings.LOG_HANDLER_NAME
+        ]
+    try:
+        yield
+    finally:
+        for name, handlers in saved.items():
+            logging.getLogger(name).handlers[:] = handlers
 
 
 @pytest.fixture
@@ -60,30 +81,47 @@ def test_init_log_keeps_handler_attached_to_pymilvus_logger():
     buf = io.StringIO()
     app_handler = logging.StreamHandler(buf)
     logger = logging.getLogger("pymilvus")
-    logger.addHandler(app_handler)
-    try:
+    with only_pymilvus_handlers():
+        logger.addHandler(app_handler)
         settings.init_log("WARNING")
 
         assert app_handler in logger.handlers
         logger.warning("routed to app")
         assert "routed to app" in buf.getvalue()
-    finally:
-        logger.removeHandler(app_handler)
+
+
+def test_init_log_does_not_double_emit_with_application_handler(capsys):
+    buf = io.StringIO()
+    app_handler = logging.StreamHandler(buf)
+    logger = logging.getLogger("pymilvus")
+    with only_pymilvus_handlers():
+        # Recreate the console handler so that it writes to the captured stderr.
+        for name in PYMILVUS_LOGGERS:
+            logging.getLogger(name).handlers.clear()
+        settings.init_log("WARNING")
+        logger.addHandler(app_handler)
+        settings.init_log("WARNING")
+
+        assert [h.get_name() for h in logger.handlers] == [app_handler.get_name()]
+        logger.warning("only once")
+        assert buf.getvalue().count("only once") == 1
+        assert "only once" not in capsys.readouterr().err
 
 
 def test_init_log_is_idempotent():
-    settings.init_log("WARNING")
-    settings.init_log("WARNING")
+    with only_pymilvus_handlers():
+        settings.init_log("WARNING")
+        settings.init_log("WARNING")
 
-    for name in PYMILVUS_LOGGERS:
-        logger = logging.getLogger(name)
-        pymilvus_handlers = [
-            h for h in logger.handlers if h.get_name() == settings.LOG_HANDLER_NAME
-        ]
-        assert len(pymilvus_handlers) == 1
-        assert not logger.propagate
-        assert isinstance(pymilvus_handlers[0], logging.StreamHandler)
-        assert pymilvus_handlers[0].formatter._fmt == settings.LOG_FORMAT
+        for name in PYMILVUS_LOGGERS:
+            logger = logging.getLogger(name)
+            assert len(logger.handlers) == 1
+            handler = logger.handlers[0]
+            assert handler.get_name() == settings.LOG_HANDLER_NAME
+            assert isinstance(handler, logging.StreamHandler)
+            assert not logger.propagate
+            record = logging.LogRecord(name, logging.WARNING, __file__, 1, "msg", None, None)
+            assert handler.format(record) == logging.Formatter(settings.LOG_FORMAT).format(record)
 
     assert logging.getLogger("pymilvus").level == logging.WARNING
     assert logging.getLogger("pymilvus.milvus_client").level == logging.INFO

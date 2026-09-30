@@ -34,31 +34,6 @@ class Config:
 
 
 # logging
-COLORS = {
-    "HEADER": "\033[95m",
-    "INFO": "\033[92m",
-    "DEBUG": "\033[94m",
-    "WARNING": "\033[93m",
-    "ERROR": "\033[95m",
-    "CRITICAL": "\033[91m",
-    "ENDC": "\033[0m",
-}
-
-
-class ColorFulFormatColMixin:
-    def format_col(self, message_str: str, level_name: str):
-        if level_name in COLORS:
-            message_str = COLORS.get(level_name) + message_str + COLORS.get("ENDC")
-        return message_str
-
-
-class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
-    def format(self, record: str):
-        message_str = super().format(record)
-
-        return self.format_col(message_str, level_name=record.levelname)
-
-
 LOG_FORMAT = "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)"
 LOG_HANDLER_NAME = "pymilvus_console"
 _LOGGER_LEVELS = (
@@ -92,13 +67,21 @@ def init_log(log_level: str):
     mode that helper closes every handler already registered in the process
     and strips handlers the application attached to the ``pymilvus`` logger,
     silently breaking logging configured before ``import pymilvus``.
+
+    The shared console handler is only attached to a logger that has no other
+    handlers: if the application already routes a ``pymilvus*`` logger to its
+    own handler, adding the console handler as well would emit every record
+    twice.
     """
     handler = _get_console_handler()
     for name, level in (("pymilvus", log_level), *_LOGGER_LEVELS):
         logger = logging.getLogger(name)
         logger.setLevel(level)
         logger.propagate = False
-        if handler not in logger.handlers:
+        has_app_handler = any(h.get_name() != LOG_HANDLER_NAME for h in logger.handlers)
+        if has_app_handler:
+            logger.removeHandler(handler)
+        elif handler not in logger.handlers:
             logger.addHandler(handler)
 
 
