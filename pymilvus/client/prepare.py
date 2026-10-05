@@ -38,8 +38,11 @@ from .constants import (
     HINTS,
     IS_EMBEDDING_LIST,
     ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_CURSOR_VERSION_KEY,
     ITER_SEARCH_ID_KEY,
     ITER_SEARCH_LAST_BOUND_KEY,
+    ITER_SEARCH_LAST_PK_KEY,
+    ITER_SEARCH_LAST_PK_TYPE_KEY,
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
     JSON_PATH,
@@ -1831,6 +1834,14 @@ class Prepare:
         search_iter_id = kwargs.get(ITER_SEARCH_ID_KEY)
         if search_iter_id is not None:
             search_params[ITER_SEARCH_ID_KEY] = search_iter_id
+
+        for key in (
+            ITER_SEARCH_CURSOR_VERSION_KEY,
+            ITER_SEARCH_LAST_PK_TYPE_KEY,
+            ITER_SEARCH_LAST_PK_KEY,
+        ):
+            if key in kwargs:
+                search_params[key] = kwargs[key]
 
         search_aggregation = kwargs.get(SEARCH_AGGREGATION)
         if search_aggregation is not None and not isinstance(search_aggregation, SearchAggregation):

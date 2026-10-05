@@ -447,6 +447,12 @@ class _SearchV2Result:
         assert index == 0
         return self._hits
 
+    def __len__(self):
+        return 1
+
+    def get_search_iterator_cursor_info(self):
+        return {}, "int_id", self._hits[-1].id if self._hits else None
+
     def get_search_iterator_v2_results_info(self):
         return self._iterator_info
 
@@ -497,7 +503,7 @@ def test_search_v2_compatibility_import_emits_no_orm_warning():
     assert reloaded.SearchIteratorV2 is client_iterator.SearchIteratorV2
 
 
-def test_search_v2_keeps_handler_identity_and_context_across_probe_and_pages():
+def test_search_v2_keeps_handler_identity_and_context_across_initial_and_later_pages():
     handler = _SwitchingSearchV2Handler()
     context = CallContext(db_name="db", client_request_id="request")
     iterator = _new_search_v2_iterator(handler, context)
@@ -508,7 +514,7 @@ def test_search_v2_keeps_handler_identity_and_context_across_probe_and_pages():
     iterator.close()
 
     assert isinstance(first_page, client_iterator.SearchPage)
-    assert first_page[0].transport == "after"
+    assert first_page[0].transport == "before"
     assert second_page[0].transport == "after"
     assert handler.describe_calls[0][1] == {
         "context": context,
@@ -520,8 +526,9 @@ def test_search_v2_keeps_handler_identity_and_context_across_probe_and_pages():
     assert all(call[ITER_SEARCH_V2_KEY] is True for call in handler.search_calls)
     assert all(call[COLLECTION_ID] == 1 for call in handler.search_calls)
     assert handler.search_calls[0][ITER_SEARCH_BATCH_SIZE_KEY] == 1
-    assert handler.search_calls[2][ITER_SEARCH_ID_KEY] == "token"
-    assert handler.search_calls[2][ITER_SEARCH_LAST_BOUND_KEY] == 0.5
+    assert len(handler.search_calls) == 2
+    assert handler.search_calls[1][ITER_SEARCH_ID_KEY] == "token"
+    assert handler.search_calls[1][ITER_SEARCH_LAST_BOUND_KEY] == 0.5
     assert handler.close_calls == 0
 
 
@@ -573,7 +580,6 @@ def test_milvus_client_search_v2_preserves_external_filter_callback():
     handler = _SwitchingSearchV2Handler()
     handler.search = Mock(
         side_effect=[
-            _SearchV2Result([_SearchV2Hit(0, "probe")]),
             _SearchV2Result([_SearchV2Hit(1, "rejected")]),
             _SearchV2Result([_SearchV2Hit(2, "accepted")]),
         ]
@@ -595,7 +601,7 @@ def test_milvus_client_search_v2_preserves_external_filter_callback():
 
     assert page.ids() == [2]
     assert external_filter.call_count == 2
-    assert len(handler.search.call_args_list) == 3
+    assert len(handler.search.call_args_list) == 2
     assert "external_filter_func" not in generate_context.call_args.kwargs
     assert "external_filter_func" not in handler.describe_calls[0][1]
     assert all("external_filter_func" not in call.kwargs for call in handler.search.call_args_list)
@@ -626,13 +632,13 @@ def test_milvus_client_preserves_search_v2_public_preparation():
             cluster_id="cluster",
         )
 
-    probe = handler.search_calls[0]
-    assert probe == {
+    initial_page = handler.search_calls[0]
+    assert initial_page == {
         "collection_name": "collection",
         "data": data,
         "anns_field": "",
         "param": search_params,
-        "limit": 1,
+        "limit": 7,
         "expression": "pk > 0",
         "partition_names": ["partition"],
         "output_fields": ["pk"],
@@ -640,7 +646,7 @@ def test_milvus_client_preserves_search_v2_public_preparation():
         "round_decimal": 4,
         ITERATOR_FIELD: True,
         ITER_SEARCH_V2_KEY: True,
-        ITER_SEARCH_BATCH_SIZE_KEY: 1,
+        ITER_SEARCH_BATCH_SIZE_KEY: 7,
         GUARANTEE_TIMESTAMP: 0,
         "consistency_level": "Strong",
         "cluster_id": "cluster",
