@@ -115,6 +115,13 @@ class BaseMilvusClient:
 
         return {}
 
+    @staticmethod
+    def _escape_str_pk(pk: str) -> str:
+        """Escape a VARCHAR primary key for use inside a single-quoted expression literal."""
+        return (
+            pk.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+        )
+
     def _pack_pks_expr(self, schema_dict: Dict, pks: List) -> str:
         """Pack primary keys into an expression string.
 
@@ -131,7 +138,7 @@ class BaseMilvusClient:
 
         # Varchar pks need double quotes around the values
         if data_type == DataType.VARCHAR:
-            ids = ["'" + str(entry) + "'" for entry in pks]
+            ids = ["'" + self._escape_str_pk(str(entry)) + "'" for entry in pks]
             expr = f"""{pk_field_name} in [{",".join(ids)}]"""
         else:
             ids = [str(entry) for entry in pks]
