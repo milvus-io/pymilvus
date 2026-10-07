@@ -1218,3 +1218,50 @@ class TestHybridExtraList:
         hel = HybridExtraList([field_data], [{}, {}])
 
         assert hel[1]["vec"] == [b"cd"]
+
+    def _float_vector_field(self, data, dim=2, name="vec"):
+        return schema_pb2.FieldData(
+            type=DataType.FLOAT_VECTOR,
+            field_name=name,
+            vectors=schema_pb2.VectorField(
+                dim=dim,
+                float_vector=schema_pb2.FloatArray(data=data),
+            ),
+        )
+
+    @staticmethod
+    def _as_list(vec):
+        return vec.tolist() if hasattr(vec, "tolist") else list(vec)
+
+    def test_sort_keeps_lazy_vector_with_the_row(self):
+        hel = HybridExtraList(
+            [self._float_vector_field([1.0, 1.0, 2.0, 2.0, 3.0, 3.0])],
+            [{"id": 1}, {"id": 2}, {"id": 3}],
+        )
+        hel.sort(key=lambda row: -row["id"])
+        assert [row["id"] for row in hel] == [3, 2, 1]
+        assert self._as_list(hel[0]["vec"]) == [3.0, 3.0]
+        assert self._as_list(hel[1]["vec"]) == [2.0, 2.0]
+        assert self._as_list(hel[2]["vec"]) == [1.0, 1.0]
+
+    def test_reverse_and_pop_keep_lazy_vector_with_the_row(self):
+        hel = HybridExtraList(
+            [self._float_vector_field([1.0, 1.0, 2.0, 2.0, 3.0, 3.0])],
+            [{"id": 1}, {"id": 2}, {"id": 3}],
+        )
+        hel.reverse()
+        assert hel[0]["id"] == 3
+        assert self._as_list(hel[0]["vec"]) == [3.0, 3.0]
+        last = hel.pop()
+        assert last["id"] == 1
+        assert self._as_list(last["vec"]) == [1.0, 1.0]
+
+    def test_reversed_materializes_lazy_fields(self):
+        hel = HybridExtraList(
+            [self._float_vector_field([1.0, 1.0, 2.0, 2.0, 3.0, 3.0])],
+            [{"id": 1}, {"id": 2}, {"id": 3}],
+        )
+        rows = list(reversed(hel))
+        assert [row["id"] for row in rows] == [3, 2, 1]
+        assert self._as_list(rows[0]["vec"]) == [3.0, 3.0]
+        assert self._as_list(rows[2]["vec"]) == [1.0, 1.0]
