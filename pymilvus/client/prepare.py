@@ -2036,7 +2036,7 @@ class Prepare:
         chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
         for index, sub_request in enumerate(reqs):
             nested_chains = sub_request.function_chains
-            if nested_chains and isinstance(rerank, Function):
+            if nested_chains and isinstance(rerank, (Function, FunctionScore)):
                 raise ParamError(
                     message=f"function_score cannot be used with function_chains in sub-search[{index}]"
                 )
