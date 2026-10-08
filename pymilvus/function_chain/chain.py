@@ -363,6 +363,51 @@ class FunctionChain:
         """
         return tuple(self._ops)
 
+    def merge(
+        self,
+        strategy: str,
+        *,
+        weights: Optional[Sequence[float]] = None,
+        norm_score: Optional[bool] = None,
+        k: Optional[int] = None,
+    ) -> "FunctionChain":
+        """Append a Hybrid Search merge operation.
+
+        ``rrf`` accepts ``k`` and optional per-input ``weights``; ``weighted``
+        requires ``weights``; ``max``, ``sum``, and ``avg`` optionally normalize
+        scores. Strategy-specific
+        defaults match the legacy Hybrid Search rankers. Merge semantics are
+        validated by the server.
+
+        Example:
+            Merge two Hybrid Search result sets with weighted scores::
+
+                chain = FunctionChain(FunctionChainStage.L2_RERANK).merge(
+                    "weighted", weights=[0.7, 0.3]
+                )
+
+            Use weighted reciprocal rank fusion::
+
+                chain = FunctionChain(FunctionChainStage.L2_RERANK).merge(
+                    "rrf", k=60, weights=[0.7, 0.3]
+                )
+        """
+        params: Dict[str, Any] = {"strategy": strategy}
+        if strategy == "rrf" and k is None:
+            k = 60
+        elif strategy in {"weighted", "max", "sum", "avg"} and norm_score is None:
+            norm_score = True
+
+        if weights is not None:
+            params["weights"] = weights
+        if norm_score is not None:
+            params["norm_score"] = norm_score
+        if k is not None:
+            params["k"] = k
+
+        self._ops.append(FunctionChainOp(op="merge", params=params))
+        return self
+
     def map(self, output: str, expr: FunctionChainExpr) -> "FunctionChain":
         """Append a map operation that writes an expression result to an output field.
 
