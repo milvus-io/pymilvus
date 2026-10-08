@@ -902,13 +902,15 @@ class Collection:
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         round_decimal: int = -1,
-        ranker: Optional[Function] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
         **kwargs,
     ):
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
-            reqs (``List[AnnSearchRequest]``): The vector search requests.
+            reqs (``List[AnnSearchRequest]``): The vector search requests. Each
+                request may set its own ``ranker`` (a ``Function`` or
+                ``FunctionScore`` applied before top-level fusion).
             rerank (``BaseRanker``): The reranker for rearrange nummer of limit results.
             limit (``int``): The max number of returned record, also known as `topk`.
 
@@ -921,7 +923,8 @@ class Collection:
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
                 responds or an error occurs.
-            ranker (``Function``, optional): The ranker to use for the search.
+            ranker (``Function``, ``FunctionScore``, optional): The function ranker
+                applied to each ANN request of the search.
             **kwargs (``dict``): Optional search params
 
                 *  *_async* (``bool``, optional)

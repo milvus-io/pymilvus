@@ -930,9 +930,29 @@ class TestHybridSearchRequest:
         )
         assert req.function_score is not None
 
+    def test_hybrid_search_with_function_score_ranker(self):
+        """Test hybrid search with a FunctionScore applied after fusion."""
+        func = Function(
+            "boost",
+            FunctionType.RERANK,
+            input_field_names=["text"],
+            output_field_names=[],
+            params={"weight": 2.0},
+        )
+        ranker = FunctionScore(functions=[func], params={"boost_mode": "multiply"})
+        req = Prepare.hybrid_search_request_with_ranker(
+            collection_name="test",
+            reqs=[],
+            rerank=ranker,
+            limit=10,
+        )
+        assert req.function_score is not None
+        assert len(req.function_score.functions) == 1
+        assert req.function_score.functions[0].name == "boost"
+
     def test_hybrid_search_invalid_ranker(self):
         """Test hybrid search with invalid ranker type."""
-        with pytest.raises(ParamError, match="must be a Function or a Ranker"):
+        with pytest.raises(ParamError, match="must be a Function, a FunctionScore or a Ranker"):
             Prepare.hybrid_search_request_with_ranker(
                 collection_name="test",
                 reqs=[],

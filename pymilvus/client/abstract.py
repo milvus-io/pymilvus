@@ -6,6 +6,7 @@ import orjson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.function_chain import FunctionChain
+from pymilvus.orm.schema import Function, FunctionScore
 from pymilvus.settings import Config
 
 from . import utils
@@ -526,6 +527,10 @@ class AnnSearchRequest:
     Nested chains can be used with a legacy ranker or a top-level L2 chain,
     but cannot be combined with a top-level Function ranker. Operator and
     expression semantics are validated by the server.
+
+    ``ranker`` accepts a ``Function`` or a ``FunctionScore`` applied only to
+    this request before top-level fusion. It cannot be combined with
+    ``function_chains`` on the same request.
     """
 
     def __init__(
@@ -538,12 +543,14 @@ class AnnSearchRequest:
         expr_params: Optional[dict] = None,
         filter: Optional[str] = None,
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
     ):
         self._data = data
         self._anns_field = anns_field
         self._param = param
         self._limit = limit
         self._function_chains = function_chains
+        self._ranker = ranker
 
         if expr is not None and filter is not None:
             raise ParamError(message="Provide either 'expr' or 'filter', not both.")
@@ -585,6 +592,11 @@ class AnnSearchRequest:
     def function_chains(self) -> Optional[Union[FunctionChain, List[FunctionChain]]]:
         """Function chains belonging to this individual ANN request."""
         return self._function_chains
+
+    @property
+    def ranker(self) -> Optional[Union[Function, FunctionScore]]:
+        """Function ranker applied to this individual ANN request before fusion."""
+        return self._ranker
 
     def __str__(self):
         return {

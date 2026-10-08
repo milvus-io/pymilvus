@@ -1468,7 +1468,7 @@ class GrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Optional[Union[BaseRanker, Function]],
+        rerank: Optional[Union[BaseRanker, Function, FunctionScore]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1507,6 +1507,9 @@ class GrpcHandler:
             data = req.data
             req_kwargs = dict(kwargs)
             req_kwargs.pop("function_chains", None)
+            # A ranker set on the request wins over one inherited through kwargs
+            inherited_ranker = req_kwargs.pop("ranker", None)
+            sub_ranker = req.ranker if req.ranker is not None else inherited_ranker
             if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
@@ -1525,6 +1528,7 @@ class GrpcHandler:
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
                 function_chains=req.function_chains,
+                ranker=sub_ranker,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )

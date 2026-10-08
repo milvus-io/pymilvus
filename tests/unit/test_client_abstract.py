@@ -29,6 +29,7 @@ from pymilvus.client.abstract import (
 from pymilvus.client.constants import RANKER_TYPE_RRF, RANKER_TYPE_WEIGHTED
 from pymilvus.client.types import ConsistencyLevel, DataType, FunctionType
 from pymilvus.exceptions import DataTypeNotMatchException, ParamError
+from pymilvus.orm.schema import Function, FunctionScore
 
 
 class TestFieldSchema:
@@ -888,6 +889,34 @@ class TestAnnSearchRequest:
         )
         assert request.expr == "age > 30"
         assert request.filter == "age > 30"
+
+    def test_ann_search_request_ranker_defaults_to_none(self):
+        """ranker is optional and defaults to None."""
+        request = AnnSearchRequest(
+            data=[[0.1, 0.2]],
+            anns_field="vector_field",
+            param={"metric_type": "L2"},
+            limit=10,
+        )
+        assert request.ranker is None
+
+    def test_ann_search_request_with_function_score_ranker(self):
+        """A per-request FunctionScore ranker is stored as-is (issue #3781)."""
+        function = Function(
+            name="boost",
+            function_type=FunctionType.RERANK,
+            input_field_names=["text"],
+            params={"weight": 2.0},
+        )
+        ranker = FunctionScore(functions=[function], params={"boost_mode": "multiply"})
+        request = AnnSearchRequest(
+            data=[[0.1, 0.2]],
+            anns_field="vector_field",
+            param={"metric_type": "L2"},
+            limit=10,
+            ranker=ranker,
+        )
+        assert request.ranker is ranker
 
     def test_ann_search_request_filter_and_expr_raises(self):
         """Providing both filter= and expr= must raise ParamError."""

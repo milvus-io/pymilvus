@@ -1093,7 +1093,7 @@ class AsyncGrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Optional[Union[BaseRanker, Function]],
+        rerank: Optional[Union[BaseRanker, Function, FunctionScore]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1131,6 +1131,9 @@ class AsyncGrpcHandler:
             data = req.data
             req_kwargs = dict(kwargs)
             req_kwargs.pop("function_chains", None)
+            # A ranker set on the request wins over one inherited through kwargs
+            inherited_ranker = req_kwargs.pop("ranker", None)
+            sub_ranker = req.ranker if req.ranker is not None else inherited_ranker
             # Convert EmbeddingList to flat array if present
             if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
@@ -1150,6 +1153,7 @@ class AsyncGrpcHandler:
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
                 function_chains=req.function_chains,
+                ranker=sub_ranker,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
