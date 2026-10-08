@@ -1,10 +1,11 @@
 import asyncio
 import base64
+import json
 import logging
 import socket
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -79,6 +80,17 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _row_policy_to_dict(policy: milvus_types.RowPolicy) -> Dict:
+    return {
+        "policy_name": policy.policy_name,
+        "policy_type": milvus_types.RowPolicyType.Name(policy.policy_type),
+        "actions": [milvus_types.RowPolicyAction.Name(action) for action in policy.actions],
+        "using_expr": policy.using_expr,
+        "check_expr": policy.check_expr,
+        "description": policy.description,
+    }
 
 
 class AsyncGrpcHandler:
@@ -795,6 +807,7 @@ class AsyncGrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -835,6 +848,7 @@ class AsyncGrpcHandler:
         response = await self._async_stub.Delete(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
+        check_status(response.status)
 
         m = MutationResult(response)
         ts_utils.update_collection_ts(
@@ -857,6 +871,12 @@ class AsyncGrpcHandler:
         param = kwargs.get("upsert_param")
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if param:
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in Prepare._rls_context(kwargs).items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -881,6 +901,7 @@ class AsyncGrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                **Prepare._rls_context(kwargs),
             )
         )
 
@@ -944,6 +965,7 @@ class AsyncGrpcHandler:
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
             field_ops=field_ops,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -2209,6 +2231,175 @@ class AsyncGrpcHandler:
         )
         check_status(resp.status)
         return resp.usernames
+
+    @retry_on_rpc_failure()
+    async def create_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.create_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = await self._async_stub.CreateRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.update_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = await self._async_stub.UpdateRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.drop_row_policy_request(db_name, collection_name, policy_name)
+        resp = await self._async_stub.DropRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def list_row_policies(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        await self.ensure_channel_ready()
+        req = Prepare.list_row_policies_request(db_name, collection_name)
+        resp = await self._async_stub.ListRowPolicies(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return [_row_policy_to_dict(policy) for policy in resp.policies]
+
+    @retry_on_rpc_failure()
+    async def set_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.set_rls_principal_tags_request(db_name, collection_name, principal_name, tags)
+        resp = await self._async_stub.SetRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def get_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        await self.ensure_channel_ready()
+        req = Prepare.get_rls_principal_tags_request(db_name, collection_name, principal_name)
+        resp = await self._async_stub.GetRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return json.loads(resp.tags)
+
+    @retry_on_rpc_failure()
+    async def list_rls_principals(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[str]:
+        await self.ensure_channel_ready()
+        req = Prepare.list_rls_principals_request(db_name, collection_name)
+        resp = await self._async_stub.ListRLSPrincipals(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return list(resp.principal_names)
+
+    @retry_on_rpc_failure()
+    async def delete_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.delete_rls_principal_tags_request(
+            db_name, collection_name, principal_name, tag_keys
+        )
+        resp = await self._async_stub.DeleteRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
 
     @retry_on_rpc_failure()
     async def describe_user(

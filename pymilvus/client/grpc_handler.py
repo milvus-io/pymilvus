@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import socket
 import threading
@@ -99,6 +100,17 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _row_policy_to_dict(policy: milvus_types.RowPolicy) -> Dict:
+    return {
+        "policy_name": policy.policy_name,
+        "policy_type": milvus_types.RowPolicyType.Name(policy.policy_type),
+        "actions": [milvus_types.RowPolicyAction.Name(action) for action in policy.actions],
+        "using_expr": policy.using_expr,
+        "check_expr": policy.check_expr,
+        "description": policy.description,
+    }
 
 
 class ReconnectHandler:
@@ -1015,6 +1027,7 @@ class GrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **Prepare._rls_context(kwargs),
         )
 
     def _get_schema(
@@ -1065,6 +1078,12 @@ class GrpcHandler:
         param = kwargs.get("insert_param")
         if param and not isinstance(param, milvus_types.InsertRequest):
             raise ParamError(message="The value of key 'insert_param' is invalid")
+        if param:
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in Prepare._rls_context(kwargs).items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -1079,7 +1098,13 @@ class GrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_insert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                **Prepare._rls_context(kwargs),
+            )
         )
 
     @retry_on_rpc_failure()
@@ -1188,6 +1213,12 @@ class GrpcHandler:
         param = kwargs.get("upsert_param")
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if param:
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in Prepare._rls_context(kwargs).items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -1213,6 +1244,7 @@ class GrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                **Prepare._rls_context(kwargs),
             )
         )
 
@@ -1294,6 +1326,7 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
             field_ops=field_ops,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -2739,6 +2772,191 @@ class GrpcHandler:
         resp = self._stub.ListCredUsers(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
         return resp.usernames
+
+    @retry_on_rpc_failure()
+    def create_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.create_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = self._stub.CreateRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def update_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.update_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = self._stub.UpdateRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def drop_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.drop_row_policy_request(db_name, collection_name, policy_name)
+        resp = self._stub.DropRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def list_row_policies(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        req = Prepare.list_row_policies_request(db_name, collection_name)
+        resp = self._stub.ListRowPolicies(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return [_row_policy_to_dict(policy) for policy in resp.policies]
+
+    @retry_on_rpc_failure()
+    def set_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.set_rls_principal_tags_request(db_name, collection_name, principal_name, tags)
+        resp = self._stub.SetRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def get_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        req = Prepare.get_rls_principal_tags_request(db_name, collection_name, principal_name)
+        resp = self._stub.GetRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return json.loads(resp.tags)
+
+    @retry_on_rpc_failure()
+    def list_rls_principals(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[str]:
+        req = Prepare.list_rls_principals_request(db_name, collection_name)
+        resp = self._stub.ListRLSPrincipals(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return list(resp.principal_names)
+
+    @retry_on_rpc_failure()
+    def delete_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.delete_rls_principal_tags_request(
+            db_name, collection_name, principal_name, tag_keys
+        )
+        resp = self._stub.DeleteRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
 
     @retry_on_rpc_failure()
     def create_role(
