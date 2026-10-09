@@ -606,7 +606,12 @@ def _pack_sparse_vector_row(
             raise ParamError(message="invalid input for sparse float vector: expect 1 row")
         if not entity_is_sparse_matrix(value):
             raise ParamError(message="invalid input for sparse float vector")
-        payload.contents.append(sparse_rows_to_proto(value).contents[0])
+        # Column inserts keep the SparseFloatArray from sparse_rows_to_proto, including
+        # dim. This path only used to copy contents, so dim stayed at the protobuf
+        # default of 0. Rows are packed one at a time, so keep the widest dim seen.
+        packed = sparse_rows_to_proto(value)
+        payload.contents.append(packed.contents[0])
+        payload.dim = max(payload.dim, packed.dim)
     except (TypeError, ValueError) as e:
         raise DataNotMatchException(
             message=ExceptionsMessage.FieldDataInconsistent
