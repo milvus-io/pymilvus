@@ -1715,7 +1715,7 @@ class Prepare:
     @staticmethod
     def hybrid_function_chains_schema(
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
-        rerank: Optional[Union[BaseRanker, Function]],
+        rerank: Optional[Union[BaseRanker, Function, FunctionScore]],
     ) -> List[schema_types.FunctionChain]:
         if function_chains is None or function_chains == []:
             return []
@@ -2018,7 +2018,7 @@ class Prepare:
         cls,
         collection_name: str,
         reqs: List,
-        rerank: Union[BaseRanker, Function],
+        rerank: Union[BaseRanker, Function, FunctionScore],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -2027,14 +2027,16 @@ class Prepare:
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
-        if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
-            raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
+        if rerank is not None and not isinstance(rerank, (Function, FunctionScore, BaseRanker)):
+            raise ParamError(
+                message="The hybrid search rerank must be a Function, a FunctionScore or a Ranker."
+            )
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
         chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
         for index, sub_request in enumerate(reqs):
             nested_chains = sub_request.function_chains
-            if nested_chains and isinstance(rerank, Function):
+            if nested_chains and isinstance(rerank, (Function, FunctionScore)):
                 raise ParamError(
                     message=f"function_score cannot be used with function_chains in sub-search[{index}]"
                 )
@@ -2095,6 +2097,8 @@ class Prepare:
 
         if isinstance(rerank, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(rerank))
+        elif isinstance(rerank, FunctionScore):
+            request.function_score.CopyFrom(Prepare.function_score_schema(rerank))
         return request
 
     @staticmethod
