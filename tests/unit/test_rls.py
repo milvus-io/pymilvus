@@ -4,6 +4,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import pytest_asyncio
 from pymilvus import AnnSearchRequest, AsyncMilvusClient, DataType, MilvusClient, RRFRanker
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.connection_manager import ConnectionConfig
@@ -37,8 +38,8 @@ SCHEMA = {
 }
 
 
-@pytest.fixture(params=[False, True], ids=["sync", "async"])
-def client_and_stub(request):
+@pytest_asyncio.fixture(params=[False, True], ids=["sync", "async"])
+async def client_and_stub(request):
     is_async = request.param
     channel = MagicMock()
     channel._unary_unary_interceptors = []
@@ -318,9 +319,10 @@ async def test_prebuilt_writes_preserve_request_context(client_and_stub):
             assert not original.skip_rls
 
 
+@pytest.mark.asyncio
 @pytest.mark.parametrize("client_and_stub", [False], indirect=True)
 @pytest.mark.parametrize("kind", ["query", "search"])
-def test_iterator_context_survives_probe_and_pages(client_and_stub, kind):
+async def test_iterator_context_survives_probe_and_pages(client_and_stub, kind):
     client, handler, stub, _ = client_and_stub
     handler.describe_collection = MagicMock(return_value={**SCHEMA, "collection_id": 123})
     context = {"rls_principal": "alice", "skip_rls": False}
