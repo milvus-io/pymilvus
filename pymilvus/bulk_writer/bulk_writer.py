@@ -381,6 +381,9 @@ class BulkWriter:
     def _verify_struct_field(self, row: dict):
         structs_size = 0
         for field in self._schema.struct_fields:
+            if field.nullable and row.get(field.name) is None:
+                row[field.name] = None
+                continue
             if field.name not in row:
                 self._throw(f"The struct field '{field.name}' is missed")
 
