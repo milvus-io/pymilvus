@@ -100,6 +100,7 @@ class HybridHits(list):
             if offsets is not None:
                 hit_data["offset"] = offsets[i]
             hit_data["entity"] = entities[i]
+            hit_data["_original_idx"] = self.start + i
             top_k_res.append(Hit(hit_data, pk_name=pk_name))
 
         if len(highlight_results) > 0:
@@ -150,6 +151,11 @@ class HybridHits(list):
             return logical_index
         return int(prefix_sum[logical_index])
 
+    def _row_lazy_index(self, item: Any, position: int) -> int:
+        if isinstance(item, dict) and "_original_idx" in item:
+            return item["_original_idx"]
+        return self.start + position
+
     def materialize(self):
         if not self.has_materialized:
             n = len(self)
@@ -162,7 +168,7 @@ class HybridHits(list):
                 ):
                     for i in range(n):
                         item = self.get_raw_item(i)
-                        actual_idx = self.start + i
+                        actual_idx = self._row_lazy_index(item, i)
                         item["entity"][field_name] = field_data_extractors.decode_cell(
                             field_data,
                             actual_idx,
@@ -171,9 +177,9 @@ class HybridHits(list):
                             ),
                         )
                 elif field_data.type == DataType.JSON:
-                    idx = self.start
                     for i in range(n):
                         item = self.get_raw_item(i)
+                        idx = self._row_lazy_index(item, i)
                         json_dict_list = field_data_extractors.decode_cell(field_data, idx)
                         if json_dict_list is None:
                             item["entity"][field_name] = None
@@ -189,20 +195,18 @@ class HybridHits(list):
                                     if k in self.dynamic_fields
                                 }
                             )
-                        idx += 1
                 elif field_data.type == DataType._ARRAY_OF_STRUCT:
                     # Process struct arrays - convert column format back to array of structs
-                    idx = self.start
                     struct_arrays = field_data_extractors.get_field_data(field_data)
                     if struct_arrays and hasattr(struct_arrays, "fields"):
                         for i in range(n):
                             item = self.get_raw_item(i)
+                            idx = self._row_lazy_index(item, i)
                             item["entity"][field_name] = (
                                 entity_helper.extract_struct_array_from_column_data(
                                     struct_arrays, idx
                                 )
                             )
-                            idx += 1
                     else:
                         for i in range(n):
                             item = self.get_raw_item(i)
@@ -211,7 +215,28 @@ class HybridHits(list):
                     msg = f"Unsupported field type: {field_data.type}"
                     raise MilvusException(msg)
 
+            for i in range(n):
+                item = self.get_raw_item(i)
+                if isinstance(item, dict):
+                    item.pop("_original_idx", None)
+
         self.has_materialized = True
+
+    def sort(self, *args, **kwargs):
+        self.materialize()
+        return super().sort(*args, **kwargs)
+
+    def reverse(self):
+        self.materialize()
+        super().reverse()
+
+    def pop(self, index: int = -1):
+        self.materialize()
+        return super().pop(index)
+
+    def __reversed__(self):
+        self.materialize()
+        return super().__reversed__()
 
     __repr__ = __str__
 

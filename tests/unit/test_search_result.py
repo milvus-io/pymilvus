@@ -1087,6 +1087,15 @@ class TestCoverageEdgeCases:
         with pytest.raises(MilvusException):
             HybridHits(0, 1, [1], [0.1], [fd], [], [], "id")
 
+    def test_hybrid_hits_sort_keeps_lazy_vector(self):
+        fd = _make_vector_field(DataType.FLOAT_VECTOR, "vec", 2, [1.0, 1.0, 2.0, 2.0, 3.0, 3.0])
+        hh = HybridHits(0, 3, [1, 2, 3], [0.1, 0.2, 0.3], [fd], ["vec"], [], "id")
+        hh.sort(key=lambda hit: -hit["id"])
+        assert hh[0]["id"] == 3
+        vec = hh[0]["entity"]["vec"]
+        assert (vec.tolist() if hasattr(vec, "tolist") else list(vec)) == [3.0, 3.0]
+        assert "_original_idx" not in hh[0]
+
     def test_materialize_struct_else(self):
         # target 251-253
         # DataType._ARRAY_OF_STRUCT but get_field_data returns something without fields? or None?
