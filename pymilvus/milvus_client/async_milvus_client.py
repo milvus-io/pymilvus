@@ -2,7 +2,7 @@ import asyncio
 import copy
 import time
 import types
-from typing import Dict, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -1532,6 +1532,193 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         return await conn.list_users(
             timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    async def create_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Create a collection policy; an existing name is an error.
+
+        Actions: query, query_iterator, search, search_iterator, hybrid_search,
+        delete, insert, upsert. get uses the query action. policy_type accepts
+        permissive or restrictive. Expressions are validated by Milvus.
+        db_name defaults to this client's database.
+        """
+        conn = await self._get_connection()
+        await conn.create_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def update_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Replace the named policy definition, preserving its server-side identity.
+
+        The policy must exist. All definition fields replace their old values;
+        omitted expressions and description become empty strings.
+        """
+        conn = await self._get_connection()
+        await conn.update_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def drop_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Drop a policy by name. Dropping a missing policy succeeds."""
+        conn = await self._get_connection()
+        await conn.drop_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def list_row_policies(
+        self,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        """Return policy definitions with protobuf enum names for type and actions."""
+        conn = await self._get_connection()
+        return await conn.list_row_policies(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def set_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Incrementally upsert a non-empty mapping of principal tags.
+
+        Values may be strings, finite numbers, or one-dimensional arrays of
+        strings or numbers. Milvus checks homogeneity and numeric precision.
+        Keys omitted from this call retain their values.
+        """
+        conn = await self._get_connection()
+        await conn.set_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            tags,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def get_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Return decoded JSON tags, preserving integer, float and array values."""
+        conn = await self._get_connection()
+        return await conn.get_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def list_rls_principals(
+        self,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[str]:
+        """List application principal names with stored tags in the collection."""
+        conn = await self._get_connection()
+        return await conn.list_rls_principals(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    async def delete_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Delete selected tag keys, or all tags when tag_keys is None or empty."""
+        conn = await self._get_connection()
+        await conn.delete_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            tag_keys=tag_keys,
+            timeout=timeout,
+            context=self._generate_call_context(db_name=db_name, **kwargs),
+            **kwargs,
         )
 
     async def describe_user(
