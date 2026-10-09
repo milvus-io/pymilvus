@@ -1,5 +1,6 @@
 import json
 import re
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -1578,7 +1579,20 @@ class TestQueryIteratorSavePkCursor:
             assert cursor == {"pk": 20, "last_element_offset": 4}
             qi.close()
 
-    def test_deleted_cp_file_is_recreated_during_iteration(self):
+    @pytest.mark.parametrize(
+        "close_handle_before_delete",
+        [
+            pytest.param(True, id="closed-handle"),
+            pytest.param(
+                False,
+                id="open-handle",
+                marks=pytest.mark.skipif(
+                    sys.platform == "win32", reason="Windows cannot delete an open checkpoint file"
+                ),
+            ),
+        ],
+    )
+    def test_deleted_cp_file_is_recreated_during_iteration(self, close_handle_before_delete):
         conn = _make_mock_conn(session_ts=200)
         with tempfile.TemporaryDirectory() as td:
             cp_path = Path(td) / "cursor.cp"
@@ -1592,13 +1606,17 @@ class TestQueryIteratorSavePkCursor:
                 schema=_SCHEMA_DICT,
                 rpc_options={ITERATOR_SESSION_CP_FILE: str(cp_path)},
             )
-            cp_path.unlink()
-            conn.query.return_value = _make_query_res([{"pk": 20}])
+            try:
+                if close_handle_before_delete:
+                    qi._cp_file_handler.close()
+                cp_path.unlink()
+                conn.query.return_value = _make_query_res([{"pk": 20}])
 
-            qi.next()
+                qi.next()
 
-            assert cp_path.read_text().splitlines() == ["200", "20"]
-            qi.close()
+                assert cp_path.read_text().splitlines() == ["200", "20"]
+            finally:
+                qi.close()
 
     def test_save_pk_cursor_truncates_after_100_lines(self):
         """CP file is truncated when buffer lines >= 100."""
