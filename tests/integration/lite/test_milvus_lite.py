@@ -1,16 +1,12 @@
-import sys
-
 import numpy as np
 import pytest
 from pymilvus.exceptions import ConnectionConfigException
 from pymilvus.milvus_client import MilvusClient
 
-pytestmark = pytest.mark.skipif(
-    sys.platform.startswith("win"), reason="Milvus Lite is not supported on Windows"
-)
-
-if not sys.platform.startswith("win"):
-    pytest.importorskip("milvus_lite", reason="milvus-lite not installed")
+# milvus-lite only ships a Windows-capable wheel from 3.0 onward, and the milvus_lite
+# extra resolves it there only on Python >=3.10 (see pyproject.toml), so let the import
+# decide which runs are skipped instead of hard-skipping every Windows run.
+pytest.importorskip("milvus_lite", reason="milvus-lite not installed")
 
 
 class TestMilvusLite:
