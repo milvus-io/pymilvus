@@ -812,7 +812,7 @@ def test_roaring_blob_reaches_the_wire_through_the_public_client(mock_grpc_handl
     parsing; that happens after the request is sent, and the request is what is under test here.
     """
     blob = build_roaring_bitmap([1, -1, 1 << 40])
-    expr = "roaring_match(id, {rb})"
+    expr = "membership_match(id, {rb})"
 
     with patch("pymilvus.orm.connections.GrpcHandler", return_value=mock_grpc_handler), patch(
         "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_grpc_handler
@@ -848,7 +848,7 @@ def test_roaring_blob_reaches_the_wire_through_the_public_client(mock_grpc_handl
 def test_roaring_blob_reaches_query_search_and_delete_requests():
     """The blob must arrive as protobuf bytes -- not base64, not a string -- on every path."""
     blob = build_roaring_bitmap([1, -1, 1 << 40])
-    expr = "roaring_match(id, {rb})"
+    expr = "membership_match(id, {rb})"
 
     query = Prepare.query_request("coll", expr, [], None, expr_params={"rb": blob})
     delete = Prepare.delete_request("coll", expr, None, 0, expr_params={"rb": blob})
