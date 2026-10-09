@@ -1,4 +1,4 @@
-import logging.config
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -60,43 +60,24 @@ class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
 
 
 def init_log(log_level: str):
-    logging_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)",
-            },
-            "colorful_console": {
-                "format": "%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)",
-                "()": ColorfulFormatter,
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "colorful_console",
-            },
-            "no_color_console": {
-                "class": "logging.StreamHandler",
-                "formatter": "default",
-            },
-        },
-        "loggers": {
-            "pymilvus": {"handlers": ["no_color_console"], "level": log_level, "propagate": False},
-            "pymilvus.milvus_client": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "pymilvus.bulk_writer": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-        },
-    }
-    logging.config.dictConfig(logging_config)
+    """Configure only pymilvus's loggers; dictConfig would close every existing handler (#3794)."""
+    handler = logging.StreamHandler()
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)"
+        )
+    )
+    for name, level in (
+        ("pymilvus", log_level),
+        ("pymilvus.milvus_client", "INFO"),
+        ("pymilvus.bulk_writer", "INFO"),
+    ):
+        logger = logging.getLogger(name)
+        for existing in logger.handlers[:]:
+            logger.removeHandler(existing)
+        logger.addHandler(handler)
+        logger.setLevel(level)
+        logger.propagate = False
 
 
 init_log("WARNING")
