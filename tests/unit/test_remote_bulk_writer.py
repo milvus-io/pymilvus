@@ -2,6 +2,7 @@ from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 from pymilvus.bulk_writer.constants import BulkFileType
 from pymilvus.bulk_writer.remote_bulk_writer import RemoteBulkWriter
 from pymilvus.client.types import DataType
@@ -123,6 +124,22 @@ class TestRemoteBulkWriter:
         assert "\\" not in kwargs["object_name"]
         mock_local_rm.assert_called_once_with(str(jsonl_file))
         assert writer.batch_files[0][0] == uploaded_files[0]
+
+    def test_commit_propagates_upload_failure(self, tmp_path):
+        writer = RemoteBulkWriter(
+            schema=self._simple_schema(),
+            remote_path="bulk/test",
+            connect_param=None,
+            file_type=BulkFileType.JSON,
+            local_path=str(tmp_path),
+        )
+        writer.append_row({"id": 1, "vector": [1.0, 2.0, 3.0, 4.0]})
+
+        with patch.object(writer, "_upload", side_effect=RuntimeError("upload failed")):
+            with pytest.raises(RuntimeError, match="upload failed"):
+                writer.commit()
+
+        assert writer.batch_files == []
 
     def test_upload_jsonl_file_with_relative_local_path(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)

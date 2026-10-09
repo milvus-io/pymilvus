@@ -197,6 +197,39 @@ class TestLocalBulkWriter:
         mock_thread_instance.start.assert_called()
         mock_thread_instance.join.assert_called()
 
+    def test_commit_sync_propagates_persist_failure(self, writer):
+        writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
+
+        with patch.object(writer._buffer, "persist", side_effect=RuntimeError("persist failed")):
+            with pytest.raises(RuntimeError, match="persist failed"):
+                writer.commit()
+
+        assert writer.batch_files == []
+        assert writer.buffer_size == 0
+        assert writer.buffer_row_count == 0
+
+    def test_next_commit_reports_async_flush_failure(self, writer):
+        writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
+
+        with patch.object(
+            writer._buffer, "persist", side_effect=RuntimeError("async persist failed")
+        ):
+            writer.commit(_async=True)
+
+        with pytest.raises(RuntimeError, match="async persist failed"):
+            writer.commit()
+
+    @patch("pymilvus.bulk_writer.local_bulk_writer.Thread")
+    def test_auto_flush_does_not_surface_previous_async_failure(self, mock_thread, writer):
+        mock_thread.return_value = MagicMock()
+        writer._flush_errors.put(RuntimeError("async persist failed"))
+
+        with patch.object(type(writer), "buffer_size", new_callable=PropertyMock, return_value=1):
+            writer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
+
+        with pytest.raises(RuntimeError, match="async persist failed"):
+            writer._raise_flush_error()
+
     @patch("time.sleep")
     @patch("pymilvus.bulk_writer.local_bulk_writer.Thread")
     def test_commit_async(self, mock_thread, mock_sleep, writer):
@@ -452,8 +485,9 @@ class TestLocalBulkWriter:
         with self._mock_row_count(writer, 1):
             with patch.object(writer._buffer, "persist", side_effect=Exception("Test error")):
                 writer._working_thread[threading.current_thread().name] = threading.current_thread()
+                writer._flush()
                 with pytest.raises(Exception, match="Test error"):
-                    writer._flush()
+                    writer._raise_flush_error()
 
     def test_properties(self, writer):
         assert writer.uuid == writer._uuid
@@ -512,3 +546,17 @@ class TestLocalBulkWriter:
         writer._exit()
         mock_thread1.join.assert_called_once()
         mock_thread2.join.assert_called_once()
+
+    def test_exit_propagates_async_flush_failure(self, writer):
+        writer._flush_errors.put(RuntimeError("async persist failed"))
+
+        with pytest.raises(RuntimeError, match="async persist failed"):
+            writer._exit()
+
+    @patch("pymilvus.bulk_writer.local_bulk_writer.logger.exception")
+    def test_exit_logs_async_flush_failure_for_destructor_path(self, mock_log, writer):
+        writer._flush_errors.put(RuntimeError("async persist failed"))
+
+        writer._exit(raise_error=False)
+
+        mock_log.assert_called_once_with("Failed to flush data before closing the bulk writer")
