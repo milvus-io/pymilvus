@@ -1,7 +1,9 @@
 import itertools
 import json
 import math
+import os
 import struct
+import uuid
 from collections.abc import Sized
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -197,7 +199,31 @@ def get_max_len_of_var_char(field_info: Dict) -> int:
     return field_info.get("params", {}).get(k, v)
 
 
+def _coerce_str_like(value: Any) -> Any:
+    """Coerce a uuid.UUID or os.PathLike value to its string form; pass through otherwise.
+
+    Uses os.fsdecode rather than os.fspath: __fspath__() is allowed by the
+    os.PathLike protocol to return bytes, and fsdecode() normalizes that to
+    str (via the filesystem encoding) instead of leaving raw bytes behind.
+    """
+    if isinstance(value, os.PathLike):
+        return os.fsdecode(value)
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    return value
+
+
 def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True):
+    # convert_to_str_array is called with either a single scalar value (row-based
+    # insert, via _ROW_SCALAR_NORMALIZERS) or a list/tuple of values (column-based
+    # insert). uuid.UUID and os.PathLike values are unambiguous as their string
+    # form, so coerce them before the rest of this function treats its input as
+    # an iterable of strings. See GH-2917.
+    if isinstance(orig_str_arr, (uuid.UUID, os.PathLike)):
+        orig_str_arr = _coerce_str_like(orig_str_arr)
+    elif isinstance(orig_str_arr, (list, tuple)):
+        orig_str_arr = [_coerce_str_like(s) for s in orig_str_arr]
+
     arr = []
     if Config.EncodeProtocol.lower() != "utf-8":
         for s in orig_str_arr:
@@ -254,6 +280,26 @@ def convert_to_json(obj: object):
                 assign_to_parent(float(current))
             elif isinstance(current, np.bool_):
                 assign_to_parent(bool(current))
+            elif isinstance(current, os.PathLike):
+                # pathlib.Path (and subclasses like PosixPath/WindowsPath,
+                # plus the pure variants PurePosixPath/PureWindowsPath) are
+                # not natively JSON-serializable by orjson, which raises a
+                # raw, unhelpful "Type is not JSON serializable" TypeError.
+                # Path values are unambiguous as their string form, so
+                # convert them here alongside the other leaf-type
+                # normalizations. os.fsdecode (not os.fspath) since
+                # __fspath__() is allowed to return bytes, which still
+                # isn't natively JSON-serializable. See GH-2917.
+                assign_to_parent(os.fsdecode(current))
+            elif isinstance(current, uuid.UUID):
+                # orjson serializes UUID natively, so this branch is a no-op
+                # there. But convert_to_json falls back to stdlib json past
+                # orjson's recursion limit (~500 levels), and stdlib json has
+                # no native UUID support, so without this the fallback path
+                # would raise the same raw TypeError this function exists to
+                # avoid. Normalize here so both serializers are covered. See
+                # GH-2917.
+                assign_to_parent(str(current))
             elif isinstance(current, dict):
                 # Process dict: create new dict first
                 processed = {}
@@ -261,8 +307,14 @@ def convert_to_json(obj: object):
                 # Add items to stack for processing (reverse order to maintain original order)
                 for k, v in reversed(tuple(current.items())):
                     stack.append((v, processed, k))
-            elif isinstance(current, list):
-                # Process list: create new list with placeholders first
+            elif isinstance(current, (list, tuple)):
+                # Process list/tuple: create new list with placeholders first.
+                # Tuples are staged as a list (mutable, needed while children
+                # are resolved below) rather than kept as a tuple; JSON has no
+                # tuple/list distinction, so orjson serializes either the same
+                # way. Without this, a tuple's elements were previously never
+                # descended into, so e.g. a PathLike inside a tuple stayed
+                # unconverted and still failed to serialize. See GH-2917.
                 processed = [None] * len(current)
                 assign_to_parent(processed)
                 # Add items to stack for processing (reverse order to maintain original order)
