@@ -877,14 +877,25 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        kwargs.pop("_refresh", None)
         conn = await self._get_connection()
-        return await conn.refresh_load(
-            collection_name,
-            partition_names,
-            timeout=timeout,
-            context=self._generate_call_context(**kwargs),
-            **kwargs,
-        )
+        if partition_names:
+            await conn.load_partitions(
+                collection_name,
+                partition_names,
+                timeout=timeout,
+                _refresh=True,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
+        else:
+            await conn.load_collection(
+                collection_name,
+                timeout=timeout,
+                _refresh=True,
+                context=self._generate_call_context(**kwargs),
+                **kwargs,
+            )
 
     async def get_server_version(
         self, timeout: Optional[float] = None, detail: bool = False, **kwargs

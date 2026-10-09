@@ -132,7 +132,6 @@ _SIMPLE_ASYNC_DELEGATION_CASES = [
     ("add_collection_function", ("col", MagicMock()), {}, "add_collection_function"),
     ("alter_collection_function", ("col", "fn", MagicMock()), {}, "alter_collection_function"),
     # Server ops
-    ("refresh_load", ("col",), {}, "refresh_load"),
     ("run_analyzer", ("hello world",), {}, "run_analyzer"),
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
     ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
@@ -180,6 +179,30 @@ class TestAsyncClientSimpleDelegation:
         with pytest.raises(ParamError):
             await client.compact("col", target_size=1 << 63)
         handler.compact.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_refresh_load_refreshes_collection(self):
+        client, handler = _make_client()
+
+        await client.refresh_load("col", timeout=3)
+
+        handler.load_collection.assert_awaited_once_with(
+            "col", timeout=3, _refresh=True, context=ANY
+        )
+        handler.load_partitions.assert_not_awaited()
+        handler.refresh_load.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_refresh_load_refreshes_partitions(self):
+        client, handler = _make_client()
+
+        await client.refresh_load("col", ["part1"], timeout=3)
+
+        handler.load_partitions.assert_awaited_once_with(
+            "col", ["part1"], timeout=3, _refresh=True, context=ANY
+        )
+        handler.load_collection.assert_not_awaited()
+        handler.refresh_load.assert_not_awaited()
 
 
 class TestAsyncClientAliasAndServerOps:
