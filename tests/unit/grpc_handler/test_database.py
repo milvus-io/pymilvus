@@ -2,6 +2,8 @@
 
 from unittest.mock import MagicMock
 
+from pymilvus.client.cache import GlobalCache
+
 from .conftest import make_response, make_status
 
 
@@ -17,6 +19,25 @@ class TestGrpcHandlerDatabaseOps:
         handler._stub.DropDatabase.return_value = make_status()
         handler.drop_database("db")
         handler._stub.DropDatabase.assert_called_once()
+
+    def test_drop_database_evicts_that_database_from_both_caches(self, handler):
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.schema.set(handler.server_address, "db", "coll", {"fields": []})
+            GlobalCache.collection_ts.set(handler.server_address, "db", "coll", 100)
+            GlobalCache.schema.set(handler.server_address, "other", "coll", {"fields": []})
+            GlobalCache.collection_ts.set(handler.server_address, "other", "coll", 200)
+
+            handler._stub.DropDatabase.return_value = make_status()
+            handler.drop_database("db")
+
+            assert GlobalCache.schema.get(handler.server_address, "db", "coll") is None
+            assert GlobalCache.collection_ts.get(handler.server_address, "db", "coll") == 0
+            # An unrelated database keeps its entries.
+            assert GlobalCache.schema.get(handler.server_address, "other", "coll") is not None
+            assert GlobalCache.collection_ts.get(handler.server_address, "other", "coll") == 200
+        finally:
+            GlobalCache._reset_for_testing()
 
     def test_list_database(self, handler):
         handler._stub.ListDatabases.return_value = make_response(db_names=["default", "db1"])
