@@ -138,11 +138,60 @@ logging.getLogger().addHandler(handler)
 import pymilvus
 sys.exit(0 if handler.stream is not None and not handler.stream.closed else 1)
 """
-    result = subprocess.run(
+    result = _run_in_fresh_interpreter(script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_import_pymilvus_keeps_write_mode_file_handler_logging(tmp_path):
+    """A ``mode="w"`` FileHandler is never reopened once closed, so records after the import were lost."""
+    log_file = tmp_path / "app.log"
+    script = f"""
+import logging
+handler = logging.FileHandler({str(log_file)!r}, mode="w")
+root = logging.getLogger()
+root.addHandler(handler)
+root.setLevel(logging.INFO)
+root.info("before import")
+import pymilvus
+root.info("after import")
+"""
+    result = _run_in_fresh_interpreter(script)
+    assert result.returncode == 0, result.stderr
+
+    content = log_file.read_text()
+    assert "before import" in content
+    assert "after import" in content
+
+
+def test_import_pymilvus_keeps_buffered_records_flushed_at_exit(tmp_path):
+    """Records still buffered at interpreter exit must be flushed by logging's atexit shutdown."""
+    log_file = tmp_path / "app.log"
+    script = f"""
+import logging, logging.handlers
+target = logging.FileHandler({str(log_file)!r})
+buffered = logging.handlers.MemoryHandler(
+    capacity=1000, flushLevel=logging.CRITICAL, target=target, flushOnClose=True
+)
+root = logging.getLogger()
+root.addHandler(buffered)
+root.setLevel(logging.INFO)
+root.info("buffered before import")
+import pymilvus
+root.info("buffered after import")
+"""
+    result = _run_in_fresh_interpreter(script)
+    assert result.returncode == 0, result.stderr
+
+    content = log_file.read_text()
+    assert "buffered before import" in content
+    assert "buffered after import" in content
+
+
+def _run_in_fresh_interpreter(script):
+    return subprocess.run(
         [sys.executable, "-c", script],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
         check=False,
     )
-    assert result.returncode == 0, result.stderr
