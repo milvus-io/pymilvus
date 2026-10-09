@@ -5,7 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio
-from pymilvus import AnnSearchRequest, AsyncMilvusClient, DataType, MilvusClient, RRFRanker
+from pymilvus import (
+    AnnSearchRequest,
+    AsyncMilvusClient,
+    DataType,
+    MilvusClient,
+    RRFRanker,
+    connections,
+    utility,
+)
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.connection_manager import ConnectionConfig
 from pymilvus.client.grpc_handler import GrpcHandler
@@ -281,6 +289,44 @@ def test_bulk_import_and_delete_all_tags():
     }
     request = Prepare.delete_rls_principal_tags_request("", "documents", "alice", None)
     assert not request.tag_keys
+
+
+@pytest.mark.parametrize(
+    ("method", "rpc", "kwargs", "response"),
+    [
+        (
+            "do_bulk_insert",
+            "Import",
+            {"collection_name": "documents", "files": ["rows.json"], "rls_principal": "alice"},
+            milvus_pb2.ImportResponse(tasks=[1]),
+        ),
+        (
+            "get_bulk_insert_state",
+            "GetImportState",
+            {"task_id": 1},
+            milvus_pb2.GetImportStateResponse(),
+        ),
+        (
+            "list_bulk_insert_tasks",
+            "ListImportTasks",
+            {"collection_name": "documents"},
+            milvus_pb2.ListImportTasksResponse(),
+        ),
+    ],
+)
+def test_bulk_import_connection_context(monkeypatch, method, rpc, kwargs, response):
+    handler = GrpcHandler(channel=MagicMock())
+    handler._stub = MagicMock()
+    getattr(handler._stub, rpc).return_value = response
+    monkeypatch.setitem(connections._alias_handlers, "rls-test", handler)
+    monkeypatch.setitem(connections._alias_config, "rls-test", {"db_name": "tenant"})
+    getattr(utility, method)(using="rls-test", client_request_id="import-test", **kwargs)
+    sent = getattr(handler._stub, rpc).call_args
+    metadata = dict(sent.kwargs["metadata"])
+    assert metadata["dbname"] == "tenant"
+    assert metadata["client-request-id"] == "import-test"
+    if rpc == "Import":
+        assert {kv.key: kv.value for kv in sent.args[0].options} == {"rls_principal": "alice"}
 
 
 @pytest.mark.parametrize("method", [Prepare.batch_insert_param, Prepare.batch_upsert_param])

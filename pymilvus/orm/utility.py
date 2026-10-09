@@ -907,8 +907,9 @@ def do_bulk_insert(
         >>> task_id = utility.do_bulk_insert(collection_name=collection.name, files=['data.json'])
         >>> print(task_id)
     """
+    context = connections._generate_call_context(using, **kwargs)
     return _get_connection(using).do_bulk_insert(
-        collection_name, partition_name, files, timeout=timeout, **kwargs
+        collection_name, partition_name, files, timeout=timeout, context=context, **kwargs
     )
 
 
@@ -935,7 +936,10 @@ def get_bulk_insert_state(
         ...     state.state == BulkInsertState.ImportFailedAndCleaned:
         >>>     print("task id:", state.task_id, "failed, reason:", state.failed_reason)
     """
-    return _get_connection(using).get_bulk_insert_state(task_id, timeout=timeout, **kwargs)
+    context = connections._generate_call_context(using, **kwargs)
+    return _get_connection(using).get_bulk_insert_state(
+        task_id, timeout=timeout, context=context, **kwargs
+    )
 
 
 def list_bulk_insert_tasks(
@@ -963,8 +967,9 @@ def list_bulk_insert_tasks(
         >>> tasks = utility.list_bulk_insert_tasks(collection_name=collection_name)
         >>> print(tasks)
     """
+    context = connections._generate_call_context(using, **kwargs)
     return _get_connection(using).list_bulk_insert_tasks(
-        limit, collection_name, timeout=timeout, **kwargs
+        limit, collection_name, timeout=timeout, context=context, **kwargs
     )
 
 

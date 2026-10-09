@@ -89,9 +89,14 @@ def main():
         # rls.force=true on the collection disables that bypass entirely.
         client.delete_rls_principal_tags(collection, "alice", ["department"])
         client.delete_rls_principal_tags(collection, "alice")  # No keys deletes all tags.
-        assert client.get_rls_principal_tags(collection, "alice") == {}
+        assert "alice" not in client.list_rls_principals(collection)
         client.drop_row_policy(collection, "owner")
-        assert client.query(collection, filter="id >= 0", rls_principal="alice") == []
+        try:
+            client.query(collection, filter="id >= 0", rls_principal="alice")
+        except MilvusException as exc:
+            assert "denied by RLS" in exc.message
+        else:
+            raise AssertionError("RLS must reject reads without an applicable policy")
     finally:
         client.drop_collection(collection)
         client.close()
