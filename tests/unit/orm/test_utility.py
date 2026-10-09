@@ -60,6 +60,22 @@ class TestMktsFromHybridts:
         # timedelta uses microseconds, so 500ms = 500000 microseconds / 1000 = 500ms offset
         assert result > base_ts
 
+    def test_mkts_from_hybridts_with_delta_seconds(self):
+        """Test delta >= 1 second is fully honored (seconds are not dropped)."""
+        base_ts = 1000 << LOGICAL_BITS
+        delta = timedelta(seconds=5)
+        result = mkts_from_hybridts(base_ts, delta=delta)
+        expected = ((base_ts >> LOGICAL_BITS) + 5000) << LOGICAL_BITS
+        assert result == expected
+
+    def test_mkts_from_hybridts_with_delta_crossing_second(self):
+        """Test a delta crossing the 1-second boundary (1500ms)."""
+        base_ts = 1000 << LOGICAL_BITS
+        delta = timedelta(milliseconds=1500)
+        result = mkts_from_hybridts(base_ts, delta=delta)
+        expected = ((base_ts >> LOGICAL_BITS) + 1500) << LOGICAL_BITS
+        assert result == expected
+
     def test_mkts_from_hybridts_with_both_milliseconds_and_delta(self):
         """Test hybrid timestamp generation with both milliseconds and delta."""
         base_ts = 1000 << LOGICAL_BITS
@@ -144,8 +160,16 @@ class TestMktsFromUnixtime:
         delta = timedelta(seconds=10)
         result_no_delta = mkts_from_unixtime(epoch)
         result_with_delta = mkts_from_unixtime(epoch, delta=delta)
-        # Delta microseconds are converted to milliseconds
-        assert result_with_delta >= result_no_delta
+        # delta is converted to milliseconds (10s = 10000ms)
+        assert result_with_delta - result_no_delta == (10000 << LOGICAL_BITS)
+
+    def test_mkts_from_unixtime_with_delta_crossing_second(self):
+        """Test a delta crossing the 1-second boundary (1500ms)."""
+        epoch = 1609459200.0
+        delta = timedelta(milliseconds=1500)
+        result_no_delta = mkts_from_unixtime(epoch)
+        result_with_delta = mkts_from_unixtime(epoch, delta=delta)
+        assert result_with_delta - result_no_delta == (1500 << LOGICAL_BITS)
 
     def test_mkts_from_unixtime_integer_epoch(self):
         """Test hybrid timestamp generation with integer epoch."""
