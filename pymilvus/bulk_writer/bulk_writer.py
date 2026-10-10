@@ -139,7 +139,9 @@ class BulkWriter:
         else:
             try:
                 validator(x)
-                return x, len(x) * 12  # for sparse vector, each key-value is int-float, 12 bytes
+                # for sparse vector, each key-value is int-float, 12 bytes
+                nnz = len(x["indices"]) if "indices" in x and "values" in x else len(x)
+                return x, nnz * 12
             except MilvusException as e:
                 self._throw(f"Illegal vector data for vector field: '{field.name}': {e.message}")
 
