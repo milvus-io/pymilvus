@@ -133,6 +133,25 @@ class TestConnectionConfig:
                 None,
                 {"address": "host.example.com:19530", "token": "", "db_name": ""},
             ),
+            # IPv6 literals retain brackets in the gRPC target.
+            (
+                "http://[::1]:19530",
+                None,
+                None,
+                {"address": "[::1]:19530", "token": "", "db_name": ""},
+            ),
+            (
+                "https://[2001:db8::1]",
+                None,
+                None,
+                {"address": "[2001:db8::1]:443", "token": "", "db_name": ""},
+            ),
+            (
+                "tcp://user:pass@[2001:db8::1]:19531/mydb",
+                None,
+                None,
+                {"address": "[2001:db8::1]:19531", "token": "user:pass", "db_name": "mydb"},
+            ),
             # URI with credentials
             (
                 "https://user:pass@host:19530",
