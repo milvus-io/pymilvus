@@ -363,7 +363,11 @@ class Buffer:
 
         # write to Parquet file
         # build the arrow table directly: going through pandas turns nullable INT64 into float64
-        table = pa.Table.from_pydict(data, schema=self._deduce_arrow_schema())
+        # from_pandas=True keeps NaN -> null, as the pandas path did
+        schema = self._deduce_arrow_schema()
+        table = pa.table(
+            [pa.array(data[f.name], type=f.type, from_pandas=True) for f in schema], schema=schema
+        )
         pq.write_table(table, file_path, row_group_size=row_group_size)
 
         logger.info(

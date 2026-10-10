@@ -782,6 +782,22 @@ class TestBufferExtended:
 
         assert table.column("n").to_pylist() == [2**62 + 1, None]
 
+    def test_persist_parquet_nan_written_as_null(self):
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=2),
+            FieldSchema(name="score", dtype=DataType.DOUBLE, nullable=True),
+        ]
+        buffer = Buffer(CollectionSchema(fields=fields), BulkFileType.PARQUET)
+        buffer.append_row({"id": 1, "vector": [1.0, 2.0], "score": float("nan")})
+        buffer.append_row({"id": 2, "vector": [1.0, 2.0], "score": 1.5})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+            table = pq.read_table(files[0])
+
+        assert table.column("score").to_pylist() == [None, 1.5]
+
     def test_persist_csv_nullable_vectors_use_default_nullkey(self):
         """Test CSV persist keeps nullable vectors empty by default"""
         fields = [
