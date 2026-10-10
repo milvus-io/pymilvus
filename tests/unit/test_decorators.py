@@ -586,6 +586,30 @@ class TestIgnoreUnimplementedDecorator:
         result = unimplemented_func()
         assert result == "default"
 
+    def test_ignore_unimplemented_returns_default_for_async_function(self):
+        @ignore_unimplemented(default_return_value="default")
+        async def unimplemented_func():
+            raise MockUnimplementedError
+
+        assert asyncio.iscoroutinefunction(unimplemented_func)
+        assert asyncio.run(unimplemented_func()) == "default"
+
+    def test_ignore_unimplemented_raises_other_grpc_errors_for_async_function(self):
+        @ignore_unimplemented(default_return_value="default")
+        async def unavailable_func():
+            raise MockUnavailableError
+
+        with pytest.raises(grpc.RpcError):
+            asyncio.run(unavailable_func())
+
+    def test_ignore_unimplemented_raises_non_grpc_errors_for_async_function(self):
+        @ignore_unimplemented(default_return_value="default")
+        async def error_func():
+            raise ValueError("Some error")
+
+        with pytest.raises(ValueError):
+            asyncio.run(error_func())
+
     def test_ignore_unimplemented_raises_other_grpc_errors(self):
         @ignore_unimplemented(default_return_value="default")
         def unavailable_func():
