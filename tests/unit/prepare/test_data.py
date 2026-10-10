@@ -703,8 +703,9 @@ class TestBatchInsertParam:
         ]
         with pytest.raises(ParamError, match="misaligned") as exc_info:
             Prepare.batch_insert_param("coll", entities, "", fields_info)
-        assert isinstance(exc_info.value.message, str)
-        assert "got size=[2] alignment size=[3]" in exc_info.value.message
+        assert exc_info.value.message == (
+            "Field data size misaligned for field [vector] got size=[2] alignment size=[3]"
+        )
 
     def test_zero_rows(self):
         """Test batch insert with zero rows."""
