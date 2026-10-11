@@ -8,6 +8,7 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.function_chain_table import FunctionChainTableResult
 from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
@@ -372,7 +373,7 @@ class MilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
-    ) -> List[List[dict]]:
+    ) -> Union[List[List[dict]], FunctionChainTableResult]:
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
@@ -383,8 +384,10 @@ class MilvusClient(BaseMilvusClient):
             ranker (``Union[BaseRanker, Function]``): The ranker. A Function ranker
                 cannot be combined with per-request function chains.
             function_chains (``FunctionChain`` or ``List[FunctionChain]``, optional):
-                Top-level fusion/reranking chain, separate from per-request chains.
-                Mutually exclusive with ranker. Use an L2 chain starting with merge.
+                Top-level L2 fusion/rerank or POST processing, separate from
+                per-request chains. L2 conflicts with ranker and starts with merge.
+                Explicit POST TABLE/FUSED can coexist with ranker; ANN_INPUTS
+                reads branch results and rejects top-level rankers/L2.
             limit (``int``): The max number of returned record, also known as `topk`.
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
@@ -449,7 +452,7 @@ class MilvusClient(BaseMilvusClient):
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
-    ) -> List[List[dict]]:
+    ) -> Union[List[List[dict]], FunctionChainTableResult]:
         """Search for a query vector/vectors.
 
         In order for the search to process, a collection needs to have been either provided
@@ -465,7 +468,8 @@ class MilvusClient(BaseMilvusClient):
             search_params (dict, optional): The search params to use for the search.
             ranker (Function, optional): The ranker to use for the search.
             function_chains (FunctionChain or List[FunctionChain], optional): Function chain or
-                function chains to apply to ordinary search. Mutually exclusive with ranker.
+                function chains to apply to ordinary search. Rerank stages conflict with ranker;
+                PRE/POST can coexist with it. Explicit POST TABLE returns an independent table.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
             ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
@@ -516,8 +520,9 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         ids: Optional[Union[List, str, int]] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
-    ) -> List[dict]:
+    ) -> Union[List[dict], FunctionChainTableResult]:
         """Query for entries in the Collection.
 
         Args:
@@ -525,6 +530,9 @@ class MilvusClient(BaseMilvusClient):
             output_fields (List[str], optional): List of which field values to return. If None
                 specified, all fields excluding vector field will be returned.
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
+            function_chains (FunctionChain or List[FunctionChain], optional):
+                One POST TABLE/FUSED chain over the bounded query result. Its
+                Arrow output schema is independent of collection fields.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
 
@@ -532,7 +540,7 @@ class MilvusClient(BaseMilvusClient):
             ValueError: Missing collection.
 
         Returns:
-            List[dict]: A list of result dicts, vectors are not included.
+            List[dict], or FunctionChainTableResult for an explicit POST TABLE call.
         """
         if filter and not isinstance(filter, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
@@ -564,6 +572,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,

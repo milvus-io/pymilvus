@@ -72,6 +72,37 @@ class FunctionChainStage(IntEnum):
     POST_PROCESS = schema_pb2.FunctionChainStagePostProcess
 
 
+class FunctionChainResultMode(IntEnum):
+    """POST HITS preserves candidates; TABLE returns an independent Arrow table."""
+
+    HITS = schema_pb2.FunctionChainResultModeHits
+    TABLE = schema_pb2.FunctionChainResultModeTable
+
+
+class PostProcessInput(IntEnum):
+    """POST input after fusion, or every reduced Hybrid ANN branch."""
+
+    FUSED = schema_pb2.PostProcessInputFused
+    ANN_INPUTS = schema_pb2.PostProcessInputAnnInputs
+
+
+def _post_option(value: Any, enum: Any, label: str):
+    if isinstance(value, str):
+        try:
+            return enum[value.upper()]
+        except KeyError as err:
+            raise ParamError(message=f"Unknown POST {label}: {value!r}") from err
+    if isinstance(value, bool):
+        raise ParamError(message=f"Unknown POST {label}: {value!r}")
+    try:
+        return enum(value)
+    except (ValueError, TypeError) as err:
+        raise ParamError(message=f"Unknown POST {label}: {value!r}") from err
+
+
+_SOURCE_COLUMNS = {"$query_index", "$ann_index"}
+
+
 @dataclass(frozen=True)
 class ColumnRef:
     """Reference to a collection field used as a function chain argument.
@@ -131,6 +162,22 @@ def col(name: str, data_type: Optional[int] = None) -> ColumnRef:
 
 
 FunctionChainArg = Union[ColumnRef, Any]
+
+
+@dataclass(frozen=True)
+class FunctionChainAggregate:
+    """One native aggregate, constructed with ``pymilvus.function_chain.agg``."""
+
+    op: str
+    input: Optional[ColumnRef] = None
+
+    def __post_init__(self):
+        if self.op not in {"count", "sum", "avg", "min", "max", "first", "last", "collect_list"}:
+            raise ParamError(message=f"Unknown aggregate: {self.op}")
+        if self.input is not None and not isinstance(self.input, ColumnRef):
+            raise ParamError(message="aggregate input must be created with col(...)")
+        if self.op != "count" and self.input is None:
+            raise ParamError(message=f"{self.op} requires an input column")
 
 
 def _from_param_value(value: schema_pb2.FunctionParamValue) -> Any:
@@ -300,7 +347,7 @@ class FunctionChainOp:
         _copy_param_map(proto.params, self.params)
         if self.expr is not None:
             refs = [arg for arg in self.expr.args if isinstance(arg, ColumnRef)]
-            if any(ref.data_type is not None for ref in refs):
+            if self.op != "reduce" and any(ref.data_type is not None for ref in refs):
                 proto.params["$input_data_types"].CopyFrom(
                     _to_param_value([int(ref.data_type or 0) for ref in refs])
                 )
@@ -345,7 +392,14 @@ class FunctionChain:
             proto = chain.to_proto()
     """
 
-    def __init__(self, stage: FunctionChainStage, name: str = ""):
+    def __init__(
+        self,
+        stage: FunctionChainStage,
+        name: str = "",
+        *,
+        result_mode: Optional[Union[str, FunctionChainResultMode]] = None,
+        input: Optional[Union[str, PostProcessInput]] = None,  # noqa: A002
+    ):
         """Create a function chain builder for the given execution stage.
 
         Args:
@@ -360,6 +414,22 @@ class FunctionChain:
             raise ParamError(message="Function chain name must be a string")
         self._name = name
         self._ops: List[FunctionChainOp] = []
+        self._has_post_options = result_mode is not None or input is not None
+        if self._has_post_options and self._stage != FunctionChainStage.POST_PROCESS:
+            raise ParamError(message="result_mode and input options require POST_PROCESS")
+        self._result_mode = _post_option(
+            FunctionChainResultMode.HITS if result_mode is None else result_mode,
+            FunctionChainResultMode,
+            "result_mode",
+        )
+        self._post_input = _post_option(
+            PostProcessInput.FUSED if input is None else input, PostProcessInput, "input"
+        )
+        if (
+            self._post_input == PostProcessInput.ANN_INPUTS
+            and self._result_mode != FunctionChainResultMode.TABLE
+        ):
+            raise ParamError(message="ANN_INPUTS requires POST TABLE")
 
     @property
     def name(self) -> str:
@@ -378,6 +448,32 @@ class FunctionChain:
             The normalized :class:`FunctionChainStage`.
         """
         return self._stage
+
+    @property
+    def result_mode(self) -> FunctionChainResultMode:
+        return self._result_mode
+
+    @property
+    def post_process_input(self) -> PostProcessInput:
+        return self._post_input
+
+    @property
+    def is_table(self) -> bool:
+        return (
+            self.stage == FunctionChainStage.POST_PROCESS
+            and self.result_mode == FunctionChainResultMode.TABLE
+        )
+
+    def _require_table(self, operation: str) -> None:
+        if not self.is_table:
+            raise ParamError(message=f"{operation} requires POST TABLE")
+
+    def _check_source_outputs(self, outputs: Sequence[str], inputs: Sequence[str] = ()):
+        if not self.is_table:
+            return
+        for index, output in enumerate(outputs):
+            if output in _SOURCE_COLUMNS and (index >= len(inputs) or inputs[index] != output):
+                raise ParamError(message=f"POST source column {output} is read-only")
 
     @property
     def ops(self) -> Sequence[FunctionChainOp]:
@@ -464,6 +560,7 @@ class FunctionChain:
             raise ParamError(message="Function chain map outputs must be unique")
         if not isinstance(expr, FunctionChainExpr):
             raise ParamError(message="Function chain map expr must be a FunctionChainExpr")
+        self._check_source_outputs(outputs)
         self._ops.append(FunctionChainOp(op="map", expr=expr, outputs=tuple(outputs)))
         return self
 
@@ -495,6 +592,7 @@ class FunctionChain:
             raise ParamError(message="select outputs must match the inputs")
         if len(set(aliases)) != len(aliases):
             raise ParamError(message="select output names must be unique")
+        self._check_source_outputs(aliases, names)
         hints = [
             int(value.data_type or 0) if isinstance(value, ColumnRef) else 0 for value in inputs
         ]
@@ -517,6 +615,7 @@ class FunctionChain:
         if position == target:
             raise ParamError(message="explode position must differ from the output")
         outputs = (target, position) if position is not None else (target,)
+        self._check_source_outputs(outputs)
         self._ops.append(
             FunctionChainOp(op="explode", inputs=(source,), outputs=outputs, params=params)
         )
@@ -538,21 +637,22 @@ class FunctionChain:
         if position == target:
             raise ParamError(message="flat_map position must differ from the output")
         outputs = (target, position) if position is not None else (target,)
+        self._check_source_outputs(outputs)
         self._ops.append(FunctionChainOp(op="flat_map", expr=expr, outputs=outputs, params=params))
         return self
 
     def filter(self, expr: FunctionChainExpr) -> "FunctionChain":
-        """Keep INGESTION rows selected by a Boolean expression."""
-        if self.stage != FunctionChainStage.INGESTION:
-            raise ParamError(message="filter requires INGESTION")
+        """Keep INGESTION or POST TABLE rows selected by a Boolean expression."""
+        if self.stage != FunctionChainStage.INGESTION and not self.is_table:
+            raise ParamError(message="filter requires INGESTION or POST TABLE")
         if not isinstance(expr, FunctionChainExpr):
             raise ParamError(message="filter expr must be a FunctionChainExpr")
         self._ops.append(FunctionChainOp(op="filter", expr=expr))
         return self
 
     def _expansion_params(self, outer: bool, position: Optional[str]) -> Dict[str, Any]:
-        if self.stage != FunctionChainStage.INGESTION:
-            raise ParamError(message="row expansion requires INGESTION")
+        if self.stage != FunctionChainStage.INGESTION and not self.is_table:
+            raise ParamError(message="row expansion requires INGESTION or POST TABLE")
         if not isinstance(outer, bool):
             raise ParamError(message="outer must be a bool")
         params = {"outer": outer}
@@ -560,19 +660,140 @@ class FunctionChain:
             _column_name(position, "position")
         return params
 
+    def concat(self) -> "FunctionChain":
+        """Combine logical groups in stable order, retaining duplicate rows."""
+        self._require_table("concat")
+        self._ops.append(FunctionChainOp(op="concat"))
+        return self
+
+    def group_by(
+        self, *keys: Union[str, ColumnRef], aliases: Optional[Sequence[str]] = None
+    ) -> "GroupedFunctionChain":
+        """Declare keys for the next aggregate/reduce, without emitting a rerank op."""
+        self._require_table("group_by")
+        if len(keys) == 1 and isinstance(keys[0], (list, tuple)):
+            keys = tuple(keys[0])
+        if not keys:
+            raise ParamError(message="group_by requires at least one key")
+        refs = tuple(key if isinstance(key, ColumnRef) else ColumnRef(key) for key in keys)
+        names = tuple(ref.name for ref in refs)
+        if aliases is not None and not isinstance(aliases, (list, tuple)):
+            raise ParamError(message="group_by aliases must be a sequence")
+        outputs = names if aliases is None else tuple(aliases)
+        if len(outputs) != len(names) or not all(
+            isinstance(name, str) and name for name in outputs
+        ):
+            raise ParamError(message="group_by aliases must match the keys")
+        if len(set(outputs)) != len(outputs):
+            raise ParamError(message="group_by aliases must be unique")
+        self._check_source_outputs(outputs, names)
+        return GroupedFunctionChain(self, refs, outputs)
+
+    def aggregate(self, aggregates: Mapping[str, FunctionChainAggregate]) -> "FunctionChain":
+        """Aggregate each current logical group; call concat first to combine NQ."""
+        return self._aggregate((), (), aggregates)
+
+    def _aggregate(
+        self,
+        keys: Sequence[ColumnRef],
+        key_outputs: Sequence[str],
+        aggregates: Mapping[str, FunctionChainAggregate],
+    ) -> "FunctionChain":
+        self._require_table("aggregate")
+        if not isinstance(aggregates, Mapping) or not aggregates:
+            raise ParamError(message="aggregate requires a non-empty alias-to-aggregate mapping")
+        outputs = list(key_outputs)
+        inputs = list(keys)
+        specs = []
+        for alias, spec in aggregates.items():
+            if not isinstance(alias, str) or not alias:
+                raise ParamError(message="aggregate aliases must be non-empty strings")
+            if alias.startswith("$"):
+                raise ParamError(message="aggregate aliases must be ordinary column names")
+            if not isinstance(spec, FunctionChainAggregate):
+                raise ParamError(message="aggregate values must be built with agg helpers")
+            outputs.append(alias)
+            value = {"op": spec.op}
+            if spec.input is not None:
+                value["input"] = spec.input.name
+                inputs.append(spec.input)
+            specs.append(value)
+        if len(set(outputs)) != len(outputs):
+            raise ParamError(message="aggregate output names must be unique")
+        self._check_source_outputs(outputs, [key.name for key in keys])
+        params = {"keys": [key.name for key in keys], "aggregates": specs}
+        hints = [int(ref.data_type or 0) for ref in inputs]
+        if any(hints):
+            params["$input_data_types"] = hints
+        self._ops.append(
+            FunctionChainOp(
+                op="aggregate",
+                inputs=tuple(ref.name for ref in inputs),
+                outputs=tuple(outputs),
+                params=params,
+            )
+        )
+        return self
+
+    def reduce(
+        self, outputs: Union[str, Sequence[str]], expr: FunctionChainExpr
+    ) -> "FunctionChain":
+        """Run a reducing Python UDF once per current logical group."""
+        return self._reduce((), (), outputs, expr)
+
+    def _reduce(
+        self,
+        keys: Sequence[ColumnRef],
+        key_outputs: Sequence[str],
+        outputs: Union[str, Sequence[str]],
+        expr: FunctionChainExpr,
+    ) -> "FunctionChain":
+        self._require_table("reduce")
+        if not isinstance(expr, FunctionChainExpr) or expr.name != "py_udf":
+            raise ParamError(message="reduce requires fn.py_udf")
+        outputs = (outputs,) if isinstance(outputs, str) else outputs
+        if not isinstance(outputs, (list, tuple)) or not outputs:
+            raise ParamError(message="reduce outputs must be a non-empty sequence")
+        for output in outputs:
+            if not isinstance(output, str) or not output:
+                raise ParamError(message="reduce aliases must be non-empty strings")
+            if output.startswith("$"):
+                raise ParamError(message="reduce aliases must be ordinary column names")
+        aliases = tuple(key_outputs) + tuple(outputs)
+        if len(set(aliases)) != len(aliases):
+            raise ParamError(message="reduce output names must be unique")
+        self._check_source_outputs(aliases, [key.name for key in keys])
+        params = {"keys": [key.name for key in keys]}
+        # Reduce inputs are composed by the server from key occurrences followed
+        # by expression arguments. Preserve hints in exactly that order.
+        refs = list(keys) + [arg for arg in expr.args if isinstance(arg, ColumnRef)]
+        hints = [int(ref.data_type or 0) for ref in refs]
+        if any(hints):
+            params["$input_data_types"] = hints
+        self._ops.append(FunctionChainOp(op="reduce", expr=expr, outputs=aliases, params=params))
+        return self
+
     @classmethod
     def from_proto(cls, proto: schema_pb2.FunctionChain) -> "FunctionChain":
         """Restore a collection's persisted chain, including typed parameters."""
-        chain = cls(proto.stage, proto.name)
+        options = {}
+        if proto.HasField("post_process_options"):
+            options = {
+                "result_mode": proto.post_process_options.result_mode,
+                "input": proto.post_process_options.input,
+            }
+        chain = cls(proto.stage, proto.name, **options)
         for operation in proto.ops:
             expression = None
             if operation.HasField("expr"):
                 expression = FunctionChainExpr(
                     operation.expr.name,
                     args=tuple(
-                        ColumnRef(arg.column.name)
-                        if arg.WhichOneof("arg") == "column"
-                        else _from_param_value(arg.literal)
+                        (
+                            ColumnRef(arg.column.name)
+                            if arg.WhichOneof("arg") == "column"
+                            else _from_param_value(arg.literal)
+                        )
                         for arg in operation.expr.args
                     ),
                     params={
@@ -668,5 +889,26 @@ class FunctionChain:
 
     def to_proto(self) -> schema_pb2.FunctionChain:
         proto = schema_pb2.FunctionChain(name=self._name, stage=int(self._stage))
+        if self._has_post_options:
+            proto.post_process_options.CopyFrom(
+                schema_pb2.PostProcessOptions(
+                    result_mode=int(self._result_mode), input=int(self._post_input)
+                )
+            )
         proto.ops.extend([op.to_proto() for op in self._ops])
         return proto
+
+
+class GroupedFunctionChain:
+    """Keys pending an aggregate/reduce; no standalone group_by op is emitted."""
+
+    def __init__(self, chain: FunctionChain, keys: Sequence[ColumnRef], outputs: Sequence[str]):
+        self._chain = chain
+        self._keys = keys
+        self._outputs = outputs
+
+    def aggregate(self, aggregates: Mapping[str, FunctionChainAggregate]) -> FunctionChain:
+        return self._chain._aggregate(self._keys, self._outputs, aggregates)
+
+    def reduce(self, outputs: Union[str, Sequence[str]], expr: FunctionChainExpr) -> FunctionChain:
+        return self._chain._reduce(self._keys, self._outputs, outputs, expr)

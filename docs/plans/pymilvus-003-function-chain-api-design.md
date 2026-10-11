@@ -1,5 +1,10 @@
 # Function Chain API Design for PyMilvus
 
+> This document records the original June 2026 rerank API snapshot. The current
+> [POST table extension](../function_chain_post_tables.md) adds independent Arrow
+> results, cross-query aggregation and Query support; the historical scope below
+> does not describe those later capabilities.
+
 - **Created:** 2026-06-23
 - **Updated:** 2026-06-23
 - **Author(s):** @junjie.jiang

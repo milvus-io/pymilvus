@@ -66,6 +66,16 @@ class FunctionChainStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FunctionChainStageL2Rerank: _ClassVar[FunctionChainStage]
     FunctionChainStagePostProcess: _ClassVar[FunctionChainStage]
 
+class FunctionChainResultMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FunctionChainResultModeHits: _ClassVar[FunctionChainResultMode]
+    FunctionChainResultModeTable: _ClassVar[FunctionChainResultMode]
+
+class PostProcessInput(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PostProcessInputFused: _ClassVar[PostProcessInput]
+    PostProcessInputAnnInputs: _ClassVar[PostProcessInput]
+
 class ShardState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ShardNormal: _ClassVar[ShardState]
@@ -118,6 +128,10 @@ FunctionChainStageL0Rerank: FunctionChainStage
 FunctionChainStageL1Rerank: FunctionChainStage
 FunctionChainStageL2Rerank: FunctionChainStage
 FunctionChainStagePostProcess: FunctionChainStage
+FunctionChainResultModeHits: FunctionChainResultMode
+FunctionChainResultModeTable: FunctionChainResultMode
+PostProcessInputFused: PostProcessInput
+PostProcessInputAnnInputs: PostProcessInput
 ShardNormal: ShardState
 ShardCreating: ShardState
 ShardSplitting: ShardState
@@ -196,14 +210,32 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class FunctionChain(_message.Message):
-    __slots__ = ("name", "stage", "ops")
+    __slots__ = ("name", "stage", "ops", "post_process_options")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STAGE_FIELD_NUMBER: _ClassVar[int]
     OPS_FIELD_NUMBER: _ClassVar[int]
+    POST_PROCESS_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     name: str
     stage: FunctionChainStage
     ops: _containers.RepeatedCompositeFieldContainer[FunctionChainOp]
-    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ...) -> None: ...
+    post_process_options: PostProcessOptions
+    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ..., post_process_options: _Optional[_Union[PostProcessOptions, _Mapping]] = ...) -> None: ...
+
+class PostProcessOptions(_message.Message):
+    __slots__ = ("result_mode", "input")
+    RESULT_MODE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    result_mode: FunctionChainResultMode
+    input: PostProcessInput
+    def __init__(self, result_mode: _Optional[_Union[FunctionChainResultMode, str]] = ..., input: _Optional[_Union[PostProcessInput, str]] = ...) -> None: ...
+
+class FunctionChainTableResult(_message.Message):
+    __slots__ = ("arrow_ipc", "row_count")
+    ARROW_IPC_FIELD_NUMBER: _ClassVar[int]
+    ROW_COUNT_FIELD_NUMBER: _ClassVar[int]
+    arrow_ipc: bytes
+    row_count: int
+    def __init__(self, arrow_ipc: _Optional[bytes] = ..., row_count: _Optional[int] = ...) -> None: ...
 
 class FunctionChainOp(_message.Message):
     __slots__ = ("op", "expr", "inputs", "outputs", "params")

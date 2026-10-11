@@ -1792,6 +1792,13 @@ class Prepare:
                 raise ParamError(
                     message=f"{chain.stage.name} function chain stage is not supported for search"
                 )
+            if chain.is_table and not chain.ops:
+                raise ParamError(message="POST TABLE requires at least one operation")
+        if (
+            any(chain.is_table for chain in chains)
+            and sum(chain.stage == FunctionChainStage.POST_PROCESS for chain in chains) != 1
+        ):
+            raise ParamError(message="POST TABLE requires exactly one POST_PROCESS chain")
         if ranker is not None and any(
             chain.stage
             in {
@@ -1803,6 +1810,25 @@ class Prepare:
         ):
             raise ParamError(message="function_chains and ranker cannot be used together")
         return [chain.to_proto() for chain in chains]
+
+    @staticmethod
+    def query_function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+    ) -> List[schema_types.FunctionChain]:
+        chains = Prepare.function_chains_schema(function_chains)
+        for chain in chains:
+            if (
+                chain.stage != schema_types.FunctionChainStagePostProcess
+                or chain.post_process_options.result_mode
+                != schema_types.FunctionChainResultModeTable
+                or chain.post_process_options.input != schema_types.PostProcessInputFused
+            ):
+                raise ParamError(
+                    message="Query function chains require POST TABLE with FUSED input"
+                )
+        if len(chains) > 1:
+            raise ParamError(message="Query supports one POST TABLE chain")
+        return chains
 
     @staticmethod
     def hybrid_function_chains_schema(
@@ -1834,6 +1860,21 @@ class Prepare:
             raise ParamError(message="hybrid_search requires exactly one L2_RERANK function chain")
         if rerank is not None and rerank_chains:
             raise ParamError(message="function_chains and ranker cannot be used together")
+
+        table_chains = [chain for chain in chains if chain.is_table]
+        if table_chains and (
+            sum(chain.stage == FunctionChainStage.POST_PROCESS for chain in chains) != 1
+            or not table_chains[0].ops
+        ):
+            raise ParamError(message="hybrid_search requires one non-empty POST TABLE chain")
+        ann_inputs = any(
+            chain.is_table and chain.post_process_input == schema_types.PostProcessInputAnnInputs
+            for chain in chains
+        )
+        if ann_inputs and (rerank is not None or rerank_chains):
+            raise ParamError(
+                message="ANN_INPUTS cannot be combined with a top-level ranker or L2 chain"
+            )
 
         return [chain.to_proto() for chain in chains]
 
@@ -2070,6 +2111,16 @@ class Prepare:
             request.dsl = expr
 
         request.function_chains.extend(Prepare.function_chains_schema(function_chains, ranker))
+        if search_aggregation is not None and any(
+            chain.post_process_options.result_mode == schema_types.FunctionChainResultModeTable
+            for chain in request.function_chains
+        ):
+            raise ParamError(message="POST TABLE does not support search_aggregation")
+        if any(
+            chain.post_process_options.input == schema_types.PostProcessInputAnnInputs
+            for chain in request.function_chains
+        ):
+            raise ParamError(message="ANN_INPUTS requires HybridSearch")
         if ids is not None and any(
             chain.stage
             in {
@@ -2131,6 +2182,10 @@ class Prepare:
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
         chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
+        ann_inputs = any(
+            chain.post_process_options.input == schema_types.PostProcessInputAnnInputs
+            for chain in chain_protos
+        )
         for index, sub_request in enumerate(reqs):
             nested_chains = sub_request.function_chains
             if isinstance(rerank, Function) and any(
@@ -2148,6 +2203,12 @@ class Prepare:
             for chain in nested_chains:
                 stage = chain.stage
                 stage_name = schema_types.FunctionChainStage.Name(stage)
+                if (
+                    stage == schema_types.FunctionChainStagePostProcess
+                    and chain.post_process_options.result_mode
+                    == schema_types.FunctionChainResultModeTable
+                ):
+                    raise ParamError(message="POST_PROCESS belongs to top-level hybrid_search")
                 if stage in seen_stages:
                     raise ParamError(
                         message=f"stage {stage_name} appears more than once in hybrid sub-search[{index}]"
@@ -2163,6 +2224,10 @@ class Prepare:
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
         rerank_param["offset"] = kwargs.get("offset", 0)
+        if ann_inputs:
+            # Branch limits define this mode's input budget. It does not have a
+            # top-level fusion, ranker, pagination or final candidate limit.
+            rerank_param = {}
 
         request = milvus_types.HybridSearchRequest(
             collection_name=collection_name,
@@ -2184,6 +2249,8 @@ class Prepare:
         request.function_chains.extend(chain_protos)
 
         for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
+            if ann_inputs:
+                break
             val = kwargs.get(param_key)
             if val is not None:
                 request.rank_params.append(
@@ -2540,6 +2607,16 @@ class Prepare:
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
             namespace=kwargs.get("namespace"),
         )
+        chains = cls.query_function_chains_schema(kwargs.get("function_chains"))
+        if chains:
+            if str(kwargs.get(ITERATOR_FIELD, "false")).lower() in {"true", "1"}:
+                raise ParamError(message="POST TABLE does not support Query Iterator")
+            if kwargs.get(QUERY_GROUP_BY_FIELDS) or any(
+                re.match(r"\s*(count|sum|avg|min|max)\s*\(", field, re.IGNORECASE)
+                for field in output_fields or []
+            ):
+                raise ParamError(message="POST TABLE does not support native Query aggregation")
+            req.function_chains.extend(chains)
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
             req.query_params.append(

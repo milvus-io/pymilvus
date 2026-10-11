@@ -10,6 +10,7 @@ from pymilvus.grpc_gen import milvus_pb2
 
 from .abstract import MutationResult
 from .function_chain_capability import check_ingestion_response
+from .function_chain_table import parse_table_response
 from .search_result import SearchResult
 from .types import Status
 from .utils import check_status
@@ -193,6 +194,9 @@ class SearchFuture(Future):
         if response is None:
             raise MilvusException(message="Received None response from server during search")
         check_status(response.status)
+        table = parse_table_response(response, expected=self._kwargs.get("expected_table", False))
+        if table is not None:
+            return table
         return SearchResult(response.results, status=response.status)
 
 

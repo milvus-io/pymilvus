@@ -23,6 +23,12 @@ def py_udf(
     query groups and expects one output-column sequence per group. Context
     includes original/prepared queries for every ANN input. Return Arrow arrays
     with one outer value per input row. INGESTION can expand a List with flat_map.
+
+    POST TABLE uses the same batch callable with ``context.table_result=True``.
+    For ``chain.reduce``, ``context.reduction=True`` and every input batch must
+    yield exactly one output row. ``context.query_count`` is original NQ (zero
+    for Query), not the current group count. Read row provenance explicitly from
+    ``col("$query_index")`` or ``col("$ann_index")``.
     """
     if not cols:
         raise ParamError(message="fn.py_udf requires at least one input column")

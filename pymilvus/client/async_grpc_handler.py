@@ -46,11 +46,14 @@ from .check import (
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .function_chain_capability import (
+    POST_TABLE_VERSION_KEY,
     TRANSFORM_VERSION_KEY,
     check_ingestion_response,
     ingestion_binding,
+    requires_table_capability,
     requires_transform_capability,
 )
+from .function_chain_table import parse_table_response, require_arrow
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -613,12 +616,17 @@ class AsyncGrpcHandler:
     ):
         if not requires_transform_capability(request):
             return
+        table = requires_table_capability(request)
+        if table:
+            require_arrow()
         response = await self._async_stub.GetVersion(
             Prepare.get_server_version(), timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         if response.status.extra_info.get(TRANSFORM_VERSION_KEY) != "1":
             raise ParamError(message="server does not advertise function chain transform support")
+        if table and response.status.extra_info.get(POST_TABLE_VERSION_KEY) != "1":
+            raise ParamError(message="server does not advertise POST TABLE support")
 
     @retry_on_rpc_failure()
     async def get_server_version(
@@ -1030,6 +1038,9 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
+        table = parse_table_response(response, expected=requires_table_capability(request))
+        if table is not None:
+            return table
         round_decimal = kwargs.get("round_decimal", -1)
         return SearchResult(
             response.results,
@@ -1049,6 +1060,9 @@ class AsyncGrpcHandler:
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
+        table = parse_table_response(response, expected=requires_table_capability(request))
+        if table is not None:
+            return table
         round_decimal = kwargs.get("round_decimal", -1)
         return SearchResult(response.results, round_decimal, status=response.status)
 
@@ -1514,10 +1528,15 @@ class AsyncGrpcHandler:
             **kwargs,
         )
 
+        await self._require_function_chain_transform(request, timeout, context)
+
         response = await self._async_stub.Query(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
+        table = parse_table_response(response, expected=requires_table_capability(request))
+        if table is not None:
+            return table
 
         num_fields = len(response.fields_data)
         # check has fields

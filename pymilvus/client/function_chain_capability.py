@@ -10,6 +10,15 @@ from .abstract import MutationResult
 from .utils import check_status
 
 TRANSFORM_VERSION_KEY = "function_chain_transform_version"
+POST_TABLE_VERSION_KEY = "function_chain_post_table_version"
+
+
+def requires_table_capability(request: Message) -> bool:
+    return any(
+        chain.stage == schema_pb2.FunctionChainStagePostProcess
+        and chain.post_process_options.result_mode == schema_pb2.FunctionChainResultModeTable
+        for chain in getattr(request, "function_chains", ())
+    )
 
 
 def requires_transform_capability(request: Message) -> bool:
@@ -29,9 +38,11 @@ def requires_transform_capability(request: Message) -> bool:
 def ingestion_binding(schema: dict) -> schema_pb2.CollectionSchema:
     return schema_pb2.CollectionSchema(
         function_chains=[
-            chain.to_proto()
-            if isinstance(chain, FunctionChain)
-            else FunctionChain.from_dict(chain).to_proto()
+            (
+                chain.to_proto()
+                if isinstance(chain, FunctionChain)
+                else FunctionChain.from_dict(chain).to_proto()
+            )
             for chain in schema.get("function_chains", [])
         ]
     )

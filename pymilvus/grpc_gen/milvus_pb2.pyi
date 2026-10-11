@@ -1337,16 +1337,18 @@ class Hits(_message.Message):
     def __init__(self, IDs: _Optional[_Iterable[int]] = ..., row_data: _Optional[_Iterable[bytes]] = ..., scores: _Optional[_Iterable[float]] = ...) -> None: ...
 
 class SearchResults(_message.Message):
-    __slots__ = ("status", "results", "collection_name", "session_ts")
+    __slots__ = ("status", "results", "collection_name", "session_ts", "post_process_result")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     RESULTS_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
     SESSION_TS_FIELD_NUMBER: _ClassVar[int]
+    POST_PROCESS_RESULT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     results: _schema_pb2.SearchResultData
     collection_name: str
     session_ts: int
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Union[_schema_pb2.SearchResultData, _Mapping]] = ..., collection_name: _Optional[str] = ..., session_ts: _Optional[int] = ...) -> None: ...
+    post_process_result: _schema_pb2.FunctionChainTableResult
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Union[_schema_pb2.SearchResultData, _Mapping]] = ..., collection_name: _Optional[str] = ..., session_ts: _Optional[int] = ..., post_process_result: _Optional[_Union[_schema_pb2.FunctionChainTableResult, _Mapping]] = ...) -> None: ...
 
 class HybridSearchRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_names", "requests", "rank_params", "travel_timestamp", "guarantee_timestamp", "not_return_all_meta", "output_fields", "consistency_level", "use_default_consistency", "function_score", "namespace", "function_chains", "rls_principal", "skip_rls")
@@ -1450,7 +1452,7 @@ class FlushResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ..., channel_cps: _Optional[_Mapping[str, _msg_pb2.MsgPosition]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency", "expr_template_values", "namespace", "rls_principal", "skip_rls")
+    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency", "expr_template_values", "namespace", "rls_principal", "skip_rls", "function_chains")
     class ExprTemplateValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -1474,6 +1476,7 @@ class QueryRequest(_message.Message):
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     RLS_PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
     SKIP_RLS_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_CHAINS_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -1490,7 +1493,8 @@ class QueryRequest(_message.Message):
     namespace: str
     rls_principal: str
     skip_rls: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ...) -> None: ...
+    function_chains: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FunctionChain]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ..., function_chains: _Optional[_Iterable[_Union[_schema_pb2.FunctionChain, _Mapping]]] = ...) -> None: ...
 
 class ElementIndices(_message.Message):
     __slots__ = ("indices",)
@@ -1499,7 +1503,7 @@ class ElementIndices(_message.Message):
     def __init__(self, indices: _Optional[_Union[_schema_pb2.LongArray, _Mapping]] = ...) -> None: ...
 
 class QueryResults(_message.Message):
-    __slots__ = ("status", "fields_data", "collection_name", "output_fields", "session_ts", "primary_field_name", "element_indices")
+    __slots__ = ("status", "fields_data", "collection_name", "output_fields", "session_ts", "primary_field_name", "element_indices", "post_process_result")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     FIELDS_DATA_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -1507,6 +1511,7 @@ class QueryResults(_message.Message):
     SESSION_TS_FIELD_NUMBER: _ClassVar[int]
     PRIMARY_FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     ELEMENT_INDICES_FIELD_NUMBER: _ClassVar[int]
+    POST_PROCESS_RESULT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     fields_data: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldData]
     collection_name: str
@@ -1514,7 +1519,8 @@ class QueryResults(_message.Message):
     session_ts: int
     primary_field_name: str
     element_indices: _containers.RepeatedCompositeFieldContainer[ElementIndices]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ..., primary_field_name: _Optional[str] = ..., element_indices: _Optional[_Iterable[_Union[ElementIndices, _Mapping]]] = ...) -> None: ...
+    post_process_result: _schema_pb2.FunctionChainTableResult
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., collection_name: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., session_ts: _Optional[int] = ..., primary_field_name: _Optional[str] = ..., element_indices: _Optional[_Iterable[_Union[ElementIndices, _Mapping]]] = ..., post_process_result: _Optional[_Union[_schema_pb2.FunctionChainTableResult, _Mapping]] = ...) -> None: ...
 
 class QueryCursor(_message.Message):
     __slots__ = ("session_ts", "str_pk", "int_pk")

@@ -57,11 +57,14 @@ from .check import (
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .function_chain_capability import (
+    POST_TABLE_VERSION_KEY,
     TRANSFORM_VERSION_KEY,
     check_ingestion_response,
     ingestion_binding,
+    requires_table_capability,
     requires_transform_capability,
 )
+from .function_chain_table import parse_table_response, require_arrow
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -1416,12 +1419,15 @@ class GrpcHandler:
                     metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
-                return SearchFuture(future, func)
+                return SearchFuture(future, func, expected_table=requires_table_capability(request))
 
             response = self._stub.Search(request, timeout=timeout, metadata=_api_level_md(context))
             if response is None:
                 raise MilvusException(message="Received None response from server during search")
             check_status(response.status)
+            table = parse_table_response(response, expected=requires_table_capability(request))
+            if table is not None:
+                return table
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(
                 response.results,
@@ -1449,7 +1455,7 @@ class GrpcHandler:
                     metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
-                return SearchFuture(future, func)
+                return SearchFuture(future, func, expected_table=requires_table_capability(request))
 
             response = self._stub.HybridSearch(
                 request, timeout=timeout, metadata=_api_level_md(context)
@@ -1457,6 +1463,9 @@ class GrpcHandler:
             if response is None:
                 raise MilvusException(message="Received None response from server during search")
             check_status(response.status)
+            table = parse_table_response(response, expected=requires_table_capability(request))
+            if table is not None:
+                return table
             round_decimal = kwargs.get("round_decimal", -1)
             return SearchResult(response.results, round_decimal, status=response.status)
 
@@ -2436,10 +2445,19 @@ class GrpcHandler:
             **kwargs,
         )
 
+        self._require_function_chain_transform(request, timeout, context)
+
         response = self._stub.Query(request, timeout=timeout, metadata=_api_level_md(context))
-        if Status.EMPTY_COLLECTION in {response.status.code, response.status.error_code}:
+        expected_table = requires_table_capability(request)
+        if not expected_table and Status.EMPTY_COLLECTION in {
+            response.status.code,
+            response.status.error_code,
+        }:
             return []
         check_status(response.status)
+        table = parse_table_response(response, expected=expected_table)
+        if table is not None:
+            return table
 
         num_fields = len(response.fields_data)
         # check has fields
@@ -3140,12 +3158,17 @@ class GrpcHandler:
     ):
         if not requires_transform_capability(request):
             return
+        table = requires_table_capability(request)
+        if table:
+            require_arrow()
         response = self._stub.GetVersion(
             Prepare.get_server_version(), timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(response.status)
         if response.status.extra_info.get(TRANSFORM_VERSION_KEY) != "1":
             raise ParamError(message="server does not advertise function chain transform support")
+        if table and response.status.extra_info.get(POST_TABLE_VERSION_KEY) != "1":
+            raise ParamError(message="server does not advertise POST TABLE support")
 
     @retry_on_rpc_failure()
     def get_server_version(

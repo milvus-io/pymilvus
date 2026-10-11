@@ -1082,6 +1082,7 @@ class Collection:
         output_fields: Optional[List[str]] = None,
         partition_names: Optional[List[str]] = None,
         timeout: Optional[float] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ):
         """Query with expressions
@@ -1165,6 +1166,7 @@ class Collection:
             output_fields,
             partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             schema=self._schema_dict,
             context=context,
             **kwargs,
