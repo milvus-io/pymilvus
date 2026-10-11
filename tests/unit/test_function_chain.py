@@ -330,7 +330,6 @@ class TestFunctionChain:
     @pytest.mark.parametrize(
         "stage",
         [
-            FunctionChainStage.INGESTION,
             FunctionChainStage.PRE_PROCESS,
             FunctionChainStage.L0_RERANK,
             FunctionChainStage.L1_RERANK,
@@ -412,9 +411,11 @@ class TestSearchIntegration:
         assert not any(param.key in {"strategy", "params"} for param in request.rank_params)
 
     def test_prepare_hybrid_search_with_pre_and_post_process_chains(self):
-        sub_requests = [_prepare_search(), _prepare_search()]
+        pre = FunctionChain(FunctionChainStage.PRE_PROCESS).map(
+            "query", fn.py_udf(col("query"), resource_name="translate")
+        )
+        sub_requests = [_prepare_search(function_chains=pre), _prepare_search()]
         chains = [
-            FunctionChain(FunctionChainStage.PRE_PROCESS),
             FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf"),
             FunctionChain(FunctionChainStage.POST_PROCESS),
         ]
@@ -424,10 +425,10 @@ class TestSearchIntegration:
         )
 
         assert [chain.stage for chain in request.function_chains] == [
-            schema_pb2.FunctionChainStagePreProcess,
             schema_pb2.FunctionChainStageL2Rerank,
             schema_pb2.FunctionChainStagePostProcess,
         ]
+        assert list(request.requests[0].function_chains) == [pre.to_proto()]
 
     def test_prepare_hybrid_search_rejects_ranker_and_function_chain(self):
         chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf")
@@ -467,8 +468,8 @@ class TestSearchIntegration:
                 "exactly one L2_RERANK function chain",
             ),
             (
-                FunctionChain(FunctionChainStage.POST_PROCESS),
-                "exactly one L2_RERANK function chain",
+                FunctionChain(FunctionChainStage.PRE_PROCESS),
+                "is not supported",
             ),
         ],
     )

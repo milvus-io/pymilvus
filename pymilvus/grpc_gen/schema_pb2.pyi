@@ -295,7 +295,7 @@ class FunctionParamObject(_message.Message):
     def __init__(self, fields: _Optional[_Mapping[str, FunctionParamValue]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace", "function_chains")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -311,6 +311,7 @@ class CollectionSchema(_message.Message):
     DO_PHYSICAL_BACKFILL_FIELD_NUMBER: _ClassVar[int]
     FILE_RESOURCE_IDS_FIELD_NUMBER: _ClassVar[int]
     ENABLE_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_CHAINS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -326,7 +327,8 @@ class CollectionSchema(_message.Message):
     do_physical_backfill: bool
     file_resource_ids: _containers.RepeatedScalarFieldContainer[int]
     enable_namespace: bool
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
+    function_chains: _containers.RepeatedCompositeFieldContainer[FunctionChain]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ..., function_chains: _Optional[_Iterable[_Union[FunctionChain, _Mapping]]] = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params", "nullable")

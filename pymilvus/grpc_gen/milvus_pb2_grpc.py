@@ -781,6 +781,16 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.ListRefreshExternalCollectionJobsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.ListRefreshExternalCollectionJobsResponse.FromString,
                 _registered_method=True)
+        self.ListRunningRequests = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListRunningRequests',
+                request_serializer=milvus__pb2.ListRunningRequestsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListRunningRequestsResponse.FromString,
+                _registered_method=True)
+        self.CancelRequests = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CancelRequests',
+                request_serializer=milvus__pb2.CancelRequestsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.CancelRequestsResponse.FromString,
+                _registered_method=True)
 
 
 class MilvusServiceServicer(object):
@@ -1725,6 +1735,19 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ListRunningRequests(self, request, context):
+        """Running request APIs
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CancelRequests(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -2472,6 +2495,16 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.ListRefreshExternalCollectionJobs,
                     request_deserializer=milvus__pb2.ListRefreshExternalCollectionJobsRequest.FromString,
                     response_serializer=milvus__pb2.ListRefreshExternalCollectionJobsResponse.SerializeToString,
+            ),
+            'ListRunningRequests': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListRunningRequests,
+                    request_deserializer=milvus__pb2.ListRunningRequestsRequest.FromString,
+                    response_serializer=milvus__pb2.ListRunningRequestsResponse.SerializeToString,
+            ),
+            'CancelRequests': grpc.unary_unary_rpc_method_handler(
+                    servicer.CancelRequests,
+                    request_deserializer=milvus__pb2.CancelRequestsRequest.FromString,
+                    response_serializer=milvus__pb2.CancelRequestsResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -6497,6 +6530,60 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/ListRefreshExternalCollectionJobs',
             milvus__pb2.ListRefreshExternalCollectionJobsRequest.SerializeToString,
             milvus__pb2.ListRefreshExternalCollectionJobsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListRunningRequests(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListRunningRequests',
+            milvus__pb2.ListRunningRequestsRequest.SerializeToString,
+            milvus__pb2.ListRunningRequestsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CancelRequests(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/CancelRequests',
+            milvus__pb2.CancelRequestsRequest.SerializeToString,
+            milvus__pb2.CancelRequestsResponse.FromString,
             options,
             channel_credentials,
             insecure,

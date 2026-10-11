@@ -38,6 +38,7 @@ from enum import IntEnum
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import schema_pb2
@@ -63,6 +64,7 @@ class FunctionChainStage(IntEnum):
 
     UNSPECIFIED = schema_pb2.FunctionChainStageUnspecified
     INGESTION = schema_pb2.FunctionChainStageIngestion
+    PRE_INSERT = INGESTION
     PRE_PROCESS = schema_pb2.FunctionChainStagePreProcess
     L0_RERANK = schema_pb2.FunctionChainStageL0Rerank
     L1_RERANK = schema_pb2.FunctionChainStageL1Rerank
@@ -89,6 +91,7 @@ class ColumnRef:
     """
 
     name: str
+    data_type: Optional[int] = None
 
     def __post_init__(self):
         if not isinstance(self.name, str):
@@ -97,6 +100,11 @@ class ColumnRef:
             )
         if not self.name:
             raise ParamError(message="Column name must not be empty")
+        if self.data_type is not None:
+            try:
+                schema_pb2.DataType.Name(int(self.data_type))
+            except (TypeError, ValueError) as err:
+                raise ParamError(message="Column data_type must be a Milvus DataType") from err
 
     def to_proto(self) -> schema_pb2.FunctionChainExprArg:
         return schema_pb2.FunctionChainExprArg(
@@ -104,7 +112,7 @@ class ColumnRef:
         )
 
 
-def col(name: str) -> ColumnRef:
+def col(name: str, data_type: Optional[int] = None) -> ColumnRef:
     """Create a column reference for use in a function chain expression.
 
     Args:
@@ -119,10 +127,21 @@ def col(name: str) -> ColumnRef:
 
             expr = fn.round_decimal(col("$score"), decimal=3)
     """
-    return ColumnRef(name)
+    return ColumnRef(name, data_type)
 
 
 FunctionChainArg = Union[ColumnRef, Any]
+
+
+def _from_param_value(value: schema_pb2.FunctionParamValue) -> Any:
+    kind = value.WhichOneof("value")
+    if kind == "object_value":
+        return {key: _from_param_value(item) for key, item in value.object_value.fields.items()}
+    if kind == "array_value":
+        return [_from_param_value(item) for item in value.array_value.values]
+    if kind is None:
+        raise ParamError(message="Function chain parameter value must be set")
+    return getattr(value, kind)
 
 
 def _to_param_value(value: Any) -> schema_pb2.FunctionParamValue:
@@ -279,6 +298,12 @@ class FunctionChainOp:
         proto.inputs.extend(self.inputs)
         proto.outputs.extend(self.outputs)
         _copy_param_map(proto.params, self.params)
+        if self.expr is not None:
+            refs = [arg for arg in self.expr.args if isinstance(arg, ColumnRef)]
+            if any(ref.data_type is not None for ref in refs):
+                proto.params["$input_data_types"].CopyFrom(
+                    _to_param_value([int(ref.data_type or 0) for ref in refs])
+                )
         return proto
 
 
@@ -408,7 +433,7 @@ class FunctionChain:
         self._ops.append(FunctionChainOp(op="merge", params=params))
         return self
 
-    def map(self, output: str, expr: FunctionChainExpr) -> "FunctionChain":
+    def map(self, output: Union[str, Sequence[str]], expr: FunctionChainExpr) -> "FunctionChain":
         """Append a map operation that writes an expression result to an output field.
 
         Args:
@@ -428,12 +453,150 @@ class FunctionChain:
 
                 chain.map("rounded_score", fn.round_decimal(col("$score"), decimal=3))
         """
-        if not isinstance(output, str) or not output:
+        outputs = (output,) if isinstance(output, str) else output
+        if (
+            not isinstance(outputs, (list, tuple))
+            or not outputs
+            or not all(isinstance(name, str) and name for name in outputs)
+        ):
             raise ParamError(message="Function chain map output must be a non-empty string")
+        if len(set(outputs)) != len(outputs):
+            raise ParamError(message="Function chain map outputs must be unique")
         if not isinstance(expr, FunctionChainExpr):
             raise ParamError(message="Function chain map expr must be a FunctionChainExpr")
-        self._ops.append(FunctionChainOp(op="map", expr=expr, outputs=(output,)))
+        self._ops.append(FunctionChainOp(op="map", expr=expr, outputs=tuple(outputs)))
         return self
+
+    def select(
+        self,
+        inputs: Sequence[Union[str, ColumnRef]],
+        outputs: Optional[Sequence[str]] = None,
+    ) -> "FunctionChain":
+        """Keep selected payload columns, optionally renaming them.
+
+        Struct members use dotted paths, for example ``chunks.text``. Identity
+        and row provenance belong to the execution context and survive selection.
+        """
+        if self.stage not in {
+            FunctionChainStage.INGESTION,
+            FunctionChainStage.PRE_PROCESS,
+            FunctionChainStage.POST_PROCESS,
+        }:
+            raise ParamError(message="select requires INGESTION, PRE_PROCESS or POST_PROCESS")
+        if not isinstance(inputs, (list, tuple)) or not inputs:
+            raise ParamError(message="select inputs must be a non-empty sequence")
+        names = tuple(_column_name(value, "select input") for value in inputs)
+        aliases = tuple(outputs) if outputs is not None and not isinstance(outputs, str) else names
+        if outputs is not None and not isinstance(outputs, (list, tuple)):
+            raise ParamError(message="select outputs must be a sequence")
+        if len(aliases) != len(names) or not all(
+            isinstance(name, str) and name for name in aliases
+        ):
+            raise ParamError(message="select outputs must match the inputs")
+        if len(set(aliases)) != len(aliases):
+            raise ParamError(message="select output names must be unique")
+        hints = [
+            int(value.data_type or 0) if isinstance(value, ColumnRef) else 0 for value in inputs
+        ]
+        params = {"$input_data_types": hints} if any(hints) else {}
+        self._ops.append(FunctionChainOp(op="select", inputs=names, outputs=aliases, params=params))
+        return self
+
+    def explode(
+        self,
+        source: Union[str, ColumnRef],
+        output: Optional[str] = None,
+        *,
+        outer: bool = False,
+        position: Optional[str] = None,
+    ) -> "FunctionChain":
+        """Expand one List column, repeating its parent's other columns."""
+        source = _column_name(source, "explode input")
+        target = _column_name(output if output is not None else source, "explode output")
+        params = self._expansion_params(outer, position)
+        if position == target:
+            raise ParamError(message="explode position must differ from the output")
+        outputs = (target, position) if position is not None else (target,)
+        self._ops.append(
+            FunctionChainOp(op="explode", inputs=(source,), outputs=outputs, params=params)
+        )
+        return self
+
+    def flat_map(
+        self,
+        output: str,
+        expr: FunctionChainExpr,
+        *,
+        outer: bool = False,
+        position: Optional[str] = None,
+    ) -> "FunctionChain":
+        """Evaluate a List-valued expression and emit one row per element."""
+        target = _column_name(output, "flat_map output")
+        if not isinstance(expr, FunctionChainExpr):
+            raise ParamError(message="flat_map expr must be a FunctionChainExpr")
+        params = self._expansion_params(outer, position)
+        if position == target:
+            raise ParamError(message="flat_map position must differ from the output")
+        outputs = (target, position) if position is not None else (target,)
+        self._ops.append(FunctionChainOp(op="flat_map", expr=expr, outputs=outputs, params=params))
+        return self
+
+    def filter(self, expr: FunctionChainExpr) -> "FunctionChain":
+        """Keep INGESTION rows selected by a Boolean expression."""
+        if self.stage != FunctionChainStage.INGESTION:
+            raise ParamError(message="filter requires INGESTION")
+        if not isinstance(expr, FunctionChainExpr):
+            raise ParamError(message="filter expr must be a FunctionChainExpr")
+        self._ops.append(FunctionChainOp(op="filter", expr=expr))
+        return self
+
+    def _expansion_params(self, outer: bool, position: Optional[str]) -> Dict[str, Any]:
+        if self.stage != FunctionChainStage.INGESTION:
+            raise ParamError(message="row expansion requires INGESTION")
+        if not isinstance(outer, bool):
+            raise ParamError(message="outer must be a bool")
+        params = {"outer": outer}
+        if position is not None:
+            _column_name(position, "position")
+        return params
+
+    @classmethod
+    def from_proto(cls, proto: schema_pb2.FunctionChain) -> "FunctionChain":
+        """Restore a collection's persisted chain, including typed parameters."""
+        chain = cls(proto.stage, proto.name)
+        for operation in proto.ops:
+            expression = None
+            if operation.HasField("expr"):
+                expression = FunctionChainExpr(
+                    operation.expr.name,
+                    args=tuple(
+                        ColumnRef(arg.column.name)
+                        if arg.WhichOneof("arg") == "column"
+                        else _from_param_value(arg.literal)
+                        for arg in operation.expr.args
+                    ),
+                    params={
+                        key: _from_param_value(value)
+                        for key, value in operation.expr.params.items()
+                    },
+                )
+            chain._ops.append(
+                FunctionChainOp(
+                    operation.op,
+                    expression,
+                    tuple(operation.inputs),
+                    tuple(operation.outputs),
+                    {key: _from_param_value(value) for key, value in operation.params.items()},
+                )
+            )
+        return chain
+
+    def to_dict(self) -> Dict[str, Any]:
+        return MessageToDict(self.to_proto(), preserving_proto_field_name=True)
+
+    @classmethod
+    def from_dict(cls, value: Mapping[str, Any]) -> "FunctionChain":
+        return cls.from_proto(ParseDict(dict(value), schema_pb2.FunctionChain()))
 
     def sort(
         self,

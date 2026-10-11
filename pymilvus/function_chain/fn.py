@@ -9,6 +9,32 @@ _DECAY_FUNCTIONS = {"gauss", "exp", "linear"}
 _XGBOOST_OUTPUTS = {"default", "raw"}
 
 
+def py_udf(
+    *cols: ColumnRef,
+    resource_name: str,
+    udf_params: Optional[dict] = None,
+) -> FunctionChainExpr:
+    """Invoke the factory exported by a registered Python wheel file resource.
+
+    INGESTION calls ``transform(params, columns)``; query stages call
+    ``transform_query(params, columns)``. Return Arrow arrays with one outer
+    value per input row. A List/Struct output can be expanded with flat_map.
+    """
+    if not cols:
+        raise ParamError(message="fn.py_udf requires at least one input column")
+    for value in cols:
+        _check_column_ref(value, "fn.py_udf argument")
+    if not isinstance(resource_name, str) or not resource_name.strip():
+        raise ParamError(message="fn.py_udf resource_name must be non-empty")
+    if udf_params is not None and not isinstance(udf_params, dict):
+        raise ParamError(message="fn.py_udf udf_params must be a dict")
+    return FunctionChainExpr(
+        "py_udf",
+        args=cols,
+        params={"resource_name": resource_name, "udf_params": udf_params or {}},
+    )
+
+
 def _check_column_ref(value: Any, param_name: str) -> None:
     """Validate that a function argument is a column reference.
 

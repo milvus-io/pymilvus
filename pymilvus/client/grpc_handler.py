@@ -23,6 +23,7 @@ from pymilvus.exceptions import (
     DescribeCollectionException,
     ErrorCode,
     ExceptionsMessage,
+    IngestionFunctionChainError,
     MilvusException,
     ParamError,
 )
@@ -55,6 +56,12 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
+from .function_chain_capability import (
+    TRANSFORM_VERSION_KEY,
+    check_ingestion_response,
+    ingestion_binding,
+    requires_transform_capability,
+)
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -495,6 +502,7 @@ class GrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
+        self._require_function_chain_transform(request, timeout, context)
 
         rf = self._stub.CreateCollection.future(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -968,15 +976,35 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        actual_schema, schema_timestamp = self._get_schema(
+            collection_name, timeout=timeout, context=context, **kwargs
+        )
+        binding = ingestion_binding(actual_schema)
+        self._require_function_chain_transform(binding, timeout, context)
         request = self._prepare_row_insert_request(
-            collection_name, entities, partition_name, schema, timeout, context=context, **kwargs
+            collection_name,
+            entities,
+            partition_name,
+            actual_schema,
+            timeout,
+            context=context,
+            _schema_timestamp=schema_timestamp,
+            **kwargs,
         )
-        resp = self._stub.Insert(
-            request=request,
-            timeout=timeout,
-            metadata=_api_level_md(context),
-        )
-        check_status(resp.status)
+        try:
+            resp = self._stub.Insert(
+                request=request, timeout=timeout, metadata=_api_level_md(context)
+            )
+        except grpc.RpcError as error:
+            if binding.function_chains:
+                raise IngestionFunctionChainError(
+                    error.code(), error.details(), unknown_outcome=True
+                ) from error
+            raise
+        if resp.HasField("ingestion_result") is True:
+            check_ingestion_response(resp)
+        else:
+            check_status(resp.status)
         ts_utils.update_collection_ts(
             collection_name,
             resp.timestamp,
@@ -998,9 +1026,12 @@ class GrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = self._get_schema(
-            collection_name, timeout=timeout, context=context, **kwargs
-        )
+        if schema is None:
+            schema, schema_timestamp = self._get_schema(
+                collection_name, timeout=timeout, context=context, **kwargs
+            )
+        else:
+            schema_timestamp = kwargs.get("_schema_timestamp", schema.get("update_timestamp", 0))
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -1015,6 +1046,7 @@ class GrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            function_chains=schema.get("function_chains"),
         )
 
     def _get_schema(
@@ -1076,11 +1108,27 @@ class GrpcHandler:
 
         fields_info = schema["fields"]
 
-        return (
-            param
-            if param
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
-        )
+        if param:
+            return param
+        if schema.get("function_chains"):
+            # Only a non-null sample is needed to infer transient vector dimensions.
+            # Keep the actual column data and the cached collection schema untouched.
+            sample = {}
+            for entity in entities:
+                values = entity.get("values")
+                if values is not None:
+                    sample[entity.get("name")] = next(
+                        (
+                            values[index]
+                            for index in range(entity_helper.get_input_num_rows(values))
+                            if values[index] is not None
+                        ),
+                        None,
+                    )
+            fields_info = Prepare._with_ingestion_inputs(
+                fields_info, schema["function_chains"], [sample]
+            )
+        return Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
 
     @retry_on_rpc_failure()
     def batch_insert(
@@ -1096,13 +1144,39 @@ class GrpcHandler:
             raise ParamError(message="Invalid binary vector data exists")
 
         try:
+            schema = kwargs.get("schema")
+            if not schema:
+                schema = self.describe_collection(
+                    collection_name, timeout=timeout, context=context, **kwargs
+                )
+            binding = ingestion_binding(schema)
+            self._require_function_chain_transform(binding, timeout, context)
+            prepare_kwargs = {**kwargs, "schema": schema}
             request = self._prepare_batch_insert_request(
-                collection_name, entities, partition_name, timeout, context=context, **kwargs
+                collection_name,
+                entities,
+                partition_name,
+                timeout,
+                context=context,
+                **prepare_kwargs,
             )
-            rf = self._stub.Insert.future(request, timeout=timeout, metadata=_api_level_md(context))
+            try:
+                rf = self._stub.Insert.future(
+                    request, timeout=timeout, metadata=_api_level_md(context)
+                )
+            except grpc.RpcError as error:
+                if binding.function_chains:
+                    raise IngestionFunctionChainError(
+                        error.code(), error.details(), unknown_outcome=True
+                    ) from error
+                raise
+            future_kwargs = {
+                **kwargs,
+                "_ingestion_function_chain": bool(binding.function_chains),
+            }
             if kwargs.get("_async", False):
                 cb = kwargs.get("_callback")
-                f = MutationFuture(rf, cb, timeout=timeout, **kwargs)
+                f = MutationFuture(rf, cb, timeout=timeout, **future_kwargs)
                 f.add_callback(
                     ts_utils.update_ts_on_mutation(
                         collection_name,
@@ -1112,9 +1186,12 @@ class GrpcHandler:
                 )
                 return f
 
-            response = rf.result()
-            check_status(response.status)
-            m = MutationResult(response)
+            if binding.function_chains:
+                m = MutationFuture(rf, timeout=timeout, **future_kwargs).result()
+            else:
+                response = rf.result()
+                check_ingestion_response(response)
+                m = MutationResult(response)
             ts_utils.update_collection_ts(
                 collection_name,
                 m.timestamp,
@@ -1459,6 +1536,7 @@ class GrpcHandler:
             use_default_consistency=use_default_consistency,
             **kwargs,
         )
+        self._require_function_chain_transform(request, timeout, context)
         return self._execute_search(
             request, timeout, round_decimal=round_decimal, context=context, **kwargs
         )
@@ -1542,6 +1620,7 @@ class GrpcHandler:
             function_chains=function_chains,
             **kwargs,
         )
+        self._require_function_chain_transform(hybrid_search_request, timeout, context)
         return self._execute_hybrid_search(
             hybrid_search_request, timeout, round_decimal=round_decimal, context=context, **kwargs
         )
@@ -3055,6 +3134,18 @@ class GrpcHandler:
         )
         check_status(resp.status)
         return GrantInfo(resp.entities)
+
+    def _require_function_chain_transform(
+        self, request: Any, timeout: Optional[float], context: Optional[CallContext]
+    ):
+        if not requires_transform_capability(request):
+            return
+        response = self._stub.GetVersion(
+            Prepare.get_server_version(), timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        if response.status.extra_info.get(TRANSFORM_VERSION_KEY) != "1":
+            raise ParamError(message="server does not advertise function chain transform support")
 
     @retry_on_rpc_failure()
     def get_server_version(

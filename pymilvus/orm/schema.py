@@ -34,6 +34,8 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
     SchemaNotReadyException,
 )
+from pymilvus.function_chain import FunctionChain, FunctionChainStage
+from pymilvus.function_chain.schema import generated_fields
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 from pymilvus.settings import Config
 
@@ -96,6 +98,7 @@ class CollectionSchema:
         description: str = "",
         struct_fields: Optional[List] = None,
         functions: Optional[List] = None,
+        function_chains: Optional[List[FunctionChain]] = None,
         **kwargs,
     ):
         self._kwargs = copy.deepcopy(kwargs)
@@ -112,6 +115,8 @@ class CollectionSchema:
         self._clustering_key_field = None
 
         self._functions = []
+        self._function_chains = copy.deepcopy(function_chains or [])
+        self._check_function_chains()
         if functions:
             if not isinstance(functions, list):
                 raise FunctionsTypeException(message=ExceptionsMessage.FunctionsType)
@@ -305,11 +310,44 @@ class CollectionSchema:
                 )
                 if output_field is not None:
                     output_field.is_function_output = True
+        generated = self._ingestion_output_fields()
+        for output_field in self._fields:
+            if output_field.name in generated:
+                output_field.is_function_output = True
+
+    def _check_function_chains(self):
+        if not isinstance(self._function_chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in self._function_chains
+        ):
+            raise ParamError(message="collection function_chains must be a list of FunctionChain")
+        if len(self._function_chains) > 1:
+            raise ParamError(message="collection supports one INGESTION function chain")
+        for chain in self._function_chains:
+            if (
+                chain.stage != FunctionChainStage.INGESTION
+                or not chain.name.strip()
+                or not chain.ops
+            ):
+                raise ParamError(
+                    message="collection chain requires INGESTION stage, a name and operations"
+                )
+            if self._external_source:
+                raise ParamError(
+                    message="external collections cannot have an INGESTION function chain"
+                )
+            if any(
+                op.op not in {"map", "filter", "select", "explode", "flat_map"} for op in chain.ops
+            ):
+                raise ParamError(message="unsupported INGESTION operator")
+
+    def _ingestion_output_fields(self):
+        return generated_fields(self._function_chains)
 
     def _check(self):
         self._check_kwargs()
         self._check_fields()
         self._check_functions()
+        self._check_function_chains()
 
     def __repr__(self) -> str:
         return str(self.to_dict())
@@ -355,6 +393,9 @@ class CollectionSchema:
             struct_fields=struct_fields,
             description=raw.get("description", ""),
             functions=functions,
+            function_chains=[
+                FunctionChain.from_dict(value) for value in raw.get("function_chains", [])
+            ],
             enable_dynamic_field=enable_dynamic_field,
             enable_namespace=enable_namespace,
             external_source=raw.get("external_source", ""),
@@ -416,6 +457,10 @@ class CollectionSchema:
             List of Function, return when operation is successful.
         """
         return self._functions
+
+    @property
+    def function_chains(self):
+        return copy.deepcopy(self._function_chains)
 
     @property
     def description(self):
@@ -505,6 +550,8 @@ class CollectionSchema:
             res["external_spec"] = self._external_spec
         if self._functions is not None and len(self._functions) > 0:
             res["functions"] = [s.to_dict() for s in self._functions]
+        if self._function_chains:
+            res["function_chains"] = [chain.to_dict() for chain in self._function_chains]
         if self._struct_fields is not None and len(self._struct_fields) > 0:
             res["struct_fields"] = [s.to_dict() for s in self._struct_fields]
         return res
@@ -554,6 +601,17 @@ class CollectionSchema:
         if not isinstance(function, Function):
             raise ParamError(message=ExceptionsMessage.FunctionIncorrectType)
         self._functions.append(function)
+        self._mark_output_fields()
+        return self
+
+    def add_function_chain(self, chain: FunctionChain):
+        previous = self._function_chains
+        self._function_chains = [*previous, copy.deepcopy(chain)]
+        try:
+            self._check_function_chains()
+        except Exception:
+            self._function_chains = previous
+            raise
         self._mark_output_fields()
         return self
 

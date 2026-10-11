@@ -1180,7 +1180,7 @@ class UpsertRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ..., field_ops: _Optional[_Iterable[_Union[_schema_pb2.FieldPartialUpdateOp, _Mapping]]] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ...) -> None: ...
 
 class MutationResult(_message.Message):
-    __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp")
+    __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp", "ingestion_result")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     IDS_FIELD_NUMBER: _ClassVar[int]
     SUCC_INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -1190,6 +1190,7 @@ class MutationResult(_message.Message):
     DELETE_CNT_FIELD_NUMBER: _ClassVar[int]
     UPSERT_CNT_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    INGESTION_RESULT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     IDs: _schema_pb2.IDs
     succ_index: _containers.RepeatedScalarFieldContainer[int]
@@ -1199,7 +1200,8 @@ class MutationResult(_message.Message):
     delete_cnt: int
     upsert_cnt: int
     timestamp: int
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., IDs: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., succ_index: _Optional[_Iterable[int]] = ..., err_index: _Optional[_Iterable[int]] = ..., acknowledged: bool = ..., insert_cnt: _Optional[int] = ..., delete_cnt: _Optional[int] = ..., upsert_cnt: _Optional[int] = ..., timestamp: _Optional[int] = ...) -> None: ...
+    ingestion_result: IngestionFunctionChainResult
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., IDs: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., succ_index: _Optional[_Iterable[int]] = ..., err_index: _Optional[_Iterable[int]] = ..., acknowledged: bool = ..., insert_cnt: _Optional[int] = ..., delete_cnt: _Optional[int] = ..., upsert_cnt: _Optional[int] = ..., timestamp: _Optional[int] = ..., ingestion_result: _Optional[_Union[IngestionFunctionChainResult, _Mapping]] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_name", "expr", "hash_keys", "consistency_level", "expr_template_values", "namespace", "rls_principal", "skip_rls")
@@ -3870,3 +3872,121 @@ class GetExportSnapshotStateResponse(_message.Message):
     status: _common_pb2.Status
     info: ExportSnapshotInfo
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., info: _Optional[_Union[ExportSnapshotInfo, _Mapping]] = ...) -> None: ...
+
+class RunningRequestInfo(_message.Message):
+    __slots__ = ("request_id", "proxy_id", "type", "db_name", "collection_name", "user", "client_addr", "nq", "topk", "expr", "start_time_ms", "queued_ms", "elapsed_ms", "state", "task_ids", "trace_id", "cancellable")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    PROXY_ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_ADDR_FIELD_NUMBER: _ClassVar[int]
+    NQ_FIELD_NUMBER: _ClassVar[int]
+    TOPK_FIELD_NUMBER: _ClassVar[int]
+    EXPR_FIELD_NUMBER: _ClassVar[int]
+    START_TIME_MS_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_MS_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    TASK_IDS_FIELD_NUMBER: _ClassVar[int]
+    TRACE_ID_FIELD_NUMBER: _ClassVar[int]
+    CANCELLABLE_FIELD_NUMBER: _ClassVar[int]
+    request_id: int
+    proxy_id: int
+    type: str
+    db_name: str
+    collection_name: str
+    user: str
+    client_addr: str
+    nq: int
+    topk: int
+    expr: str
+    start_time_ms: int
+    queued_ms: int
+    elapsed_ms: int
+    state: str
+    task_ids: _containers.RepeatedScalarFieldContainer[int]
+    trace_id: str
+    cancellable: bool
+    def __init__(self, request_id: _Optional[int] = ..., proxy_id: _Optional[int] = ..., type: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., client_addr: _Optional[str] = ..., nq: _Optional[int] = ..., topk: _Optional[int] = ..., expr: _Optional[str] = ..., start_time_ms: _Optional[int] = ..., queued_ms: _Optional[int] = ..., elapsed_ms: _Optional[int] = ..., state: _Optional[str] = ..., task_ids: _Optional[_Iterable[int]] = ..., trace_id: _Optional[str] = ..., cancellable: bool = ...) -> None: ...
+
+class RunningRequestNodeResult(_message.Message):
+    __slots__ = ("node_id", "status", "unimplemented")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    UNIMPLEMENTED_FIELD_NUMBER: _ClassVar[int]
+    node_id: int
+    status: _common_pb2.Status
+    unimplemented: bool
+    def __init__(self, node_id: _Optional[int] = ..., status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., unimplemented: bool = ...) -> None: ...
+
+class ListRunningRequestsRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "user", "min_elapsed_ms")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    MIN_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    user: str
+    min_elapsed_ms: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., min_elapsed_ms: _Optional[int] = ...) -> None: ...
+
+class ListRunningRequestsResponse(_message.Message):
+    __slots__ = ("status", "requests", "node_results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    NODE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    requests: _containers.RepeatedCompositeFieldContainer[RunningRequestInfo]
+    node_results: _containers.RepeatedCompositeFieldContainer[RunningRequestNodeResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., requests: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ...) -> None: ...
+
+class CancelRequestsRequest(_message.Message):
+    __slots__ = ("base", "request_ids", "reason", "user")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_IDS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    request_ids: _containers.RepeatedScalarFieldContainer[int]
+    reason: str
+    user: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., request_ids: _Optional[_Iterable[int]] = ..., reason: _Optional[str] = ..., user: _Optional[str] = ...) -> None: ...
+
+class CancelRequestsResponse(_message.Message):
+    __slots__ = ("status", "canceled", "not_found", "node_results", "undetermined")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CANCELED_FIELD_NUMBER: _ClassVar[int]
+    NOT_FOUND_FIELD_NUMBER: _ClassVar[int]
+    NODE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    UNDETERMINED_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    canceled: _containers.RepeatedCompositeFieldContainer[RunningRequestInfo]
+    not_found: _containers.RepeatedScalarFieldContainer[int]
+    node_results: _containers.RepeatedCompositeFieldContainer[RunningRequestNodeResult]
+    undetermined: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[int]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class FunctionChainRowMapping(_message.Message):
+    __slots__ = ("source_offsets", "source_row_indexes")
+    SOURCE_OFFSETS_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_ROW_INDEXES_FIELD_NUMBER: _ClassVar[int]
+    source_offsets: _containers.RepeatedScalarFieldContainer[int]
+    source_row_indexes: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, source_offsets: _Optional[_Iterable[int]] = ..., source_row_indexes: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class IngestionFunctionChainResult(_message.Message):
+    __slots__ = ("input_rows", "output_rows", "output_sources", "outcome_unknown")
+    INPUT_ROWS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_ROWS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_SOURCES_FIELD_NUMBER: _ClassVar[int]
+    OUTCOME_UNKNOWN_FIELD_NUMBER: _ClassVar[int]
+    input_rows: int
+    output_rows: int
+    output_sources: FunctionChainRowMapping
+    outcome_unknown: bool
+    def __init__(self, input_rows: _Optional[int] = ..., output_rows: _Optional[int] = ..., output_sources: _Optional[_Union[FunctionChainRowMapping, _Mapping]] = ..., outcome_unknown: bool = ...) -> None: ...

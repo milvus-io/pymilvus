@@ -27,6 +27,7 @@ class TestAsyncGrpcHandlerDataOps:
         handler._is_channel_ready = True
         handler.ensure_channel_ready = AsyncMock()
         handler._prepare_row_insert_request = AsyncMock(return_value=MagicMock())
+        handler._get_schema = AsyncMock(return_value=({"fields": []}, 0))
 
         mock_stub = AsyncMock()
         mock_response = MagicMock()

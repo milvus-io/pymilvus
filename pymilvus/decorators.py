@@ -13,6 +13,7 @@ import grpc
 from .exceptions import (
     DataNotMatchException,
     ErrorCode,
+    IngestionFunctionChainError,
     MilvusException,
     ParamError,
     SchemaMismatchRetryableException,
@@ -152,8 +153,7 @@ def warn_deprecated(
     reason: str = "is an ORM-style PyMilvus API",
 ) -> None:
     warnings.warn(
-        f"`{api_name}` {reason} and will be removed in PyMilvus 3.1. "
-        f"Use `{replacement}` instead.",
+        f"`{api_name}` {reason} and will be removed in PyMilvus 3.1. Use `{replacement}` instead.",
         category=PyMilvusDeprecationWarning,
         stacklevel=stacklevel,
     )
@@ -350,6 +350,8 @@ def retry_on_rpc_failure(
                         await asyncio.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     except MilvusException as e:
+                        if isinstance(e, IngestionFunctionChainError):
+                            raise
                         if is_timeout(start_time):
                             LOGGER.warning(WARNING_COLOR.format(to_msg))
                             raise MilvusException(
@@ -437,6 +439,8 @@ def retry_on_rpc_failure(
                     time.sleep(back_off)
                     back_off = min(back_off * back_off_multiplier, max_back_off)
                 except MilvusException as e:
+                    if isinstance(e, IngestionFunctionChainError):
+                        raise
                     if timeout(start_time):
                         LOGGER.warning(WARNING_COLOR.format(to_msg))
                         raise MilvusException(

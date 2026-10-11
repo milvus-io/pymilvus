@@ -282,6 +282,11 @@ class MilvusClient(BaseMilvusClient):
                 "insert_count": res.insert_count,
                 "ids": res.primary_keys,
                 "cost": res.cost,
+                **(
+                    {"ingestion_result": res.ingestion_result}
+                    if res.ingestion_result is not None
+                    else {}
+                ),
             }
         )
 

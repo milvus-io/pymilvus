@@ -23,6 +23,7 @@ from pymilvus.exceptions import (
     DescribeCollectionException,
     ErrorCode,
     ExceptionsMessage,
+    IngestionFunctionChainError,
     MilvusException,
     ParamError,
 )
@@ -44,6 +45,12 @@ from .check import (
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
+from .function_chain_capability import (
+    TRANSFORM_VERSION_KEY,
+    check_ingestion_response,
+    ingestion_binding,
+    requires_transform_capability,
+)
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -358,6 +365,7 @@ class AsyncGrpcHandler:
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
         request = Prepare.create_collection_request(collection_name, fields, **kwargs)
+        await self._require_function_chain_transform(request, timeout, context)
         response = await self._async_stub.CreateCollection(
             request, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -600,6 +608,18 @@ class AsyncGrpcHandler:
         check_status(response.status)
         return response.refresh_progress
 
+    async def _require_function_chain_transform(
+        self, request: Any, timeout: Optional[float], context: Optional[CallContext]
+    ):
+        if not requires_transform_capability(request):
+            return
+        response = await self._async_stub.GetVersion(
+            Prepare.get_server_version(), timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        if response.status.extra_info.get(TRANSFORM_VERSION_KEY) != "1":
+            raise ParamError(message="server does not advertise function chain transform support")
+
     @retry_on_rpc_failure()
     async def get_server_version(
         self,
@@ -748,15 +768,35 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        actual_schema, schema_timestamp = await self._get_schema(
+            collection_name, schema=schema, timeout=timeout, context=context, **kwargs
+        )
+        binding = ingestion_binding(actual_schema)
+        await self._require_function_chain_transform(binding, timeout, context)
         request = await self._prepare_row_insert_request(
-            collection_name, entities, partition_name, schema, timeout, context=context, **kwargs
+            collection_name,
+            entities,
+            partition_name,
+            actual_schema,
+            timeout,
+            context=context,
+            _schema_timestamp=schema_timestamp,
+            **kwargs,
         )
-        resp = await self._async_stub.Insert(
-            request=request,
-            timeout=timeout,
-            metadata=_api_level_md(context),
-        )
-        check_status(resp.status)
+        try:
+            resp = await self._async_stub.Insert(
+                request=request, timeout=timeout, metadata=_api_level_md(context)
+            )
+        except grpc.RpcError as error:
+            if binding.function_chains:
+                raise IngestionFunctionChainError(
+                    error.code(), error.details(), unknown_outcome=True
+                ) from error
+            raise
+        if resp.HasField("ingestion_result") is True:
+            check_ingestion_response(resp)
+        else:
+            check_status(resp.status)
         ts_utils.update_collection_ts(
             collection_name,
             resp.timestamp,
@@ -778,9 +818,12 @@ class AsyncGrpcHandler:
         if isinstance(entity_rows, dict):
             entity_rows = [entity_rows]
 
-        schema, schema_timestamp = await self._get_schema(
-            collection_name, schema=schema, timeout=timeout, context=context, **kwargs
-        )
+        if schema is None:
+            schema, schema_timestamp = await self._get_schema(
+                collection_name, timeout=timeout, context=context, **kwargs
+            )
+        else:
+            schema_timestamp = kwargs.get("_schema_timestamp", schema.get("update_timestamp", 0))
         fields_info = schema.get("fields")
         struct_fields_info = schema.get("struct_array_fields", [])  # Default to empty list
         enable_dynamic = schema.get("enable_dynamic_field", False)
@@ -795,6 +838,7 @@ class AsyncGrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            function_chains=schema.get("function_chains"),
         )
 
     @retry_on_rpc_failure()
@@ -1084,6 +1128,7 @@ class AsyncGrpcHandler:
             use_default_consistency=use_default_consistency,
             **kwargs,
         )
+        await self._require_function_chain_transform(request, timeout, context)
         return await self._execute_search(
             request, timeout, context=context, round_decimal=round_decimal, **kwargs
         )
@@ -1167,6 +1212,7 @@ class AsyncGrpcHandler:
             function_chains=function_chains,
             **kwargs,
         )
+        await self._require_function_chain_transform(hybrid_search_request, timeout, context)
         return await self._execute_hybrid_search(
             hybrid_search_request, timeout, context=context, round_decimal=round_decimal, **kwargs
         )

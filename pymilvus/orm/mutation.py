@@ -26,6 +26,11 @@ class MutationResult:
         return self._mr.insert_count if self._mr else 0
 
     @property
+    def ingestion_result(self):
+        """Input/output counts and CSR lineage for collection ingestion."""
+        return self._mr.ingestion_result if self._mr else None
+
+    @property
     def delete_count(self):
         return self._mr.delete_count if self._mr else 0
 
