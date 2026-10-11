@@ -81,16 +81,34 @@ def main():
             )
             .select(["highlight"])
         )
+        rerank = (
+            FunctionChain(FunctionChainStage.L2_RERANK, "query_aware_rerank")
+            .map(
+                "$score",
+                fn.py_udf(
+                    col("text"), resource_name=args.resource_name, udf_params={"mode": "rerank"}
+                ),
+            )
+            .sort("$score", desc=True)
+            .limit(3)
+        )
         results = client.search(
             args.collection,
             data=["hello", "world"],
             anns_field="vector",
             limit=3,
-            function_chains=[pre, post],
+            function_chains=[pre, rerank, post],
         )
         assert len(results) == 2
         assert all(len(hits) == 3 for hits in results)
         assert all(set(hit["entity"]) == {"highlight"} for hits in results for hit in hits)
+        for query_index, query in enumerate(["hello", "world"]):
+            for hit in results[query_index]:
+                highlight = hit["entity"]["highlight"]
+                assert highlight["query"] == query and highlight["query_index"] == query_index
+                assert highlight["query_count"] == 2 and highlight["total_hits"] == 6
+        assert results[0][0]["entity"]["highlight"]["text"] == "alpha"
+        assert results[1][0]["entity"]["highlight"]["text"] == "gamma"
         print("SEARCH", results)
 
         zero = client.insert(args.collection, [{"document": ""}])

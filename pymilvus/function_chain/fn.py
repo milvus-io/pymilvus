@@ -16,9 +16,13 @@ def py_udf(
 ) -> FunctionChainExpr:
     """Invoke the factory exported by a registered Python wheel file resource.
 
-    INGESTION calls ``transform(params, columns)``; query stages call
-    ``transform_query(params, columns)``. Return Arrow arrays with one outer
-    value per input row. A List/Struct output can be expanded with flat_map.
+    INGESTION calls ``transform(params, columns)``. PRE and rerank call
+    ``transform_query(params, columns, context=...)``; context is optional for
+    existing two-argument callables. Rerank context contains ``query_index``.
+    POST calls ``transform_batch(params, batches, context=...)`` once for all
+    query groups and expects one output-column sequence per group. Context
+    includes original/prepared queries for every ANN input. Return Arrow arrays
+    with one outer value per input row. INGESTION can expand a List with flat_map.
     """
     if not cols:
         raise ParamError(message="fn.py_udf requires at least one input column")
