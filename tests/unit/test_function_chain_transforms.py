@@ -117,7 +117,7 @@ def test_ephemeral_inputs_are_encoded_without_generated_destination_values():
 
 @pytest.mark.parametrize(
     "stage",
-    [FunctionChainStage.PRE_PROCESS, FunctionChainStage.POST_PROCESS, FunctionChainStage.L2_RERANK],
+    [FunctionChainStage.POST_PROCESS, FunctionChainStage.L2_RERANK],
 )
 @pytest.mark.parametrize("operation", ["flat_map", "explode"])
 def test_query_stages_reject_row_expansion(stage, operation):

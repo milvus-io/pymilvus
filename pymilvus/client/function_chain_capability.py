@@ -11,6 +11,20 @@ from .utils import check_status
 
 TRANSFORM_VERSION_KEY = "function_chain_transform_version"
 POST_TABLE_VERSION_KEY = "function_chain_post_table_version"
+PRE_QUERY_EXPANSION_VERSION_KEY = "function_chain_pre_query_expansion_version"
+
+
+def requires_pre_query_expansion_capability(request: Message) -> bool:
+    """Require explicit expansion support, including nested Hybrid ANN plans."""
+    if any(
+        chain.stage == schema_pb2.FunctionChainStagePreProcess
+        and any(op.op in ("flat_map", "explode") for op in chain.ops)
+        for chain in getattr(request, "function_chains", ())
+    ):
+        return True
+    return any(
+        requires_pre_query_expansion_capability(sub) for sub in getattr(request, "requests", ())
+    )
 
 
 def requires_table_capability(request: Message) -> bool:

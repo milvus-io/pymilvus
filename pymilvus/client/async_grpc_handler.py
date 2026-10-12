@@ -47,9 +47,11 @@ from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
 from .function_chain_capability import (
     POST_TABLE_VERSION_KEY,
+    PRE_QUERY_EXPANSION_VERSION_KEY,
     TRANSFORM_VERSION_KEY,
     check_ingestion_response,
     ingestion_binding,
+    requires_pre_query_expansion_capability,
     requires_table_capability,
     requires_transform_capability,
 )
@@ -627,6 +629,11 @@ class AsyncGrpcHandler:
             raise ParamError(message="server does not advertise function chain transform support")
         if table and response.status.extra_info.get(POST_TABLE_VERSION_KEY) != "1":
             raise ParamError(message="server does not advertise POST TABLE support")
+        if (
+            requires_pre_query_expansion_capability(request)
+            and response.status.extra_info.get(PRE_QUERY_EXPANSION_VERSION_KEY) != "1"
+        ):
+            raise ParamError(message="server does not advertise PRE query expansion support")
 
     @retry_on_rpc_failure()
     async def get_server_version(

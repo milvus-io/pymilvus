@@ -100,7 +100,7 @@ def _post_option(value: Any, enum: Any, label: str):
         raise ParamError(message=f"Unknown POST {label}: {value!r}") from err
 
 
-_SOURCE_COLUMNS = {"$query_index", "$ann_index"}
+_SOURCE_COLUMNS = {"$query_index", "$subquery_index", "$ann_index"}
 
 
 @dataclass(frozen=True)
@@ -333,6 +333,10 @@ class FunctionChainOp:
     def __post_init__(self):
         if not isinstance(self.op, str) or not self.op:
             raise ParamError(message="Function chain op name must be a non-empty string")
+        if self.op == "reduce":
+            raise ParamError(message="reduce is not supported; use aggregate")
+        if self.op == "concat":
+            raise ParamError(message="concat is not supported; use union_all")
         if self.expr is not None and not isinstance(self.expr, FunctionChainExpr):
             raise ParamError(message="Function chain op expr must be a FunctionChainExpr")
         if not isinstance(self.params, Mapping):
@@ -347,7 +351,7 @@ class FunctionChainOp:
         _copy_param_map(proto.params, self.params)
         if self.expr is not None:
             refs = [arg for arg in self.expr.args if isinstance(arg, ColumnRef)]
-            if self.op != "reduce" and any(ref.data_type is not None for ref in refs):
+            if self.op != "aggregate" and any(ref.data_type is not None for ref in refs):
                 proto.params["$input_data_types"].CopyFrom(
                     _to_param_value([int(ref.data_type or 0) for ref in refs])
                 )
@@ -629,7 +633,11 @@ class FunctionChain:
         outer: bool = False,
         position: Optional[str] = None,
     ) -> "FunctionChain":
-        """Evaluate a List-valued expression and emit one row per element."""
+        """Evaluate a List-valued expression and emit one row per element.
+
+        PRE_PROCESS expansion creates prepared subqueries. The server retains
+        original-query provenance and uses the expanded row count for Search.
+        """
         target = _column_name(output, "flat_map output")
         if not isinstance(expr, FunctionChainExpr):
             raise ParamError(message="flat_map expr must be a FunctionChainExpr")
@@ -651,8 +659,15 @@ class FunctionChain:
         return self
 
     def _expansion_params(self, outer: bool, position: Optional[str]) -> Dict[str, Any]:
-        if self.stage != FunctionChainStage.INGESTION and not self.is_table:
-            raise ParamError(message="row expansion requires INGESTION or POST TABLE")
+        if (
+            self.stage
+            not in {
+                FunctionChainStage.INGESTION,
+                FunctionChainStage.PRE_PROCESS,
+            }
+            and not self.is_table
+        ):
+            raise ParamError(message="row expansion requires INGESTION, PRE_PROCESS or POST TABLE")
         if not isinstance(outer, bool):
             raise ParamError(message="outer must be a bool")
         params = {"outer": outer}
@@ -660,16 +675,20 @@ class FunctionChain:
             _column_name(position, "position")
         return params
 
-    def concat(self) -> "FunctionChain":
-        """Combine logical groups in stable order, retaining duplicate rows."""
-        self._require_table("concat")
-        self._ops.append(FunctionChainOp(op="concat"))
+    def union_all(self) -> "FunctionChain":
+        """Combine logical groups in stable order, like SQL UNION ALL.
+
+        Retains every input row, including duplicate IDs and values, and lets
+        subsequent operations run across the original query/ANN group boundaries.
+        """
+        self._require_table("union_all")
+        self._ops.append(FunctionChainOp(op="union_all"))
         return self
 
     def group_by(
         self, *keys: Union[str, ColumnRef], aliases: Optional[Sequence[str]] = None
     ) -> "GroupedFunctionChain":
-        """Declare keys for the next aggregate/reduce, without emitting a rerank op."""
+        """Declare keys for the next aggregate, without emitting a rerank op."""
         self._require_table("group_by")
         if len(keys) == 1 and isinstance(keys[0], (list, tuple)):
             keys = tuple(keys[0])
@@ -689,17 +708,29 @@ class FunctionChain:
         self._check_source_outputs(outputs, names)
         return GroupedFunctionChain(self, refs, outputs)
 
-    def aggregate(self, aggregates: Mapping[str, FunctionChainAggregate]) -> "FunctionChain":
-        """Aggregate each current logical group; call concat first to combine NQ."""
-        return self._aggregate((), (), aggregates)
+    def aggregate(
+        self,
+        aggregates: Union[Mapping[str, FunctionChainAggregate], str, Sequence[str]],
+        expr: Optional[FunctionChainExpr] = None,
+    ) -> "FunctionChain":
+        """Aggregate each current logical group; call union_all first to combine NQ.
+
+        Pass an alias-to-``agg`` mapping for native aggregation, or output aliases
+        and ``fn.py_udf(...)`` for custom aggregation. Both forms produce exactly
+        one row per group and use the same ``aggregate`` operation.
+        """
+        return self._aggregate((), (), aggregates, expr)
 
     def _aggregate(
         self,
         keys: Sequence[ColumnRef],
         key_outputs: Sequence[str],
-        aggregates: Mapping[str, FunctionChainAggregate],
+        aggregates: Union[Mapping[str, FunctionChainAggregate], str, Sequence[str]],
+        expr: Optional[FunctionChainExpr] = None,
     ) -> "FunctionChain":
         self._require_table("aggregate")
+        if expr is not None:
+            return self._aggregate_udf(keys, key_outputs, aggregates, expr)
         if not isinstance(aggregates, Mapping) or not aggregates:
             raise ParamError(message="aggregate requires a non-empty alias-to-aggregate mapping")
         outputs = list(key_outputs)
@@ -735,42 +766,35 @@ class FunctionChain:
         )
         return self
 
-    def reduce(
-        self, outputs: Union[str, Sequence[str]], expr: FunctionChainExpr
-    ) -> "FunctionChain":
-        """Run a reducing Python UDF once per current logical group."""
-        return self._reduce((), (), outputs, expr)
-
-    def _reduce(
+    def _aggregate_udf(
         self,
         keys: Sequence[ColumnRef],
         key_outputs: Sequence[str],
         outputs: Union[str, Sequence[str]],
         expr: FunctionChainExpr,
     ) -> "FunctionChain":
-        self._require_table("reduce")
         if not isinstance(expr, FunctionChainExpr) or expr.name != "py_udf":
-            raise ParamError(message="reduce requires fn.py_udf")
+            raise ParamError(message="custom aggregate requires fn.py_udf")
         outputs = (outputs,) if isinstance(outputs, str) else outputs
         if not isinstance(outputs, (list, tuple)) or not outputs:
-            raise ParamError(message="reduce outputs must be a non-empty sequence")
+            raise ParamError(message="aggregate outputs must be a non-empty sequence")
         for output in outputs:
             if not isinstance(output, str) or not output:
-                raise ParamError(message="reduce aliases must be non-empty strings")
+                raise ParamError(message="aggregate aliases must be non-empty strings")
             if output.startswith("$"):
-                raise ParamError(message="reduce aliases must be ordinary column names")
+                raise ParamError(message="aggregate aliases must be ordinary column names")
         aliases = tuple(key_outputs) + tuple(outputs)
         if len(set(aliases)) != len(aliases):
-            raise ParamError(message="reduce output names must be unique")
+            raise ParamError(message="aggregate output names must be unique")
         self._check_source_outputs(aliases, [key.name for key in keys])
         params = {"keys": [key.name for key in keys]}
-        # Reduce inputs are composed by the server from key occurrences followed
+        # Custom aggregate inputs are composed from key occurrences followed
         # by expression arguments. Preserve hints in exactly that order.
         refs = list(keys) + [arg for arg in expr.args if isinstance(arg, ColumnRef)]
         hints = [int(ref.data_type or 0) for ref in refs]
         if any(hints):
             params["$input_data_types"] = hints
-        self._ops.append(FunctionChainOp(op="reduce", expr=expr, outputs=aliases, params=params))
+        self._ops.append(FunctionChainOp(op="aggregate", expr=expr, outputs=aliases, params=params))
         return self
 
     @classmethod
@@ -900,15 +924,16 @@ class FunctionChain:
 
 
 class GroupedFunctionChain:
-    """Keys pending an aggregate/reduce; no standalone group_by op is emitted."""
+    """Keys pending an aggregate; no standalone group_by op is emitted."""
 
     def __init__(self, chain: FunctionChain, keys: Sequence[ColumnRef], outputs: Sequence[str]):
         self._chain = chain
         self._keys = keys
         self._outputs = outputs
 
-    def aggregate(self, aggregates: Mapping[str, FunctionChainAggregate]) -> FunctionChain:
-        return self._chain._aggregate(self._keys, self._outputs, aggregates)
-
-    def reduce(self, outputs: Union[str, Sequence[str]], expr: FunctionChainExpr) -> FunctionChain:
-        return self._chain._reduce(self._keys, self._outputs, outputs, expr)
+    def aggregate(
+        self,
+        aggregates: Union[Mapping[str, FunctionChainAggregate], str, Sequence[str]],
+        expr: Optional[FunctionChainExpr] = None,
+    ) -> FunctionChain:
+        return self._chain._aggregate(self._keys, self._outputs, aggregates, expr)

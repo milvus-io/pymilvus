@@ -25,7 +25,7 @@ def main():
     parser.add_argument(
         "--reuse", action="store_true", help="Reuse this example's existing collection"
     )
-    parser.add_argument("--resource-name", help="Registered transform_demo 0.3 wheel resource")
+    parser.add_argument("--resource-name", help="Registered transform_demo 0.5 wheel resource")
     parser.add_argument(
         "--wheel-path", help="Object-storage wheel key to register; not a local file"
     )
@@ -59,7 +59,7 @@ def main():
 
         across_queries = (
             table_chain()
-            .concat()
+            .union_all()
             .group_by("tenant")
             .aggregate(
                 {
@@ -85,7 +85,7 @@ def main():
 
         per_route = (
             table_chain("ann_inputs")
-            .concat()
+            .union_all()
             .group_by("$ann_index")
             .aggregate(
                 {
@@ -156,8 +156,8 @@ def main():
         if args.resource_name:
             summary = (
                 table_chain()
-                .concat()
-                .reduce(
+                .union_all()
+                .aggregate(
                     "summary",
                     fn.py_udf(
                         col("text"),
@@ -178,7 +178,7 @@ def main():
             assert result.row_count == 1
             assert result.rows[0]["summary"]["count"] == 6
             assert result.rows[0]["summary"]["query_count"] == 2
-            print("REDUCE", result.schema, result.rows)
+            print("CUSTOM_AGGREGATE", result.schema, result.rows)
     finally:
         client.close()
 

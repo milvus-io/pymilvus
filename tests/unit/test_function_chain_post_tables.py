@@ -27,7 +27,7 @@ from pymilvus.client.function_chain_table import parse_table_response
 from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.client.prepare import Prepare
 from pymilvus.exceptions import MilvusException, ParamError
-from pymilvus.function_chain import agg, col, fn
+from pymilvus.function_chain import FunctionChainOp, agg, col, fn
 from pymilvus.grpc_gen import milvus_pb2, schema_pb2
 
 
@@ -69,10 +69,11 @@ def table_response(endpoint="search"):
 def test_post_options_roundtrip_and_legacy_defaults():
     legacy = FunctionChain(FunctionChainStage.POST_PROCESS).select(["text"])
     assert not legacy.to_proto().HasField("post_process_options")
-    chain = post("ann_inputs").concat().aggregate({"count": agg.count()})
+    chain = post("ann_inputs").union_all().aggregate({"count": agg.count()})
     wire = chain.to_proto()
     assert wire.post_process_options.result_mode == FunctionChainResultMode.TABLE
     assert wire.post_process_options.input == PostProcessInput.ANN_INPUTS
+    assert [operation.op for operation in wire.ops] == ["union_all", "aggregate"]
     assert FunctionChain.from_proto(wire).to_proto() == wire
     assert FunctionChain.from_dict(chain.to_dict()).to_proto() == wire
 
@@ -131,22 +132,95 @@ def test_grouping_lowers_to_one_aggregate_and_keeps_occurrence_hints():
     assert "input" not in operation.params["aggregates"].array_value.values[2].object_value.fields
 
 
-def test_reduce_key_hints_precede_expression_hints_without_explicit_inputs():
+def test_custom_aggregate_key_hints_precede_expression_hints_without_explicit_inputs():
     chain = (
         post()
-        .concat()
+        .union_all()
         .group_by(col("tenant", DataType.VARCHAR))
-        .reduce("summary", fn.py_udf(col("text", DataType.VARCHAR), resource_name="summary"))
+        .aggregate("summary", fn.py_udf(col("text", DataType.VARCHAR), resource_name="summary"))
     )
     operation = chain.to_proto().ops[1]
-    assert operation.op == "reduce"
+    assert operation.op == "aggregate"
     assert not operation.inputs
+    assert operation.expr.name == "py_udf"
+    assert "aggregates" not in operation.params
+    assert [v.string_value for v in operation.params["keys"].array_value.values] == ["tenant"]
     assert list(operation.outputs) == ["tenant", "summary"]
     assert [v.int64_value for v in operation.params["$input_data_types"].array_value.values] == [
         DataType.VARCHAR,
         DataType.VARCHAR,
     ]
     assert FunctionChain.from_dict(chain.to_dict()).to_proto() == chain.to_proto()
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_custom_aggregate_multiple_outputs_preserve_repeated_arguments_and_key_aliases(grouped):
+    chain = post()
+    builder = (
+        chain.group_by(col("tenant", DataType.VARCHAR), aliases=["group"]) if grouped else chain
+    )
+    text = col("text", DataType.VARCHAR)
+    builder.aggregate(
+        ["summary", "keywords"],
+        fn.py_udf(text, col("$query_index", DataType.INT64), text, resource_name="summary"),
+    )
+    wire = chain.to_proto()
+    assert len(wire.ops) == 1
+    operation = wire.ops[0]
+    assert operation.op == "aggregate"
+    assert not operation.inputs
+    assert list(operation.outputs) == (["group"] if grouped else []) + ["summary", "keywords"]
+    assert [arg.column.name for arg in operation.expr.args] == ["text", "$query_index", "text"]
+    assert [v.int64_value for v in operation.params["$input_data_types"].array_value.values] == (
+        ([DataType.VARCHAR] if grouped else [])
+        + [DataType.VARCHAR, DataType.INT64, DataType.VARCHAR]
+    )
+    assert "aggregates" not in operation.params
+    assert FunctionChain.from_proto(wire).to_proto() == wire
+
+
+@pytest.mark.parametrize(
+    "outputs,expr,message",
+    [
+        ([], fn.py_udf(col("text"), resource_name="summary"), "non-empty sequence"),
+        ({"n": agg.count()}, fn.py_udf(col("text"), resource_name="summary"), "sequence"),
+        (["a", "a"], fn.py_udf(col("text"), resource_name="summary"), "unique"),
+        (["tenant"], fn.py_udf(col("text"), resource_name="summary"), "unique"),
+        (["$score"], fn.py_udf(col("text"), resource_name="summary"), "ordinary"),
+        ("summary", fn.round_decimal(col("score"), decimal=2), "fn.py_udf"),
+        ("summary", "invalid", "fn.py_udf"),
+    ],
+)
+def test_invalid_custom_aggregate_does_not_append_operation(outputs, expr, message):
+    chain = post()
+    with pytest.raises(ParamError, match=message):
+        chain.group_by("tenant").aggregate(outputs, expr)
+    assert not chain.ops
+
+
+def test_native_aggregate_keyword_form_is_unchanged():
+    operation = post().aggregate(aggregates={"n": agg.count()}).to_proto().ops[0]
+    assert operation.op == "aggregate"
+    assert not operation.HasField("expr")
+    assert list(operation.outputs) == ["n"]
+    assert "aggregates" in operation.params
+
+
+@pytest.mark.parametrize("legacy,replacement", [("reduce", "aggregate"), ("concat", "union_all")])
+def test_removed_operations_are_not_an_api_or_serializable(legacy, replacement):
+    assert not hasattr(post(), legacy)
+    assert not hasattr(post().group_by("tenant"), legacy)
+    message = f"{legacy} is not supported; use {replacement}"
+    with pytest.raises(ParamError, match=message):
+        FunctionChainOp(op=legacy)
+    wire = post().aggregate({"n": agg.count()}).to_proto()
+    wire.ops[0].op = legacy
+    with pytest.raises(ParamError, match=message):
+        FunctionChain.from_proto(wire)
+    definition = post().aggregate({"n": agg.count()}).to_dict()
+    definition["ops"][0]["op"] = legacy
+    with pytest.raises(ParamError, match=message):
+        FunctionChain.from_dict(definition)
 
 
 @pytest.mark.parametrize(
@@ -160,15 +234,38 @@ def test_aggregate_arguments_use_column_refs(factory):
 @pytest.mark.parametrize(
     "operation",
     [
-        lambda c: c.concat(),
+        lambda c: c.union_all(),
         lambda c: c.aggregate({"count": agg.count()}),
         lambda c: c.group_by("tenant"),
-        lambda c: c.reduce("summary", fn.py_udf(col("text"), resource_name="summary")),
+        lambda c: c.aggregate("summary", fn.py_udf(col("text"), resource_name="summary")),
     ],
 )
 def test_new_group_operations_require_explicit_table(operation):
     with pytest.raises(ParamError, match="POST TABLE"):
         operation(FunctionChain(FunctionChainStage.POST_PROCESS))
+
+
+@pytest.mark.parametrize(
+    "stage",
+    [
+        FunctionChainStage.INGESTION,
+        FunctionChainStage.PRE_PROCESS,
+        FunctionChainStage.L0_RERANK,
+        FunctionChainStage.L1_RERANK,
+        FunctionChainStage.L2_RERANK,
+    ],
+)
+@pytest.mark.parametrize(
+    "operation",
+    [
+        lambda c: c.union_all(),
+        lambda c: c.aggregate({"count": agg.count()}),
+        lambda c: c.aggregate("summary", fn.py_udf(col("text"), resource_name="summary")),
+    ],
+)
+def test_union_all_and_both_aggregate_modes_reject_other_stages(stage, operation):
+    with pytest.raises(ParamError, match="POST TABLE"):
+        operation(FunctionChain(stage))
 
 
 def test_table_expansion_and_source_projection():
@@ -261,11 +358,11 @@ def test_invalid_utf8_nested_in_struct_is_fully_validated():
         )
 
 
-def test_aggregate_and_reduce_aliases_are_validated_as_strings():
+def test_native_and_custom_aggregate_aliases_are_validated_as_strings():
     with pytest.raises(ParamError, match="aliases must be non-empty strings"):
         post().aggregate({col("bad_alias"): agg.count()})
     with pytest.raises(ParamError, match="aliases must be non-empty strings"):
-        post().reduce([col("bad_alias")], fn.py_udf(col("text"), resource_name="summary"))
+        post().aggregate([col("bad_alias")], fn.py_udf(col("text"), resource_name="summary"))
 
 
 @pytest.mark.parametrize(
@@ -311,7 +408,7 @@ def test_legacy_search_results_keep_their_nq_and_hit_shape():
 
 def test_ann_inputs_has_no_top_level_rank_params_and_keeps_branch_budget():
     branches = [milvus_pb2.SearchRequest(search_params=[])]
-    chain = post("ann_inputs").concat().aggregate({"count": agg.count()})
+    chain = post("ann_inputs").union_all().aggregate({"count": agg.count()})
     request = Prepare.hybrid_search_request_with_ranker(
         "c", branches, None, 1, function_chains=chain
     )

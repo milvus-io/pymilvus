@@ -24,7 +24,6 @@ from pymilvus.bulk_writer.endpoint_resolver import EndpointResolver
 from pymilvus.bulk_writer.upload_policy import UploadPolicy
 from pymilvus.bulk_writer.volume_restful import apply_volume
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
