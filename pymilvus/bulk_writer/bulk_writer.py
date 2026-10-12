@@ -32,8 +32,7 @@ from .constants import (
     BulkFileType,
 )
 
-logger = logging.getLogger("bulk_writer")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class BulkWriter:
