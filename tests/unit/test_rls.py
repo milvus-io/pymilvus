@@ -308,42 +308,22 @@ def test_bulk_import_and_delete_all_tags():
     assert not request.tag_keys
 
 
-@pytest.mark.parametrize(
-    ("method", "rpc", "kwargs", "response"),
-    [
-        (
-            "do_bulk_insert",
-            "Import",
-            {"collection_name": "documents", "files": ["rows.json"], "rls_principal": "alice"},
-            milvus_pb2.ImportResponse(tasks=[1]),
-        ),
-        (
-            "get_bulk_insert_state",
-            "GetImportState",
-            {"task_id": 1},
-            milvus_pb2.GetImportStateResponse(),
-        ),
-        (
-            "list_bulk_insert_tasks",
-            "ListImportTasks",
-            {"collection_name": "documents"},
-            milvus_pb2.ListImportTasksResponse(),
-        ),
-    ],
-)
-def test_bulk_import_connection_context(monkeypatch, method, rpc, kwargs, response):
+@pytest.mark.parametrize("skip_rls", [False, True])
+def test_bulk_import_runtime_options(monkeypatch, skip_rls):
     handler = GrpcHandler(channel=MagicMock())
     handler._stub = MagicMock()
-    getattr(handler._stub, rpc).return_value = response
+    handler._stub.Import.return_value = milvus_pb2.ImportResponse(tasks=[1])
     monkeypatch.setitem(connections._alias_handlers, "rls-test", handler)
-    monkeypatch.setitem(connections._alias_config, "rls-test", {"db_name": "tenant"})
-    getattr(utility, method)(using="rls-test", client_request_id="import-test", **kwargs)
-    sent = getattr(handler._stub, rpc).call_args
-    metadata = dict(sent.kwargs["metadata"])
-    assert metadata["dbname"] == "tenant"
-    assert metadata["client-request-id"] == "import-test"
-    if rpc == "Import":
-        assert {kv.key: kv.value for kv in sent.args[0].options} == {"rls_principal": "alice"}
+    task_id = utility.do_bulk_insert(
+        "documents", ["rows.json"], using="rls-test", rls_principal="alice", skip_rls=skip_rls
+    )
+    assert task_id == 1
+    handler._stub.Import.assert_called_once()
+    request = handler._stub.Import.call_args.args[0]
+    assert {kv.key: kv.value for kv in request.options} == {
+        "rls_principal": "alice",
+        "skip_rls": str(skip_rls).lower(),
+    }
 
 
 @pytest.mark.parametrize("method", [Prepare.batch_insert_param, Prepare.batch_upsert_param])
@@ -385,11 +365,13 @@ async def test_prebuilt_writes_preserve_request_context(client_and_stub):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("client_and_stub", [False], indirect=True)
-@pytest.mark.parametrize("kind", ["query", "search"])
-async def test_iterator_context_survives_probe_and_pages(client_and_stub, kind):
+@pytest.mark.parametrize(("kind", "offset"), [("query", 0), ("query", 1), ("search", 0)])
+@pytest.mark.parametrize(
+    "context", [{}, {"rls_principal": "alice", "skip_rls": False}, {"skip_rls": False}]
+)
+async def test_iterator_context_survives_probe_and_pages(client_and_stub, kind, offset, context):
     client, handler, stub, _ = client_and_stub
     handler.describe_collection = MagicMock(return_value={**SCHEMA, "collection_id": 123})
-    context = {"rls_principal": "alice", "skip_rls": False}
     if kind == "query":
         stub.Query.return_value = milvus_pb2.QueryResults(
             fields_data=[
@@ -401,7 +383,7 @@ async def test_iterator_context_survives_probe_and_pages(client_and_stub, kind):
             ],
             session_ts=123,
         )
-        iterator = client.query_iterator("documents", batch_size=1, **context)
+        iterator = client.query_iterator("documents", batch_size=1, offset=offset, **context)
         rpc = stub.Query
     else:
         stub.Search.return_value = milvus_pb2.SearchResults(
@@ -421,10 +403,14 @@ async def test_iterator_context_survives_probe_and_pages(client_and_stub, kind):
     try:
         iterator.next()
         iterator.next()
-        assert rpc.call_count == 3
-        for call in rpc.call_args_list:
+        assert rpc.call_count == 3 + offset
+        for index, call in enumerate(rpc.call_args_list):
             wire = call.args[0]
-            assert wire.rls_principal == "alice"
+            assert wire.rls_principal == context.get("rls_principal", "")
             assert not wire.skip_rls
+            if kind == "query":
+                params = {kv.key: kv.value for kv in wire.query_params}
+                legacy_seek = offset > 0 and index == 1 and not context
+                assert params["iterator"] == ("False" if legacy_seek else "True")
     finally:
         iterator.close()

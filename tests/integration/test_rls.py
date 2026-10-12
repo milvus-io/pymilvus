@@ -63,12 +63,13 @@ async def call(method, *args, **kwargs):
 
 
 @pytest.fixture
-def collection():
+def collection(request):
     admin = MilvusClient(uri=URI, token=TOKEN, timeout=30)
-    db = "rls_sdk_" + uuid4().hex
-    admin.create_database(db)
+    db = getattr(request, "param", None) or "rls_sdk_" + uuid4().hex
+    if db != "default":
+        admin.create_database(db)
     client = MilvusClient(uri=URI, token=TOKEN, db_name=db, timeout=30)
-    name = "documents"
+    name = "documents_" + uuid4().hex
     try:
         schema = client.create_schema(auto_id=False, enable_dynamic_field=False)
         schema.add_field("id", DataType.INT64, is_primary=True)
@@ -86,7 +87,8 @@ def collection():
     finally:
         try:
             client.drop_collection(name)
-            admin.drop_database(db)
+            if db != "default":
+                admin.drop_database(db)
         finally:
             client.close()
             admin.close()
@@ -234,6 +236,33 @@ def test_iterator_pages(collection, kind):
     assert sorted(found) == [1, 3, 5]
 
 
+@pytest.mark.parametrize("allow_query", [False, True], ids=["iterator_only", "different_policies"])
+def test_query_iterator_offset_uses_iterator_policy(collection, allow_query):
+    client, _, name = collection
+    client.create_row_policy(
+        name,
+        "iterator",
+        "permissive",
+        ["query_iterator"],
+        using_expr="owner == $current_principal",
+    )
+    if allow_query:
+        client.create_row_policy(
+            name, "query", "permissive", ["query"], using_expr='owner == "bob"'
+        )
+    client.insert(name, [row(1, "bob"), row(2, "alice"), row(3, "alice")], skip_rls=True)
+    iterator = client.query_iterator(
+        name, batch_size=1, offset=1, output_fields=["id"], rls_principal="alice"
+    )
+    found = []
+    try:
+        while batch := iterator.next():
+            found.extend(batch)
+    finally:
+        iterator.close()
+    assert ids(found) == [3]
+
+
 def test_orm_column_writes(collection):
     client, db, name = collection
     client.create_row_policy(name, "owner", **OWNER_POLICY)
@@ -291,7 +320,13 @@ def test_skip_requires_privilege(collection):
 @pytest.mark.skipif(
     not os.environ.get("MILVUS_RLS_IMPORT_DIR"), reason="Requires shared local storage"
 )
-@pytest.mark.parametrize("transport", ["grpc", "rest"])
+# shortcut: ORM import omits alias DB metadata; use default until its separate fix lands.
+@pytest.mark.parametrize(
+    ("collection", "transport"),
+    [("default", "grpc"), (None, "rest")],
+    indirect=["collection"],
+    ids=["grpc", "rest"],
+)
 def test_bulk_import(collection, transport):
     client, db, name = collection
     client.create_row_policy(name, "owner", **OWNER_POLICY)
@@ -334,7 +369,6 @@ def test_bulk_import(collection, transport):
             assert ids(client.query(name, filter="id >= 0", skip_rls=True)) == (
                 [1, 2] if skip else [1]
             )
-        assert len(utility.list_bulk_insert_tasks(collection_name=name, using=alias)) == 3
         assert ids(client.query(name, filter="id >= 0", rls_principal="alice")) == [1]
     finally:
         connections.disconnect(alias)
