@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 class BaseMilvusClient:
     """Base class for Milvus clients (synchronous and asynchronous)."""
 
-    def _generate_call_context(self, db_name: Optional[str] = None, **kwargs) -> CallContext:
+    def _generate_call_context(self, **kwargs) -> CallContext:
+        client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(db_name=self._config.db_name, client_request_id=client_request_id)
+
+    def _generate_rls_call_context(self, db_name: Optional[str] = None, **kwargs) -> CallContext:
         client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
         return CallContext(
             db_name=self._config.db_name if db_name is None else db_name,

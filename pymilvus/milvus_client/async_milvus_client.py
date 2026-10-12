@@ -1565,7 +1565,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             check_expr=check_expr,
             description=description,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1598,7 +1598,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             check_expr=check_expr,
             description=description,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1617,7 +1617,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name,
             policy_name,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1634,7 +1634,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             self._config.db_name if db_name is None else db_name,
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1660,7 +1660,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             principal_name,
             tags,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1679,7 +1679,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name,
             principal_name,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1696,7 +1696,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             self._config.db_name if db_name is None else db_name,
             collection_name,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 
@@ -1717,7 +1717,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             principal_name,
             tag_keys=tag_keys,
             timeout=timeout,
-            context=self._generate_call_context(db_name=db_name, **kwargs),
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
             **kwargs,
         )
 

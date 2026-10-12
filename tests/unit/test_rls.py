@@ -115,6 +115,23 @@ MANAGEMENT = [
 
 
 @pytest.mark.asyncio
+async def test_existing_collection_workflow_keeps_client_database(client_and_stub):
+    client, handler, _, is_async = client_and_stub
+    mock = AsyncMock if is_async else MagicMock
+    for method in ("create_collection", "create_index", "load_collection"):
+        setattr(handler, method, mock())
+
+    result = client.create_collection("documents", dimension=2, db_name="other")
+    if is_async:
+        await result
+
+    for method in ("create_collection", "create_index", "load_collection"):
+        rpc = getattr(handler, method)
+        rpc.assert_called_once()
+        assert rpc.call_args.kwargs["context"].get_db_name() == "original"
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(("method", "rpc_name", "kwargs", "response"), MANAGEMENT)
 @pytest.mark.parametrize("db_name", [None, "other"])
 async def test_management_wire(client_and_stub, method, rpc_name, kwargs, response, db_name):
@@ -355,10 +372,11 @@ async def test_prebuilt_writes_preserve_request_context(client_and_stub):
         request_type = milvus_pb2.InsertRequest if kind == "insert" else milvus_pb2.UpsertRequest
         original = request_type(collection_name="documents", rls_principal="alice")
         builder = getattr(handler, f"_prepare_batch_{kind}_request")
-        for options in ({}, {"rls_principal": "bob", "skip_rls": True}):
+        for options in ({}, {"rls_principal": "bob", "skip_rls": True}, {"skip_rls": False}):
             request = builder("documents", [], **{f"{kind}_param": original}, **options)
             if is_async:
                 request = await request
+            assert (request is original) is (not options)
             assert request.rls_principal == options.get("rls_principal", "alice")
             assert request.skip_rls is options.get("skip_rls", False)
             assert original.rls_principal == "alice"

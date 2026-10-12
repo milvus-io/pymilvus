@@ -1078,11 +1078,11 @@ class GrpcHandler:
         param = kwargs.get("insert_param")
         if param and not isinstance(param, milvus_types.InsertRequest):
             raise ParamError(message="The value of key 'insert_param' is invalid")
-        if param:
+        if param and (rls_context := Prepare._rls_context(kwargs)):
             request = type(param)()
             request.CopyFrom(param)
             param = request
-            for key, value in Prepare._rls_context(kwargs).items():
+            for key, value in rls_context.items():
                 setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
@@ -1213,11 +1213,11 @@ class GrpcHandler:
         param = kwargs.get("upsert_param")
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
-        if param:
+        if param and (rls_context := Prepare._rls_context(kwargs)):
             request = type(param)()
             request.CopyFrom(param)
             param = request
-            for key, value in Prepare._rls_context(kwargs).items():
+            for key, value in rls_context.items():
                 setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
