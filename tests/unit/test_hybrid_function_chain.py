@@ -59,12 +59,20 @@ async def hybrid_call(request, monkeypatch):
         channel._unary_unary_interceptors = []
         handler = AsyncGrpcHandler(channel=channel)
         handler._async_stub = MagicMock()
+        handler._async_stub.GetVersion = AsyncMock(return_value=milvus_pb2.GetVersionResponse())
+        handler._async_stub.GetVersion.return_value.status.extra_info[
+            "function_chain_transform_version"
+        ] = "1"
         rpc = AsyncMock(return_value=response)
         handler._async_stub.HybridSearch = rpc
         module = "pymilvus.client.async_grpc_handler"
     else:
         handler = GrpcHandler(channel=MagicMock())
         handler._stub = MagicMock()
+        handler._stub.GetVersion.return_value = milvus_pb2.GetVersionResponse()
+        handler._stub.GetVersion.return_value.status.extra_info[
+            "function_chain_transform_version"
+        ] = "1"
         rpc = handler._stub.HybridSearch
         rpc.return_value = response
         rpc.future.return_value.result.return_value = response
@@ -150,7 +158,6 @@ async def test_invalid_nested_chains_fail_before_rpc(hybrid_call, chains, messag
         FunctionChainStage.PRE_PROCESS,
         FunctionChainStage.POST_PROCESS,
         FunctionChainStage.L2_RERANK,
-        FunctionChainStage.INGESTION,
     ],
 )
 async def test_nested_stage_support_is_validated_by_server(hybrid_call, stage):

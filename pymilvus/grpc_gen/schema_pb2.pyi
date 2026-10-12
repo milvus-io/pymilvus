@@ -66,6 +66,16 @@ class FunctionChainStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FunctionChainStageL2Rerank: _ClassVar[FunctionChainStage]
     FunctionChainStagePostProcess: _ClassVar[FunctionChainStage]
 
+class FunctionChainResultMode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    FunctionChainResultModeHits: _ClassVar[FunctionChainResultMode]
+    FunctionChainResultModeTable: _ClassVar[FunctionChainResultMode]
+
+class PostProcessInput(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    PostProcessInputFused: _ClassVar[PostProcessInput]
+    PostProcessInputAnnInputs: _ClassVar[PostProcessInput]
+
 class ShardState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ShardNormal: _ClassVar[ShardState]
@@ -118,6 +128,10 @@ FunctionChainStageL0Rerank: FunctionChainStage
 FunctionChainStageL1Rerank: FunctionChainStage
 FunctionChainStageL2Rerank: FunctionChainStage
 FunctionChainStagePostProcess: FunctionChainStage
+FunctionChainResultModeHits: FunctionChainResultMode
+FunctionChainResultModeTable: FunctionChainResultMode
+PostProcessInputFused: PostProcessInput
+PostProcessInputAnnInputs: PostProcessInput
 ShardNormal: ShardState
 ShardCreating: ShardState
 ShardSplitting: ShardState
@@ -196,14 +210,32 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class FunctionChain(_message.Message):
-    __slots__ = ("name", "stage", "ops")
+    __slots__ = ("name", "stage", "ops", "post_process_options")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STAGE_FIELD_NUMBER: _ClassVar[int]
     OPS_FIELD_NUMBER: _ClassVar[int]
+    POST_PROCESS_OPTIONS_FIELD_NUMBER: _ClassVar[int]
     name: str
     stage: FunctionChainStage
     ops: _containers.RepeatedCompositeFieldContainer[FunctionChainOp]
-    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ...) -> None: ...
+    post_process_options: PostProcessOptions
+    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ..., post_process_options: _Optional[_Union[PostProcessOptions, _Mapping]] = ...) -> None: ...
+
+class PostProcessOptions(_message.Message):
+    __slots__ = ("result_mode", "input")
+    RESULT_MODE_FIELD_NUMBER: _ClassVar[int]
+    INPUT_FIELD_NUMBER: _ClassVar[int]
+    result_mode: FunctionChainResultMode
+    input: PostProcessInput
+    def __init__(self, result_mode: _Optional[_Union[FunctionChainResultMode, str]] = ..., input: _Optional[_Union[PostProcessInput, str]] = ...) -> None: ...
+
+class FunctionChainTableResult(_message.Message):
+    __slots__ = ("arrow_ipc", "row_count")
+    ARROW_IPC_FIELD_NUMBER: _ClassVar[int]
+    ROW_COUNT_FIELD_NUMBER: _ClassVar[int]
+    arrow_ipc: bytes
+    row_count: int
+    def __init__(self, arrow_ipc: _Optional[bytes] = ..., row_count: _Optional[int] = ...) -> None: ...
 
 class FunctionChainOp(_message.Message):
     __slots__ = ("op", "expr", "inputs", "outputs", "params")
@@ -295,7 +327,7 @@ class FunctionParamObject(_message.Message):
     def __init__(self, fields: _Optional[_Mapping[str, FunctionParamValue]] = ...) -> None: ...
 
 class CollectionSchema(_message.Message):
-    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace")
+    __slots__ = ("name", "description", "autoID", "fields", "enable_dynamic_field", "properties", "functions", "dbName", "struct_array_fields", "version", "external_source", "external_spec", "do_physical_backfill", "file_resource_ids", "enable_namespace", "function_chains")
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     AUTOID_FIELD_NUMBER: _ClassVar[int]
@@ -311,6 +343,7 @@ class CollectionSchema(_message.Message):
     DO_PHYSICAL_BACKFILL_FIELD_NUMBER: _ClassVar[int]
     FILE_RESOURCE_IDS_FIELD_NUMBER: _ClassVar[int]
     ENABLE_NAMESPACE_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_CHAINS_FIELD_NUMBER: _ClassVar[int]
     name: str
     description: str
     autoID: bool
@@ -326,7 +359,8 @@ class CollectionSchema(_message.Message):
     do_physical_backfill: bool
     file_resource_ids: _containers.RepeatedScalarFieldContainer[int]
     enable_namespace: bool
-    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
+    function_chains: _containers.RepeatedCompositeFieldContainer[FunctionChain]
+    def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ..., function_chains: _Optional[_Iterable[_Union[FunctionChain, _Mapping]]] = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
     __slots__ = ("fieldID", "name", "description", "fields", "type_params", "nullable")

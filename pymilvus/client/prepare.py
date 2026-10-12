@@ -10,6 +10,7 @@ import orjson
 
 from pymilvus.exceptions import DataNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.function_chain import FunctionChain, FunctionChainStage
+from pymilvus.function_chain.schema import generated_fields
 from pymilvus.grpc_gen import common_pb2 as common_types
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.grpc_gen import schema_pb2 as schema_types
@@ -213,6 +214,7 @@ class Prepare:
         for f in fields.functions:
             function_schema = cls.convert_function_to_function_schema(f)
             schema.functions.append(function_schema)
+        schema.function_chains.extend(chain.to_proto() for chain in fields.function_chains)
 
         return schema
 
@@ -357,6 +359,10 @@ class Prepare:
     ) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError(message="Param fields must be a dict")
+        if fields.get("function_chains"):
+            return cls.get_schema_from_collection_schema(
+                collection_name, CollectionSchema.construct_from_dict(fields)
+            )
 
         all_fields = fields.get("fields")
         if all_fields is None:
@@ -1304,6 +1310,7 @@ class Prepare:
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
         namespace: Optional[str] = None,
+        function_chains: Optional[List] = None,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1318,9 +1325,87 @@ class Prepare:
             namespace=namespace,
         )
 
+        fields_info = cls._with_ingestion_inputs(fields_info, function_chains, entities)
         return cls._parse_row_request(
             request, fields_info, struct_fields_info, enable_dynamic, entities
         )
+
+    @staticmethod
+    def _with_ingestion_inputs(
+        fields_info: List[Dict], function_chains: Optional[List], entities: List[Dict]
+    ):
+        if not function_chains:
+            return fields_info
+        fields = [dict(field) for field in fields_info]
+        chains = [
+            value if isinstance(value, FunctionChain) else FunctionChain.from_dict(value)
+            for value in function_chains
+        ]
+        generated = generated_fields(chains)
+        for field in fields:
+            if field["name"] in generated:
+                field["is_function_output"] = True
+        known = {field["name"]: field for field in fields}
+        produced = set()
+        for chain in chains:
+            for op in chain.to_proto().ops:
+                refs = [arg.column.name for arg in op.expr.args if arg.HasField("column")]
+                if not op.HasField("expr"):
+                    refs = list(op.inputs)
+                hints = op.params.get("$input_data_types")
+                hints = [value.int64_value for value in hints.array_value.values] if hints else []
+                for index, name in enumerate(refs):
+                    if name in produced or name.split(".", 1)[0] in produced:
+                        continue
+                    root = name.split(".", 1)[0]
+                    if root in known:
+                        known[root]["is_function_output"] = False
+                        continue
+                    if index >= len(hints) or hints[index] == DataType.NONE:
+                        raise ParamError(
+                            message=f"INGESTION input {name} needs col(..., data_type=...)"
+                        )
+                    dtype = DataType(hints[index])
+                    field = {"name": root, "type": dtype, "params": {}}
+                    sample = next(
+                        (row.get(root) for row in entities if row.get(root) is not None), None
+                    )
+                    if dtype == DataType.SPARSE_FLOAT_VECTOR:
+                        pass  # Sparse serialization computes the logical dimension.
+                    elif isVectorDataType(dtype):
+                        if sample is None:
+                            raise ParamError(
+                                message=f"cannot infer dimension of INGESTION input {name}"
+                            )
+                        dimension = len(sample)
+                        if dtype == DataType.BINARY_VECTOR:
+                            dimension *= 8
+                        elif dtype in {
+                            DataType.FLOAT16_VECTOR,
+                            DataType.BFLOAT16_VECTOR,
+                        } and isinstance(sample, (bytes, bytearray, memoryview)):
+                            size = sample.nbytes if isinstance(sample, memoryview) else len(sample)
+                            if size % 2:
+                                raise ParamError(
+                                    message=f"invalid half-vector byte length for INGESTION input {name}"
+                                )
+                            dimension = size // 2
+                        field["params"]["dim"] = dimension
+                    elif dtype in {
+                        DataType.ARRAY,
+                        DataType._ARRAY_OF_STRUCT,
+                        DataType._ARRAY_OF_VECTOR,
+                    }:
+                        raise ParamError(
+                            message="nested INGESTION inputs must be declared in collection schema"
+                        )
+                    fields.append(field)
+                    known[root] = field
+                if op.op == "select":
+                    produced = set(op.outputs or op.inputs)
+                else:
+                    produced.update(op.outputs)
+        return fields
 
     @classmethod
     def row_upsert_param(
@@ -1692,9 +1777,6 @@ class Prepare:
             return []
         if isinstance(function_chains, list) and len(function_chains) == 0:
             return []
-        if ranker is not None:
-            raise ParamError(message="function_chains and ranker cannot be used together")
-
         chains = (
             [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
         )
@@ -1706,11 +1788,47 @@ class Prepare:
             )
 
         for chain in chains:
-            if chain.stage == FunctionChainStage.UNSPECIFIED:
+            if chain.stage in {FunctionChainStage.UNSPECIFIED, FunctionChainStage.INGESTION}:
                 raise ParamError(
-                    message="UNSPECIFIED function chain stage is not supported for search"
+                    message=f"{chain.stage.name} function chain stage is not supported for search"
                 )
+            if chain.is_table and not chain.ops:
+                raise ParamError(message="POST TABLE requires at least one operation")
+        if (
+            any(chain.is_table for chain in chains)
+            and sum(chain.stage == FunctionChainStage.POST_PROCESS for chain in chains) != 1
+        ):
+            raise ParamError(message="POST TABLE requires exactly one POST_PROCESS chain")
+        if ranker is not None and any(
+            chain.stage
+            in {
+                FunctionChainStage.L0_RERANK,
+                FunctionChainStage.L1_RERANK,
+                FunctionChainStage.L2_RERANK,
+            }
+            for chain in chains
+        ):
+            raise ParamError(message="function_chains and ranker cannot be used together")
         return [chain.to_proto() for chain in chains]
+
+    @staticmethod
+    def query_function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+    ) -> List[schema_types.FunctionChain]:
+        chains = Prepare.function_chains_schema(function_chains)
+        for chain in chains:
+            if (
+                chain.stage != schema_types.FunctionChainStagePostProcess
+                or chain.post_process_options.result_mode
+                != schema_types.FunctionChainResultModeTable
+                or chain.post_process_options.input != schema_types.PostProcessInputFused
+            ):
+                raise ParamError(
+                    message="Query function chains require POST TABLE with FUSED input"
+                )
+        if len(chains) > 1:
+            raise ParamError(message="Query supports one POST TABLE chain")
+        return chains
 
     @staticmethod
     def hybrid_function_chains_schema(
@@ -1719,9 +1837,6 @@ class Prepare:
     ) -> List[schema_types.FunctionChain]:
         if function_chains is None or function_chains == []:
             return []
-        if rerank is not None:
-            raise ParamError(message="function_chains and ranker cannot be used together")
-
         chains = (
             [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
         )
@@ -1732,7 +1847,6 @@ class Prepare:
                 message="function_chains must be a FunctionChain or a list of FunctionChain"
             )
         supported_stages = {
-            FunctionChainStage.PRE_PROCESS,
             FunctionChainStage.L2_RERANK,
             FunctionChainStage.POST_PROCESS,
         }
@@ -1742,8 +1856,25 @@ class Prepare:
                 raise ParamError(message=f"stage {stage_name} is not supported in hybrid_search")
 
         rerank_chains = [chain for chain in chains if chain.stage == FunctionChainStage.L2_RERANK]
-        if len(rerank_chains) != 1:
+        if len(rerank_chains) > 1:
             raise ParamError(message="hybrid_search requires exactly one L2_RERANK function chain")
+        if rerank is not None and rerank_chains:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        table_chains = [chain for chain in chains if chain.is_table]
+        if table_chains and (
+            sum(chain.stage == FunctionChainStage.POST_PROCESS for chain in chains) != 1
+            or not table_chains[0].ops
+        ):
+            raise ParamError(message="hybrid_search requires one non-empty POST TABLE chain")
+        ann_inputs = any(
+            chain.is_table and chain.post_process_input == schema_types.PostProcessInputAnnInputs
+            for chain in chains
+        )
+        if ann_inputs and (rerank is not None or rerank_chains):
+            raise ParamError(
+                message="ANN_INPUTS cannot be combined with a top-level ranker or L2 chain"
+            )
 
         return [chain.to_proto() for chain in chains]
 
@@ -1980,6 +2111,25 @@ class Prepare:
             request.dsl = expr
 
         request.function_chains.extend(Prepare.function_chains_schema(function_chains, ranker))
+        if search_aggregation is not None and any(
+            chain.post_process_options.result_mode == schema_types.FunctionChainResultModeTable
+            for chain in request.function_chains
+        ):
+            raise ParamError(message="POST TABLE does not support search_aggregation")
+        if any(
+            chain.post_process_options.input == schema_types.PostProcessInputAnnInputs
+            for chain in request.function_chains
+        ):
+            raise ParamError(message="ANN_INPUTS requires HybridSearch")
+        if ids is not None and any(
+            chain.stage
+            in {
+                FunctionChainStage.PRE_PROCESS,
+                FunctionChainStage.POST_PROCESS,
+            }
+            for chain in request.function_chains
+        ):
+            raise ParamError(message="PRE_PROCESS and POST_PROCESS do not support search by IDs")
 
         if isinstance(ranker, Function):
             request.function_score.CopyFrom(Prepare.ranker_to_function_score(ranker))
@@ -2032,9 +2182,20 @@ class Prepare:
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
         chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
+        ann_inputs = any(
+            chain.post_process_options.input == schema_types.PostProcessInputAnnInputs
+            for chain in chain_protos
+        )
         for index, sub_request in enumerate(reqs):
             nested_chains = sub_request.function_chains
-            if nested_chains and isinstance(rerank, Function):
+            if isinstance(rerank, Function) and any(
+                chain.stage
+                in {
+                    FunctionChainStage.L0_RERANK,
+                    FunctionChainStage.L1_RERANK,
+                }
+                for chain in nested_chains
+            ):
                 raise ParamError(
                     message=f"function_score cannot be used with function_chains in sub-search[{index}]"
                 )
@@ -2042,6 +2203,12 @@ class Prepare:
             for chain in nested_chains:
                 stage = chain.stage
                 stage_name = schema_types.FunctionChainStage.Name(stage)
+                if (
+                    stage == schema_types.FunctionChainStagePostProcess
+                    and chain.post_process_options.result_mode
+                    == schema_types.FunctionChainResultModeTable
+                ):
+                    raise ParamError(message="POST_PROCESS belongs to top-level hybrid_search")
                 if stage in seen_stages:
                     raise ParamError(
                         message=f"stage {stage_name} appears more than once in hybrid sub-search[{index}]"
@@ -2057,6 +2224,10 @@ class Prepare:
         rerank_param["limit"] = limit
         rerank_param["round_decimal"] = round_decimal
         rerank_param["offset"] = kwargs.get("offset", 0)
+        if ann_inputs:
+            # Branch limits define this mode's input budget. It does not have a
+            # top-level fusion, ranker, pagination or final candidate limit.
+            rerank_param = {}
 
         request = milvus_types.HybridSearchRequest(
             collection_name=collection_name,
@@ -2078,6 +2249,8 @@ class Prepare:
         request.function_chains.extend(chain_protos)
 
         for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
+            if ann_inputs:
+                break
             val = kwargs.get(param_key)
             if val is not None:
                 request.rank_params.append(
@@ -2434,6 +2607,16 @@ class Prepare:
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
             namespace=kwargs.get("namespace"),
         )
+        chains = cls.query_function_chains_schema(kwargs.get("function_chains"))
+        if chains:
+            if str(kwargs.get(ITERATOR_FIELD, "false")).lower() in {"true", "1"}:
+                raise ParamError(message="POST TABLE does not support Query Iterator")
+            if kwargs.get(QUERY_GROUP_BY_FIELDS) or any(
+                re.match(r"\s*(count|sum|avg|min|max)\s*\(", field, re.IGNORECASE)
+                for field in output_fields or []
+            ):
+                raise ParamError(message="POST TABLE does not support native Query aggregation")
+            req.function_chains.extend(chains)
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
             req.query_params.append(

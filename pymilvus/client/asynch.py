@@ -5,10 +5,12 @@ from typing import Any, Callable, Optional
 
 import grpc
 
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import ErrorCode, IngestionFunctionChainError, MilvusException
 from pymilvus.grpc_gen import milvus_pb2
 
 from .abstract import MutationResult
+from .function_chain_capability import check_ingestion_response
+from .function_chain_table import parse_table_response
 from .search_result import SearchResult
 from .types import Status
 from .utils import check_status
@@ -192,12 +194,119 @@ class SearchFuture(Future):
         if response is None:
             raise MilvusException(message="Received None response from server during search")
         check_status(response.status)
+        table = parse_table_response(response, expected=self._kwargs.get("expected_table", False))
+        if table is not None:
+            return table
         return SearchResult(response.results, status=response.status)
 
 
 class MutationFuture(Future):
+    def _unknown_outcome(self, error: Exception) -> IngestionFunctionChainError:
+        if isinstance(error, grpc.RpcError):
+            return IngestionFunctionChainError(error.code(), error.details(), unknown_outcome=True)
+        if isinstance(error, grpc.FutureTimeoutError):
+            return IngestionFunctionChainError(
+                grpc.StatusCode.DEADLINE_EXCEEDED,
+                "Waiting for INSERT response timed out; ingestion outcome is unknown",
+                unknown_outcome=True,
+            )
+        if isinstance(error, grpc.FutureCancelledError):
+            return IngestionFunctionChainError(
+                grpc.StatusCode.CANCELLED,
+                "INSERT response was cancelled; ingestion outcome is unknown",
+                unknown_outcome=True,
+            )
+        return IngestionFunctionChainError(
+            error.code if isinstance(error, MilvusException) else ErrorCode.UNEXPECTED_ERROR,
+            str(error),
+            unknown_outcome=True,
+        )
+
+    def _resolve_ingestion(self, timeout: Optional[float] = None) -> None:
+        if self._exception:
+            raise self._exception
+        if self._results is not None:
+            return
+        try:
+            try:
+                self._response = self._future.result(timeout=timeout) if self._future else None
+            except (grpc.RpcError, grpc.FutureTimeoutError, grpc.FutureCancelledError) as error:
+                raise self._unknown_outcome(error) from error
+            if self._response is None:
+                error = _build_none_response_exception(self._future)
+                raise self._unknown_outcome(error) from error
+            self._results = self.on_response(self._response)
+        except Exception as error:
+            # A local wait timeout does not finish the RPC. A later result() may
+            # still recover the confirmed response without resubmitting INSERT.
+            if not isinstance(error.__cause__, grpc.FutureTimeoutError):
+                self._exception = error
+                self._done = True
+            raise
+        finally:
+            self._condition.notify_all()
+        self._done = True
+        self._callback()
+
+    def result(self, **kwargs):
+        if not self._kwargs.get("_ingestion_function_chain", False):
+            try:
+                return super().result(**kwargs)
+            except IngestionFunctionChainError as error:
+                with self._condition:
+                    self._exception = error
+                    self._done = True
+                    self._condition.notify_all()
+                raise
+        with self._condition:
+            timeout = kwargs.get("timeout")
+            if timeout is None:
+                timeout = self._kwargs.get("timeout")
+            self._resolve_ingestion(timeout)
+            return self._response if kwargs.get("raw", False) else self._results
+
+    def done(self):
+        if not self._kwargs.get("_ingestion_function_chain", False):
+            return super().done()
+        with self._condition:
+            try:
+                self._resolve_ingestion()
+            except Exception as error:
+                # Match Future.done(): report failure through exception()/result().
+                if not isinstance(error.__cause__, grpc.FutureTimeoutError):
+                    self._exception = error
+                return None
+        return None
+
+    def exception(self):
+        if not self._kwargs.get("_ingestion_function_chain", False):
+            return super().exception()
+        with self._condition:
+            if self._exception:
+                raise self._exception
+            if self._future:
+                try:
+                    error = self._future.exception()
+                except (grpc.RpcError, grpc.FutureCancelledError) as error:
+                    self._exception = self._unknown_outcome(error)
+                    self._done = True
+                    self._condition.notify_all()
+                    raise self._exception from error
+                if error is not None:
+                    self._exception = self._unknown_outcome(error)
+                    self._done = True
+                    self._condition.notify_all()
+                    raise self._exception from error
+        return None
+
     def on_response(self, response: Any):
-        check_status(response.status)
+        if self._kwargs.get("_ingestion_function_chain", False) or (
+            isinstance(response, milvus_pb2.MutationResult)
+            and response.HasField("ingestion_result")
+        ):
+            check_ingestion_response(response)
+        else:
+            check_status(response.status)
         return MutationResult(response)
 
 

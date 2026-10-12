@@ -57,6 +57,10 @@ publish-url = "https://test.pypi.org/legacy/"
 explicit = true
 
 [project.optional-dependencies]
+arrow = [
+    "pyarrow>=12.0.0",
+]
+
 bulk_writer = [
     "requests",
     "minio>=7.0.0",

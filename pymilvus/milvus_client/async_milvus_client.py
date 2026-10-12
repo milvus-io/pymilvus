@@ -8,6 +8,7 @@ from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.function_chain_table import FunctionChainTableResult
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     _DEFAULT_RETAINED_SEGMENT_STATES,
@@ -468,6 +469,11 @@ class AsyncMilvusClient(BaseMilvusClient):
                 "insert_count": res.insert_count,
                 "ids": res.primary_keys,
                 "cost": res.cost,
+                **(
+                    {"ingestion_result": res.ingestion_result}
+                    if res.ingestion_result is not None
+                    else {}
+                ),
             }
         )
 
@@ -551,13 +557,16 @@ class AsyncMilvusClient(BaseMilvusClient):
         partition_names: Optional[List[str]] = None,
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
-    ) -> List[List[dict]]:
+    ) -> Union[List[List[dict]], FunctionChainTableResult]:
         """Run hybrid search with optional per-request function chains.
 
         Set ``AnnSearchRequest.function_chains`` for each recall source and
         ``function_chains`` here for top-level L2 fusion. Nested chains support
         legacy rankers or top-level L2, but not a Function ranker. Supported
         per-request stages are determined by the server.
+
+        Explicit POST TABLE returns an independent Arrow table. ANN_INPUTS
+        rejects top-level rankers/L2 and uses each branch's candidate limit.
         """
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
@@ -591,7 +600,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
-    ) -> List[List[dict]]:
+    ) -> Union[List[List[dict]], FunctionChainTableResult]:
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
@@ -622,8 +631,9 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         ids: Optional[Union[List, str, int]] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
-    ) -> List[dict]:
+    ) -> Union[List[dict], FunctionChainTableResult]:
         if filter and not isinstance(filter, str):
             raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
 
@@ -657,6 +667,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,

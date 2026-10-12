@@ -21,6 +21,7 @@ from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.bloom_filter import BloomFilterBuilder, build_bloom_filter
 from .client.field_ops import FieldOp, FieldOpType
+from .client.function_chain_table import FunctionChainTableResult, TableResult
 from .client.prepare import Prepare
 from .client.roaring_filter import RoaringBitmapBuilder, build_roaring_bitmap
 from .client.search_aggregation import (
@@ -50,7 +51,12 @@ from .exceptions import (
     MilvusException,
     MilvusUnavailableException,
 )
-from .function_chain import FunctionChain, FunctionChainStage
+from .function_chain import (
+    FunctionChain,
+    FunctionChainResultMode,
+    FunctionChainStage,
+    PostProcessInput,
+)
 from .milvus_client import AsyncMilvusClient, MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
@@ -119,7 +125,9 @@ __all__ = [
     "FieldSchema",
     "Function",
     "FunctionChain",
+    "FunctionChainResultMode",
     "FunctionChainStage",
+    "FunctionChainTableResult",
     "FunctionScore",
     "FunctionType",
     "Group",
@@ -133,6 +141,7 @@ __all__ = [
     "MilvusUnavailableException",
     "MutationFuture",
     "Partition",
+    "PostProcessInput",
     "Prepare",
     "PyMilvusDeprecationWarning",
     "RRFRanker",
@@ -148,6 +157,7 @@ __all__ = [
     "Shard",
     "Status",
     "StructFieldSchema",
+    "TableResult",
     "TopHits",
     "WeightedRanker",
     "__version__",

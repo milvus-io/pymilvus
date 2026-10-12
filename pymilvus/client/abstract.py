@@ -6,6 +6,7 @@ import orjson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.function_chain import FunctionChain
+from pymilvus.function_chain.schema import generated_fields
 from pymilvus.settings import Config
 
 from . import utils
@@ -249,6 +250,7 @@ class CollectionSchema:
         self.fields = []
         self.struct_array_fields = []
         self.functions = []
+        self.function_chains = []
         self.statistics = {}
         self.auto_id = False  # auto_id is not in collection level any more later
         self.aliases = []
@@ -309,8 +311,12 @@ class CollectionSchema:
             StructArrayFieldSchema(f) for f in raw.schema.struct_array_fields
         ]
         self.functions = [FunctionSchema(f) for f in raw.schema.functions]
+        self.function_chains = [
+            FunctionChain.from_proto(chain) for chain in raw.schema.function_chains
+        ]
         self.schema_version = raw.schema.version
         function_output_field_names = [f for fn in self.functions for f in fn.output_field_names]
+        function_output_field_names.extend(generated_fields(self.function_chains))
         for field in self.fields:
             if field.name in function_output_field_names:
                 field.is_function_output = True
@@ -352,6 +358,8 @@ class CollectionSchema:
             "schema_version": self.schema_version,
         }
 
+        if self.function_chains:
+            _dict["function_chains"] = [chain.to_dict() for chain in self.function_chains]
         if self.external_source:
             _dict["external_source"] = self.external_source
         if self.external_spec:
@@ -378,6 +386,7 @@ class MutationResult:
         self._succ_index = []
         self._err_index = []
         self._cost = 0
+        self._ingestion_result = None
 
         self._pack(raw)
 
@@ -388,6 +397,11 @@ class MutationResult:
     @property
     def insert_count(self):
         return self._insert_cnt
+
+    @property
+    def ingestion_result(self):
+        """Input/output counts and CSR lineage for collection ingestion."""
+        return self._ingestion_result
 
     @property
     def delete_count(self):
@@ -444,6 +458,15 @@ class MutationResult:
     #     pass
 
     def _pack(self, raw: Any):
+        if raw.HasField("ingestion_result") is True:
+            result = raw.ingestion_result
+            self._ingestion_result = {
+                "input_rows": result.input_rows,
+                "output_rows": result.output_rows,
+                "source_offsets": list(result.output_sources.source_offsets),
+                "source_row_indexes": list(result.output_sources.source_row_indexes),
+                "outcome_unknown": result.outcome_unknown,
+            }
         which = raw.IDs.WhichOneof("id_field")
         if which == "int_id":
             self._primary_keys = raw.IDs.int_id.data

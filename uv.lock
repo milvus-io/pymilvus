@@ -3484,6 +3484,10 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+arrow = [
+    { name = "pyarrow", version = "21.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "pyarrow", version = "24.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+]
 bloom-filter = [
     { name = "xxhash" },
 ]
@@ -3562,6 +3566,7 @@ requires-dist = [
     { name = "orjson", specifier = ">=3.10.15" },
     { name = "pandas", specifier = ">=1.2.4" },
     { name = "protobuf", specifier = ">=5.27.2" },
+    { name = "pyarrow", marker = "extra == 'arrow'", specifier = ">=12.0.0" },
     { name = "pyarrow", marker = "extra == 'bulk-writer'", specifier = ">=12.0.0" },
     { name = "pymilvus-model", marker = "extra == 'model'", specifier = ">=0.3.0" },
     { name = "python-dotenv", specifier = ">=1.0.1,<2.0.0" },
@@ -3571,7 +3576,7 @@ requires-dist = [
     { name = "urllib3", marker = "extra == 'bulk-writer'" },
     { name = "xxhash", marker = "extra == 'bloom-filter'", specifier = ">=3.0.0" },
 ]
-provides-extras = ["bloom-filter", "bulk-writer", "milvus-lite", "model"]
+provides-extras = ["arrow", "bloom-filter", "bulk-writer", "milvus-lite", "model"]
 
 [package.metadata.requires-dev]
 codegen = [

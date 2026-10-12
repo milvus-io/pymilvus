@@ -11,6 +11,7 @@
 # the License.
 
 from enum import IntEnum
+from typing import Any
 
 from .grpc_gen import common_pb2
 
@@ -83,6 +84,23 @@ class MilvusException(Exception):
 
     def __str__(self) -> str:
         return f"<{type(self).__name__}: (code={self.code}, message={self.message})>"
+
+
+class IngestionFunctionChainError(MilvusException):
+    """An ingestion INSERT failed; inspect mutation_result before any retry.
+
+    mutation_result contains confirmed IDs and their source mapping when the
+    server returned them. unknown_outcome means no response established which
+    rows were written. SDK retry decorators never replay this exception.
+    """
+
+    def __init__(
+        self, *args: Any, mutation_result: Any = None, unknown_outcome: bool = False, **kwargs: Any
+    ):
+        kwargs["retriable"] = False
+        super().__init__(*args, **kwargs)
+        self.mutation_result = mutation_result
+        self.unknown_outcome = unknown_outcome
 
 
 class ParamError(MilvusException):
@@ -193,8 +211,7 @@ class ExceptionsMessage:
     HostType = "Type of 'host' must be str."
     PortType = "Type of 'port' must be str or int."
     ConnDiffConf = (
-        "Alias of %r already creating connections, "
-        "but the configure is not the same as passed in."
+        "Alias of %r already creating connections, but the configure is not the same as passed in."
     )
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
@@ -210,8 +227,7 @@ class ExceptionsMessage:
     AutoIDType = "Param auto_id must be bool type."
     NumPartitionsType = "Param num_partitions must be int type."
     AutoIDInconsistent = (
-        "The auto_id of the collection is inconsistent "
-        "with the auto_id of the primary key field."
+        "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
     )
     AutoIDIllegalRanges = "The auto-generated id ranges should be pairs."
     ConsistencyLevelInconsistent = (

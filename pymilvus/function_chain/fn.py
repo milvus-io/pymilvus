@@ -9,6 +9,45 @@ _DECAY_FUNCTIONS = {"gauss", "exp", "linear"}
 _XGBOOST_OUTPUTS = {"default", "raw"}
 
 
+def py_udf(
+    *cols: ColumnRef,
+    resource_name: str,
+    udf_params: Optional[dict] = None,
+) -> FunctionChainExpr:
+    """Invoke the factory exported by a registered Python wheel file resource.
+
+    INGESTION calls ``transform(params, columns)``. PRE and rerank call
+    ``transform_query(params, columns, context=...)``; context is optional for
+    existing two-argument callables. Rerank context contains ``query_index``.
+    POST calls ``transform_batch(params, batches, context=...)`` once for all
+    query groups and expects one output-column sequence per group. Context
+    includes original/prepared queries for every ANN input. Return Arrow arrays
+    with one outer value per input row. INGESTION and PRE_PROCESS can expand a
+    List with flat_map. In PRE, subsequent calls receive the current prepared
+    subquery inputs while context.original_queries retains the original NQ.
+
+    POST TABLE uses the same batch callable with ``context.table_result=True``.
+    For ``chain.aggregate(outputs, expr)``, ``context.reduction=True`` and every
+    input batch must yield exactly one output row. ``context.query_count`` is
+    original NQ (zero for Query), not the current group count. Read row provenance
+    explicitly from ``col("$query_index")``, ``col("$subquery_index")`` or
+    ``col("$ann_index")``.
+    """
+    if not cols:
+        raise ParamError(message="fn.py_udf requires at least one input column")
+    for value in cols:
+        _check_column_ref(value, "fn.py_udf argument")
+    if not isinstance(resource_name, str) or not resource_name.strip():
+        raise ParamError(message="fn.py_udf resource_name must be non-empty")
+    if udf_params is not None and not isinstance(udf_params, dict):
+        raise ParamError(message="fn.py_udf udf_params must be a dict")
+    return FunctionChainExpr(
+        "py_udf",
+        args=cols,
+        params={"resource_name": resource_name, "udf_params": udf_params or {}},
+    )
+
+
 def _check_column_ref(value: Any, param_name: str) -> None:
     """Validate that a function argument is a column reference.
 
