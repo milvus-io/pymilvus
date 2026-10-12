@@ -143,6 +143,67 @@ class TestAsyncGrpcHandlerDataOps:
             assert result is not None
 
     @pytest.mark.asyncio
+    async def test_prepare_row_upsert_request_forwards_namespace(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._get_schema = AsyncMock(
+            return_value=(
+                {
+                    "fields": [
+                        {"name": "id", "type": DataType.INT64, "is_primary": True},
+                        {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+                    ],
+                    "struct_array_fields": [],
+                    "enable_dynamic_field": False,
+                },
+                0,
+            )
+        )
+
+        with patch(
+            "pymilvus.client.async_grpc_handler.Prepare.row_upsert_param",
+            return_value=MagicMock(),
+        ) as mock_prepare:
+            await handler._prepare_row_upsert_request(
+                "test_coll",
+                [{"id": 1, "vector": [0.1, 0.2, 0.3, 0.4]}],
+                namespace="tenant_a",
+            )
+
+        assert mock_prepare.call_args.kwargs["namespace"] == "tenant_a"
+
+    @pytest.mark.asyncio
+    async def test_prepare_batch_upsert_request_forwards_namespace(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._get_schema = AsyncMock(
+            return_value=(
+                {
+                    "fields": [
+                        {"name": "id", "type": DataType.INT64, "is_primary": True},
+                        {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 4}},
+                    ],
+                    "enable_dynamic_field": False,
+                },
+                0,
+            )
+        )
+
+        with patch(
+            "pymilvus.client.async_grpc_handler.Prepare.batch_upsert_param",
+            return_value=MagicMock(),
+        ) as mock_prepare:
+            await handler._prepare_batch_upsert_request(
+                "test_coll",
+                [[1], [[0.1, 0.2, 0.3, 0.4]]],
+                namespace="tenant_a",
+            )
+
+        assert mock_prepare.call_args.kwargs["namespace"] == "tenant_a"
+
+    @pytest.mark.asyncio
     async def test_get_persistent_segment_infos(self) -> None:
         """Test get_persistent_segment_infos async API"""
         mock_channel = MagicMock()
