@@ -681,6 +681,24 @@ class TestQueryIteratorNextExpr:
         expr = qi._QueryIterator__setup_next_expr()
         assert 'pk > "abc"' in expr
 
+    @pytest.mark.parametrize("pk", ['a"b', r"a\b", "a\nb", "café"])
+    def test_setup_next_expr_escapes_varchar_cursor(self, pk):
+        conn = _make_mock_conn(session_ts=100)
+        qi = QueryIterator(
+            handler=conn,
+            context=None,
+            collection_name="test",
+            batch_size=10,
+            expr='pk != ""',
+            output_fields=["pk"],
+            schema=_VARCHAR_SCHEMA_DICT,
+        )
+        qi._next_id = pk
+
+        expr = qi._QueryIterator__setup_next_expr()
+
+        assert expr == f'pk > {json.dumps(pk, ensure_ascii=False)} and (pk != "")'
+
     def test_setup_next_expr_empty_expr_with_cursor(self):
         conn = _make_mock_conn(session_ts=100)
         qi = QueryIterator(
