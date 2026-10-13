@@ -245,6 +245,14 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DescribeDatabase: _ClassVar[MsgType]
     AddCollectionField: _ClassVar[MsgType]
     AlterWAL: _ClassVar[MsgType]
+    CreateRowPolicy: _ClassVar[MsgType]
+    DropRowPolicy: _ClassVar[MsgType]
+    ListRowPolicies: _ClassVar[MsgType]
+    UpdateRowPolicy: _ClassVar[MsgType]
+    SetRLSPrincipalTags: _ClassVar[MsgType]
+    GetRLSPrincipalTags: _ClassVar[MsgType]
+    ListRLSPrincipals: _ClassVar[MsgType]
+    DeleteRLSPrincipalTags: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -360,6 +368,10 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeListFileResources: _ClassVar[ObjectPrivilege]
     PrivilegeUpdateReplicateConfiguration: _ClassVar[ObjectPrivilege]
     PrivilegeGetReplicateConfiguration: _ClassVar[ObjectPrivilege]
+    PrivilegeSkipRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeViewRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeManageRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeImportBinlog: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -615,6 +627,14 @@ AlterDatabase: MsgType
 DescribeDatabase: MsgType
 AddCollectionField: MsgType
 AlterWAL: MsgType
+CreateRowPolicy: MsgType
+DropRowPolicy: MsgType
+ListRowPolicies: MsgType
+UpdateRowPolicy: MsgType
+SetRLSPrincipalTags: MsgType
+GetRLSPrincipalTags: MsgType
+ListRLSPrincipals: MsgType
+DeleteRLSPrincipalTags: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -712,6 +732,10 @@ PrivilegeRemoveFileResource: ObjectPrivilege
 PrivilegeListFileResources: ObjectPrivilege
 PrivilegeUpdateReplicateConfiguration: ObjectPrivilege
 PrivilegeGetReplicateConfiguration: ObjectPrivilege
+PrivilegeSkipRLS: ObjectPrivilege
+PrivilegeViewRLS: ObjectPrivilege
+PrivilegeManageRLS: ObjectPrivilege
+PrivilegeImportBinlog: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

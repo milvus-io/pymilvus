@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.types import ResourceGroupConfig
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 from .conftest import make_response, make_status
 
@@ -189,6 +190,62 @@ class TestGrpcHandlerPrivilegeV2Ops:
         handler._stub.OperatePrivilegeV2.return_value = make_status()
         handler.revoke_privilege_v2("role", "Query", "coll", "default")
         handler._stub.OperatePrivilegeV2.assert_called_once()
+
+
+class TestGrpcHandlerRLSOps:
+    """Tests for row-level security operations."""
+
+    def test_create_row_policy(self, handler):
+        handler._stub.CreateRowPolicy.return_value = make_status()
+        handler.create_row_policy(
+            "db1", "coll", "policy1", "permissive", ["query"], using_expr='dept == "sales"'
+        )
+        handler._stub.CreateRowPolicy.assert_called_once()
+
+    def test_drop_row_policy(self, handler):
+        handler._stub.DropRowPolicy.return_value = make_status()
+        handler.drop_row_policy("db1", "coll", "policy1")
+        handler._stub.DropRowPolicy.assert_called_once()
+
+    def test_list_row_policies(self, handler):
+        policy = milvus_types.RowPolicy(
+            policy_name="policy1",
+            policy_type=milvus_types.RowPolicyTypePermissive,
+            actions=[milvus_types.Query],
+            using_expr='dept == "sales"',
+        )
+        handler._stub.ListRowPolicies.return_value = make_response(policies=[policy])
+        result = handler.list_row_policies("db1", "coll")
+        assert result == [
+            {
+                "policy_name": "policy1",
+                "policy_type": "RowPolicyTypePermissive",
+                "actions": ["Query"],
+                "using_expr": 'dept == "sales"',
+                "check_expr": "",
+                "description": "",
+            }
+        ]
+
+    def test_set_rls_principal_tags(self, handler):
+        handler._stub.SetRLSPrincipalTags.return_value = make_status()
+        handler.set_rls_principal_tags("db1", "coll", "alice", {"dept": "sales"})
+        handler._stub.SetRLSPrincipalTags.assert_called_once()
+
+    def test_get_rls_principal_tags(self, handler):
+        handler._stub.GetRLSPrincipalTags.return_value = make_response(tags='{"dept":"sales"}')
+        assert handler.get_rls_principal_tags("db1", "coll", "alice") == {"dept": "sales"}
+
+    def test_list_rls_principals(self, handler):
+        handler._stub.ListRLSPrincipals.return_value = make_response(
+            principal_names=["alice", "bob"]
+        )
+        assert handler.list_rls_principals("db1", "coll") == ["alice", "bob"]
+
+    def test_delete_rls_principal_tags(self, handler):
+        handler._stub.DeleteRLSPrincipalTags.return_value = make_status()
+        handler.delete_rls_principal_tags("db1", "coll", "alice", ["dept"])
+        handler._stub.DeleteRLSPrincipalTags.assert_called_once()
 
 
 class TestGrpcHandlerPrivilegeGroupOps:
