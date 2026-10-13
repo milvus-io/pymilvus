@@ -140,7 +140,9 @@ class QueryIterator:
         if offset > 0:
             seek_params = self._query_options.copy()
             seek_params[OFFSET] = 0
-            seek_params[ITERATOR_FIELD] = "False"
+            # RLS offset seeks must use the same action as subsequent iterator pages.
+            if "rls_principal" not in seek_params and "skip_rls" not in seek_params:
+                seek_params[ITERATOR_FIELD] = "False"
             seek_params[REDUCE_STOP_FOR_BEST] = "False"
             start_time = time.time()
 
