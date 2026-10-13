@@ -260,6 +260,14 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     RefreshExternalCollection: _ClassVar[MsgType]
     GetRefreshExternalCollectionProgress: _ClassVar[MsgType]
     ListRefreshExternalCollectionJobs: _ClassVar[MsgType]
+    CreateRowPolicy: _ClassVar[MsgType]
+    DropRowPolicy: _ClassVar[MsgType]
+    ListRowPolicies: _ClassVar[MsgType]
+    UpdateRowPolicy: _ClassVar[MsgType]
+    SetRLSPrincipalTags: _ClassVar[MsgType]
+    GetRLSPrincipalTags: _ClassVar[MsgType]
+    ListRLSPrincipals: _ClassVar[MsgType]
+    DeleteRLSPrincipalTags: _ClassVar[MsgType]
     GetExportSnapshotState: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -416,6 +424,10 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeUnpinSnapshotData: _ClassVar[ObjectPrivilege]
     PrivilegeRestoreExternalSnapshot: _ClassVar[ObjectPrivilege]
     PrivilegeExportSnapshot: _ClassVar[ObjectPrivilege]
+    PrivilegeSkipRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeViewRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeManageRLS: _ClassVar[ObjectPrivilege]
+    PrivilegeImportBinlog: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -686,6 +698,14 @@ AlterCollectionSchema: MsgType
 RefreshExternalCollection: MsgType
 GetRefreshExternalCollectionProgress: MsgType
 ListRefreshExternalCollectionJobs: MsgType
+CreateRowPolicy: MsgType
+DropRowPolicy: MsgType
+ListRowPolicies: MsgType
+UpdateRowPolicy: MsgType
+SetRLSPrincipalTags: MsgType
+GetRLSPrincipalTags: MsgType
+ListRLSPrincipals: MsgType
+DeleteRLSPrincipalTags: MsgType
 GetExportSnapshotState: MsgType
 Dsl: DslType
 BoolExprV1: DslType
@@ -818,6 +838,10 @@ PrivilegePinSnapshotData: ObjectPrivilege
 PrivilegeUnpinSnapshotData: ObjectPrivilege
 PrivilegeRestoreExternalSnapshot: ObjectPrivilege
 PrivilegeExportSnapshot: ObjectPrivilege
+PrivilegeSkipRLS: ObjectPrivilege
+PrivilegeViewRLS: ObjectPrivilege
+PrivilegeManageRLS: ObjectPrivilege
+PrivilegeImportBinlog: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

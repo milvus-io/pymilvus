@@ -1,7 +1,7 @@
 """Base class for Milvus clients."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.constants import CLUSTER_ID
@@ -21,6 +21,13 @@ class BaseMilvusClient:
     def _generate_call_context(self, **kwargs) -> CallContext:
         client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
         return CallContext(db_name=self._config.db_name, client_request_id=client_request_id)
+
+    def _generate_rls_call_context(self, db_name: Optional[str] = None, **kwargs) -> CallContext:
+        client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(
+            db_name=self._config.db_name if db_name is None else db_name,
+            client_request_id=client_request_id,
+        )
 
     def _with_cluster_id(self, kwargs: Dict) -> Dict:
         cluster_id = getattr(self, "_cluster_id", "")
