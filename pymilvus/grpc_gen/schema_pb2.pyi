@@ -530,20 +530,24 @@ class StructArrayField(_message.Message):
     def __init__(self, fields: _Optional[_Iterable[_Union[FieldData, _Mapping]]] = ...) -> None: ...
 
 class FieldPartialUpdateOp(_message.Message):
-    __slots__ = ("field_name", "op")
+    __slots__ = ("field_name", "op", "path")
     class OpType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         REPLACE: _ClassVar[FieldPartialUpdateOp.OpType]
         ARRAY_APPEND: _ClassVar[FieldPartialUpdateOp.OpType]
         ARRAY_REMOVE: _ClassVar[FieldPartialUpdateOp.OpType]
+        PATH_REPLACE: _ClassVar[FieldPartialUpdateOp.OpType]
     REPLACE: FieldPartialUpdateOp.OpType
     ARRAY_APPEND: FieldPartialUpdateOp.OpType
     ARRAY_REMOVE: FieldPartialUpdateOp.OpType
+    PATH_REPLACE: FieldPartialUpdateOp.OpType
     FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
     OP_FIELD_NUMBER: _ClassVar[int]
+    PATH_FIELD_NUMBER: _ClassVar[int]
     field_name: str
     op: FieldPartialUpdateOp.OpType
-    def __init__(self, field_name: _Optional[str] = ..., op: _Optional[_Union[FieldPartialUpdateOp.OpType, str]] = ...) -> None: ...
+    path: str
+    def __init__(self, field_name: _Optional[str] = ..., op: _Optional[_Union[FieldPartialUpdateOp.OpType, str]] = ..., path: _Optional[str] = ...) -> None: ...
 
 class FieldData(_message.Message):
     __slots__ = ("type", "field_name", "scalars", "vectors", "struct_arrays", "field_id", "is_dynamic", "valid_data")
