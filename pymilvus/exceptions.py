@@ -320,3 +320,4 @@ class ExceptionsMessage:
     Please upgrade your Milvus server version to 2.5.2 and later,
     or use a pymilvus version before 2.5.3 (excluded) to avoid this issue.
     """
+    MaxCapacityRange = "the maximum capacity specified for a Array should be in (0, 4096]."

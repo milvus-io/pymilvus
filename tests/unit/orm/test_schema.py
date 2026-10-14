@@ -399,6 +399,28 @@ class TestFieldSchemaTypeParams:
         assert field._kwargs["analyzer_params"] == '{"type":"standard"}'
         assert field.params["analyzer_params"] == '{"type":"standard"}'
 
+    @pytest.mark.parametrize(
+        "capacity",
+        [-1, 0, 4097, "a", (), []],
+        ids=["negative", "zero", "over_max", "str", "tuple", "list"],
+    )
+    def test_array_max_capacity_invalid_raises(self, capacity):
+        """Test ARRAY max_capacity outside (0, 4096] raises ParamError."""
+        with pytest.raises(ParamError, match="should be in"):
+            FieldSchema("arr", DataType.ARRAY, element_type=DataType.INT64, max_capacity=capacity)
+
+    @pytest.mark.parametrize(
+        "capacity",
+        [1, 4096, "100"],
+        ids=["lower_bound", "upper_bound", "numeric_string"],
+    )
+    def test_array_max_capacity_valid_accepted(self, capacity):
+        """Test ARRAY max_capacity within (0, 4096] is accepted."""
+        field = FieldSchema(
+            "arr", DataType.ARRAY, element_type=DataType.INT64, max_capacity=capacity
+        )
+        assert int(field.params["max_capacity"]) == int(capacity)
+
 
 # ============================================================
 # CollectionSchema Tests

@@ -651,6 +651,15 @@ class FieldSchema:
                         if self._kwargs[k].lower() == "false":
                             self._type_params[k] = False
                             continue
+                    if k == "max_capacity":
+                        try:
+                            capacity = int(self._kwargs[k])
+                        except (TypeError, ValueError):
+                            raise ParamError(message=ExceptionsMessage.MaxCapacityRange) from None
+                        if not 0 < capacity <= 4096:
+                            raise ParamError(message=ExceptionsMessage.MaxCapacityRange)
+                        self._type_params[k] = capacity
+                        continue
                     self._type_params[k] = self._kwargs[k]
 
     @classmethod
