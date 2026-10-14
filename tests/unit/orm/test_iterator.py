@@ -341,6 +341,77 @@ def _make_query_res(rows, extra=None):
     return mock_res
 
 
+@pytest.fixture
+def checkpoint_iterator(tmp_path):
+    """Open real checkpoint files; release handles without deleting them on restart."""
+    opened = []
+    cp_path = tmp_path / "iterator.cp"
+
+    def make(conn, expr="pk > 0", schema=_SCHEMA_DICT, batch_size=2):
+        qi = QueryIterator(
+            handler=conn,
+            context=None,
+            collection_name="test",
+            batch_size=batch_size,
+            expr=expr,
+            output_fields=["pk"],
+            schema=schema,
+            rpc_options={ITERATOR_SESSION_CP_FILE: str(cp_path)},
+        )
+        opened.append(qi)
+        return qi
+
+    yield cp_path, make
+    for qi in opened:
+        iterator_cache.release_cache(qi._cache_id_in_use)
+        qi._cp_file_handler.close()
+
+
+class _CheckpointFaultFile:
+    """Land real bytes, then fail one write/flush and optionally its rollback."""
+
+    def __init__(self, real_handle, failure="write", rollback_failure=None):
+        self._real = real_handle
+        self.failure = failure
+        self.rollback_failure = rollback_failure
+        self.failed = False
+
+    def writelines(self, lines):
+        if self.failure == "write":
+            self.failure = None
+            self._real.write(lines[:1])
+            self._real.flush()
+            self.failed = True
+            raise OSError("partial checkpoint write")
+        self._real.writelines(lines)
+        self._real.flush()
+
+    def flush(self):
+        if self.failure == "flush":
+            self.failure = None
+            self._real.flush()
+            self.failed = True
+            raise OSError("checkpoint flush failed after write")
+        self._fail_rollback("flush")
+        return self._real.flush()
+
+    def seek(self, offset, *args):
+        self._fail_rollback("seek")
+        return self._real.seek(offset, *args)
+
+    def truncate(self, *args):
+        self._fail_rollback("truncate")
+        return self._real.truncate(*args)
+
+    def _fail_rollback(self, operation):
+        if self.failed and self.rollback_failure == operation:
+            self.rollback_failure = None
+            raise OSError("checkpoint rollback failed")
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
 class TestQueryIteratorInit:
     def test_basic_init(self):
         conn = _make_mock_conn()
@@ -1576,231 +1647,65 @@ class TestQueryIteratorCpFile:
             if Path(cp_path).exists():
                 Path(cp_path).unlink()
 
-    def test_cp_file_truncated_negative_int_cursor_discarded_resumes_previous(self):
-        """Reviewer's finding: json.loads("-1") succeeds as a bare int, so a
-        cursor line that was mid-write from an intended "-1234\\n" down to
-        just "-1" (no trailing newline) parses fine and is *numerically
-        larger* than -1234 -- silently adopting it as the pk would skip the
-        whole (-1234, -1] range with no exception. An unterminated final
-        line must be discarded regardless of what it happens to parse as,
-        so the iterator must fall back to the last intact cursor line
-        instead of ever seeing "-1"."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write("-5000\n")
-            f.write("-1")  # truncated mid-write from an intended "-1234", no "\n"
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr="pk > 0",
-                output_fields=["pk"],
-                schema=_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == "-5000"
-            assert qi._next_id != "-1"
-            assert qi._buffer_cursor_lines_number == 1
-            assert qi._QueryIterator__setup_next_expr() == "pk > -5000 and (pk > 0)"
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_truncated_element_cursor_discarded_resumes_previous(self):
-        """Same discard rule for an element-filter iterator's JSON cursor
-        line: a mid-write cut-off (e.g. '{"pk":99,"last_el' with no closing
-        brace and no trailing newline) must be dropped, not treated as
-        corruption to reject outright -- the iterator should transparently
-        fall back to the last intact cursor line."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write('{"pk":50,"last_element_offset":1}\n')
-            f.write('{"pk":99,"last_el')  # truncated mid-write, no trailing newline
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr="element_filter(structA, $[int_val] >= 20000)",
-                output_fields=["pk"],
-                schema=_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == 50
-            assert qi._next_element_offset == 1
-            assert qi._buffer_cursor_lines_number == 1
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_truncated_varchar_cursor_discarded_resumes_previous(self):
-        """Same discard rule for a plain varchar pk cursor line: a mid-write
-        cut-off (e.g. "abc-1" left behind by an intended "abc-1234\\n") must
-        be dropped rather than adopted as the pk, since a truncated varchar
-        prefix is not guaranteed to sort before the untruncated value."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write("abc-99\n")
-            f.write("abc-1")  # truncated mid-write from an intended "abc-1234", no "\n"
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr='pk != ""',
-                output_fields=["pk"],
-                schema=_VARCHAR_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == "abc-99"
-            assert qi._next_id != "abc-1"
-            assert qi._buffer_cursor_lines_number == 1
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_unterminated_ts_only_line_goes_to_fresh_init(self):
-        """An unterminated final line is discarded no matter what it is --
-        including the ts line itself, when it is the only line in the
-        file. With nothing intact left to resume from, this must behave
-        exactly like a 0-line (empty) cp file: fresh init via a query
-        request, not an adoption of the partial ts value."""
-        conn = _make_mock_conn(session_ts=400)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300")  # truncated mid-write from an intended "30045\n", no "\n"
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr="pk > 0",
-                output_fields=["pk"],
-                schema=_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 400
-            assert qi._next_id is None
-            assert qi._buffer_cursor_lines_number == 0
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_terminated_last_line_int_pk_resumes_unchanged(self):
-        """Regression guard: a fully written file (last line properly
-        terminated) must resume exactly as it always did -- the discard
-        rule is a no-op here since there is nothing unterminated."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write("50\n")
-            f.write("99\n")
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr="pk > 0",
-                output_fields=["pk"],
-                schema=_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == "99"
-            assert qi._buffer_cursor_lines_number == 2
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_terminated_last_line_varchar_pk_resumes_unchanged(self):
-        """Regression guard: same as above, for a varchar pk."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write("abc-50\n")
-            f.write("abc-99\n")
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr='pk != ""',
-                output_fields=["pk"],
-                schema=_VARCHAR_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == "abc-99"
-            assert qi._buffer_cursor_lines_number == 2
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
-
-    def test_cp_file_terminated_last_line_element_cursor_resumes_unchanged(self):
-        """Regression guard: same as above, for an element-filter cursor."""
-        conn = _make_mock_conn(session_ts=100)
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".cp", delete=False) as f:
-            f.write("300\n")
-            f.write('{"pk":50,"last_element_offset":1}\n')
-            f.write('{"pk":99,"last_element_offset":2}\n')
-            cp_path = f.name
-
-        try:
-            qi = QueryIterator(
-                handler=conn,
-                context=None,
-                collection_name="test",
-                batch_size=10,
-                expr="element_filter(structA, $[int_val] >= 20000)",
-                output_fields=["pk"],
-                schema=_SCHEMA_DICT,
-                rpc_options={ITERATOR_SESSION_CP_FILE: cp_path},
-            )
-            assert qi._session_ts == 300
-            assert qi._next_id == 99
-            assert qi._next_element_offset == 2
-            assert qi._buffer_cursor_lines_number == 2
-            qi.close()
-        except Exception:
-            if Path(cp_path).exists():
-                Path(cp_path).unlink()
-            raise
+    @pytest.mark.parametrize(
+        "schema,expr,contents,expected_pk,expected_offset,expected_lines,expected_ts",
+        [
+            (_SCHEMA_DICT, "pk > 0", b"300\n-5000\n-1", "-5000", None, 1, 300),
+            (
+                _SCHEMA_DICT,
+                "element_filter(structA, $[int_val] >= 20000)",
+                b'300\n{"pk":50,"last_element_offset":1}\n{"pk":99,"last_el',
+                50,
+                1,
+                1,
+                300,
+            ),
+            (_VARCHAR_SCHEMA_DICT, 'pk != ""', b"300\nabc-99\nabc-1", "abc-99", None, 1, 300),
+            (_SCHEMA_DICT, "pk > 0", b"300", None, None, 0, 400),
+            (_SCHEMA_DICT, "pk > 0", b"300\n50\n99\n", "99", None, 2, 300),
+            (_VARCHAR_SCHEMA_DICT, 'pk != ""', b"300\nabc-50\nabc-99\n", "abc-99", None, 2, 300),
+            (
+                _SCHEMA_DICT,
+                "element_filter(structA, $[int_val] >= 20000)",
+                b'300\n{"pk":50,"last_element_offset":1}\n{"pk":99,"last_element_offset":2}\n',
+                99,
+                2,
+                2,
+                300,
+            ),
+        ],
+        ids=[
+            "partial-int",
+            "partial-element",
+            "partial-varchar",
+            "partial-ts",
+            "intact-int",
+            "intact-varchar",
+            "intact-element",
+        ],
+    )
+    def test_cp_file_recovers_intact_records(
+        self,
+        checkpoint_iterator,
+        schema,
+        expr,
+        contents,
+        expected_pk,
+        expected_offset,
+        expected_lines,
+        expected_ts,
+    ):
+        cp_path, make = checkpoint_iterator
+        cp_path.write_bytes(contents)
+        qi = make(_make_mock_conn(session_ts=400), expr=expr, schema=schema)
+        assert qi._session_ts == expected_ts
+        assert qi._next_id == expected_pk
+        assert qi._next_element_offset == expected_offset
+        assert qi._buffer_cursor_lines_number == expected_lines
+        if expected_pk is not None:
+            op = ">=" if expected_offset is not None else ">"
+            pk = f'"{expected_pk}"' if schema == _VARCHAR_SCHEMA_DICT else expected_pk
+            assert qi._QueryIterator__setup_next_expr() == f"pk {op} {pk} and ({expr})"
 
     def test_cp_file_element_filter_corrupted_cursor_line_raises(self):
         """__dump_cursor_line always writes an element-filter iterator's
@@ -2317,6 +2222,237 @@ class TestQueryIteratorSavePkCursor:
                 assert qi._next_id is None
             finally:
                 qi.close()
+
+
+class TestQueryIteratorCheckpointRecoveryRegression:
+    @pytest.mark.parametrize(
+        "contents,schema,expr,rows,expected_pk,expected_offset",
+        [
+            (b"100\n5\n1", _SCHEMA_DICT, "pk > 0", [{"pk": 6}, {"pk": 7}], "7", None),
+            (
+                b"100\n-5000\n-1",
+                _SCHEMA_DICT,
+                "pk < 0",
+                [{"pk": -4000}, {"pk": -3000}],
+                "-3000",
+                None,
+            ),
+            (b"1", _SCHEMA_DICT, "pk > 0", [{"pk": 6}, {"pk": 7}], "7", None),
+            (b"\xe4", _SCHEMA_DICT, "pk > 0", [{"pk": 6}, {"pk": 7}], "7", None),
+            (
+                b"100\nabc\nz",
+                _VARCHAR_SCHEMA_DICT,
+                'pk != ""',
+                [{"pk": "bcd"}, {"pk": "def"}],
+                "def",
+                None,
+            ),
+            (
+                b"100\nabc\n\xe4\xb8",
+                _VARCHAR_SCHEMA_DICT,
+                'pk != ""',
+                [{"pk": "中文"}, {"pk": "汉字"}],
+                "汉字",
+                None,
+            ),
+            (
+                b'100\n{"pk":5,"last_element_offset":1}\n{"pk":7',
+                _SCHEMA_DICT,
+                "element_filter(structA, $[int_val] > 0)",
+                [{"pk": 5, OFFSET: 2}, {"pk": 5, OFFSET: 3}],
+                5,
+                3,
+            ),
+        ],
+        ids=[
+            "int",
+            "negative-int",
+            "partial-ts",
+            "partial-utf8-ts",
+            "varchar",
+            "partial-utf8-pk",
+            "element",
+        ],
+    )
+    def test_incomplete_tail_save_reopen(
+        self,
+        checkpoint_iterator,
+        contents,
+        schema,
+        expr,
+        rows,
+        expected_pk,
+        expected_offset,
+    ):
+        cp_path, make = checkpoint_iterator
+        cp_path.write_bytes(contents)
+        conn = _make_mock_conn(session_ts=100)
+        qi = make(conn, expr=expr, schema=schema)
+        conn.query.return_value = _make_query_res(rows)
+        assert qi.next() == rows
+        qi._cp_file_handler.close()
+        resumed = make(conn, expr=expr, schema=schema)
+        assert resumed._session_ts == 100
+        assert resumed._next_id == expected_pk
+        assert resumed._next_element_offset == expected_offset
+        conn.query.return_value = _make_query_res([])
+        assert resumed.next() == []
+        if expected_offset is not None:
+            assert conn.query.call_args.kwargs[QUERY_ITER_LAST_ELEMENT_OFFSET] == expected_offset
+        assert str(expected_pk) in conn.query.call_args.kwargs["expr"]
+
+    @pytest.mark.parametrize("cached", [False, True], ids=["query", "cache"])
+    @pytest.mark.parametrize("rollback_failure", ["seek", "truncate", "flush"])
+    def test_failed_rollback_refuses_retry_and_reopens_safely(
+        self,
+        checkpoint_iterator,
+        cached,
+        rollback_failure,
+    ):
+        cp_path, make = checkpoint_iterator
+        conn = _make_mock_conn(session_ts=100)
+        qi = make(conn)
+        rows = [{"pk": i} for i in range(4, 10)]
+        conn.query.return_value = _make_query_res(rows if cached else rows[:2])
+        assert qi.next() == rows[:2]
+        before = cp_path.read_bytes()
+        conn.query.return_value = _make_query_res(rows[2:])
+        qi._cp_file_handler = _CheckpointFaultFile(
+            qi._cp_file_handler,
+            rollback_failure=rollback_failure,
+        )
+        with pytest.raises(MilvusException, match="must not be trusted"):
+            qi.next()
+        assert qi._next_id == 5
+        assert qi._returned_count == 2
+        if cached:
+            assert iterator_cache.fetch_cache(qi._cache_id_in_use) == rows[2:]
+        failed_bytes = cp_path.read_bytes()
+        query_calls = conn.query.call_count
+        with pytest.raises(MilvusException, match="must not be trusted"):
+            qi.next()
+        assert cp_path.read_bytes() == failed_bytes
+        assert conn.query.call_count == query_calls
+        qi._cp_file_handler.close()
+        resumed = make(conn)
+        assert resumed._next_id == "5"
+        assert cp_path.read_bytes() == before
+        assert resumed.next() == rows[2:4]
+        assert conn.query.call_args.kwargs["expr"] == "pk > 5 and (pk > 0)"
+
+    @pytest.mark.parametrize("maintenance", ["compact", "recreate"])
+    @pytest.mark.parametrize("failure", ["write", "flush"])
+    @pytest.mark.parametrize("element", [False, True], ids=["plain", "element"])
+    def test_timestamp_rewrite_failure_retry_reopen(
+        self,
+        checkpoint_iterator,
+        monkeypatch,
+        maintenance,
+        failure,
+        element,
+    ):
+        cp_path, make = checkpoint_iterator
+        expr = "element_filter(structA, $[int_val] > 0)" if element else "pk > 0"
+        conn = _make_mock_conn(session_ts=100)
+        qi = make(conn, expr=expr, batch_size=1)
+        for pk in range(1, 101):
+            row = {"pk": pk, OFFSET: 2} if element else {"pk": pk}
+            conn.query.return_value = _make_query_res([row])
+            assert qi.next() == [row]
+        before = cp_path.read_bytes()
+        assert qi._buffer_cursor_lines_number == 100
+        if maintenance == "compact":
+            qi._cp_file_handler = _CheckpointFaultFile(qi._cp_file_handler, failure=failure)
+        else:
+            cp_path.unlink()
+            real_open = Path.open
+
+            def faulty_open(path, mode="r", *args, **kwargs):
+                handle = real_open(path, mode, *args, **kwargs)
+                return _CheckpointFaultFile(handle, failure=failure) if mode == "w" else handle
+
+            monkeypatch.setattr(Path, "open", faulty_open)
+        row = {"pk": 101, OFFSET: 3} if element else {"pk": 101}
+        conn.query.return_value = _make_query_res([row])
+        with pytest.raises(MilvusException, match="failed to save pk cursor"):
+            qi.next()
+        assert qi._next_id == 100
+        assert qi._next_element_offset == (2 if element else None)
+        assert qi._returned_count == 100
+        if maintenance == "compact":
+            assert cp_path.read_bytes() == before
+            assert qi._buffer_cursor_lines_number == 100
+        else:
+            assert cp_path.read_bytes() == b"100\n" + before.splitlines(keepends=True)[-1]
+            assert qi._buffer_cursor_lines_number == 1
+        # Reopen immediately after failure, before any successful retry.
+        resumed = make(conn, expr=expr, batch_size=1)
+        assert resumed._session_ts == 100
+        assert str(resumed._next_id) == "100"
+        assert resumed._next_element_offset == (2 if element else None)
+        resumed._cp_file_handler.close()
+        # Retry the original instance and file handle after the reader closes.
+        assert qi.next() == [row]
+        assert (
+            "pk >= 100" in conn.query.call_args.kwargs["expr"]
+            if element
+            else ("pk > 100" in conn.query.call_args.kwargs["expr"])
+        )
+        qi._cp_file_handler.close()
+        final = make(conn, expr=expr, batch_size=1)
+        assert final._session_ts == 100
+        assert str(final._next_id) == "101"
+        assert final._next_element_offset == (3 if element else None)
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            'pk != "element_filter"',
+            "pk != 'element_filter('",
+            'pk != "prefix element_filter(structA"',
+            'element_filter_tag != "x"',
+            r'pk != "escaped \" element_filter("',
+            'pk != "element_filter" and pk != "z"',
+        ],
+    )
+    def test_varchar_literal_save_reopen(self, checkpoint_iterator, expr):
+        cp_path, make = checkpoint_iterator
+        conn = _make_mock_conn(session_ts=100)
+        qi = make(conn, expr=expr, schema=_VARCHAR_SCHEMA_DICT)
+        conn.query.return_value = _make_query_res([{"pk": "abc"}])
+        assert qi.next() == [{"pk": "abc"}]
+        assert cp_path.read_bytes() == b"100\nabc\n"
+        qi._cp_file_handler.close()
+        resumed = make(conn, expr=expr, schema=_VARCHAR_SCHEMA_DICT)
+        assert resumed._is_element_filter_iterator is False
+        assert resumed._next_id == "abc"
+        conn.query.return_value = _make_query_res([{"pk": "def"}])
+        assert resumed.next() == [{"pk": "def"}]
+        assert conn.query.call_args.kwargs["expr"] == f'pk > "abc" and ({expr})'
+
+    @pytest.mark.parametrize(
+        "expr",
+        [
+            "element_filter(structA, $[x] > 0)",
+            "ELEMENT_FILTER (structA, $[x] > 0)",
+            'pk != "element_filter(" and element_filter(structA, $[x] > 0)',
+        ],
+    )
+    def test_actual_element_call_save_reopen(self, checkpoint_iterator, expr):
+        _, make = checkpoint_iterator
+        conn = _make_mock_conn(session_ts=100)
+        qi = make(conn, expr=expr)
+        conn.query.return_value = _make_query_res([{"pk": 5, OFFSET: 2}])
+        assert qi.next() == [{"pk": 5, OFFSET: 2}]
+        qi._cp_file_handler.close()
+        resumed = make(conn, expr=expr)
+        assert resumed._is_element_filter_iterator is True
+        assert resumed._next_id == 5
+        assert resumed._next_element_offset == 2
+        conn.query.return_value = _make_query_res([{"pk": 5, OFFSET: 3}])
+        assert resumed.next() == [{"pk": 5, OFFSET: 3}]
+        assert conn.query.call_args.kwargs[QUERY_ITER_LAST_PK] == 5
+        assert conn.query.call_args.kwargs[QUERY_ITER_LAST_ELEMENT_OFFSET] == 2
 
 
 class TestQueryIteratorMaybeCache:
