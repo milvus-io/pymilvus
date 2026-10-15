@@ -224,6 +224,13 @@ class TestEmbeddingListParseDtype:
         el = EmbeddingList(dtype=np.dtype(np.float32))
         assert el._dtype == np.dtype(np.float32)
 
+    @pytest.mark.parametrize("dtype", [np.float16, np.float32, np.float64, np.int8, np.uint8])
+    def test_parse_numpy_scalar_type(self, dtype):
+        el = EmbeddingList([[1, 2], [3, 4]], dtype=dtype)
+        assert el.dtype == np.dtype(dtype)
+        assert el.to_numpy().dtype == np.dtype(dtype)
+        np.testing.assert_array_equal(el.to_numpy(), np.array([[1, 2], [3, 4]], dtype=dtype))
+
     def test_parse_string_dtype(self):
         el = EmbeddingList(dtype="float32")
         assert el._dtype == np.dtype(np.float32)
@@ -248,9 +255,10 @@ class TestEmbeddingListParseDtype:
         with pytest.raises(ParamError):
             EmbeddingList(dtype=DataType.INT64)
 
-    def test_parse_invalid_type_raises(self):
+    @pytest.mark.parametrize("dtype", [12345, np.float32(1.0), object])
+    def test_parse_invalid_type_raises(self, dtype):
         with pytest.raises(TypeError, match="dtype must be"):
-            EmbeddingList(dtype=12345)
+            EmbeddingList(dtype=dtype)
 
     def test_parse_bfloat16_fallback(self):
         """When bfloat16 is unavailable, should fall back to float16."""
