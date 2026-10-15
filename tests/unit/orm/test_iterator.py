@@ -638,6 +638,19 @@ class TestQueryIteratorGetCursor:
         cursor = qi.get_cursor()
         assert cursor.str_pk == "abc"
 
+    def test_get_cursor_varchar_pk_before_first_page(self):
+        conn = _make_mock_conn(session_ts=200)
+        qi = QueryIterator(
+            connection=conn,
+            collection_name="test",
+            batch_size=10,
+            expr='pk != ""',
+            output_fields=["pk"],
+            schema=_VARCHAR_SCHEMA_DICT,
+        )
+        cursor = qi.get_cursor()
+        assert cursor.str_pk is None
+
 
 # ---------------------------------------------------------------------------
 # SearchIterator tests
