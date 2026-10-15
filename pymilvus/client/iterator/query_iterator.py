@@ -361,7 +361,7 @@ class QueryIterator:
         if self._pk_str:
             return QueryIteratorCursor(
                 session_ts=self._session_ts,
-                str_pk=str(self._next_id),
+                str_pk=None if self._next_id is None else str(self._next_id),
                 last_element_offset=self._next_element_offset,
             )
         return QueryIteratorCursor(
