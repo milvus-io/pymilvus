@@ -1414,6 +1414,9 @@ class TestMilvusClientDeleteBranches:
             ("O'Brien", r"id in ['O\'Brien']"),
             ("back\\slash", r"id in ['back\\slash']"),
             ("line\nbreak", r"id in ['line\nbreak']"),
+            ("cr\rreturn", r"id in ['cr\rreturn']"),
+            ("back\\'quote", r"id in ['back\\\'quote']"),
+            ("back\\\nbreak", r"id in ['back\\\nbreak']"),
             ("a', 'b", r"id in ['a\', \'b']"),
         ],
     )

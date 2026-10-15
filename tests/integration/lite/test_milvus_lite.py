@@ -1,4 +1,5 @@
 import sys
+from importlib.metadata import version
 
 import numpy as np
 import pytest
@@ -71,6 +72,10 @@ class TestMilvusLite:
         finally:
             client.close()
 
+    @pytest.mark.skipif(
+        not sys.platform.startswith("win") and int(version("milvus-lite").split(".")[0]) < 3,
+        reason="Milvus Lite 2.x can't match line breaks and errors on \\' in delete",
+    )
     def test_milvus_lite_varchar_ids_with_special_chars(self, tmp_path):
         """get/query/delete by ids must work for VARCHAR primary keys containing
         quotes, backslashes and line breaks."""
@@ -80,7 +85,17 @@ class TestMilvusLite:
             client.create_collection(
                 collection_name="str_pk", dimension=3, id_type="string", max_length=64
             )
-            ids = ["plain", "O'Brien", 'say "hi"', "back\\slash", "line\nbreak", "a', 'plain"]
+            ids = [
+                "plain",
+                "O'Brien",
+                'say "hi"',
+                "back\\slash",
+                "back\\'quote",
+                "line\nbreak",
+                "cr\rreturn",
+                "back\\\nbreak",
+                "a', 'plain",
+            ]
             client.insert("str_pk", [{"id": pk, "vector": [0.1, 0.2, 0.3]} for pk in ids])
 
             for pk in ids:
