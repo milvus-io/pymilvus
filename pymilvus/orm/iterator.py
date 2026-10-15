@@ -315,7 +315,7 @@ class QueryIterator:
         cursor = milvus_types.QueryCursor
         cursor.session_ts = self._session_ts
         if self._pk_str:
-            cursor.str_pk = str(self._next_id)
+            cursor.str_pk = None if self._next_id is None else str(self._next_id)
         else:
             cursor.int_pk = self._next_id
         return cursor
