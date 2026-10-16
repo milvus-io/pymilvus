@@ -87,6 +87,28 @@ class TestMktsFromHybridts:
         expected = (physical_ms + 300) << LOGICAL_BITS
         assert result == expected
 
+    def test_with_timedelta_whole_seconds(self):
+        physical_ms = 1000
+        hybridts = physical_ms << LOGICAL_BITS
+        result = utils.mkts_from_hybridts(hybridts, delta=timedelta(seconds=1))
+        expected = (physical_ms + 1000) << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_timedelta_days(self):
+        physical_ms = 1000
+        hybridts = physical_ms << LOGICAL_BITS
+        result = utils.mkts_from_hybridts(hybridts, delta=timedelta(days=1))
+        expected = (physical_ms + 86400 * 1000) << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_timedelta_seconds_and_microseconds(self):
+        physical_ms = 1000
+        hybridts = physical_ms << LOGICAL_BITS
+        delta = timedelta(seconds=1, microseconds=500000)  # 1500ms
+        result = utils.mkts_from_hybridts(hybridts, delta=delta)
+        expected = (physical_ms + 1500) << LOGICAL_BITS
+        assert result == expected
+
     def test_preserves_logical_part(self):
         physical_ms = 1000
         logical = 42
@@ -140,6 +162,17 @@ class TestMktsFromUnixtime:
         delta = timedelta(microseconds=200000)  # 200ms
         result = utils.mkts_from_unixtime(epoch, milliseconds=offset_ms, delta=delta)
         expected = 1300 << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_timedelta_whole_seconds(self):
+        result = utils.mkts_from_unixtime(1.0, delta=timedelta(seconds=1))
+        expected = 2000 << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_timedelta_seconds_and_microseconds(self):
+        delta = timedelta(seconds=1, microseconds=500000)  # 1500ms
+        result = utils.mkts_from_unixtime(1.0, delta=delta)
+        expected = 2500 << LOGICAL_BITS
         assert result == expected
 
     def test_zero_epoch(self):
