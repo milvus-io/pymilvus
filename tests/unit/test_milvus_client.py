@@ -1406,6 +1406,31 @@ class TestMilvusClientDeleteBranches:
             with pytest.raises(DataTypeNotMatchException):
                 client.delete("col", filter=123)
 
+    @pytest.mark.parametrize(
+        "pk, expected_expr",
+        [
+            ("plain", "id in ['plain']"),
+            ('say "hi"', """id in ['say "hi"']"""),
+            ("O'Brien", r"id in ['O\'Brien']"),
+            ("back\\slash", r"id in ['back\\slash']"),
+            ("line\nbreak", r"id in ['line\nbreak']"),
+            ("a', 'b", r"id in ['a\', \'b']"),
+        ],
+    )
+    def test_delete_varchar_ids_are_escaped(self, pk, expected_expr):
+        schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.VARCHAR}]}
+        result = MagicMock()
+        result.primary_keys = []
+        result.delete_count = 1
+        result.cost = 0
+        handler = _make_handler()
+        handler.delete.return_value = result
+        handler._get_schema.return_value = (schema, 100)
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.delete("col", ids=[pk])
+            assert handler.delete.call_args.kwargs["expression"] == expected_expr
+
 
 # ============================================================
 # Parametrized simple delegation tests

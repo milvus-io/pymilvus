@@ -71,6 +71,28 @@ class TestMilvusLite:
         finally:
             client.close()
 
+    def test_milvus_lite_varchar_ids_with_special_chars(self, tmp_path):
+        """get/query/delete by ids must work for VARCHAR primary keys containing
+        quotes, backslashes and line breaks."""
+        db_file = tmp_path / "test.db"
+        client = MilvusClient(db_file.as_posix(), timeout=10)
+        try:
+            client.create_collection(
+                collection_name="str_pk", dimension=3, id_type="string", max_length=64
+            )
+            ids = ["plain", "O'Brien", 'say "hi"', "back\\slash", "line\nbreak", "a', 'plain"]
+            client.insert("str_pk", [{"id": pk, "vector": [0.1, 0.2, 0.3]} for pk in ids])
+
+            for pk in ids:
+                assert [row["id"] for row in client.get("str_pk", ids=[pk])] == [pk]
+                assert [row["id"] for row in client.query("str_pk", ids=pk)] == [pk]
+
+            client.delete("str_pk", ids=ids[1:])
+            res = client.query("str_pk", filter='id != ""', output_fields=["id"])
+            assert [row["id"] for row in res] == ["plain"]
+        finally:
+            client.close()
+
     def test_milvus_lite_multiple_clients_same_db(self, tmp_path):
         """Two MilvusClient instances sharing the same .db file should work."""
         db_file = tmp_path / "shared.db"
