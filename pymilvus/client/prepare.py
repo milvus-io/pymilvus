@@ -1458,9 +1458,9 @@ class Prepare:
                     if pre_field_size not in (0, latest_field_size):
                         raise ParamError(
                             message=(
-                                f"Field data size misaligned for field [{entity.get('name')}] ",
-                                f"got size=[{latest_field_size}] ",
-                                f"alignment size=[{pre_field_size}]",
+                                f"Field data size misaligned for field [{entity.get('name')}] "
+                                f"got size=[{latest_field_size}] "
+                                f"alignment size=[{pre_field_size}]"
                             )
                         )
                     pre_field_size = latest_field_size

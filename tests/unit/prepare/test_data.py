@@ -704,6 +704,33 @@ class TestBatchInsertParam:
         with pytest.raises(ParamError, match="misaligned"):
             Prepare.batch_insert_param("coll", entities, "", fields_info)
 
+    def test_field_size_mismatch_message_is_string(self):
+        """Test that the misaligned-field error message is a single string, not a tuple.
+
+        See issue #3843: three f-strings separated by commas produced a tuple message.
+        """
+        entities = [
+            {"name": "id", "values": [1, 2, 3], "type": DataType.INT64},
+            {
+                "name": "vector",
+                "values": [[1.0, 2.0], [3.0, 4.0]],
+                "type": DataType.FLOAT_VECTOR,
+            },
+        ]
+        fields_info = [
+            {"name": "id", "type": DataType.INT64, "is_primary": True},
+            {"name": "vector", "type": DataType.FLOAT_VECTOR, "params": {"dim": 2}},
+        ]
+        with pytest.raises(ParamError) as exc_info:
+            Prepare.batch_insert_param("coll", entities, "", fields_info)
+
+        assert isinstance(exc_info.value.message, str)
+        assert exc_info.value.message == (
+            "Field data size misaligned for field [vector] "
+            "got size=[2] "
+            "alignment size=[3]"
+        )
+
     def test_zero_rows(self):
         """Test batch insert with zero rows."""
         entities = [
