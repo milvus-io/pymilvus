@@ -157,7 +157,10 @@ def sparse_rows_to_proto(data: SparseMatrixInputType) -> schema_types.SparseFloa
                 result.contents.append(sparse_float_row_to_bytes(indices, values))
                 row_dim = 0
                 if len(indices) > 0:
-                    row_dim = indices[-1] + 1
+                    # indices are kept in input order (not sorted), so the last
+                    # element is not necessarily the largest; use the maximum so
+                    # the declared dim covers every index in the row.
+                    row_dim = max(indices) + 1
                 dim = max(dim, row_dim)
         result.dim = dim
     return result
