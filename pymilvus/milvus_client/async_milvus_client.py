@@ -544,7 +544,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: Optional[Union[BaseRanker, Function]] = None,
+        ranker: Optional[Union[BaseRanker, Function, FunctionScore]] = None,
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
@@ -558,6 +558,10 @@ class AsyncMilvusClient(BaseMilvusClient):
         ``function_chains`` here for top-level L2 fusion. Nested chains support
         legacy rankers or top-level L2, but not a Function ranker. Supported
         per-request stages are determined by the server.
+
+        Each ``AnnSearchRequest`` may also set its own ``ranker`` (a ``Function``
+        or ``FunctionScore`` applied before top-level fusion), and ``ranker``
+        here accepts a ``FunctionScore`` applied after fusion.
         """
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()

@@ -360,7 +360,7 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: Optional[Union[BaseRanker, Function]] = None,
+        ranker: Optional[Union[BaseRanker, Function, FunctionScore]] = None,
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
@@ -373,10 +373,12 @@ class MilvusClient(BaseMilvusClient):
         Args:
             collection_name(``string``): The name of collection.
             reqs (``List[AnnSearchRequest]``): The vector search requests. Each request
-                can provide its own ``function_chains``. Supported stages are
-                determined by the server.
-            ranker (``Union[BaseRanker, Function]``): The ranker. A Function ranker
-                cannot be combined with per-request function chains.
+                can provide its own ``function_chains`` and its own ``ranker`` (a
+                ``Function`` or ``FunctionScore`` applied before top-level fusion).
+                Supported stages are determined by the server.
+            ranker (``Union[BaseRanker, Function, FunctionScore]``): The ranker. A
+                Function or FunctionScore ranker cannot be combined with per-request
+                function chains.
             function_chains (``FunctionChain`` or ``List[FunctionChain]``, optional):
                 Top-level fusion/reranking chain, separate from per-request chains.
                 Mutually exclusive with ranker. Use an L2 chain starting with merge.
