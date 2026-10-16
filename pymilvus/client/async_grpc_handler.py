@@ -3158,7 +3158,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.add_file_resource(name=name, path=path)
         resp = await self._async_stub.AddFileResource(
-            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+            req, timeout=timeout, metadata=_api_level_md(kwargs.get("context"))
         )
         check_status(resp)
 
@@ -3171,7 +3171,7 @@ class AsyncGrpcHandler:
     ):
         req = Prepare.remove_file_resource(name=name)
         resp = await self._async_stub.RemoveFileResource(
-            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+            req, timeout=timeout, metadata=_api_level_md(kwargs.get("context"))
         )
         check_status(resp)
 
@@ -3183,7 +3183,7 @@ class AsyncGrpcHandler:
     ) -> List[str]:
         req = Prepare.list_file_resources()
         resp = await self._async_stub.ListFileResources(
-            req, timeout=timeout, metadata=_api_level_md(**kwargs)
+            req, timeout=timeout, metadata=_api_level_md(kwargs.get("context"))
         )
         check_status(resp.status)
         return [FileResourceInfo(info) for info in resp.resources]
