@@ -300,6 +300,41 @@ class TestEntityHelperSparse:
         assert field_data.vectors.dim == 4
         assert list(field_data.vectors.float_vector.data) == value
 
+    def test_row_sparse_insert_sets_dim_like_column_path(self):
+        """Row inserts must declare the same sparse width as the column path.
+
+        _pack_sparse_vector_row used to append packed bytes and leave
+        SparseFloatArray.dim at the protobuf default of 0.
+        """
+        info = {"name": "sv", "type": DataType.SPARSE_FLOAT_VECTOR, "params": {}}
+        wider = {3: 3.0, 5: 1.0, 100: 2.0}
+        narrower = {1: 0.5}
+
+        column = entity_helper.entity_to_field_data(
+            {"name": "sv", "type": DataType.SPARSE_FLOAT_VECTOR, "values": [wider]},
+            info,
+            1,
+        )
+        row_field = schema_types.FieldData(type=DataType.SPARSE_FLOAT_VECTOR, field_name="sv")
+        entity_helper.pack_field_value_to_field_data(wider, row_field, info, {})
+
+        column_payload = column.vectors.sparse_float_vector
+        row_payload = row_field.vectors.sparse_float_vector
+        assert row_payload.contents == column_payload.contents
+        assert row_payload.dim == column_payload.dim
+        assert row_payload.dim == 101
+
+        # A later, narrower row must not shrink the width already declared.
+        entity_helper.pack_field_value_to_field_data(narrower, row_field, info, {})
+        assert row_payload.dim == 101
+        assert len(row_payload.contents) == 2
+
+        # A wider row packed first still wins when a narrower row came first.
+        reverse = schema_types.FieldData(type=DataType.SPARSE_FLOAT_VECTOR, field_name="sv")
+        entity_helper.pack_field_value_to_field_data(narrower, reverse, info, {})
+        entity_helper.pack_field_value_to_field_data(wider, reverse, info, {})
+        assert reverse.vectors.sparse_float_vector.dim == 101
+
 
 class TestMockedSparseMatrix:
     """Test sparse matrix functions using mocks to avoid environment issues"""
