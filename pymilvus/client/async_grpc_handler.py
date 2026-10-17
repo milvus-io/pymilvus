@@ -1970,8 +1970,10 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        check_pass_param(collection_name=collection_name, timeout=timeout)
-        request = Prepare.list_aliases_request(collection_name)
+        check_pass_param(timeout=timeout)
+        if collection_name:
+            check_pass_param(collection_name=collection_name)
+        request = Prepare.list_aliases_request(collection_name, kwargs.get("db_name", ""))
         response = await self._async_stub.ListAliases(
             request, timeout=timeout, metadata=_api_level_md(context)
         )

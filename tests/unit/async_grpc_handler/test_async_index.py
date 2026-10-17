@@ -493,6 +493,51 @@ class TestAsyncGrpcHandlerAlias:
             result = await handler.list_aliases("test_coll")
             assert result == ["alias1", "alias2"]
 
+    @staticmethod
+    def _handler_listing(aliases):
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.status.error_code = 0
+        mock_response.status.reason = ""
+        mock_response.aliases = aliases
+        handler._async_stub = AsyncMock()
+        handler._async_stub.ListAliases = AsyncMock(return_value=mock_response)
+        return handler
+
+    @pytest.mark.asyncio
+    async def test_list_aliases_without_collection_lists_all(self) -> None:
+        """With no collection name, list_aliases lists every alias in the database, as sync does"""
+        handler = self._handler_listing(["alias1", "alias2"])
+
+        result = await handler.list_aliases("")
+
+        assert result == ["alias1", "alias2"]
+        request = handler._async_stub.ListAliases.call_args.args[0]
+        assert request.collection_name == ""
+
+    @pytest.mark.asyncio
+    async def test_list_aliases_passes_db_name(self) -> None:
+        handler = self._handler_listing(["alias1"])
+
+        await handler.list_aliases("test_coll", db_name="other_db")
+
+        request = handler._async_stub.ListAliases.call_args.args[0]
+        assert request.collection_name == "test_coll"
+        assert request.db_name == "other_db"
+
+    @pytest.mark.asyncio
+    async def test_list_aliases_rejects_invalid_collection_name(self) -> None:
+        handler = self._handler_listing([])
+
+        with pytest.raises(ParamError):
+            await handler.list_aliases(123)
+
     @pytest.mark.asyncio
     async def test_describe_alias(self) -> None:
         """Test describe_alias async API"""
