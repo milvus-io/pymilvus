@@ -1930,6 +1930,24 @@ class TestFunctionOutputFieldHandling:
         data = [[1, 2], [[1.0, 2.0], [3.0, 4.0]]]
         check_upsert_schema(schema, data)
 
+    def test_check_upsert_schema_dataframe_function_output_not_last(self):
+        """check_upsert_schema skips function output fields placed before other fields."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("text", DataType.VARCHAR, max_length=100, enable_analyzer=True),
+                FieldSchema("sp", DataType.SPARSE_FLOAT_VECTOR),
+                FieldSchema("other", DataType.INT64),
+            ],
+            functions=[
+                Function(
+                    "bm", FunctionType.BM25, input_field_names=["text"], output_field_names=["sp"]
+                )
+            ],
+        )
+        df = pd.DataFrame({"id": [1], "text": ["a"], "other": [2]})
+        check_upsert_schema(schema, df)
+
 
 class TestFieldSchemaFunctionOutput:
     """Cover FieldSchema.is_function_output attribute and to_dict serialization."""
