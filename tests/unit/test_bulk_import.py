@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pymilvus.bulk_writer.bulk_import  # noqa: F401
 import pytest
+from pymilvus.bulk_writer import IDEMPOTENCY_KEY_HEADER
 from pymilvus.bulk_writer.bulk_import import (
     _http_headers,
     _post_request,
@@ -13,6 +14,12 @@ from pymilvus.bulk_writer.bulk_import import (
     list_import_jobs,
 )
 from pymilvus.exceptions import MilvusException
+
+
+class TestIdempotencyKeyHeaderConstant:
+    def test_is_exported_with_the_wire_name(self):
+        assert IDEMPOTENCY_KEY_HEADER == "Idempotency-Key"
+
 
 bulk_import_mod = sys.modules["pymilvus.bulk_writer.bulk_import"]
 
@@ -31,6 +38,19 @@ class TestHttpHeaders:
         headers = _http_headers(api_key="my-key", db_name="my_db")
         assert headers["DB-Name"] == "my_db"
         assert headers["Authorization"] == "Bearer my-key"
+
+    def test_extra_headers_are_added(self):
+        headers = _http_headers(api_key="my-key", headers={IDEMPOTENCY_KEY_HEADER: "run-1-batch-1"})
+        assert headers[IDEMPOTENCY_KEY_HEADER] == "run-1-batch-1"
+        assert headers["Authorization"] == "Bearer my-key"
+
+    def test_extra_headers_override_defaults(self):
+        headers = _http_headers(api_key="my-key", headers={"Authorization": "Bearer other"})
+        assert headers["Authorization"] == "Bearer other"
+
+    @pytest.mark.parametrize("extra", [None, {}])
+    def test_no_extra_headers_is_unchanged(self, extra):
+        assert _http_headers(api_key="my-key", headers=extra) == _http_headers(api_key="my-key")
 
 
 class TestPostRequest:
@@ -67,6 +87,23 @@ class TestPostRequest:
 
         _, kwargs = mock_post.call_args
         assert "DB-Name" not in kwargs["headers"]
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_pops_headers_and_merges_them(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_post.return_value = mock_resp
+
+        _post_request(
+            url="http://example.com/api",
+            api_key="my-key",
+            params={"foo": "bar"},
+            headers={IDEMPOTENCY_KEY_HEADER: "run-1-batch-1"},
+        )
+
+        _, kwargs = mock_post.call_args
+        assert kwargs["headers"][IDEMPOTENCY_KEY_HEADER] == "run-1-batch-1"
+        assert kwargs["headers"]["Authorization"] == "Bearer my-key"
 
 
 class TestGetImportProgress:
@@ -171,6 +208,42 @@ class TestBulkImport:
         _, kwargs = mock_post.call_args
         assert "DB-Name" not in kwargs["headers"]
         assert kwargs["json"]["dbName"] == ""
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_extra_headers(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        bulk_import(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+            files=[["file1.parquet"]],
+            headers={IDEMPOTENCY_KEY_HEADER: "run-1-batch-1"},
+        )
+
+        _, kwargs = mock_post.call_args
+        assert kwargs["headers"][IDEMPOTENCY_KEY_HEADER] == "run-1-batch-1"
+        assert "headers" not in kwargs["json"]
+
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_without_extra_headers_sends_only_defaults(self, mock_post):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        bulk_import(
+            url="http://example.com",
+            collection_name="my_collection",
+            api_key="my-key",
+            files=[["file1.parquet"]],
+        )
+
+        _, kwargs = mock_post.call_args
+        assert IDEMPOTENCY_KEY_HEADER not in kwargs["headers"]
 
 
 class TestListImportJobs:
@@ -291,3 +364,32 @@ class TestAbortImport:
 
         with pytest.raises(MilvusException, match="boom"):
             abort_import(url="http://example.com", job_id="job-123", api_key="my-key")
+
+
+class TestExtraHeadersOnAllEntryPoints:
+    @pytest.mark.parametrize(
+        ("func", "extra_kwargs"),
+        [
+            (get_import_progress, {"job_id": "job-123"}),
+            (commit_import, {"job_id": "job-123"}),
+            (abort_import, {"job_id": "job-123"}),
+            (list_import_jobs, {"collection_name": "my_collection"}),
+        ],
+    )
+    @patch.object(bulk_import_mod.requests, "post")
+    def test_sends_extra_headers(self, mock_post, func, extra_kwargs):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"code": 0, "data": {}}
+        mock_post.return_value = mock_resp
+
+        func(
+            url="http://example.com",
+            api_key="my-key",
+            headers={IDEMPOTENCY_KEY_HEADER: "run-1-batch-1"},
+            **extra_kwargs,
+        )
+
+        _, kwargs = mock_post.call_args
+        assert kwargs["headers"][IDEMPOTENCY_KEY_HEADER] == "run-1-batch-1"
+        assert "headers" not in kwargs["json"]

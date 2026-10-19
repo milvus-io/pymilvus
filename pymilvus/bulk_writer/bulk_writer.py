@@ -32,8 +32,7 @@ from .constants import (
     BulkFileType,
 )
 
-logger = logging.getLogger("bulk_writer")
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class BulkWriter:
@@ -381,6 +380,9 @@ class BulkWriter:
     def _verify_struct_field(self, row: dict):
         structs_size = 0
         for field in self._schema.struct_fields:
+            if field.nullable and row.get(field.name) is None:
+                row[field.name] = None
+                continue
             if field.name not in row:
                 self._throw(f"The struct field '{field.name}' is missed")
 

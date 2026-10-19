@@ -1,8 +1,12 @@
 """Additional tests to reach 90% coverage for Prepare methods."""
 
+import json
+
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
 from pymilvus.client.prepare import Prepare
+from pymilvus.exceptions import ParamError
+from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
 
 class TestRowParseEdgeCases:
@@ -42,6 +46,48 @@ class TestBatchParseEdgeCases:
         ]
         req = Prepare.batch_insert_param("coll", entities, "part", fields_info)
         assert req.num_rows == 2
+
+
+class TestRLSPrepare:
+    """Tests for row-level security request builders."""
+
+    def test_create_row_policy_request(self):
+        req = Prepare.create_row_policy_request(
+            "db1",
+            "coll",
+            "policy1",
+            "permissive",
+            ["query", "search"],
+            using_expr='dept == "sales"',
+        )
+
+        assert req.db_name == "db1"
+        assert req.collection_name == "coll"
+        assert req.policy_name == "policy1"
+        assert req.policy_type == milvus_types.RowPolicyTypePermissive
+        assert list(req.actions) == [
+            milvus_types.Query,
+            milvus_types.Search,
+        ]
+        assert req.using_expr == 'dept == "sales"'
+
+    def test_create_row_policy_request_rejects_invalid_action(self):
+        with pytest.raises(ParamError):
+            Prepare.create_row_policy_request("db1", "coll", "policy1", "permissive", ["bad"])
+
+    def test_rls_principal_tags_requests(self):
+        set_req = Prepare.set_rls_principal_tags_request("db1", "coll", "alice", {"dept": "sales"})
+        assert set_req.principal_name == "alice"
+        assert json.loads(set_req.tags) == {"dept": "sales"}
+
+        get_req = Prepare.get_rls_principal_tags_request("db1", "coll", "alice")
+        assert get_req.principal_name == "alice"
+
+        list_req = Prepare.list_rls_principals_request("db1", "coll")
+        assert list_req.collection_name == "coll"
+
+        delete_req = Prepare.delete_rls_principal_tags_request("db1", "coll", "alice", ["dept"])
+        assert list(delete_req.tag_keys) == ["dept"]
 
 
 class TestSearchIteratorParams:

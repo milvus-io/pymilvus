@@ -34,6 +34,9 @@ GB = 1024 * MB
 DYNAMIC_FIELD_NAME = "$meta"
 DEFAULT_BUCKET_NAME = "a-bucket"
 
+# HTTP header carrying the client idempotency key on bulk import requests.
+IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
+
 TYPE_SIZE = {
     DataType.BOOL.name: 1,
     DataType.INT8.name: 1,

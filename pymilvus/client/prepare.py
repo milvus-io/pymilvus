@@ -87,6 +87,17 @@ _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
 
 
 class Prepare:
+    @staticmethod
+    def _rls_context(kwargs: Mapping) -> Dict:
+        context = {}
+        for name, expected_type in (("rls_principal", str), ("skip_rls", bool)):
+            if name in kwargs:
+                value = kwargs[name]
+                if not isinstance(value, expected_type):
+                    raise ParamError(message=f"{name} must be a {expected_type.__name__}")
+                context[name] = value
+        return context
+
     @classmethod
     def create_collection_request(
         cls,
@@ -1304,6 +1315,7 @@ class Prepare:
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
         namespace: Optional[str] = None,
+        **kwargs,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1316,6 +1328,7 @@ class Prepare:
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **cls._rls_context(kwargs),
         )
 
         return cls._parse_row_request(
@@ -1334,6 +1347,7 @@ class Prepare:
         schema_timestamp: int = 0,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        **kwargs,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1350,6 +1364,7 @@ class Prepare:
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
             partial_update=effective_partial_update,
+            **cls._rls_context(kwargs),
         )
 
         request = cls._parse_upsert_row_request(
@@ -1473,10 +1488,13 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Any,
+        **kwargs,
     ):
         location = cls._pre_insert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
-        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+        request = milvus_types.InsertRequest(
+            collection_name=collection_name, partition_name=tag, **cls._rls_context(kwargs)
+        )
 
         return cls._parse_batch_request(
             request,
@@ -1494,6 +1512,7 @@ class Prepare:
         fields_info: Any,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        **kwargs,
     ):
         ops = normalize_field_ops(field_ops)
         # Non-REPLACE ops imply partial_update semantics; auto-promote before
@@ -1506,6 +1525,7 @@ class Prepare:
             collection_name=collection_name,
             partition_name=tag,
             partial_update=effective_partial_update,
+            **cls._rls_context(kwargs),
         )
 
         request = cls._parse_batch_request(request, entities, fields_info, location)
@@ -1550,6 +1570,7 @@ class Prepare:
             expr=filter,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            **cls._rls_context(kwargs),
         )
 
     @classmethod
@@ -1713,9 +1734,39 @@ class Prepare:
         return [chain.to_proto() for chain in chains]
 
     @staticmethod
-    def check_no_hybrid_function_chains(function_chains: Any) -> None:
-        if function_chains is not None:
-            raise ParamError(message="function_chains is not supported for hybrid_search yet")
+    def hybrid_function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+        rerank: Optional[Union[BaseRanker, Function]],
+    ) -> List[schema_types.FunctionChain]:
+        if function_chains is None or function_chains == []:
+            return []
+        if rerank is not None:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if not isinstance(chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in chains
+        ):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        supported_stages = {
+            FunctionChainStage.PRE_PROCESS,
+            FunctionChainStage.L2_RERANK,
+            FunctionChainStage.POST_PROCESS,
+        }
+        for chain in chains:
+            if chain.stage not in supported_stages:
+                stage_name = schema_types.FunctionChainStage.Name(int(chain.stage))
+                raise ParamError(message=f"stage {stage_name} is not supported in hybrid_search")
+
+        rerank_chains = [chain for chain in chains if chain.stage == FunctionChainStage.L2_RERANK]
+        if len(rerank_chains) != 1:
+            raise ParamError(message="hybrid_search requires exactly one L2_RERANK function chain")
+
+        return [chain.to_proto() for chain in chains]
 
     @classmethod
     def search_requests_with_expr(
@@ -1941,7 +1992,7 @@ class Prepare:
             err_msg = "Either data or ids must be provided"
             raise ValueError(err_msg)
 
-        request = milvus_types.SearchRequest(**request_kwargs)
+        request = milvus_types.SearchRequest(**request_kwargs, **cls._rls_context(kwargs))
 
         if search_aggregation is not None:
             request.search_aggregation.CopyFrom(search_aggregation.to_proto())
@@ -1994,12 +2045,33 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
+        chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
+        for index, sub_request in enumerate(reqs):
+            nested_chains = sub_request.function_chains
+            if nested_chains and isinstance(rerank, Function):
+                raise ParamError(
+                    message=f"function_score cannot be used with function_chains in sub-search[{index}]"
+                )
+            seen_stages = set()
+            for chain in nested_chains:
+                stage = chain.stage
+                stage_name = schema_types.FunctionChainStage.Name(stage)
+                if stage in seen_stages:
+                    raise ParamError(
+                        message=f"stage {stage_name} appears more than once in hybrid sub-search[{index}]"
+                    )
+                if not chain.ops:
+                    raise ParamError(
+                        message=f"function chain in hybrid sub-search[{index}] must contain at least one op"
+                    )
+                seen_stages.add(stage)
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
             rerank_param = rerank.dict()
@@ -2016,6 +2088,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             namespace=kwargs.get("namespace"),
+            **cls._rls_context(kwargs),
         )
 
         request.rank_params.extend(
@@ -2024,6 +2097,7 @@ class Prepare:
                 for key, value in rerank_param.items()
             ]
         )
+        request.function_chains.extend(chain_protos)
 
         for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
             val = kwargs.get(param_key)
@@ -2229,6 +2303,13 @@ class Prepare:
             priority = kwargs.get("priority")
             req.load_params["load_priority"] = priority
 
+        if "warmup" in kwargs:
+            if kwargs["warmup"] != "sync":
+                raise ParamError(message="load parameter warmup only supports sync")
+            if req.refresh:
+                raise ParamError(message="load parameter warmup cannot be used with refresh")
+            req.load_params["warmup"] = "sync"
+
         return req
 
     @classmethod
@@ -2374,6 +2455,7 @@ class Prepare:
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
             namespace=kwargs.get("namespace"),
+            **cls._rls_context(kwargs),
         )
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
@@ -2558,6 +2640,13 @@ class Prepare:
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 req.options.append(kv_pair)
 
+        for key, value in cls._rls_context(kwargs).items():
+            req.options.append(
+                common_types.KeyValuePair(
+                    key=key, value=str(value).lower() if isinstance(value, bool) else value
+                )
+            )
+
         return req
 
     @classmethod
@@ -2618,6 +2707,231 @@ class Prepare:
     @classmethod
     def list_usernames_request(cls):
         return milvus_types.ListCredUsersRequest()
+
+    @classmethod
+    def _parse_row_policy_type(cls, policy_type: Union[str, int]):
+        if isinstance(policy_type, bool):
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+        if isinstance(policy_type, int):
+            if policy_type not in (
+                milvus_types.RowPolicyTypePermissive,
+                milvus_types.RowPolicyTypeRestrictive,
+            ):
+                raise ParamError(message=f"invalid row policy type {policy_type}")
+            return policy_type
+
+        if not isinstance(policy_type, str):
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+
+        normalized = policy_type.replace("_", "").replace("-", "").lower()
+        mapping = {
+            "permissive": milvus_types.RowPolicyTypePermissive,
+            "rowpolicytypepermissive": milvus_types.RowPolicyTypePermissive,
+            "restrictive": milvus_types.RowPolicyTypeRestrictive,
+            "rowpolicytyperestrictive": milvus_types.RowPolicyTypeRestrictive,
+        }
+        if normalized not in mapping:
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+        return mapping[normalized]
+
+    @classmethod
+    def _parse_row_policy_action(cls, action: Union[str, int]):
+        if isinstance(action, bool):
+            raise ParamError(message=f"invalid row policy action {action}")
+        if isinstance(action, int):
+            try:
+                milvus_types.RowPolicyAction.Name(action)
+            except ValueError as exc:
+                raise ParamError(message=f"invalid row policy action {action}") from exc
+            return action
+
+        if not isinstance(action, str):
+            raise ParamError(message=f"invalid row policy action {action}")
+
+        normalized = action.replace("_", "").replace("-", "").lower()
+        mapping = {name.lower(): value for name, value in milvus_types.RowPolicyAction.items()}
+        if normalized not in mapping:
+            raise ParamError(message=f"invalid row policy action {action}")
+        return mapping[normalized]
+
+    @classmethod
+    def _parse_row_policy_actions(cls, actions: Union[str, int, List[Union[str, int]]]):
+        if isinstance(actions, (str, int)) and not isinstance(actions, bool):
+            actions = [actions]
+        if not isinstance(actions, list) or len(actions) == 0:
+            raise ParamError(message=f"invalid row policy actions {actions}")
+        return [cls._parse_row_policy_action(action) for action in actions]
+
+    @classmethod
+    def _check_rls_collection(cls, db_name: str, collection_name: str):
+        if not isinstance(db_name, str):
+            raise ParamError(message=f"invalid db_name {db_name}")
+        if not validate_str(collection_name):
+            raise ParamError(message=f"invalid collection_name {collection_name}")
+
+    @classmethod
+    def _encode_rls_tags(cls, tags: Mapping[str, Any]) -> str:
+        if not isinstance(tags, Mapping) or not tags:
+            raise ParamError(message="tags must be a non-empty mapping")
+        for key, value in tags.items():
+            if not isinstance(key, str):
+                raise ParamError(message="tag keys must be strings")
+            values = value if isinstance(value, list) else [value]
+            if any(isinstance(v, bool) or not isinstance(v, (str, int, float)) for v in values):
+                raise ParamError(message="tag values must be strings, numbers, or arrays of them")
+        try:
+            return json.dumps(
+                dict(tags), ensure_ascii=False, allow_nan=False, separators=(",", ":")
+            )
+        except (ValueError, OverflowError) as exc:
+            raise ParamError(message="tag numbers must be finite JSON numbers") from exc
+
+    @classmethod
+    def _check_string_list(cls, name: str, values: Optional[List[str]]):
+        if values is None:
+            return
+        if not isinstance(values, list):
+            raise ParamError(message=f"invalid {name} {values}")
+        for value in values:
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {values}")
+
+    @classmethod
+    def create_row_policy_request(
+        cls,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        for name, value in {
+            "using_expr": using_expr,
+            "check_expr": check_expr,
+            "description": description,
+        }.items():
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {value}")
+
+        return milvus_types.CreateRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+            policy_type=cls._parse_row_policy_type(policy_type),
+            actions=cls._parse_row_policy_actions(actions),
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+        )
+
+    @classmethod
+    def update_row_policy_request(
+        cls,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        for name, value in {
+            "using_expr": using_expr,
+            "check_expr": check_expr,
+            "description": description,
+        }.items():
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {value}")
+
+        return milvus_types.UpdateRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+            policy_type=cls._parse_row_policy_type(policy_type),
+            actions=cls._parse_row_policy_actions(actions),
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+        )
+
+    @classmethod
+    def drop_row_policy_request(cls, db_name: str, collection_name: str, policy_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        return milvus_types.DropRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+        )
+
+    @classmethod
+    def list_row_policies_request(cls, db_name: str, collection_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        return milvus_types.ListRowPoliciesRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+
+    @classmethod
+    def set_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str, tags: Mapping[str, Any]
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        return milvus_types.SetRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+            tags=cls._encode_rls_tags(tags),
+        )
+
+    @classmethod
+    def get_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        return milvus_types.GetRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+        )
+
+    @classmethod
+    def list_rls_principals_request(cls, db_name: str, collection_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        return milvus_types.ListRLSPrincipalsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+
+    @classmethod
+    def delete_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str, tag_keys: Optional[List[str]]
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        cls._check_string_list("tag_keys", tag_keys)
+        return milvus_types.DeleteRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+            tag_keys=tag_keys or [],
+        )
 
     @classmethod
     def create_role_request(cls, role_name: str, description: str = ""):

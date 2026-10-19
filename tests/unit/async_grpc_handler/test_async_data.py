@@ -61,6 +61,7 @@ class TestAsyncGrpcHandlerDataOps:
         mock_stub = AsyncMock()
         mock_response = MagicMock()
         mock_response.status.code = 0
+        mock_response.status.error_code = 0
         mock_response.IDs = MagicMock()
         mock_response.IDs.int_id = MagicMock()
         mock_response.IDs.int_id.data = [1]
