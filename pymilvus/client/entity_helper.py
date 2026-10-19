@@ -347,6 +347,13 @@ def convert_to_array(obj: List[Any], field_info: Any):
     )
 
 
+def set_array_element_type(field_data: schema_types.FieldData, field_info: Any):
+    """Set the element type declared in the schema on an ARRAY field's payload."""
+    element_type = field_info.get("element_type", None)
+    if element_type is not None:
+        field_data.scalars.array_data.element_type = element_type
+
+
 def _is_fp32_vector_value(field_value: Any) -> bool:
     if isinstance(field_value, list):
         return True
@@ -497,6 +504,8 @@ def _pack_scalar_row(
 ):
     try:
         payload = _get_protobuf_payload(field_data, dtype)
+        if dtype == DataType.ARRAY:
+            set_array_element_type(field_data, field_info)
         if value is None:
             payload.data.extend([])
             return
@@ -667,6 +676,7 @@ def entity_to_field_data(entity: Dict, field_info: Any, num_rows: int) -> schema
             elif entity_type == DataType.JSON:
                 entity_values = entity_to_json_arr(entity_values, field_info)
             elif entity_type == DataType.ARRAY:
+                set_array_element_type(field_data, field_info)
                 entity_values = entity_to_array_arr(entity_values, field_info)
             getattr(field_data.scalars, attr_name).data.extend(entity_values)
         elif entity_type == DataType.FLOAT_VECTOR:

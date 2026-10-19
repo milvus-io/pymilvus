@@ -55,7 +55,7 @@ from .constants import (
     STRICT_CAST,
     STRICT_GROUP_SIZE,
 )
-from .entity_helper import convert_to_array, convert_to_array_of_vector
+from .entity_helper import convert_to_array, convert_to_array_of_vector, set_array_element_type
 from .field_ops import FieldOpsInput, normalize_field_ops
 from .search_aggregation import SearchAggregation
 from .type_info import (
@@ -760,6 +760,7 @@ class Prepare:
                 continue
 
             if field_info["type"] == DataType.ARRAY:
+                set_array_element_type(field_data, field_info)
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
@@ -813,6 +814,7 @@ class Prepare:
             field_info = struct_field_info[field_name]
 
             if field_info["type"] == DataType.ARRAY:
+                set_array_element_type(field_data, field_info)
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
                 field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)

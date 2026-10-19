@@ -654,6 +654,48 @@ class TestRowUpsertParam:
             )
 
 
+@pytest.mark.parametrize(
+    "build", [Prepare.row_insert_param, Prepare.row_upsert_param], ids=["insert", "upsert"]
+)
+def test_row_request_sets_array_element_type(build, schema_with_struct):
+    """Test row requests carry the element type of ARRAY fields and struct sub-fields."""
+    schema_with_struct.add_field("ids", DataType.ARRAY, element_type=DataType.INT64, max_capacity=4)
+    schema_with_struct.add_field(
+        "tags", DataType.ARRAY, element_type=DataType.VARCHAR, max_capacity=4, max_length=16
+    )
+    schema_with_struct.add_field(
+        "flags", DataType.ARRAY, element_type=DataType.BOOL, max_capacity=4, nullable=True
+    )
+    vector = [1.0, 2.0, 3.0, 4.0]
+    rows = [
+        {
+            "pk": 1,
+            "vector": vector,
+            "ids": [1, 2],
+            "tags": ["a"],
+            "flags": None,
+            "metadata": [{"score": 1.0, "label": "x"}],
+        },
+        {"pk": 2, "vector": vector, "ids": [], "tags": ["b"], "flags": [True], "metadata": []},
+    ]
+
+    req = build(
+        "test_coll",
+        rows,
+        "",
+        fields_info=make_fields_info(schema_with_struct),
+        struct_fields_info=make_struct_fields_info(schema_with_struct),
+    )
+
+    fields = {field.field_name: field for field in req.fields_data}
+    assert fields["ids"].scalars.array_data.element_type == DataType.INT64
+    assert fields["tags"].scalars.array_data.element_type == DataType.VARCHAR
+    assert fields["flags"].scalars.array_data.element_type == DataType.BOOL
+    sub_fields = {field.field_name: field for field in fields["metadata"].struct_arrays.fields}
+    assert sub_fields["score"].scalars.array_data.element_type == DataType.FLOAT
+    assert sub_fields["label"].scalars.array_data.element_type == DataType.VARCHAR
+
+
 class TestBatchInsertParam:
     """Tests for batch_insert_param."""
 
