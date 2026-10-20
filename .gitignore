@@ -2,7 +2,6 @@
 ## Pycharm IDE
 /.idea
 
-.vscode
 
 *~
 
@@ -20,7 +19,6 @@ docs/build/
 venv/
 
 # Env
-.env
 .venv/
 
 # Local Temp
@@ -55,3 +53,5 @@ AGENTS.md
 #cython
 *.so
 *.c
+config.bat
+node_modules

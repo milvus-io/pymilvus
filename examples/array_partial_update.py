@@ -13,6 +13,7 @@ Exercises:
   5. Query back and print the merged state.
 """
 
+import utils.session
 import numpy as np
 
 from pymilvus import DataType, FieldOp, MilvusClient
