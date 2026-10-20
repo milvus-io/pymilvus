@@ -338,6 +338,16 @@ class Buffer:
                             np.frombuffer(val, dtype=NUMPY_TYPE_CREATOR[field_schema.dtype.name])
                         )
                 data[k] = arr
+            elif field_schema.dtype in {
+                DataType.INT8,
+                DataType.INT16,
+                DataType.INT32,
+                DataType.INT64,
+            } and any(val is None for val in v):
+                # pandas infers a list that contains None as float64, which loses
+                # precision for INT64 values above 2**53. Use a nullable integer
+                # dtype so the values stay exact.
+                data[k] = pd.array(v, dtype="Int64")
             else:
                 data[k] = v
 
