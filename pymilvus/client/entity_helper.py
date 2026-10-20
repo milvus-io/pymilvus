@@ -373,7 +373,7 @@ def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     if element_type == DataType.FLOAT16_VECTOR:
         if isinstance(field_value, np.ndarray):
             if field_value.dtype == "float16":
-                return field_value.view(np.uint8).tobytes()
+                return field_value.tobytes()
             raise ParamError(
                 message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
             )
@@ -384,7 +384,7 @@ def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     if element_type == DataType.BFLOAT16_VECTOR:
         if isinstance(field_value, np.ndarray):
             if field_value.dtype == "bfloat16":
-                return field_value.view(np.uint8).tobytes()
+                return field_value.tobytes()
             raise ParamError(
                 message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
             )
