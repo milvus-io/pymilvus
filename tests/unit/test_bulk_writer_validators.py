@@ -70,10 +70,16 @@ def test_invalid_numpy_length(validator_func, arr, dim, kwargs):
 
 
 class TestFloatVectorValidator:
-    def test_valid_list(self):
-        """Test valid list of floats"""
-        result = float_vector_validator([1.0, 2.0, 3.0], 3)
-        assert result == [1.0, 2.0, 3.0]
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param([1.0, 2.0, 3.0], id="list"),
+            pytest.param(np.array([1.0, 2.0, 3.0], dtype=np.float32), id="float32"),
+            pytest.param(np.array([1.0, 2.0, 3.0], dtype=np.float64), id="float64"),
+        ],
+    )
+    def test_valid_values(self, value):
+        assert float_vector_validator(value, 3) == [1.0, 2.0, 3.0]
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
@@ -86,18 +92,6 @@ class TestFloatVectorValidator:
         """Test list with non-float elements"""
         with pytest.raises(MilvusException, match="array's element must be float value"):
             float_vector_validator([1.0, 2, 3.0], 3)
-
-    def test_valid_numpy_float32(self):
-        """Test valid numpy array with float32"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        result = float_vector_validator(arr, 3)
-        assert result == [1.0, 2.0, 3.0]
-
-    def test_valid_numpy_float64(self):
-        """Test valid numpy array with float64"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float64)
-        result = float_vector_validator(arr, 3)
-        assert result == [1.0, 2.0, 3.0]
 
     def test_invalid_numpy_dtype(self):
         """Test numpy array with invalid dtype"""
@@ -112,11 +106,16 @@ class TestFloatVectorValidator:
 
 
 class TestBinaryVectorValidator:
-    def test_valid_list(self):
-        """Test valid list of binary values"""
-        result = binary_vector_validator([1, 0, 1, 1, 0, 0, 1, 0], 8)
-        expected = np.packbits([1, 0, 1, 1, 0, 0, 1, 0], axis=-1).tolist()
-        assert result == expected
+    @pytest.mark.parametrize(
+        "value,dim,expected",
+        [
+            pytest.param([1, 0, 1, 1, 0, 0, 1, 0], 8, [0xB2], id="bits-msb-first"),
+            pytest.param(b"\x00\x01", 16, [0, 1], id="bytes"),
+            pytest.param(np.array([0, 1, 2], dtype=np.uint8), 24, [0, 1, 2], id="uint8"),
+        ],
+    )
+    def test_valid_values(self, value, dim, expected):
+        assert binary_vector_validator(value, dim) == expected
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
@@ -125,12 +124,6 @@ class TestBinaryVectorValidator:
         ):
             binary_vector_validator([1, 0, 1], 8)
 
-    def test_valid_bytes(self):
-        """Test valid bytes input"""
-        data = b"\x00\x01"
-        result = binary_vector_validator(data, 16)
-        assert result == [0, 1]
-
     def test_invalid_bytes_length(self):
         """Test bytes with wrong length"""
         data = b"\x00"
@@ -138,12 +131,6 @@ class TestBinaryVectorValidator:
             MilvusException, match="length of the bytes must be equal to 8x of vector dimension"
         ):
             binary_vector_validator(data, 16)
-
-    def test_valid_numpy_uint8(self):
-        """Test valid numpy array with uint8"""
-        arr = np.array([0, 1, 2], dtype=np.uint8)
-        result = binary_vector_validator(arr, 24)
-        assert result == [0, 1, 2]
 
     def test_invalid_numpy_dtype(self):
         """Test numpy array with invalid dtype"""
@@ -163,83 +150,48 @@ class TestBinaryVectorValidator:
 
 
 class TestFloat16VectorValidator:
-    def test_valid_list_float16(self):
-        """Test valid list of floats for float16"""
-        result = float16_vector_validator([1.0, 2.0, 3.0], 3, is_bfloat=False)
-        assert result == [1.0, 2.0, 3.0]
-
-    @pytest.mark.skipif(not hasattr(np, "bfloat16"), reason="bfloat16 not available")
-    def test_valid_list_bfloat16(self):
-        """Test valid list of floats for bfloat16"""
-        result = float16_vector_validator([1.0, 2.0, 3.0], 3, is_bfloat=True)
-        assert result == [1.0, 2.0, 3.0]
+    @pytest.mark.parametrize("is_bfloat", [False, True], ids=["float16", "bfloat16"])
+    def test_valid_list(self, is_bfloat):
+        assert float16_vector_validator([1.0, 2.0, 3.0], 3, is_bfloat=is_bfloat) == [1.0, 2.0, 3.0]
 
     def test_invalid_list_length(self):
-        """Test list with wrong dimension"""
         with pytest.raises(
             MilvusException, match="array's length must be equal to vector dimension"
         ):
             float16_vector_validator([1.0, 2.0], 3, is_bfloat=False)
 
     def test_invalid_list_type(self):
-        """Test list with non-float elements"""
         with pytest.raises(MilvusException, match="array's element must be float value"):
             float16_vector_validator([1.0, 2, 3.0], 3, is_bfloat=False)
 
-    def test_valid_numpy_float16(self):
-        """Test valid numpy array with float16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float16)
-        result = float16_vector_validator(arr, 3, is_bfloat=False)
-        assert isinstance(result, bytes)
-        assert result == arr.tobytes()
+    @pytest.mark.parametrize(
+        "dtype,is_bfloat,expected",
+        [
+            pytest.param("float16", False, b"\x00\x3c\x00\x40\x00\x42", id="float16-bytes"),
+            pytest.param("bfloat16", True, b"\x80\x3f\x00\x40\x40\x40", id="bfloat16-bytes"),
+            pytest.param("float32", False, [1.0, 2.0, 3.0], id="float32-for-float16"),
+            pytest.param("float64", False, [1.0, 2.0, 3.0], id="float64-for-float16"),
+            pytest.param("float32", True, [1.0, 2.0, 3.0], id="float32-for-bfloat16"),
+            pytest.param("float64", True, [1.0, 2.0, 3.0], id="float64-for-bfloat16"),
+        ],
+    )
+    def test_valid_numpy(self, dtype, is_bfloat, expected):
+        if dtype == "bfloat16":
+            pytest.importorskip("ml_dtypes")
+        value = np.array([1.0, 2.0, 3.0], dtype=dtype)
 
-    @pytest.mark.skipif(not hasattr(np, "bfloat16"), reason="bfloat16 not available")
-    def test_valid_numpy_bfloat16(self):
-        """Test valid numpy array with bfloat16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype="bfloat16")
-        result = float16_vector_validator(arr, 3, is_bfloat=True)
-        assert isinstance(result, bytes)
-        assert result == arr.tobytes()
+        result = float16_vector_validator(value, 3, is_bfloat=is_bfloat)
 
-    def test_valid_numpy_float32_float16(self):
-        """Test numpy float32 array for float16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        result = float16_vector_validator(arr, 3, is_bfloat=False)
-        assert result == [1.0, 2.0, 3.0]
+        assert isinstance(result, type(expected))
+        assert result == expected
 
-    def test_valid_numpy_float64_float16(self):
-        """Test numpy float64 array for float16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float64)
-        result = float16_vector_validator(arr, 3, is_bfloat=False)
-        assert result == [1.0, 2.0, 3.0]
-
-    def test_valid_numpy_float32_bfloat16(self):
-        """Test numpy float32 array for bfloat16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float32)
-        result = float16_vector_validator(arr, 3, is_bfloat=True)
-        assert result == [1.0, 2.0, 3.0]
-
-    def test_valid_numpy_float64_bfloat16(self):
-        """Test numpy float64 array for bfloat16"""
-        arr = np.array([1.0, 2.0, 3.0], dtype=np.float64)
-        result = float16_vector_validator(arr, 3, is_bfloat=True)
-        assert result == [1.0, 2.0, 3.0]
-
-    def test_invalid_numpy_dtype_float16(self):
-        """Test numpy array with wrong dtype for float16"""
-        arr = np.array([1, 2, 3], dtype=np.int32)
+    @pytest.mark.parametrize("is_bfloat,dtype_name", [(False, "float16"), (True, "bfloat16")])
+    def test_invalid_numpy_dtype(self, is_bfloat, dtype_name):
+        value = np.array([1, 2, 3], dtype=np.int32)
         with pytest.raises(
-            MilvusException, match='dtype must be "float16", "float32" or "float64"'
+            MilvusException, match=f'dtype must be "{dtype_name}", "float32" or "float64"'
         ):
-            float16_vector_validator(arr, 3, is_bfloat=False)
-
-    def test_invalid_numpy_dtype_bfloat16(self):
-        """Test numpy array with wrong dtype for bfloat16"""
-        arr = np.array([1, 2, 3], dtype=np.int32)
-        with pytest.raises(
-            MilvusException, match='dtype must be "bfloat16", "float32" or "float64"'
-        ):
-            float16_vector_validator(arr, 3, is_bfloat=True)
+            float16_vector_validator(value, 3, is_bfloat=is_bfloat)
 
 
 # ---------------------------------------------------------------------------
@@ -248,10 +200,15 @@ class TestFloat16VectorValidator:
 
 
 class TestInt8VectorValidator:
-    def test_valid_list(self):
-        """Test valid list of integers"""
-        result = int8_vector_validator([1, 2, 3], 3)
-        assert result == [1, 2, 3]
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param([-128, -1, 0, 127], id="list"),
+            pytest.param(np.array([-128, -1, 0, 127], dtype=np.int8), id="int8"),
+        ],
+    )
+    def test_valid_values(self, value):
+        assert int8_vector_validator(value, 4) == [-128, -1, 0, 127]
 
     def test_invalid_list_length(self):
         """Test list with wrong dimension"""
@@ -264,12 +221,6 @@ class TestInt8VectorValidator:
         """Test list with non-int elements"""
         with pytest.raises(MilvusException, match="array's element must be int value"):
             int8_vector_validator([1, 2.0, 3], 3)
-
-    def test_valid_numpy_int8(self):
-        """Test valid numpy array with int8"""
-        arr = np.array([1, 2, 3], dtype=np.int8)
-        result = int8_vector_validator(arr, 3)
-        assert result == [1, 2, 3]
 
     def test_invalid_numpy_dtype(self):
         """Test numpy array with invalid dtype"""

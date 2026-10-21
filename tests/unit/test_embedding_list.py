@@ -21,35 +21,30 @@ def _deserialize_placeholder(serialized_bytes):
 class TestEmbeddingListBytesInput:
     """Test EmbeddingList.add() handles bytes input correctly."""
 
-    def test_add_bytes_with_uint8_dtype(self):
-        """bytes input should be converted to uint8 ndarray when dtype is uint8."""
-        el = EmbeddingList(dtype=DataType.BINARY_VECTOR)
-        raw = b"\x01\x02\x03\x04"
+    @pytest.mark.parametrize(
+        "dtype,raw,expected_dtype,expected",
+        [
+            pytest.param(
+                DataType.BINARY_VECTOR, b"\x01\x02\x03\x04", np.uint8, [1, 2, 3, 4], id="binary"
+            ),
+            pytest.param(None, b"\xff\x00\xab", np.uint8, [255, 0, 171], id="inferred-uint8"),
+            pytest.param(
+                DataType.INT8_VECTOR,
+                b"\x01\x7f\x80\xff",
+                np.int8,
+                [1, 127, -128, -1],
+                id="signed-int8",
+            ),
+        ],
+    )
+    def test_add_bytes(self, dtype, raw, expected_dtype, expected):
+        el = EmbeddingList(dtype=dtype)
         el.add(raw)
+
         assert len(el) == 1
-        assert el[0].dtype == np.uint8
-        np.testing.assert_array_equal(el[0], np.array([1, 2, 3, 4], dtype=np.uint8))
-
-    def test_add_bytes_without_dtype_defaults_to_uint8(self):
-        """bytes input without explicit dtype should default to uint8."""
-        el = EmbeddingList()
-        el.add(b"\xff\x00\xab")
-        assert el[0].dtype == np.uint8
-        assert len(el[0]) == 3
-
-    def test_add_bytes_with_int8_dtype(self):
-        """bytes input with int8 dtype should produce int8 ndarray."""
-        el = EmbeddingList(dtype=DataType.INT8_VECTOR)
-        el.add(b"\x01\x02\x03\x04")
-        assert el[0].dtype == np.int8
-
-    def test_add_multiple_bytes(self):
-        """Multiple bytes embeddings should work and maintain dimension consistency."""
-        el = EmbeddingList(dtype=DataType.BINARY_VECTOR)
-        el.add(b"\x01\x02\x03\x04")
-        el.add(b"\x05\x06\x07\x08")
-        assert len(el) == 2
-        assert el.dim == 4
+        assert el.dtype == expected_dtype
+        assert el[0].dtype == expected_dtype
+        assert el[0].tolist() == expected
 
     def test_add_bytes_dimension_mismatch_raises(self):
         """Adding bytes with different length should raise ValueError."""
@@ -64,12 +59,16 @@ class TestEmbeddingListBytesInput:
         el.add(b"\x01\x02")
         el.add(b"\x03\x04")
         flat = el.to_flat_array()
+        assert len(el) == 2
+        assert el.dim == 2
+        assert el[0].tolist() == [1, 2]
+        assert el[1].tolist() == [3, 4]
         assert flat.dtype == np.uint8
         np.testing.assert_array_equal(flat, np.array([1, 2, 3, 4], dtype=np.uint8))
 
 
 class TestEmbeddingListBFloat16Dtype:
-    """Test EmbeddingList._parse_dtype() handles bfloat16 correctly."""
+    """Test native bfloat16 values and the float16 compatibility fallback."""
 
     def test_parse_dtype_bfloat16_not_float16(self):
         """DataType.BFLOAT16_VECTOR should not produce float16 when bfloat16 is available."""
@@ -79,7 +78,10 @@ class TestEmbeddingListBFloat16Dtype:
         except TypeError:
             # bfloat16 not available, fallback to float16 is acceptable
             expected = np.dtype(np.float16)
-        assert el._dtype == expected
+        assert el.dtype == expected
+        el.add([1.5, 2.5])
+        assert el.to_flat_array().dtype == expected
+        assert el.to_flat_array().tolist() == [1.5, 2.5]
 
     def test_infer_dtype_preserves_bfloat16(self):
         """When adding bfloat16 arrays, the dtype should be preserved, not converted."""
@@ -218,31 +220,27 @@ class TestEmbeddingListInit:
 
 
 class TestEmbeddingListParseDtype:
-    """Tests for _parse_dtype branches."""
+    """Requested dtypes control the stored and serialized values."""
 
-    def test_parse_numpy_dtype(self):
-        el = EmbeddingList(dtype=np.dtype(np.float32))
-        assert el._dtype == np.dtype(np.float32)
+    @pytest.mark.parametrize(
+        "dtype,expected_dtype",
+        [
+            pytest.param(np.dtype(np.float32), np.float32, id="numpy-dtype"),
+            pytest.param("float32", np.float32, id="dtype-name"),
+            pytest.param(DataType.FLOAT_VECTOR, np.float32, id="float32"),
+            pytest.param(DataType.FLOAT16_VECTOR, np.float16, id="float16"),
+            pytest.param(DataType.INT8_VECTOR, np.int8, id="int8"),
+            pytest.param(DataType.BINARY_VECTOR, np.uint8, id="binary"),
+        ],
+    )
+    def test_requested_dtype_controls_values(self, dtype, expected_dtype):
+        el = EmbeddingList(dtype=dtype)
+        assert el.dtype == expected_dtype
 
-    def test_parse_string_dtype(self):
-        el = EmbeddingList(dtype="float32")
-        assert el._dtype == np.dtype(np.float32)
-
-    def test_parse_datatype_float_vector(self):
-        el = EmbeddingList(dtype=DataType.FLOAT_VECTOR)
-        assert el._dtype == np.dtype(np.float32)
-
-    def test_parse_datatype_float16_vector(self):
-        el = EmbeddingList(dtype=DataType.FLOAT16_VECTOR)
-        assert el._dtype == np.dtype(np.float16)
-
-    def test_parse_datatype_int8_vector(self):
-        el = EmbeddingList(dtype=DataType.INT8_VECTOR)
-        assert el._dtype == np.dtype(np.int8)
-
-    def test_parse_datatype_binary_vector(self):
-        el = EmbeddingList(dtype=DataType.BINARY_VECTOR)
-        assert el._dtype == np.dtype(np.uint8)
+        el.add([1, 2])
+        flat = el.to_flat_array()
+        assert flat.dtype == expected_dtype
+        assert flat.tolist() == [1, 2]
 
     def test_parse_unsupported_datatype_raises(self):
         with pytest.raises(ParamError):
@@ -252,24 +250,17 @@ class TestEmbeddingListParseDtype:
         with pytest.raises(TypeError, match="dtype must be"):
             EmbeddingList(dtype=12345)
 
-    def test_parse_bfloat16_fallback(self):
-        """When bfloat16 is unavailable, should fall back to float16."""
-        el = EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
-        try:
-            expected = np.dtype("bfloat16")
-        except TypeError:
-            expected = np.dtype(np.float16)
-        assert el._dtype == expected
-
-    def test_parse_bfloat16_uses_registry_fallback(self):
+    def test_bfloat16_falls_back_when_dtype_is_unavailable(self):
         with patch(
             "pymilvus.client.embedding_list.require_numpy_dtype",
             return_value="missing_bfloat16",
-        ) as require_dtype:
+        ):
             el = EmbeddingList(dtype=DataType.BFLOAT16_VECTOR)
 
-        require_dtype.assert_called_once_with(DataType.BFLOAT16_VECTOR)
-        assert el._dtype == np.dtype(np.float16)
+        el.add([1.5, 2.5])
+        assert el.dtype == np.dtype(np.float16)
+        assert el.to_flat_array().dtype == np.dtype(np.float16)
+        assert el.to_flat_array().tolist() == [1.5, 2.5]
 
     def test_parse_datatype_missing_registry_dtype_raises_param_error(self):
         with patch(
