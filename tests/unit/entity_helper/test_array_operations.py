@@ -8,236 +8,154 @@ from pymilvus.client.entity_helper import (
     get_array_value_at_index,
 )
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 
 
 class TestExtractArrayRowDataFunctions:
-    """Test extract_array_rows with and without validity masks."""
+    """Decode scalar arrays without losing row positions or null values."""
 
-    def test_extract_array_row_data_int8_no_validity(self):
-        """Test extracting INT8 array data without validity"""
+    @pytest.mark.parametrize(
+        "element_type,attr,arrays,valid_data,expected",
+        [
+            pytest.param(
+                DataType.INT8,
+                "int_data",
+                [[1, 2, 3], [4, 5]],
+                [],
+                [[1, 2, 3], [4, 5]],
+                id="int8",
+            ),
+            pytest.param(
+                DataType.INT16,
+                "int_data",
+                [[100, 200]],
+                [],
+                [[100, 200]],
+                id="int16",
+            ),
+            pytest.param(
+                DataType.INT32,
+                "int_data",
+                [[1000, 2000, 3000]],
+                [],
+                [[1000, 2000, 3000]],
+                id="int32",
+            ),
+            pytest.param(
+                DataType.INT64,
+                "long_data",
+                [[1, 2, 3], [], [], [7, 8, 9]],
+                [True, False, True, True],
+                [[1, 2, 3], None, [], [7, 8, 9]],
+                id="int64-null-empty-and-values",
+            ),
+            pytest.param(
+                DataType.BOOL,
+                "bool_data",
+                [[True, False], [False, True, False]],
+                [True, True],
+                [[True, False], [False, True, False]],
+                id="bool-all-valid",
+            ),
+            pytest.param(
+                DataType.VARCHAR,
+                "string_data",
+                [["hello", "world"], []],
+                [True, False],
+                [["hello", "world"], None],
+                id="varchar-null",
+            ),
+            pytest.param(
+                DataType.FLOAT,
+                "float_data",
+                [[1.5, 2.5, 3.5]],
+                [True],
+                [pytest.approx([1.5, 2.5, 3.5])],
+                id="float",
+            ),
+            pytest.param(
+                DataType.DOUBLE,
+                "double_data",
+                [[1.111, 2.222]],
+                [True],
+                [pytest.approx([1.111, 2.222])],
+                id="double",
+            ),
+        ],
+    )
+    def test_extract_array_rows(self, element_type, attr, arrays, valid_data, expected):
+        field_data = schema_types.FieldData(
+            type=DataType.ARRAY, field_name="arr_field", valid_data=valid_data
+        )
+        field_data.scalars.array_data.element_type = element_type
+        for values in arrays:
+            scalar = field_data.scalars.array_data.data.add()
+            getattr(scalar, attr).data.extend(values)
+        entity_rows = [{"id": i} for i in range(len(arrays))]
 
-        field_data = schema_types.FieldData()
-        field_data.field_name = "arr_field"
-        field_data.scalars.array_data.element_type = DataType.INT8
+        extract_array_rows(field_data, entity_rows, len(arrays), has_valid=bool(valid_data))
 
-        # Add array data
-        arr1 = schema_types.ScalarField()
-        arr1.int_data.data.extend([1, 2, 3])
-        field_data.scalars.array_data.data.append(arr1)
+        assert entity_rows == [{"id": i, "arr_field": value} for i, value in enumerate(expected)]
 
-        arr2 = schema_types.ScalarField()
-        arr2.int_data.data.extend([4, 5])
-        field_data.scalars.array_data.data.append(arr2)
+    @pytest.mark.parametrize(
+        "element_type,values",
+        [
+            pytest.param(999, [], id="unknown"),
+            pytest.param(DataType.TIMESTAMPTZ, ["2026-05-27T00:00:00Z"], id="timestamptz"),
+        ],
+    )
+    def test_extract_array_rows_unsupported_element(self, element_type, values):
+        field_data = schema_types.FieldData(type=DataType.ARRAY, field_name="arr_field")
+        field_data.scalars.array_data.element_type = element_type
+        field_data.scalars.array_data.data.add().string_data.data.extend(values)
 
-        entity_rows = [{}, {}]
-        extract_array_rows(field_data, entity_rows, 2, has_valid=False)
-
-        assert entity_rows[0]["arr_field"] == [1, 2, 3]
-        assert entity_rows[1]["arr_field"] == [4, 5]
-
-    def test_extract_array_row_data_int16_no_validity(self):
-        """Test extracting INT16 array data without validity"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "arr_field"
-        field_data.scalars.array_data.element_type = DataType.INT16
-
-        arr1 = schema_types.ScalarField()
-        arr1.int_data.data.extend([100, 200])
-        field_data.scalars.array_data.data.append(arr1)
-
-        entity_rows = [{}]
-        extract_array_rows(field_data, entity_rows, 1, has_valid=False)
-
-        assert entity_rows[0]["arr_field"] == [100, 200]
-
-    def test_extract_array_row_data_int32_no_validity(self):
-        """Test extracting INT32 array data without validity"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "arr_field"
-        field_data.scalars.array_data.element_type = DataType.INT32
-
-        arr1 = schema_types.ScalarField()
-        arr1.int_data.data.extend([1000, 2000, 3000])
-        field_data.scalars.array_data.data.append(arr1)
-
-        entity_rows = [{}]
-        extract_array_rows(field_data, entity_rows, 1, has_valid=False)
-
-        assert entity_rows[0]["arr_field"] == [1000, 2000, 3000]
-
-    def test_extract_array_row_data_with_validity_int64(self):
-        """Test extracting INT64 array data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "arr_field"
-        field_data.scalars.array_data.element_type = DataType.INT64
-        field_data.valid_data.extend([True, False, True])
-
-        arr1 = schema_types.ScalarField()
-        arr1.long_data.data.extend([1, 2, 3])
-        field_data.scalars.array_data.data.append(arr1)
-
-        arr2 = schema_types.ScalarField()  # Will be None due to valid_data[1] = False
-        field_data.scalars.array_data.data.append(arr2)
-
-        arr3 = schema_types.ScalarField()
-        arr3.long_data.data.extend([7, 8, 9])
-        field_data.scalars.array_data.data.append(arr3)
-
-        entity_rows = [{}, {}, {}]
-        extract_array_rows(field_data, entity_rows, 3, has_valid=True)
-
-        assert entity_rows[0]["arr_field"] == [1, 2, 3]
-        assert entity_rows[1]["arr_field"] is None
-        assert entity_rows[2]["arr_field"] == [7, 8, 9]
-
-    def test_extract_array_row_data_with_validity_bool(self):
-        """Test extracting BOOL array data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "bool_arr"
-        field_data.scalars.array_data.element_type = DataType.BOOL
-        field_data.valid_data.extend([True, True])
-
-        arr1 = schema_types.ScalarField()
-        arr1.bool_data.data.extend([True, False])
-        field_data.scalars.array_data.data.append(arr1)
-
-        arr2 = schema_types.ScalarField()
-        arr2.bool_data.data.extend([False, True, False])
-        field_data.scalars.array_data.data.append(arr2)
-
-        entity_rows = [{}, {}]
-        extract_array_rows(field_data, entity_rows, 2, has_valid=True)
-
-        assert entity_rows[0]["bool_arr"] == [True, False]
-        assert entity_rows[1]["bool_arr"] == [False, True, False]
-
-    def test_extract_array_row_data_with_validity_varchar(self):
-        """Test extracting VARCHAR array data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "str_arr"
-        field_data.scalars.array_data.element_type = DataType.VARCHAR
-        field_data.valid_data.extend([True, False])
-
-        arr1 = schema_types.ScalarField()
-        arr1.string_data.data.extend(["hello", "world"])
-        field_data.scalars.array_data.data.append(arr1)
-
-        arr2 = schema_types.ScalarField()
-        field_data.scalars.array_data.data.append(arr2)
-
-        entity_rows = [{}, {}]
-        extract_array_rows(field_data, entity_rows, 2, has_valid=True)
-
-        assert entity_rows[0]["str_arr"] == ["hello", "world"]
-        assert entity_rows[1]["str_arr"] is None
-
-    def test_extract_array_row_data_with_validity_float(self):
-        """Test extracting FLOAT array data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "float_arr"
-        field_data.scalars.array_data.element_type = DataType.FLOAT
-        field_data.valid_data.extend([True])
-
-        arr1 = schema_types.ScalarField()
-        arr1.float_data.data.extend([1.5, 2.5, 3.5])
-        field_data.scalars.array_data.data.append(arr1)
-
-        entity_rows = [{}]
-        extract_array_rows(field_data, entity_rows, 1, has_valid=True)
-
-        assert entity_rows[0]["float_arr"][0] == pytest.approx(1.5)
-
-    def test_extract_array_row_data_with_validity_double(self):
-        """Test extracting DOUBLE array data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.field_name = "double_arr"
-        field_data.scalars.array_data.element_type = DataType.DOUBLE
-        field_data.valid_data.extend([True])
-
-        arr1 = schema_types.ScalarField()
-        arr1.double_data.data.extend([1.111, 2.222])
-        field_data.scalars.array_data.data.append(arr1)
-
-        entity_rows = [{}]
-        extract_array_rows(field_data, entity_rows, 1, has_valid=True)
-
-        assert entity_rows[0]["double_arr"][0] == pytest.approx(1.111)
+        with pytest.raises(MilvusException, match=f"Unsupported data type: {element_type}"):
+            extract_array_rows(field_data, [{}], 1, has_valid=False)
 
 
 class TestArrayConversion:
-    """Test convert_to_array for scalar types"""
+    @pytest.mark.parametrize(
+        "element_type,values,attr",
+        [
+            pytest.param(DataType.BOOL, [True, False], "bool_data", id="bool"),
+            pytest.param(DataType.INT8, [-128, 0, 127], "int_data", id="int8"),
+            pytest.param(DataType.INT16, [-32768, 0, 32767], "int_data", id="int16"),
+            pytest.param(DataType.INT32, [-2147483648, 0, 2147483647], "int_data", id="int32"),
+            pytest.param(DataType.INT64, [-(2**63), 0, 2**63 - 1], "long_data", id="int64"),
+            pytest.param(DataType.FLOAT, [1.5, 2.5], "float_data", id="float"),
+            pytest.param(DataType.DOUBLE, [1.11, 2.22], "double_data", id="double"),
+            pytest.param(DataType.STRING, ["a", "b"], "string_data", id="string"),
+            pytest.param(DataType.VARCHAR, ["varchar-a", "varchar-b"], "string_data", id="varchar"),
+        ],
+    )
+    def test_convert_to_array(self, element_type, values, attr):
+        result = convert_to_array(values, {"name": "arr_field", "element_type": element_type})
 
-    def test_convert_bool_array(self):
-
-        result = convert_to_array([True, False], {"element_type": DataType.BOOL})
-        assert list(result.bool_data.data) == [True, False]
-
-    def test_convert_float_array(self):
-
-        result = convert_to_array([1.5, 2.5], {"element_type": DataType.FLOAT})
-        assert list(result.float_data.data) == pytest.approx([1.5, 2.5])
-
-    def test_convert_double_array(self):
-
-        result = convert_to_array([1.11, 2.22], {"element_type": DataType.DOUBLE})
-        assert list(result.double_data.data) == pytest.approx([1.11, 2.22])
-
-    def test_get_array_value_at_index_extended(self):
-
-        # Test Double
-        arr_data = convert_to_array([1.1, 2.2], {"element_type": DataType.DOUBLE})
-        assert get_array_value_at_index(arr_data, 0) == pytest.approx(1.1)
-        assert get_array_value_at_index(arr_data, 1) == pytest.approx(2.2)
-        assert get_array_value_at_index(arr_data, 2) is None
-
-        # Test Bool
-        arr_data = convert_to_array([True, False], {"element_type": DataType.BOOL})
-        assert get_array_value_at_index(arr_data, 0) is True
-        assert get_array_value_at_index(arr_data, 1) is False
-
-
-class TestConvertToArrayExtended:
-    """Test convert_to_array and convert_to_array_arr for various element types"""
-
-    def test_convert_to_array_int8(self):
-        """Test converting INT8 array"""
-        field_info = {"name": "arr_field", "element_type": DataType.INT8}
-        result = convert_to_array([1, 2, 3], field_info)
-        assert list(result.int_data.data) == [1, 2, 3]
-
-    def test_convert_to_array_int16(self):
-        """Test converting INT16 array"""
-        field_info = {"name": "arr_field", "element_type": DataType.INT16}
-        result = convert_to_array([100, 200, 300], field_info)
-        assert list(result.int_data.data) == [100, 200, 300]
-
-    def test_convert_to_array_int32(self):
-        """Test converting INT32 array"""
-        field_info = {"name": "arr_field", "element_type": DataType.INT32}
-        result = convert_to_array([1000, 2000], field_info)
-        assert list(result.int_data.data) == [1000, 2000]
-
-    def test_convert_to_array_string_type(self):
-        """Test converting STRING (alias) array"""
-        field_info = {"name": "arr_field", "element_type": DataType.STRING}
-        result = convert_to_array(["a", "b"], field_info)
-        assert list(result.string_data.data) == ["a", "b"]
+        # The expected wire field is independent of the production type registry.
+        assert result.WhichOneof("data") == attr
+        assert list(getattr(result, attr).data) == values
 
     def test_convert_to_array_numpy_input(self):
-        """Test converting numpy array"""
         field_info = {"name": "arr_field", "element_type": DataType.INT64}
         arr = np.array([1, 2, 3], dtype=np.int64)
         result = convert_to_array(arr, field_info)
         assert list(result.long_data.data) == [1, 2, 3]
+
+    @pytest.mark.parametrize(
+        "element_type",
+        [
+            DataType.BINARY_VECTOR,
+            DataType.FLOAT16_VECTOR,
+            DataType.BFLOAT16_VECTOR,
+            DataType.INT8_VECTOR,
+        ],
+    )
+    def test_scalar_array_rejects_vector_element_types(self, element_type):
+        field_info = {"name": "array_field", "element_type": element_type}
+
+        with pytest.raises(ParamError, match="Unsupported element type"):
+            convert_to_array([b"\x00"], field_info)
 
 
 class TestConvertToArrayOfVector:
@@ -277,7 +195,93 @@ class TestConvertToArrayOfVector:
         result = convert_to_array_of_vector(vectors, field_info)
         assert list(result.float_vector.data) == [1.0, 2.0, 3.0, 4.0]
 
-    def test_convert_array_of_binary_vectors_uses_registry_destination(self):
+    def test_convert_array_of_float16_vectors(self):
+        """Test converting array of float16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        v1 = np.array([1.0, 2.0], dtype=np.float16)
+        v2 = np.array([3.0, 4.0], dtype=np.float16)
+        result = convert_to_array_of_vector([v1, v2], field_info)
+        assert result.dim == 2
+        expected = v1.view(np.uint8).tobytes() + v2.view(np.uint8).tobytes()
+        assert result.float16_vector == expected
+
+    def test_convert_array_of_float16_vectors_bytes(self):
+        """Test converting array of float16 vectors from raw bytes"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        v1_bytes = np.array([1.0, 2.0], dtype=np.float16).view(np.uint8).tobytes()
+        v2_bytes = np.array([3.0, 4.0], dtype=np.float16).view(np.uint8).tobytes()
+        result = convert_to_array_of_vector([v1_bytes, v2_bytes], field_info)
+        assert result.float16_vector == v1_bytes + v2_bytes
+
+    def test_convert_empty_array_of_float16_vectors(self):
+        """Test converting empty array of float16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.FLOAT16_VECTOR,
+            "params": {"dim": 4},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 4
+        assert result.float16_vector == b""
+
+    def test_convert_array_of_bfloat16_vectors(self):
+        """Test converting array of bfloat16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 2},
+        }
+        # Use raw bytes since bfloat16 may not be available in all numpy versions
+        v1_bytes = b"\x00\x3f\x00\x40"  # 4 bytes for dim=2
+        v2_bytes = b"\x00\x41\x00\x42"
+        result = convert_to_array_of_vector([v1_bytes, v2_bytes], field_info)
+        assert result.dim == 2
+        assert result.bfloat16_vector == v1_bytes + v2_bytes
+
+    def test_convert_empty_array_of_bfloat16_vectors(self):
+        """Test converting empty array of bfloat16 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 4},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 4
+        assert result.bfloat16_vector == b""
+
+    def test_convert_array_of_int8_vectors(self):
+        """Test converting array of int8 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 3},
+        }
+        v1 = np.array([1, -2, 3], dtype=np.int8)
+        v2 = np.array([4, -5, 6], dtype=np.int8)
+        result = convert_to_array_of_vector([v1, v2], field_info)
+        assert result.dim == 3
+        assert result.int8_vector == b"\x01\xfe\x03\x04\xfb\x06"
+
+    def test_convert_empty_array_of_int8_vectors(self):
+        """Test converting empty array of int8 vectors"""
+        field_info = {
+            "name": "vec_arr_field",
+            "element_type": DataType.INT8_VECTOR,
+            "params": {"dim": 3},
+        }
+        result = convert_to_array_of_vector([], field_info)
+        assert result.dim == 3
+        assert result.int8_vector == b""
+
+    def test_convert_array_of_binary_vectors(self):
         """Test converting array of binary vectors"""
         field_info = {
             "name": "vec_arr_field",
@@ -300,9 +304,84 @@ class TestConvertToArrayOfVector:
         with pytest.raises(ParamError, match="invalid input for float32 vector"):
             convert_to_array_of_vector(vectors, field_info)
 
+    def test_convert_array_of_bfloat16_vectors_numpy(self):
+        ml_dtypes = pytest.importorskip("ml_dtypes")
+        values = [
+            np.array([1.0, 2.0], dtype=ml_dtypes.bfloat16),
+            np.array([3.0, 4.0], dtype=ml_dtypes.bfloat16),
+        ]
+        field_info = {
+            "name": "array_vec",
+            "element_type": DataType.BFLOAT16_VECTOR,
+            "params": {"dim": 4},
+        }
+
+        vector_data = convert_to_array_of_vector(values, field_info)
+
+        assert vector_data.dim == 4
+        assert vector_data.bfloat16_vector == b"\x80\x3f\x00\x40\x40\x40\x80\x40"
+
+    @pytest.mark.parametrize(
+        "element_type,value,match",
+        [
+            (
+                DataType.FLOAT16_VECTOR,
+                np.array([1.0, 2.0], dtype=np.float32),
+                "dtype=float16",
+            ),
+            (
+                DataType.FLOAT16_VECTOR,
+                [1, 2],
+                "np.ndarray\\(dtype=float16\\)",
+            ),
+            (
+                DataType.BFLOAT16_VECTOR,
+                np.array([1.0, 2.0], dtype=np.float32),
+                "dtype=bfloat16",
+            ),
+            (
+                DataType.BFLOAT16_VECTOR,
+                [1, 2],
+                "np.ndarray\\(dtype=bfloat16\\)",
+            ),
+            (
+                DataType.INT8_VECTOR,
+                np.array([1, 2], dtype=np.int16),
+                "dtype=int8",
+            ),
+            (
+                DataType.INT8_VECTOR,
+                [1, 2],
+                "Expected bytes or np.ndarray",
+            ),
+        ],
+    )
+    def test_array_of_vector_rejects_invalid_byte_vector_values(self, element_type, value, match):
+        field_info = {
+            "name": "array_vec",
+            "element_type": element_type,
+            "params": {"dim": 2},
+        }
+
+        with pytest.raises(ParamError, match=match):
+            convert_to_array_of_vector([value], field_info)
+
 
 class TestGetArrayHelpers:
     """Test get_array_length and get_array_value_at_index functions"""
+
+    def test_get_array_value_at_index_extended(self):
+
+        # Test Double
+        arr_data = convert_to_array([1.1, 2.2], {"element_type": DataType.DOUBLE})
+        assert get_array_value_at_index(arr_data, 0) == pytest.approx(1.1)
+        assert get_array_value_at_index(arr_data, 1) == pytest.approx(2.2)
+        assert get_array_value_at_index(arr_data, 2) is None
+
+        # Test Bool
+        arr_data = convert_to_array([True, False], {"element_type": DataType.BOOL})
+        assert get_array_value_at_index(arr_data, 0) is True
+        assert get_array_value_at_index(arr_data, 1) is False
 
     def test_get_array_length_int64(self):
         """Test get_array_length for INT64 array"""
