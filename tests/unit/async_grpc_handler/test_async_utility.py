@@ -9,6 +9,7 @@ import pytest
 from pymilvus import CompactionTaskState, CompactionType, SegmentState
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.call_context import CallContext
+from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 
@@ -365,3 +366,60 @@ class TestAsyncGrpcHandlerSegment:
             )
             metadata = mock_stub.GetPersistentSegmentInfo.call_args.kwargs["metadata"]
             assert ("dbname", "test_db") in metadata
+
+
+class TestAsyncGrpcHandlerRunningRequests:
+    """Tests for list_running_requests / cancel_requests on the async handler."""
+
+    @staticmethod
+    def _handler() -> AsyncGrpcHandler:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler._async_stub = AsyncMock()
+        return handler
+
+    @pytest.mark.asyncio
+    async def test_list_running_requests(self) -> None:
+        handler = self._handler()
+        handler._async_stub.ListRunningRequests = AsyncMock(
+            return_value=milvus_types.ListRunningRequestsResponse(
+                status=common_pb2.Status(code=0),
+                requests=[
+                    milvus_types.RunningRequestInfo(
+                        request_id=9, proxy_id=1, type="Query", state="Running", elapsed_ms=40
+                    )
+                ],
+            )
+        )
+        result = await handler.list_running_requests(collection_name="c1", min_elapsed_ms=10)
+        assert [(r.request_id, r.type, r.elapsed_ms) for r in result] == [(9, "Query", 40)]
+        req = handler._async_stub.ListRunningRequests.call_args.args[0]
+        assert req.collection_name == "c1"
+        assert req.min_elapsed_ms == 10
+
+    @pytest.mark.asyncio
+    async def test_cancel_requests(self) -> None:
+        handler = self._handler()
+        handler._async_stub.CancelRequests = AsyncMock(
+            return_value=milvus_types.CancelRequestsResponse(
+                status=common_pb2.Status(code=0),
+                canceled=[milvus_types.RunningRequestInfo(request_id=9, state="Canceling")],
+                not_found=[10],
+            )
+        )
+        result = await handler.cancel_requests([9, 10], reason="ops")
+        assert [r.request_id for r in result.canceled] == [9]
+        assert result.not_found == [10]
+        assert result.undetermined == []
+        req = handler._async_stub.CancelRequests.call_args.args[0]
+        assert list(req.request_ids) == [9, 10]
+        assert req.reason == "ops"
+
+    @pytest.mark.asyncio
+    async def test_cancel_requests_rejects_empty_ids(self) -> None:
+        handler = self._handler()
+        with pytest.raises(ParamError):
+            await handler.cancel_requests([])
+        handler._async_stub.CancelRequests.assert_not_called()
