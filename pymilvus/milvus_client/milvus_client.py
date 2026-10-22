@@ -13,6 +13,7 @@ from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
 from pymilvus.client.types import (
     _DEFAULT_RETAINED_SEGMENT_STATES,
+    CancelRequestsResult,
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
@@ -23,6 +24,7 @@ from pymilvus.client.types import (
     ReplicaInfo,
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
+    RunningRequest,
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
@@ -2624,6 +2626,98 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.describe_resource_group(name, timeout, context=self._generate_call_context())
+
+    def list_running_requests(
+        self,
+        db_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        user: Optional[str] = None,
+        min_elapsed_ms: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[RunningRequest]:
+        """List the search, hybrid search and query requests the cluster is executing.
+
+        The filters are combined with AND; a filter left as None (or 0) is no
+        constraint, so ``db_name=None`` lists every database, not the client's
+        current one. A caller without the ListRunningRequests privilege sees
+        only their own requests.
+
+        The call succeeds as long as one proxy answered. A proxy that did not
+        answer, or that predates this feature during a rolling upgrade, is
+        logged as a warning and its requests are missing from the result.
+
+        Args:
+            db_name (``str``, optional): Only requests on this database.
+            collection_name (``str``, optional): Only requests on this collection.
+            user (``str``, optional): Only requests issued by this user.
+            min_elapsed_ms (``int``, optional): Only requests running at least this long.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+
+        Returns:
+            List[RunningRequest]: One entry per request; ``request_id`` is the handle
+                for ``cancel_requests``.
+
+        Raises:
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.list_running_requests(
+            db_name=db_name,
+            collection_name=collection_name,
+            user=user,
+            min_elapsed_ms=min_elapsed_ms,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    def cancel_requests(
+        self,
+        request_ids: Sequence[int],
+        reason: str = "",
+        user: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CancelRequestsResult:
+        """Cancel running requests by the ids ``list_running_requests`` reported.
+
+        Cancellation is asynchronous: a canceled request stops at its next
+        cancellation check, usually within milliseconds, and its client gets
+        an error carrying ``reason``. Canceling an id twice is harmless.
+        A caller without the CancelRequests privilege can cancel only their
+        own requests.
+
+        Args:
+            request_ids (``List[int]``): Ids to cancel. Must not be empty.
+            reason (``str``, optional): Free text recorded in the audit log and
+                returned to the client whose request was canceled.
+            user (``str``, optional): Only cancel requests issued by this user;
+                ids of other users' requests are reported as not found.
+            timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
+                If timeout is set to None, the client keeps waiting until the server
+                responds or an error occurs.
+
+        Returns:
+            CancelRequestsResult: Every requested id is in exactly one of
+                ``canceled``, ``not_found`` and ``undetermined``; the last holds ids a
+                proxy that did not answer may still be running.
+
+        Raises:
+            ParamError: If ``request_ids`` is empty or not a list of int.
+            MilvusException: If anything goes wrong.
+        """
+        conn = self._get_connection()
+        return conn.cancel_requests(
+            request_ids,
+            reason=reason,
+            user=user,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
 
     def list_resource_groups(self, timeout: Optional[float] = None):
         """list all resource group names

@@ -2615,6 +2615,46 @@ class Prepare:
         )
 
     @classmethod
+    def list_running_requests_request(
+        cls,
+        db_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        user: Optional[str] = None,
+        min_elapsed_ms: int = 0,
+    ):
+        if isinstance(min_elapsed_ms, bool) or not isinstance(min_elapsed_ms, int):
+            raise ParamError(message=f"min_elapsed_ms value {min_elapsed_ms} is illegal")
+        if min_elapsed_ms < 0:
+            raise ParamError(message=f"min_elapsed_ms value {min_elapsed_ms} is illegal")
+        return milvus_types.ListRunningRequestsRequest(
+            db_name=db_name or "",
+            collection_name=collection_name or "",
+            user=user or "",
+            min_elapsed_ms=min_elapsed_ms,
+        )
+
+    @classmethod
+    def cancel_requests_request(
+        cls,
+        request_ids: Sequence[int],
+        reason: str = "",
+        user: Optional[str] = None,
+    ):
+        if request_ids is None or isinstance(request_ids, (str, bytes)):
+            raise ParamError(message="request_ids must be a list of int")
+        request_ids = list(request_ids)
+        if len(request_ids) == 0:
+            raise ParamError(message="request_ids must not be empty")
+        for request_id in request_ids:
+            if isinstance(request_id, bool) or not isinstance(request_id, int):
+                raise ParamError(message=f"request_id value {request_id} is illegal")
+        return milvus_types.CancelRequestsRequest(
+            request_ids=request_ids,
+            reason=reason or "",
+            user=user or "",
+        )
+
+    @classmethod
     def get_replicas(cls, collection_id: int):
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")

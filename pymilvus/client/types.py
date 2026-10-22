@@ -1664,3 +1664,171 @@ def parse_refresh_job_info(
         start_time=info.start_time,
         end_time=info.end_time,
     )
+
+
+# ------------------------------------------------------------------
+# Running DQL requests (ListRunningRequests / CancelRequests)
+# ------------------------------------------------------------------
+
+_running_request_logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RunningRequest:
+    """A Search, HybridSearch or Query that a proxy is executing.
+
+    Returned by ``MilvusClient.list_running_requests``; ``request_id`` is the
+    handle that ``MilvusClient.cancel_requests`` takes.
+    """
+
+    request_id: int
+    proxy_id: int
+    type: str
+    db_name: str
+    collection_name: str
+    user: str
+    client_addr: str
+    nq: int
+    topk: int
+    expr: str
+    start_time_ms: int
+    queued_ms: int
+    elapsed_ms: int
+    state: str
+    task_ids: List[int] = field(default_factory=list)
+    trace_id: str = ""
+    cancellable: bool = True
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "request_id": self.request_id,
+            "proxy_id": self.proxy_id,
+            "type": self.type,
+            "db_name": self.db_name,
+            "collection_name": self.collection_name,
+            "user": self.user,
+            "client_addr": self.client_addr,
+            "nq": self.nq,
+            "topk": self.topk,
+            "expr": self.expr,
+            "start_time_ms": self.start_time_ms,
+            "queued_ms": self.queued_ms,
+            "elapsed_ms": self.elapsed_ms,
+            "state": self.state,
+            "task_ids": list(self.task_ids),
+            "trace_id": self.trace_id,
+            "cancellable": self.cancellable,
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"RunningRequest(request_id={self.request_id}, type='{self.type}', "
+            f"db_name='{self.db_name}', collection_name='{self.collection_name}', "
+            f"user='{self.user}', state='{self.state}', elapsed_ms={self.elapsed_ms}, "
+            f"proxy_id={self.proxy_id})"
+        )
+
+
+@dataclass
+class RequestNodeResult:
+    """How one proxy answered a cluster-wide list or cancel.
+
+    ``error`` is None when the proxy answered; otherwise its requests are
+    missing from the list, or the ids it holds could not be canceled.
+    ``unimplemented`` marks a proxy that predates the feature, typically
+    during a rolling upgrade.
+    """
+
+    node_id: int
+    error: Optional[str] = None
+    unimplemented: bool = False
+
+    @property
+    def answered(self) -> bool:
+        return self.error is None
+
+
+@dataclass
+class CancelRequestsResult:
+    """Outcome of ``MilvusClient.cancel_requests``.
+
+    Every requested id is in exactly one of ``canceled``, ``not_found`` and
+    ``undetermined``. Cancellation is asynchronous: a canceled request stops
+    at its next cancellation check, usually within milliseconds, and until
+    then is listed in state ``Canceling``.
+    """
+
+    canceled: List[RunningRequest] = field(default_factory=list)
+    not_found: List[int] = field(default_factory=list)
+    undetermined: List[int] = field(default_factory=list)
+    node_results: List[RequestNodeResult] = field(default_factory=list)
+
+    def __repr__(self) -> str:
+        return (
+            f"CancelRequestsResult(canceled={[r.request_id for r in self.canceled]}, "
+            f"not_found={list(self.not_found)}, undetermined={list(self.undetermined)})"
+        )
+
+
+def parse_running_request(info: "milvus_types.RunningRequestInfo") -> RunningRequest:
+    return RunningRequest(
+        request_id=info.request_id,
+        proxy_id=info.proxy_id,
+        type=info.type,
+        db_name=info.db_name,
+        collection_name=info.collection_name,
+        user=info.user,
+        client_addr=info.client_addr,
+        nq=info.nq,
+        topk=info.topk,
+        expr=info.expr,
+        start_time_ms=info.start_time_ms,
+        queued_ms=info.queued_ms,
+        elapsed_ms=info.elapsed_ms,
+        state=info.state,
+        task_ids=list(info.task_ids),
+        trace_id=info.trace_id,
+        cancellable=info.cancellable,
+    )
+
+
+def parse_request_node_result(
+    result: "milvus_types.RunningRequestNodeResult",
+) -> RequestNodeResult:
+    status = result.status
+    error = None
+    if status.code != 0 or status.error_code != 0:
+        error = status.reason or f"status code {status.code}"
+    return RequestNodeResult(
+        node_id=result.node_id, error=error, unimplemented=bool(result.unimplemented)
+    )
+
+
+def parse_cancel_requests_result(
+    response: "milvus_types.CancelRequestsResponse",
+) -> CancelRequestsResult:
+    return CancelRequestsResult(
+        canceled=[parse_running_request(info) for info in response.canceled],
+        not_found=list(response.not_found),
+        undetermined=list(response.undetermined),
+        node_results=[parse_request_node_result(r) for r in response.node_results],
+    )
+
+
+def log_unanswered_request_nodes(node_results: List[RequestNodeResult], operation: str) -> None:
+    """Warn once per proxy that did not answer a cluster-wide list or cancel.
+
+    The call itself succeeds as long as one proxy answered, so the only
+    trace of an incomplete answer is here and in the node results.
+    """
+    for r in node_results:
+        if r.answered:
+            continue
+        detail = (
+            " (not implemented by that proxy; rolling upgrade in progress?)"
+            if r.unimplemented
+            else ""
+        )
+        _running_request_logger.warning(
+            "%s: proxy %d did not answer%s: %s", operation, r.node_id, detail, r.error
+        )
