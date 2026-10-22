@@ -34,6 +34,8 @@ class FieldSchema:
         self.is_partition_key = False
         self.is_dynamic = False
         self.nullable = False
+        self.element_nullable = False
+        self.type_schema = None
         self.default_value = None
         self.is_function_output = False
         self.external_field = ""
@@ -57,6 +59,9 @@ class FieldSchema:
             self.default_value = None
         self.is_dynamic = raw.is_dynamic
         self.nullable = raw.nullable
+        self.element_nullable = raw.element_nullable
+        if raw.HasField("type_schema"):
+            self.type_schema = utils.type_schema_to_dict(raw.type_schema)
         self.is_function_output = raw.is_function_output
         self.external_field = raw.external_field
 
@@ -132,6 +137,10 @@ class FieldSchema:
             _dict["auto_id"] = True
         if self.nullable:
             _dict["nullable"] = True
+        if self.element_nullable:
+            _dict["element_nullable"] = True
+        if self.type_schema is not None:
+            _dict["type_schema"] = self.type_schema
         if self.is_primary:
             _dict["is_primary"] = self.is_primary
         if self.is_clustering_key:

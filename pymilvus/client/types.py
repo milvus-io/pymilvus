@@ -1231,11 +1231,14 @@ class HybridExtraList(list):
 
         field_id = id(field_data)
         if field_id not in self._prefix_sum_cache:
-            if len(field_data.valid_data) == 0:
+            from .field_data_extractors import row_validity  # noqa: PLC0415
+
+            validity = row_validity(field_data)
+            if len(validity) == 0:
                 self._prefix_sum_cache[field_id] = None
             else:
                 self._prefix_sum_cache[field_id] = np.cumsum(
-                    [0] + [1 if v else 0 for v in field_data.valid_data]
+                    [0] + [1 if v else 0 for v in validity]
                 )
         prefix_sum = self._prefix_sum_cache[field_id]
         if prefix_sum is None:

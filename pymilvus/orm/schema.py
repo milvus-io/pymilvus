@@ -576,6 +576,9 @@ class FieldSchema:
         self.is_primary = kwargs.get("is_primary", False)
         self.is_dynamic = kwargs.get("is_dynamic", False)
         self.nullable = kwargs.get("nullable", False)
+        self.element_nullable = kwargs.get("element_nullable", False)
+        if not isinstance(self.nullable, bool) or not isinstance(self.element_nullable, bool):
+            raise ParamError(message="nullable and element_nullable must be boolean")
         self.auto_id = kwargs.get("auto_id", False)
         if "auto_id" in kwargs:
             if not isinstance(self.auto_id, bool):
@@ -666,6 +669,7 @@ class FieldSchema:
             kwargs["default_value"] = raw.get("default_value")
         kwargs["is_dynamic"] = raw.get("is_dynamic", False)
         kwargs["nullable"] = raw.get("nullable", False)
+        kwargs["element_nullable"] = raw.get("element_nullable", False)
         kwargs["element_type"] = raw.get("element_type")
         if raw.get("external_field"):
             kwargs["external_field"] = raw["external_field"]
@@ -695,6 +699,8 @@ class FieldSchema:
             _dict["is_dynamic"] = self.is_dynamic
         if self.nullable:
             _dict["nullable"] = self.nullable
+        if self.element_nullable:
+            _dict["element_nullable"] = True
         if (
             self.dtype == DataType.ARRAY or self._dtype == DataType._ARRAY_OF_VECTOR
         ) and self.element_type:
@@ -769,6 +775,13 @@ def isVectorDataType(datatype: DataType) -> bool:
 
 
 class StructFieldSchema:
+    """Describe one element of an Array of Structs.
+
+    A sub-field's ``nullable`` controls that element's value. For Array
+    sub-fields, ``element_nullable`` controls scalar leaves and ``max_capacity``
+    controls the inner array. Struct row nullability is set on the parent field.
+    """
+
     def __init__(self, nullable: bool = False, description: str = ""):
         if not isinstance(nullable, bool):
             raise ParamError(message="nullable must be boolean")
@@ -812,13 +825,19 @@ class StructFieldSchema:
                     message=f"Field '{field.name}' in struct '{self.name}' cannot be dynamic field"
                 )
 
-            if field.nullable:
-                raise ParamError(
-                    message=(
-                        f"Field '{field.name}' in struct '{self.name}' cannot be nullable "
-                        "individually, set nullable on the struct instead"
-                    )
-                )
+            if field.element_nullable and field.dtype != DataType.ARRAY:
+                raise ParamError(message="element_nullable requires an Array sub-field")
+            if field.dtype == DataType.ARRAY and field.element_type not in {
+                DataType.BOOL,
+                DataType.INT8,
+                DataType.INT16,
+                DataType.INT32,
+                DataType.INT64,
+                DataType.FLOAT,
+                DataType.DOUBLE,
+                DataType.VARCHAR,
+            }:
+                raise ParamError(message="Array sub-fields require a scalar element_type")
 
             if field.auto_id:
                 raise ParamError(
@@ -839,10 +858,8 @@ class StructFieldSchema:
             )
 
     def add_field(self, field_name: str, datatype: DataType, **kwargs):
-        if datatype in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR, DataType.STRUCT}:
-            raise ParamError(
-                message="Struct field schema does not support Array, ArrayOfVector or Struct"
-            )
+        if datatype in {DataType._ARRAY_OF_VECTOR, DataType.STRUCT}:
+            raise ParamError(message="Struct field schema does not support ArrayOfVector or Struct")
 
         field = FieldSchema(field_name, datatype, **kwargs)
         self._fields.append(field)
@@ -920,15 +937,7 @@ class StructFieldSchema:
         if "struct_fields" in raw:
             # User format from convert_struct_fields_to_user_format
             for field_dict in raw["struct_fields"]:
-                field_kwargs = {}
-                if field_dict.get("params"):
-                    field_kwargs.update(field_dict["params"])
-                field = FieldSchema(
-                    name=field_dict["name"],
-                    dtype=field_dict["type"],
-                    description=field_dict.get("description", ""),
-                    **field_kwargs,
-                )
+                field = FieldSchema.construct_from_dict(field_dict)
                 fields.append(field)
         elif "fields" in raw:
             # Direct format with FieldSchema dicts

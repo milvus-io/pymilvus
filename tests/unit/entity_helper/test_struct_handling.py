@@ -199,9 +199,8 @@ class TestExtractStructArray:
 
         struct_field.struct_arrays.fields.append(bad_field)
 
-        # Should detect 0 structs because type is not one of checked ones for counting
-        result = extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
-        assert len(result) == 0
+        with pytest.raises(ParamError, match="Unexpected field type"):
+            extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
 
         # Force a count > 0 to test the inner loop error
         # Add a valid field first so num_structs > 0
@@ -216,7 +215,7 @@ class TestExtractStructArray:
         with pytest.raises(ParamError, match="Unexpected field type"):
             extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
 
-    def test_extract_struct_array_unsupported_vector_subfield_materializes_none(self):
+    def test_extract_struct_array_unsupported_vector_subfield_raises(self):
         struct_field = schema_types.FieldData()
 
         valid_field = schema_types.FieldData()
@@ -234,6 +233,5 @@ class TestExtractStructArray:
         unsupported_vector.vectors.vector_array.data.append(schema_types.VectorField(dim=2))
         struct_field.struct_arrays.fields.append(unsupported_vector)
 
-        result = extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
-
-        assert result == [{"valid": 1, "bad_vector": None}]
+        with pytest.raises(ParamError, match="Unsupported vector array element type"):
+            extract_struct_array_from_column_data(struct_field.struct_arrays, 0)
