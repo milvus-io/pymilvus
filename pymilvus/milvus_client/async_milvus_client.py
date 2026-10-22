@@ -11,6 +11,7 @@ from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     _DEFAULT_RETAINED_SEGMENT_STATES,
+    CancelRequestsResult,
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
@@ -20,6 +21,7 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     RoleInfo,
+    RunningRequest,
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
@@ -2009,6 +2011,44 @@ class AsyncMilvusClient(BaseMilvusClient):
         conn = await self._get_connection()
         return await conn.describe_resource_group(
             name, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    async def list_running_requests(
+        self,
+        db_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        user: Optional[str] = None,
+        min_elapsed_ms: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[RunningRequest]:
+        conn = await self._get_connection()
+        return await conn.list_running_requests(
+            db_name=db_name,
+            collection_name=collection_name,
+            user=user,
+            min_elapsed_ms=min_elapsed_ms,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    async def cancel_requests(
+        self,
+        request_ids: Sequence[int],
+        reason: str = "",
+        user: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CancelRequestsResult:
+        conn = await self._get_connection()
+        return await conn.cancel_requests(
+            request_ids,
+            reason=reason,
+            user=user,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     async def list_resource_groups(self, timeout: Optional[float] = None, **kwargs) -> List[str]:

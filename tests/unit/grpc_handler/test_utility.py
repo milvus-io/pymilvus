@@ -1,5 +1,6 @@
 """Tests for GrpcHandler utility operations."""
 
+import logging
 from itertools import count
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,7 @@ from pymilvus import (
 )
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.call_context import CallContext
+from pymilvus.client.types import CancelRequestsResult, RunningRequest
 from pymilvus.exceptions import AmbiguousIndexName, MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -744,3 +746,138 @@ class TestGrpcHandlerFileResource:
         result = handler.list_file_resources()
         assert len(result) == 1
         handler._stub.ListFileResources.assert_called_once()
+
+
+def _running_request_info(request_id: int, **overrides) -> milvus_types.RunningRequestInfo:
+    values = {
+        "request_id": request_id,
+        "proxy_id": 5,
+        "type": "Search",
+        "db_name": "default",
+        "collection_name": "c1",
+        "user": "alice",
+        "client_addr": "10.0.0.1:5000",
+        "nq": 10,
+        "topk": 100,
+        "expr": "id > 0",
+        "start_time_ms": 1700000000000,
+        "queued_ms": 3,
+        "elapsed_ms": 2500,
+        "state": "Running",
+        "task_ids": [11, 12],
+        "trace_id": "abc",
+        "cancellable": True,
+    }
+    values.update(overrides)
+    return milvus_types.RunningRequestInfo(**values)
+
+
+def _node_result(node_id: int, ok: bool = True, unimplemented: bool = False, reason: str = ""):
+    status = common_pb2.Status(code=0 if ok else 1, reason=reason)
+    return milvus_types.RunningRequestNodeResult(
+        node_id=node_id, status=status, unimplemented=unimplemented
+    )
+
+
+class TestGrpcHandlerRunningRequests:
+    """Tests for list_running_requests / cancel_requests."""
+
+    def test_list_running_requests_passes_filters(self, handler):
+        handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
+            status=common_pb2.Status(code=0)
+        )
+        result = handler.list_running_requests(
+            db_name="db1", collection_name="c1", user="alice", min_elapsed_ms=200
+        )
+        assert result == []
+        req = handler._stub.ListRunningRequests.call_args.args[0]
+        assert req.db_name == "db1"
+        assert req.collection_name == "c1"
+        assert req.user == "alice"
+        assert req.min_elapsed_ms == 200
+
+    def test_list_running_requests_converts_rows(self, handler):
+        handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
+            status=common_pb2.Status(code=0),
+            requests=[_running_request_info(1), _running_request_info(2, state="Canceling")],
+            node_results=[_node_result(5)],
+        )
+        result = handler.list_running_requests()
+        assert [r.request_id for r in result] == [1, 2]
+        first = result[0]
+        assert isinstance(first, RunningRequest)
+        assert first.proxy_id == 5
+        assert first.type == "Search"
+        assert first.collection_name == "c1"
+        assert first.user == "alice"
+        assert first.client_addr == "10.0.0.1:5000"
+        assert (first.nq, first.topk) == (10, 100)
+        assert first.expr == "id > 0"
+        assert (first.start_time_ms, first.queued_ms, first.elapsed_ms) == (1700000000000, 3, 2500)
+        assert first.task_ids == [11, 12]
+        assert first.trace_id == "abc"
+        assert first.cancellable is True
+        assert result[1].state == "Canceling"
+        assert first.to_dict()["request_id"] == 1
+
+    def test_list_running_requests_warns_about_unanswered_proxy(self, handler, caplog, monkeypatch):
+        handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
+            status=common_pb2.Status(code=0),
+            requests=[_running_request_info(1)],
+            node_results=[
+                _node_result(5),
+                _node_result(6, ok=False, reason="deadline exceeded"),
+                _node_result(7, ok=False, unimplemented=True, reason="unimplemented"),
+            ],
+        )
+        # pymilvus loggers do not propagate to the root logger, so attach caplog directly.
+        monkeypatch.setattr(
+            logging.getLogger("pymilvus.client.types"), "handlers", [caplog.handler]
+        )
+        with caplog.at_level(logging.WARNING, logger="pymilvus.client.types"):
+            result = handler.list_running_requests()
+        assert [r.request_id for r in result] == [1]
+        messages = [rec.getMessage() for rec in caplog.records]
+        assert any("proxy 6 did not answer" in m and "deadline exceeded" in m for m in messages)
+        assert any("proxy 7 did not answer" in m and "not implemented" in m for m in messages)
+        assert not any("proxy 5" in m for m in messages)
+
+    def test_list_running_requests_raises_on_error_status(self, handler):
+        handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
+            status=common_pb2.Status(code=65535, reason="permission denied")
+        )
+        with pytest.raises(MilvusException):
+            handler.list_running_requests()
+
+    def test_cancel_requests_sorts_ids(self, handler):
+        handler._stub.CancelRequests.return_value = milvus_types.CancelRequestsResponse(
+            status=common_pb2.Status(code=0),
+            canceled=[_running_request_info(1, state="Running")],
+            not_found=[2],
+            undetermined=[3],
+            node_results=[_node_result(5), _node_result(6, ok=False, reason="unreachable")],
+        )
+        result = handler.cancel_requests([1, 2, 3], reason="too slow", user="alice")
+        req = handler._stub.CancelRequests.call_args.args[0]
+        assert list(req.request_ids) == [1, 2, 3]
+        assert req.reason == "too slow"
+        assert req.user == "alice"
+        assert isinstance(result, CancelRequestsResult)
+        assert [r.request_id for r in result.canceled] == [1]
+        assert result.canceled[0].state == "Running"
+        assert result.not_found == [2]
+        assert result.undetermined == [3]
+        assert [(n.node_id, n.answered) for n in result.node_results] == [(5, True), (6, False)]
+        assert result.node_results[1].error == "unreachable"
+
+    def test_cancel_requests_rejects_empty_ids_before_rpc(self, handler):
+        with pytest.raises(ParamError):
+            handler.cancel_requests([])
+        handler._stub.CancelRequests.assert_not_called()
+
+    def test_cancel_requests_raises_on_error_status(self, handler):
+        handler._stub.CancelRequests.return_value = milvus_types.CancelRequestsResponse(
+            status=common_pb2.Status(code=65535, reason="permission denied")
+        )
+        with pytest.raises(MilvusException):
+            handler.cancel_requests([1])

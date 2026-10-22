@@ -49,6 +49,7 @@ from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
+    CancelRequestsResult,
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
@@ -59,14 +60,19 @@ from .types import (
     RefreshExternalCollectionJobInfo,
     ReplicaInfo,
     RestoreSnapshotJobInfo,
+    RunningRequest,
     SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     get_extra_info,
+    log_unanswered_request_nodes,
+    parse_cancel_requests_result,
     parse_compaction_plans,
     parse_refresh_job_info,
+    parse_request_node_result,
+    parse_running_request,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -2696,6 +2702,51 @@ class AsyncGrpcHandler:
         )
         check_status(resp.status)
         return resp.resource_group
+
+    @retry_on_rpc_failure()
+    async def list_running_requests(
+        self,
+        db_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        user: Optional[str] = None,
+        min_elapsed_ms: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[RunningRequest]:
+        req = Prepare.list_running_requests_request(
+            db_name=db_name,
+            collection_name=collection_name,
+            user=user,
+            min_elapsed_ms=min_elapsed_ms,
+        )
+        resp = await self._async_stub.ListRunningRequests(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        log_unanswered_request_nodes(
+            [parse_request_node_result(r) for r in resp.node_results], "list_running_requests"
+        )
+        return [parse_running_request(info) for info in resp.requests]
+
+    @retry_on_rpc_failure()
+    async def cancel_requests(
+        self,
+        request_ids: Sequence[int],
+        reason: str = "",
+        user: Optional[str] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CancelRequestsResult:
+        req = Prepare.cancel_requests_request(request_ids, reason=reason, user=user)
+        resp = await self._async_stub.CancelRequests(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        result = parse_cancel_requests_result(resp)
+        log_unanswered_request_nodes(result.node_results, "cancel_requests")
+        return result
 
     @retry_on_rpc_failure()
     async def list_resource_groups(
