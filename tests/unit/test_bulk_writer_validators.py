@@ -6,6 +6,7 @@ from pymilvus.bulk_writer.validators import (
     float_vector_validator,
     int8_vector_validator,
     sparse_vector_validator,
+    struct_validator,
 )
 from pymilvus.exceptions import MilvusException
 
@@ -15,17 +16,37 @@ from pymilvus.exceptions import MilvusException
 
 
 @pytest.mark.parametrize(
-    "validator_func,bad_value,dim,kwargs",
+    "validator_func,bad_value,dim,kwargs,message",
     [
-        (float_vector_validator, "invalid", 3, {}),
-        (int8_vector_validator, "invalid", 3, {}),
-        (float16_vector_validator, "invalid", 3, {"is_bfloat": False}),
-        (binary_vector_validator, "invalid", 8, {}),
+        (float_vector_validator, "invalid", 3, {}, r"only accept numpy\.ndarray"),
+        (int8_vector_validator, "invalid", 3, {}, r"only accept numpy\.ndarray"),
+        (
+            float16_vector_validator,
+            "invalid",
+            3,
+            {"is_bfloat": False},
+            r"only accept numpy\.ndarray",
+        ),
+        (
+            binary_vector_validator,
+            "invalid",
+            8,
+            {},
+            r"only accept numpy\.ndarray, list, bytes",
+        ),
+        (
+            float16_vector_validator,
+            "invalid",
+            3,
+            {"is_bfloat": True},
+            r"only accept numpy\.ndarray",
+        ),
     ],
+    ids=["float", "int8", "float16", "binary", "bfloat16"],
 )
-def test_invalid_type(validator_func, bad_value, dim, kwargs):
+def test_invalid_type(validator_func, bad_value, dim, kwargs, message):
     """Validators should raise MilvusException for non-array/non-list input."""
-    with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray"):
+    with pytest.raises(MilvusException, match=message):
         validator_func(bad_value, dim, **kwargs)
 
 
@@ -41,7 +62,14 @@ def test_invalid_type(validator_func, bad_value, dim, kwargs):
             {"is_bfloat": False},
         ),
         (binary_vector_validator, np.array([[0, 1], [2, 3]], dtype=np.uint8), 32, {}),
+        (
+            float16_vector_validator,
+            np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32),
+            4,
+            {"is_bfloat": True},
+        ),
     ],
+    ids=["float", "int8", "float16", "binary", "bfloat16"],
 )
 def test_invalid_numpy_shape(validator_func, arr, dim, kwargs):
     """Validators should raise MilvusException for 2D numpy arrays."""
@@ -56,7 +84,9 @@ def test_invalid_numpy_shape(validator_func, arr, dim, kwargs):
         (int8_vector_validator, np.array([1, 2], dtype=np.int8), 3, {}),
         (float16_vector_validator, np.array([1.0, 2.0], dtype=np.float16), 3, {"is_bfloat": False}),
         (binary_vector_validator, np.array([0, 1], dtype=np.uint8), 24, {}),
+        (float16_vector_validator, np.array([1.0, 2.0], dtype=np.float32), 3, {"is_bfloat": True}),
     ],
+    ids=["float", "int8", "float16", "binary", "bfloat16"],
 )
 def test_invalid_numpy_length(validator_func, arr, dim, kwargs):
     """Validators should raise MilvusException for numpy arrays with wrong length."""
@@ -110,8 +140,19 @@ class TestBinaryVectorValidator:
         "value,dim,expected",
         [
             pytest.param([1, 0, 1, 1, 0, 0, 1, 0], 8, [0xB2], id="bits-msb-first"),
-            pytest.param(b"\x00\x01", 16, [0, 1], id="bytes"),
-            pytest.param(np.array([0, 1, 2], dtype=np.uint8), 24, [0, 1, 2], id="uint8"),
+            pytest.param(
+                [1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1],
+                16,
+                [0xB2, 0x4D],
+                id="multiple-bytes-msb-first",
+            ),
+            pytest.param(b"\x00\x01\x80\xff", 32, [0, 1, 128, 255], id="bytes"),
+            pytest.param(
+                np.array([0, 1, 2, 128, 255], dtype=np.uint8),
+                40,
+                [0, 1, 2, 128, 255],
+                id="uint8",
+            ),
         ],
     )
     def test_valid_values(self, value, dim, expected):
@@ -137,11 +178,6 @@ class TestBinaryVectorValidator:
         arr = np.array([0, 1, 2], dtype=np.int32)
         with pytest.raises(MilvusException, match='dtype must be "uint8"'):
             binary_vector_validator(arr, 24)
-
-    def test_invalid_type(self):
-        """Test with invalid input type"""
-        with pytest.raises(MilvusException, match=r"only accept numpy\.ndarray, list, bytes"):
-            binary_vector_validator("invalid", 8)
 
 
 # ---------------------------------------------------------------------------
@@ -185,9 +221,19 @@ class TestFloat16VectorValidator:
         assert isinstance(result, type(expected))
         assert result == expected
 
-    @pytest.mark.parametrize("is_bfloat,dtype_name", [(False, "float16"), (True, "bfloat16")])
-    def test_invalid_numpy_dtype(self, is_bfloat, dtype_name):
-        value = np.array([1, 2, 3], dtype=np.int32)
+    @pytest.mark.parametrize(
+        "dtype,is_bfloat,dtype_name",
+        [
+            pytest.param("int32", False, "float16", id="int32-for-float16"),
+            pytest.param("int32", True, "bfloat16", id="int32-for-bfloat16"),
+            pytest.param("float16", True, "bfloat16", id="float16-is-not-bfloat16"),
+            pytest.param("bfloat16", False, "float16", id="bfloat16-is-not-float16"),
+        ],
+    )
+    def test_invalid_numpy_dtype(self, dtype, is_bfloat, dtype_name):
+        if dtype == "bfloat16":
+            pytest.importorskip("ml_dtypes")
+        value = np.array([1, 2, 3], dtype=dtype)
         with pytest.raises(
             MilvusException, match=f'dtype must be "{dtype_name}", "float32" or "float64"'
         ):
@@ -235,84 +281,95 @@ class TestInt8VectorValidator:
 
 
 class TestSparseVectorValidator:
-    def test_valid_dict(self):
-        """Test valid dict format"""
-        data = {2: 13.23, 45: 0.54}
-        result = sparse_vector_validator(data)
-        assert result == data
-
-    def test_valid_indices_values_format(self):
-        """Test valid indices/values format"""
-        data = {"indices": [1, 2], "values": [0.1, 0.2]}
-        result = sparse_vector_validator(data)
-        assert result == data
+    @pytest.mark.parametrize(
+        "data,expected",
+        [
+            pytest.param({2: 13.23, 45: 0.54}, {2: 13.23, 45: 0.54}, id="mapping"),
+            pytest.param(
+                {"indices": [1, 2], "values": [0.1, 0.2]},
+                {"indices": [1, 2], "values": [0.1, 0.2]},
+                id="indices-values",
+            ),
+        ],
+    )
+    def test_valid_values(self, data, expected):
+        assert sparse_vector_validator(data) == expected
 
     def test_invalid_type(self):
         """Test with non-dict input"""
         with pytest.raises(MilvusException, match="only accept dict"):
             sparse_vector_validator([1, 2, 3])
 
-    def test_invalid_index_type(self):
-        """Test dict with non-integer index"""
-        data = {"a": 0.5, 2: 0.3}
+    @pytest.mark.parametrize("index", ["a", True, False], ids=["string", "true", "false"])
+    @pytest.mark.parametrize("as_arrays", [False, True], ids=["mapping", "indices-values"])
+    def test_invalid_index_type(self, index, as_arrays):
+        # bool is an int subclass but is not a sparse-vector index.
+        data = {"indices": [2, index], "values": [0.1, 0.2]} if as_arrays else {2: 0.1, index: 0.2}
         with pytest.raises(MilvusException, match="index must be integer"):
             sparse_vector_validator(data)
 
-    def test_invalid_value_type(self):
-        """Test dict with non-float value"""
-        data = {1: 0.5, 2: 3}
+    @pytest.mark.parametrize("value", ["invalid", 3, True], ids=["string", "int", "bool"])
+    @pytest.mark.parametrize("as_arrays", [False, True], ids=["mapping", "indices-values"])
+    def test_invalid_value_type(self, value, as_arrays):
+        data = {"indices": [1, 2], "values": [0.1, value]} if as_arrays else {1: 0.1, 2: value}
         with pytest.raises(MilvusException, match="value must be float"):
             sparse_vector_validator(data)
 
-    def test_empty_dict(self):
-        """Test empty dict"""
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({}, id="mapping"),
+            pytest.param({"indices": [], "values": []}, id="indices-values"),
+        ],
+    )
+    def test_empty_vector(self, data):
         with pytest.raises(MilvusException, match="empty sparse vector is not allowed"):
-            sparse_vector_validator({})
-
-    def test_invalid_indices_type(self):
-        """Test with non-list indices"""
-        data = {"indices": "invalid", "values": [0.1, 0.2]}
-        with pytest.raises(MilvusException, match="indices of sparse vector must be a list"):
             sparse_vector_validator(data)
 
-    def test_invalid_values_type(self):
-        """Test with non-list values"""
-        data = {"indices": [1, 2], "values": "invalid"}
-        with pytest.raises(MilvusException, match="values of sparse vector must be a list"):
+    @pytest.mark.parametrize("field", ["indices", "values"])
+    @pytest.mark.parametrize("value", ["invalid", (1, 2)], ids=["string", "tuple"])
+    def test_requires_lists(self, field, value):
+        data = {"indices": [1, 2], "values": [0.1, 0.2]}
+        data[field] = value
+        with pytest.raises(MilvusException, match=f"{field} of sparse vector must be a list"):
             sparse_vector_validator(data)
 
-    def test_bool_index_in_dict_format(self):
-        """Test dict with bool index (True/False should be rejected)"""
-        data = {True: 0.5, 2: 0.3}
-        with pytest.raises(MilvusException, match="index must be integer"):
-            sparse_vector_validator(data)
-
-    def test_bool_index_in_indices_format(self):
-        """Test indices/values format with bool index"""
-        data = {"indices": [True, 2], "values": [0.1, 0.2]}
-        with pytest.raises(MilvusException, match="index must be integer"):
-            sparse_vector_validator(data)
-
-    def test_mismatched_indices_values_length(self):
-        """Test with mismatched indices and values length"""
-        data = {"indices": [1, 2, 3], "values": [0.1, 0.2]}
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param({"indices": [1, 2, 3], "values": [0.1, 0.2]}, id="more-indices"),
+            pytest.param({"indices": [1, 2], "values": [0.1, 0.2, 0.3]}, id="more-values"),
+        ],
+    )
+    def test_mismatched_indices_values_length(self, data):
         with pytest.raises(MilvusException, match="length of indices and values"):
             sparse_vector_validator(data)
 
-    def test_empty_indices_values(self):
-        """Test with empty indices and values"""
-        data = {"indices": [], "values": []}
-        with pytest.raises(MilvusException, match="empty sparse vector is not allowed"):
-            sparse_vector_validator(data)
 
-    def test_invalid_index_in_indices_format(self):
-        """Test with invalid index type in indices/values format"""
-        data = {"indices": ["a", 2], "values": [0.1, 0.2]}
-        with pytest.raises(MilvusException, match="index must be integer"):
-            sparse_vector_validator(data)
+class TestStructValidator:
+    @pytest.mark.parametrize(
+        "value,max_capacity",
+        [
+            pytest.param([], 2, id="empty"),
+            pytest.param([{"id": 1}], 2, id="below-capacity"),
+            pytest.param([{"id": 1}, {"id": 2}], 2, id="at-capacity"),
+        ],
+    )
+    def test_valid_values(self, value, max_capacity):
+        assert struct_validator(value, max_capacity) is True
 
-    def test_invalid_value_in_indices_format(self):
-        """Test with invalid value type in indices/values format"""
-        data = {"indices": [1, 2], "values": [0.1, "invalid"]}
-        with pytest.raises(MilvusException, match="value must be float"):
-            sparse_vector_validator(data)
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param({"id": 1}, id="not-a-list"),
+            pytest.param([1], id="not-a-dict"),
+            pytest.param([{"id": 1}, 2], id="later-element-not-a-dict"),
+        ],
+    )
+    def test_invalid_type(self, value):
+        with pytest.raises(MilvusException, match="only accept list of dict"):
+            struct_validator(value, 2)
+
+    def test_exceeds_capacity(self):
+        with pytest.raises(MilvusException, match="length must be less or equal than max_capacity"):
+            struct_validator([{"id": 1}, {"id": 2}], 1)
