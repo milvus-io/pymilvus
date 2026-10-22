@@ -39,7 +39,7 @@ class AsyncOptimizeTask:
                     if self._target_size is None
                     else parse_target_size(self._target_size)
                 )
-                result = await self._execute_fn(
+                return await self._execute_fn(
                     task=self,
                     collection_name=self._collection_name,
                     size_mb=size_mb,
@@ -50,8 +50,6 @@ class AsyncOptimizeTask:
                 self._progress_stage = ProgressStage.CANCELLED
                 self._progress_history.append(ProgressStage.CANCELLED)
                 raise MilvusException(message="Optimization task was cancelled") from e
-            else:
-                return result
 
         self._task = asyncio.create_task(_run())
 

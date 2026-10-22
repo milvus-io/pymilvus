@@ -206,10 +206,7 @@ class OptimizeTask(threading.Thread):
 
     def result(self, timeout: Optional[float] = None) -> OptimizeResult:
         with self._condition:
-            if timeout is not None:
-                self._condition.wait_for(lambda: self._done, timeout=timeout)
-            else:
-                self._condition.wait_for(lambda: self._done)
+            self._condition.wait_for(lambda: self._done, timeout=timeout)
 
             if self._exception:
                 raise self._exception
