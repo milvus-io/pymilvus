@@ -388,17 +388,15 @@ class TestLogicalTypeBatchInsertPaths:
         ],
         ids=["bool", "int32", "float", "text"],
     )
-    def test_registry_backed_batch_scalar_destinations(self, dtype, values, attr, expected):
+    def test_batch_scalar_wire_values(self, dtype, values, attr, expected):
         field_info = {"name": "scalar", "params": {Config.MaxVarCharLengthKey: 128}}
         entity = {"name": "scalar", "type": dtype, "values": values}
 
-        with patch(
-            "pymilvus.client.entity_helper.type_info.get_scalar_attr",
-            wraps=entity_helper.type_info.get_scalar_attr,
-        ) as get_scalar_attr:
-            field_data = entity_to_field_data(entity, field_info, len(values))
+        field_data = entity_to_field_data(entity, field_info, len(values))
 
-        get_scalar_attr.assert_any_call(dtype)
+        assert field_data.field_name == "scalar"
+        assert field_data.type == dtype
+        assert field_data.scalars.WhichOneof("data") == attr
         assert list(getattr(field_data.scalars, attr).data) == expected
 
     @pytest.mark.parametrize(
@@ -912,55 +910,34 @@ class TestNullableVectorSupport:
 class TestPackFieldValueExtendedTypes:
     """Test pack_field_value_to_field_data for extended field types"""
 
-    def test_pack_timestamptz_field(self):
-        """Test packing TIMESTAMPTZ field value"""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.TIMESTAMPTZ
-        field_data.field_name = "ts_field"
-        field_info = {"name": "ts_field"}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
+    @pytest.mark.parametrize(
+        "dtype,attr,value,expected",
+        [
+            pytest.param(
+                DataType.TIMESTAMPTZ,
+                "string_data",
+                "2024-01-01T12:00:00Z",
+                ["2024-01-01T12:00:00Z"],
+                id="timestamptz",
+            ),
+            pytest.param(DataType.TIMESTAMPTZ, "string_data", None, [], id="timestamptz-null"),
+            pytest.param(
+                DataType.GEOMETRY,
+                "geometry_wkt_data",
+                "POINT(1.0 2.0)",
+                ["POINT(1.0 2.0)"],
+                id="geometry",
+            ),
+            pytest.param(DataType.GEOMETRY, "geometry_wkt_data", None, [], id="geometry-null"),
+        ],
+    )
+    def test_pack_scalar_value(self, dtype, attr, value, expected):
+        field_data = schema_types.FieldData(type=dtype, field_name="field")
+        field_info = {"name": "field", "params": {"max_length": 1000}}
 
-        # Test with valid timestamp string
-        pack_field_value_to_field_data(
-            "2024-01-01T12:00:00Z", field_data, field_info, vector_bytes_cache
-        )
-        assert len(field_data.scalars.string_data.data) == 1
-        assert field_data.scalars.string_data.data[0] == "2024-01-01T12:00:00Z"
+        pack_field_value_to_field_data(value, field_data, field_info, {})
 
-    def test_pack_timestamptz_field_none(self):
-        """Test packing None value for TIMESTAMPTZ field"""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.TIMESTAMPTZ
-        field_data.field_name = "ts_field"
-        field_info = {"name": "ts_field"}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
-        assert len(field_data.scalars.string_data.data) == 0
-
-    def test_pack_geometry_field(self):
-        """Test packing GEOMETRY field value"""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.GEOMETRY
-        field_data.field_name = "geo_field"
-        field_info = {"name": "geo_field", "params": {"max_length": 1000}}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        # Test with WKT geometry string - pack expects string directly
-        wkt = "POINT(1.0 2.0)"
-        pack_field_value_to_field_data(wkt, field_data, field_info, vector_bytes_cache)
-        assert len(field_data.scalars.geometry_wkt_data.data) == 1
-
-    def test_pack_geometry_field_none(self):
-        """Test packing None value for GEOMETRY field"""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.GEOMETRY
-        field_data.field_name = "geo_field"
-        field_info = {"name": "geo_field"}
-        vector_bytes_cache: Dict[int, List[bytes]] = {}
-
-        pack_field_value_to_field_data(None, field_data, field_info, vector_bytes_cache)
-        assert len(field_data.scalars.geometry_wkt_data.data) == 0
+        assert list(getattr(field_data.scalars, attr).data) == expected
 
     def test_pack_text_field_skips_max_length_check(self):
         """Test packing TEXT accepts long strings without max_length validation."""
@@ -990,144 +967,110 @@ class TestPackFieldValueExtendedTypes:
 class TestExtractRowDataV2:
     """Test extract_row_data_from_fields_data_v2 function"""
 
-    def test_extract_bool_with_validity(self):
-        """Test extracting bool data with validity mask"""
+    @pytest.mark.parametrize(
+        "dtype,attr,values,validity,expected",
+        [
+            pytest.param(
+                DataType.BOOL,
+                "bool_data",
+                [True, False, True],
+                [True, False, True],
+                [True, None, True],
+                id="bool",
+            ),
+            pytest.param(
+                DataType.INT8,
+                "int_data",
+                [10, 20, 30],
+                [True, False, True],
+                [10, None, 30],
+                id="int8",
+            ),
+            pytest.param(
+                DataType.INT16,
+                "int_data",
+                [10, 20, 30],
+                [True, False, True],
+                [10, None, 30],
+                id="int16",
+            ),
+            pytest.param(
+                DataType.INT32,
+                "int_data",
+                [10, 20, 30],
+                [True, False, True],
+                [10, None, 30],
+                id="int32",
+            ),
+            pytest.param(
+                DataType.INT64,
+                "long_data",
+                [100, 200],
+                [False, True],
+                [None, 200],
+                id="int64-leading-null",
+            ),
+            pytest.param(
+                DataType.FLOAT,
+                "float_data",
+                [1.5, 2.5],
+                [True, False],
+                [pytest.approx(1.5), None],
+                id="float",
+            ),
+            pytest.param(
+                DataType.DOUBLE,
+                "double_data",
+                [1.111, 2.222],
+                [True, True],
+                [pytest.approx(1.111), pytest.approx(2.222)],
+                id="double-all-valid",
+            ),
+            pytest.param(
+                DataType.TIMESTAMPTZ,
+                "string_data",
+                ["2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z"],
+                [True, True],
+                ["2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z"],
+                id="timestamptz",
+            ),
+            pytest.param(
+                DataType.VARCHAR,
+                "string_data",
+                ["hello", "world"],
+                [],
+                ["hello", "world"],
+                id="varchar-no-mask",
+            ),
+            pytest.param(
+                DataType.TEXT,
+                "string_data",
+                ["hello", "ignored", "world"],
+                [True, False, True],
+                ["hello", None, "world"],
+                id="text",
+            ),
+            pytest.param(
+                DataType.GEOMETRY,
+                "geometry_wkt_data",
+                ["POINT(1 2)", "POINT(3 4)"],
+                [True, False],
+                ["POINT(1 2)", None],
+                id="geometry",
+            ),
+        ],
+    )
+    def test_extract_scalar_rows(self, dtype, attr, values, validity, expected):
+        field_data = schema_types.FieldData(type=dtype, field_name="field", valid_data=validity)
+        getattr(field_data.scalars, attr).data.extend(values)
+        entity_rows = [{"id": i} for i in range(len(values))]
 
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.BOOL
-        field_data.field_name = "bool_field"
-        field_data.scalars.bool_data.data.extend([True, False, True])
-        field_data.valid_data.extend([True, False, True])
+        deferred = extract_row_data_from_fields_data_v2(field_data, entity_rows)
 
-        entity_rows = [{}, {}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["bool_field"] is True
-        assert entity_rows[1]["bool_field"] is None
-        assert entity_rows[2]["bool_field"] is True
-
-    def test_extract_int_types_with_validity(self):
-        """Test extracting INT8/16/32 data with validity mask"""
-
-        for dtype in [DataType.INT8, DataType.INT16, DataType.INT32]:
-            field_data = schema_types.FieldData()
-            field_data.type = dtype
-            field_data.field_name = "int_field"
-            field_data.scalars.int_data.data.extend([10, 20, 30])
-            field_data.valid_data.extend([True, False, True])
-
-            entity_rows = [{}, {}, {}]
-            extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-            assert entity_rows[0]["int_field"] == 10
-            assert entity_rows[1]["int_field"] is None
-            assert entity_rows[2]["int_field"] == 30
-
-    def test_extract_int64_with_validity(self):
-        """Test extracting INT64 data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.INT64
-        field_data.field_name = "int64_field"
-        field_data.scalars.long_data.data.extend([100, 200])
-        field_data.valid_data.extend([False, True])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["int64_field"] is None
-        assert entity_rows[1]["int64_field"] == 200
-
-    def test_extract_float_with_validity(self):
-        """Test extracting FLOAT data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.FLOAT
-        field_data.field_name = "float_field"
-        field_data.scalars.float_data.data.extend([1.5, 2.5])
-        field_data.valid_data.extend([True, False])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["float_field"] == pytest.approx(1.5)
-        assert entity_rows[1]["float_field"] is None
-
-    def test_extract_double_with_validity(self):
-        """Test extracting DOUBLE data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.DOUBLE
-        field_data.field_name = "double_field"
-        field_data.scalars.double_data.data.extend([1.111, 2.222])
-        field_data.valid_data.extend([True, True])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["double_field"] == pytest.approx(1.111)
-        assert entity_rows[1]["double_field"] == pytest.approx(2.222)
-
-    def test_extract_timestamptz_with_validity(self):
-        """Test extracting TIMESTAMPTZ data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.TIMESTAMPTZ
-        field_data.field_name = "ts_field"
-        field_data.scalars.string_data.data.extend(["2024-01-01T00:00:00Z", "2024-12-31T23:59:59Z"])
-        field_data.valid_data.extend([True, True])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["ts_field"] == "2024-01-01T00:00:00Z"
-        assert entity_rows[1]["ts_field"] == "2024-12-31T23:59:59Z"
-
-    def test_extract_varchar_with_validity(self):
-        """Test extracting VARCHAR data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.VARCHAR
-        field_data.field_name = "str_field"
-        field_data.scalars.string_data.data.extend(["hello", "world"])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["str_field"] == "hello"
-        assert entity_rows[1]["str_field"] == "world"
-
-    def test_extract_text_with_validity(self):
-        """Test extracting TEXT data with validity mask."""
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.TEXT
-        field_data.field_name = "text_field"
-        field_data.scalars.string_data.data.extend(["hello", "ignored", "world"])
-        field_data.valid_data.extend([True, False, True])
-
-        entity_rows = [{}, {}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows == [
-            {"text_field": "hello"},
-            {"text_field": None},
-            {"text_field": "world"},
-        ]
-
-    def test_extract_geometry_with_validity(self):
-        """Test extracting GEOMETRY data with validity mask"""
-
-        field_data = schema_types.FieldData()
-        field_data.type = DataType.GEOMETRY
-        field_data.field_name = "geo_field"
-        field_data.scalars.geometry_wkt_data.data.extend(["POINT(1 2)", "POINT(3 4)"])
-        field_data.valid_data.extend([True, False])
-
-        entity_rows = [{}, {}]
-        extract_row_data_from_fields_data_v2(field_data, entity_rows)
-
-        assert entity_rows[0]["geo_field"] == "POINT(1 2)"
-        assert entity_rows[1]["geo_field"] is None
+        assert deferred is False
+        assert entity_rows == [{"id": i, "field": value} for i, value in enumerate(expected)]
+        if dtype == DataType.BOOL:
+            assert all(row["field"] is value for row, value in zip(entity_rows, expected))
 
     def test_extract_scalar_uses_type_info_attr_for_bulk_assignment(self, monkeypatch):
         """Future scalar registry entries should not need a new branch here."""
