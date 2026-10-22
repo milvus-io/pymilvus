@@ -1332,7 +1332,6 @@ class TestStructFieldSchemaValidation:
             pytest.param({"is_partition_key": True}, "partition key", id="partition"),
             pytest.param({"is_clustering_key": True}, "clustering key", id="clustering"),
             pytest.param({"is_dynamic": True}, "dynamic", id="dynamic"),
-            pytest.param({"nullable": True}, "nullable", id="nullable"),
         ],
     )
     def test_check_fields_invalid_properties(self, kwarg, error_match):
@@ -1358,7 +1357,7 @@ class TestStructFieldSchemaValidation:
         """Test adding unsupported types to struct."""
         struct = StructFieldSchema()
         with pytest.raises(ParamError, match="does not support"):
-            struct.add_field("arr", DataType.ARRAY, element_type=DataType.INT64, max_capacity=10)
+            struct.add_field("nested", DataType.STRUCT)
 
 
 class TestStructFieldSchemaToDict:

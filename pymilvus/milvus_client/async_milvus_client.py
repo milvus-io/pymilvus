@@ -970,6 +970,11 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Add a field, or a ``struct[subfield]`` path with ``nullable=True``.
+
+        Sub-field types describe one element. Array ``max_capacity`` controls
+        its inner array, and ``element_nullable`` controls scalar leaves.
+        """
         if type_info.is_vector_type(data_type) and not kwargs.get("nullable", False):
             raise ParamError(
                 message="Adding vector field to existing collection requires nullable=True"

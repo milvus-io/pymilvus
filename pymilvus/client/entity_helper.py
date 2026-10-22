@@ -335,16 +335,60 @@ def convert_to_array(obj: List[Any], field_info: Any):
     # Convert numpy ndarray to list if needed
     if isinstance(obj, np.ndarray):
         obj = obj.tolist()
+    elif isinstance(obj, tuple):
+        obj = list(obj)
 
-    field_data = schema_types.ScalarField()
-    element_type = field_info.get("element_type", None)
+    if field_info.get("type_schema"):
+        return _encode_array_node(obj, field_info["type_schema"], field_info["name"])
+    if (
+        not field_info.get("element_nullable", False)
+        and isinstance(obj, list)
+        and any(value is None for value in obj)
+    ):
+        message = f"Array field {field_info.get('name')!r} does not allow null elements"
+        raise TypeError(message)
+    return _encode_scalar_array(
+        obj,
+        field_info.get("element_type"),
+        field_info.get("element_nullable", False),
+        field_info.get("name"),
+    )
+
+
+def _compact_array_values(values: List[Any], nullable: bool, name: str) -> tuple:
+    if isinstance(values, np.ndarray):
+        values = values.tolist()
+    if not isinstance(values, list):
+        raise ParamError(message=f"Array field {name!r} expects a list")
+    validity = [value is not None for value in values]
+    if not nullable and not all(validity):
+        raise ParamError(message=f"Array field {name!r} does not allow null elements")
+    return [value for value in values if value is not None], validity if nullable else []
+
+
+def _encode_scalar_array(values: List[Any], element_type: DataType, nullable: bool, name: str):
+    values, validity = _compact_array_values(values, nullable, name)
+    field_data = schema_types.ScalarField(valid_data=validity)
     attr_name = type_info.get_array_element_attr(element_type)
     if attr_name is not None:
-        getattr(field_data, attr_name).data.extend(obj)
+        payload = getattr(field_data, attr_name)
+        payload.SetInParent()
+        payload.data.extend(values)
         return field_data
-    raise ParamError(
-        message=f"Unsupported element type: {element_type} for Array field: {field_info.get('name')}"
-    )
+    raise ParamError(message=f"Unsupported element type: {element_type} for Array field: {name}")
+
+
+def _encode_array_node(values: List[Any], schema: Dict, name: str):
+    element = schema["array_element"]
+    if "leaf_type" in element:
+        return _encode_scalar_array(
+            values, element["leaf_type"], element.get("nullable", False), name
+        )
+    values, validity = _compact_array_values(values, element.get("nullable", False), name)
+    result = schema_types.ScalarField(valid_data=validity)
+    result.array_data.element_type = element["array_element"]["leaf_type"]
+    result.array_data.data.extend(_encode_array_node(value, element, name) for value in values)
+    return result
 
 
 def _is_fp32_vector_value(field_value: Any) -> bool:
@@ -409,7 +453,10 @@ def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
 
 def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     # Create a single VectorField that contains all vectors flattened
-    field_data = schema_types.VectorField()
+    obj, validity = _compact_array_values(
+        obj, field_info.get("element_nullable", False), field_info.get("name")
+    )
+    field_data = schema_types.VectorField(valid_data=validity)
     element_type = field_info.get("element_type", None)
 
     field_data.dim = _get_dim(field_info)
@@ -417,6 +464,7 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
     if element_type == DataType.FLOAT_VECTOR:
         attr_name = type_info.get_vector_attr(element_type)
         vector_values = getattr(field_data, attr_name).data
+        field_data.float_vector.SetInParent()
         if not obj:
             vector_values.extend([])
         for field_value in obj:
@@ -427,14 +475,26 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
                         message="invalid input for float32 vector. Expected an np.ndarray with dtype=float32"
                     )
                 f_value = field_value.tolist()
+            if len(f_value) != field_data.dim:
+                raise ParamError(
+                    message=f"Vector in {field_info['name']!r} has an invalid dimension"
+                )
             vector_values.extend(f_value)
 
     elif type_info.is_byte_vector_type(element_type):
         attr_name = type_info.get_vector_attr(element_type)
-        if element_type == DataType.BINARY_VECTOR:
-            all_bytes = b"".join(fv if isinstance(fv, bytes) else bytes(fv) for fv in obj)
-        else:
-            all_bytes = b"".join(_convert_to_vector_bytes(fv, element_type) for fv in obj)
+        vectors = [
+            (
+                (fv if isinstance(fv, bytes) else bytes(fv))
+                if element_type == DataType.BINARY_VECTOR
+                else _convert_to_vector_bytes(fv, element_type)
+            )
+            for fv in obj
+        ]
+        width = type_info.row_width(element_type, field_data.dim)
+        if any(len(vector) != width for vector in vectors):
+            raise ParamError(message=f"Vector in {field_info['name']!r} has an invalid byte width")
+        all_bytes = b"".join(vectors)
         setattr(field_data, attr_name, all_bytes)
 
     else:
@@ -442,6 +502,25 @@ def convert_to_array_of_vector(obj: List[Any], field_info: Any):
             message=f"Unsupported element type: {element_type} for Array of Vector field: {field_info.get('name')}"
         )
     return field_data
+
+
+def sync_row_validity(field_data: schema_types.FieldData) -> None:
+    """Write row masks in both wire locations without touching child masks."""
+    if field_data.type == DataType._ARRAY_OF_STRUCT:
+        for child in field_data.struct_arrays.fields:
+            sync_row_validity(child)
+        return
+    if not field_data.valid_data:
+        return
+    if field_data.type == DataType.SPARSE_FLOAT_VECTOR:
+        field_data.vectors.sparse_float_vector.SetInParent()
+    payload = (
+        field_data.vectors
+        if type_info.is_vector_type(field_data.type) or field_data.type == DataType._ARRAY_OF_VECTOR
+        else field_data.scalars
+    )
+    del payload.valid_data[:]
+    payload.valid_data.extend(field_data.valid_data)
 
 
 def entity_to_array_arr(entity_values: List[Any], field_info: Any):
@@ -724,7 +803,7 @@ def extract_array_rows(field_data: Any, entity_rows: List[Dict], row_count: int,
     if row_count == 0:
         return
     field_name = field_data.field_name
-    valid_data = field_data.valid_data
+    valid_data = field_data_extractors.row_validity(field_data)
     if has_valid:
         for i in range(row_count):
             entity_rows[i][field_name] = (
@@ -740,9 +819,9 @@ def extract_row_data_from_fields_data_v2(
     entity_rows: List[Dict],
 ) -> bool:
     row_count = len(entity_rows)
-    has_valid = len(field_data.valid_data) > 0
+    has_valid = len(field_data_extractors.row_validity(field_data)) > 0
     field_name = field_data.field_name
-    valid_data = field_data.valid_data
+    valid_data = field_data_extractors.row_validity(field_data)
 
     def assign_scalar(data: List[Any]) -> None:
         if has_valid:
@@ -810,10 +889,14 @@ def _materialize_vector_array_value(element_type: DataType, value: Any) -> Any:
 
 
 def _is_struct_array_row_null(struct_arrays: Any, row_idx: int) -> bool:
-    for sub_field in struct_arrays.fields:
-        if row_idx < len(sub_field.valid_data) and sub_field.valid_data[row_idx] is False:
-            return True
-    return False
+    validities = [
+        not field_data_extractors.is_null_cell(field, row_idx) for field in struct_arrays.fields
+    ]
+    if validities and any(valid != validities[0] for valid in validities):
+        raise MilvusException(
+            message=f"Struct sub-fields have different row validity at row {row_idx}"
+        )
+    return bool(validities) and not validities[0]
 
 
 def extract_struct_array_from_column_data(
@@ -850,73 +933,42 @@ def extract_struct_array_from_column_data(
     if _is_struct_array_row_null(struct_arrays, row_idx):
         return None
 
-    # Determine the number of struct elements by checking the first sub-field's data length
-    # All sub-fields should have the same number of elements
-    num_structs = 0
+    columns = {}
+    row_count = None
+    element_count = None
     for sub_field in struct_arrays.fields:
-        if sub_field.type == DataType.ARRAY and row_idx < len(sub_field.scalars.array_data.data):
-            array_item = sub_field.scalars.array_data.data[row_idx]
-            num_structs = get_array_length(array_item)
-            if num_structs > 0:
-                break
+        name = _strip_struct_sub_field_name(sub_field.field_name)
+        if sub_field.type == DataType.ARRAY:
+            rows = sub_field.scalars.array_data.data
+            values = field_data_extractors.decode_array_cell(sub_field, row_idx)
         elif sub_field.type == DataType._ARRAY_OF_VECTOR:
-            if (
-                hasattr(sub_field, "vectors")
-                and hasattr(sub_field.vectors, "vector_array")
-                and row_idx < len(sub_field.vectors.vector_array.data)
-            ):
-                vector_data = sub_field.vectors.vector_array.data[row_idx]
-                element_type = sub_field.vectors.vector_array.element_type
-                num_structs = _vector_array_element_count(vector_data, element_type)
-
-                if num_structs > 0:
-                    break
-
-    # Build array of struct objects by extracting data at each struct index
-    struct_array = []
-    for struct_idx in range(num_structs):
-        struct_obj = {}
-
-        for sub_field in struct_arrays.fields:
-            sub_field_name = _strip_struct_sub_field_name(sub_field.field_name)
-
-            # Handle scalar array fields (VARCHAR, INT, FLOAT, etc.)
-            if sub_field.type == DataType.ARRAY:
-                if row_idx < len(sub_field.scalars.array_data.data):
-                    array_item = sub_field.scalars.array_data.data[row_idx]
-                    # Extract the value at struct_idx from the appropriate data type
-                    struct_obj[sub_field_name] = get_array_value_at_index(array_item, struct_idx)
-
-            elif sub_field.type == DataType._ARRAY_OF_VECTOR:
-                if hasattr(sub_field, "vectors") and hasattr(sub_field.vectors, "vector_array"):
-                    vector_array = sub_field.vectors.vector_array
-                    if row_idx < len(vector_array.data):
-                        vector_data = vector_array.data[row_idx]
-                        element_type = vector_array.element_type
-                        try:
-                            struct_obj[sub_field_name] = _materialize_vector_array_value(
-                                element_type,
-                                field_data_extractors.decode_vector_array_value(
-                                    vector_data, element_type, struct_idx
-                                ),
-                            )
-                        except ParamError:
-                            struct_obj[sub_field_name] = None
-
-            # All struct sub-fields should be either ARRAY or ARRAY_OF_VECTOR
-            # Any other type indicates a bug in the data conversion logic
-            else:
-                raise ParamError(
-                    message=(
-                        f"Unexpected field type {sub_field.type} for struct sub-field "
-                        f"{sub_field_name}. Struct fields must be ARRAY or ARRAY_OF_VECTOR "
-                        "internally."
-                    )
-                )
-
-        struct_array.append(struct_obj)
-
-    return struct_array
+            rows = sub_field.vectors.vector_array.data
+            values = [
+                _materialize_vector_array_value(sub_field.vectors.vector_array.element_type, value)
+                for value in field_data_extractors.decode_vector_array_cell(sub_field, row_idx)
+            ]
+        else:
+            raise ParamError(
+                message=f"Unexpected field type {sub_field.type} for struct sub-field {name}"
+            )
+        validity = field_data_extractors.row_validity(sub_field)
+        if validity and len(validity) != len(rows):
+            raise MilvusException(message=f"Struct sub-field {name} has inconsistent row lengths")
+        if row_count is not None and row_count != len(rows):
+            raise MilvusException(message=f"Struct sub-field {name} has inconsistent row lengths")
+        if row_idx >= len(rows) or values is None:
+            raise MilvusException(message=f"Struct sub-field {name} is missing row {row_idx}")
+        row_count = len(rows)
+        if element_count is not None and element_count != len(values):
+            raise MilvusException(
+                message=f"Struct sub-field {name} has inconsistent element lengths at row {row_idx}"
+            )
+        element_count = len(values)
+        columns[name] = values
+    return [
+        {name: values[index] for name, values in columns.items()}
+        for index in range(element_count or 0)
+    ]
 
 
 def _strip_struct_sub_field_name(field_name: str) -> str:
