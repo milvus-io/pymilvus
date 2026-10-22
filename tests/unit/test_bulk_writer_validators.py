@@ -234,10 +234,13 @@ class TestFloat16VectorValidator:
         if dtype == "bfloat16":
             pytest.importorskip("ml_dtypes")
         value = np.array([1, 2, 3], dtype=dtype)
-        with pytest.raises(
-            MilvusException, match=f'dtype must be "{dtype_name}", "float32" or "float64"'
-        ):
+        with pytest.raises(MilvusException) as exc_info:
             float16_vector_validator(value, 3, is_bfloat=is_bfloat)
+        field_type = "BFLOAT16_VECTOR" if is_bfloat else "FLOAT16_VECTOR"
+        assert exc_info.value.message == (
+            f'numpy.ndarray\'s dtype must be "{dtype_name}", "float32" or "float64" '
+            f"for {field_type} type field"
+        )
 
 
 # ---------------------------------------------------------------------------
