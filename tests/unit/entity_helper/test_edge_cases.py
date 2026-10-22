@@ -13,7 +13,7 @@ from pymilvus.client.entity_helper import (
     pack_field_value_to_field_data,
 )
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import DataNotMatchException, ParamError
+from pymilvus.exceptions import DataNotMatchException, MilvusException, ParamError
 from pymilvus.grpc_gen import schema_pb2 as schema_types
 
 
@@ -83,9 +83,8 @@ class TestEntityHelperEdgeCases:
             sa_field.struct_arrays.fields.add().CopyFrom(arr_field)
             sa_field.struct_arrays.fields.add().CopyFrom(vec_field)
 
-            result = extract_struct_array_from_column_data(sa_field.struct_arrays, 0)
-            assert len(result) == 2
-            assert result[1]["vec"] is None
+            with pytest.raises(MilvusException, match="inconsistent element lengths"):
+                extract_struct_array_from_column_data(sa_field.struct_arrays, 0)
 
     # Tests from TestJsonStrInput
     def test_json_str_input_valid(self):

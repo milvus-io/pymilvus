@@ -139,11 +139,12 @@ class HybridHits(list):
         """
         field_id = id(field_data)
         if field_id not in self._prefix_sum_cache:
-            if len(field_data.valid_data) == 0:
+            validity = field_data_extractors.row_validity(field_data)
+            if len(validity) == 0:
                 self._prefix_sum_cache[field_id] = None
             else:
                 self._prefix_sum_cache[field_id] = np.cumsum(
-                    [0] + [1 if v else 0 for v in field_data.valid_data]
+                    [0] + [1 if v else 0 for v in validity]
                 )
         prefix_sum = self._prefix_sum_cache[field_id]
         if prefix_sum is None:
@@ -354,6 +355,12 @@ class SearchResult(list):
         all_offsets: Optional[List[int]] = None
         if res.element_indices and len(res.element_indices.data) > 0:
             all_offsets = list(res.element_indices.data)
+            if (
+                len(all_offsets) != len(all_pks)
+                or len(all_offsets) != len(all_scores)
+                or sum(res.topks) != len(all_offsets)
+            ):
+                raise MilvusException(message="Search element_indices length does not match hits")
 
         data = []
         nq_thres = 0
