@@ -11,6 +11,7 @@ from pymilvus.client.field_data_extractors import (
     decode_vector_array_value,
     dense_vector_width,
     get_field_data,
+    iter_vector_range,
     physical_index,
     vector_array_length,
 )
@@ -123,6 +124,11 @@ def test_decode_dense_vector_cells_from_type_info_widths(
 
     assert dense_vector_width(dtype, dim) == expected_width
     assert decode_cell(field, 1) == expected
+    assert list(iter_vector_range(field, 1, 2)) == [expected]
+
+    field.valid_data.extend([True, False, True, True])
+    # Nullable payloads contain only physical rows; the final row is truncated.
+    assert list(iter_vector_range(field, 1, 4)) == [None, expected, None]
 
 
 def test_decode_dense_vector_cell_wraps_byte_vectors_when_requested():
@@ -172,6 +178,20 @@ def test_decode_nullable_sparse_vector_cell_uses_physical_index():
     assert decode_cell(field, 0) == {1: pytest.approx(0.5)}
     assert decode_cell(field, 1) is None
     assert decode_cell(field, 2) == {5: pytest.approx(0.8)}
+    assert list(iter_vector_range(field, 1, 3)) == [None, {5: pytest.approx(0.8)}]
+
+
+@pytest.mark.parametrize("validity", [[], [False, False]])
+def test_vector_range_defers_dimension_validation_until_a_present_row(validity):
+    field = _vector_field(DataType.BINARY_VECTOR, "vector", 7, b"", valid_data=validity)
+    end = len(validity)
+
+    assert list(iter_vector_range(field, 0, end)) == [None] * end
+    assert list(iter_vector_range(field, end, end)) == []
+
+    field.valid_data.append(True)
+    with pytest.raises(ParamError, match="multiple of 8"):
+        list(iter_vector_range(field, 0, end + 1))
 
 
 def test_decode_array_of_vector_cell_splits_rows():
