@@ -3,6 +3,7 @@
 Coverage: Initialization, context manager, secure channel, close operations.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import grpc
@@ -196,6 +197,39 @@ class TestAsyncGrpcHandlerInit:
 
         with pytest.raises(MilvusException, match="Fail connecting to server on"):
             await handler.ensure_channel_ready()
+
+    @pytest.mark.asyncio
+    async def test_ensure_channel_ready_concurrent_calls_only_set_up_once(self) -> None:
+        """Regression test: concurrent callers racing before the channel is
+        ready must not each independently set up the identifier interceptor.
+
+        Without a lock, every concurrent caller sees _is_channel_ready as
+        False and awaits _setup_identifier_interceptor_for_channel(), which
+        appends a new interceptor to the shared channel's interceptor chain
+        on every call. Enough concurrent callers before the first one sets
+        _is_channel_ready stacks enough interceptors to raise a
+        RecursionError on a later RPC.
+        """
+        mock_channel = _mock_channel()
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = False
+
+        call_count = 0
+
+        async def fake_setup(final_channel, stub, user, timeout=10):
+            nonlocal call_count
+            call_count += 1
+            # Yield control so concurrent callers actually interleave here,
+            # matching the real await point in the unpatched code.
+            await asyncio.sleep(0)
+            return (MagicMock(), final_channel, stub)
+
+        handler._setup_identifier_interceptor_for_channel = fake_setup
+
+        await asyncio.gather(*(handler.ensure_channel_ready() for _ in range(20)))
+
+        assert call_count == 1
+        assert handler._is_channel_ready is True
 
     def test_setup_authorization_interceptor_appends_header(self) -> None:
         """Authorization setup appends a generated interceptor to the final channel."""
