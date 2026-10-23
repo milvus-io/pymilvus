@@ -240,7 +240,8 @@ def test_vector_array_helpers_handle_empty_and_zero_width_rows():
 
     zero_dim = schema_pb2.VectorField(dim=0, float_vector=schema_pb2.FloatArray(data=[1.0]))
 
-    assert vector_array_length(zero_dim, DataType.FLOAT_VECTOR) == 0
+    with pytest.raises(MilvusException, match="Vector Array has no dimension"):
+        vector_array_length(zero_dim, DataType.FLOAT_VECTOR)
     assert decode_vector_array_value(zero_dim, DataType.FLOAT_VECTOR, 0) is None
 
 
