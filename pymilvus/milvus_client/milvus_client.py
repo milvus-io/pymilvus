@@ -1231,6 +1231,12 @@ class MilvusClient(BaseMilvusClient):
     ):
         """Add a new field to the collection.
 
+        Use ``field_name="clips[lang]"`` to add a sub-field to an existing struct.
+        Its type describes one struct element and requires ``nullable=True``.
+        For an Array sub-field, ``max_capacity`` is the inner array capacity and
+        ``element_nullable`` controls null scalar leaves. The outer capacity and
+        row nullability follow the parent struct.
+
         Args:
             collection_name(``string``): The name of collection.
             name (str): The name of the field.

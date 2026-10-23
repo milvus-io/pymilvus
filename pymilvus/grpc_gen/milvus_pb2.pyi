@@ -3170,26 +3170,30 @@ class GetRLSPrincipalTagsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., tags: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., principal_name: _Optional[str] = ...) -> None: ...
 
 class ListRLSPrincipalsRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name")
+    __slots__ = ("base", "db_name", "collection_name", "count")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    count: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., count: bool = ...) -> None: ...
 
 class ListRLSPrincipalsResponse(_message.Message):
-    __slots__ = ("status", "principal_names", "db_name", "collection_name")
+    __slots__ = ("status", "principal_names", "db_name", "collection_name", "principal_cnt")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PRINCIPAL_NAMES_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRINCIPAL_CNT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     principal_names: _containers.RepeatedScalarFieldContainer[str]
     db_name: str
     collection_name: str
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., principal_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    principal_cnt: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., principal_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., principal_cnt: _Optional[int] = ...) -> None: ...
 
 class DeleteRLSPrincipalTagsRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "principal_name", "tag_keys")
@@ -3574,14 +3578,16 @@ class UnpinSnapshotDataRequest(_message.Message):
 class AlterCollectionSchemaRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "action")
     class FieldInfo(_message.Message):
-        __slots__ = ("field_schema", "index_name", "extra_params")
+        __slots__ = ("field_schema", "index_name", "extra_params", "struct_path")
         FIELD_SCHEMA_FIELD_NUMBER: _ClassVar[int]
         INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
         EXTRA_PARAMS_FIELD_NUMBER: _ClassVar[int]
+        STRUCT_PATH_FIELD_NUMBER: _ClassVar[int]
         field_schema: _schema_pb2.FieldSchema
         index_name: str
         extra_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-        def __init__(self, field_schema: _Optional[_Union[_schema_pb2.FieldSchema, _Mapping]] = ..., index_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+        struct_path: str
+        def __init__(self, field_schema: _Optional[_Union[_schema_pb2.FieldSchema, _Mapping]] = ..., index_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., struct_path: _Optional[str] = ...) -> None: ...
     class AddRequest(_message.Message):
         __slots__ = ("field_infos", "func_schema", "do_physical_backfill")
         FIELD_INFOS_FIELD_NUMBER: _ClassVar[int]
@@ -3870,3 +3876,101 @@ class GetExportSnapshotStateResponse(_message.Message):
     status: _common_pb2.Status
     info: ExportSnapshotInfo
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., info: _Optional[_Union[ExportSnapshotInfo, _Mapping]] = ...) -> None: ...
+
+class RunningRequestInfo(_message.Message):
+    __slots__ = ("request_id", "proxy_id", "type", "db_name", "collection_name", "user", "client_addr", "nq", "topk", "expr", "start_time_ms", "queued_ms", "elapsed_ms", "state", "task_ids", "trace_id", "cancellable")
+    REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    PROXY_ID_FIELD_NUMBER: _ClassVar[int]
+    TYPE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    CLIENT_ADDR_FIELD_NUMBER: _ClassVar[int]
+    NQ_FIELD_NUMBER: _ClassVar[int]
+    TOPK_FIELD_NUMBER: _ClassVar[int]
+    EXPR_FIELD_NUMBER: _ClassVar[int]
+    START_TIME_MS_FIELD_NUMBER: _ClassVar[int]
+    QUEUED_MS_FIELD_NUMBER: _ClassVar[int]
+    ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    TASK_IDS_FIELD_NUMBER: _ClassVar[int]
+    TRACE_ID_FIELD_NUMBER: _ClassVar[int]
+    CANCELLABLE_FIELD_NUMBER: _ClassVar[int]
+    request_id: int
+    proxy_id: int
+    type: str
+    db_name: str
+    collection_name: str
+    user: str
+    client_addr: str
+    nq: int
+    topk: int
+    expr: str
+    start_time_ms: int
+    queued_ms: int
+    elapsed_ms: int
+    state: str
+    task_ids: _containers.RepeatedScalarFieldContainer[int]
+    trace_id: str
+    cancellable: bool
+    def __init__(self, request_id: _Optional[int] = ..., proxy_id: _Optional[int] = ..., type: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., client_addr: _Optional[str] = ..., nq: _Optional[int] = ..., topk: _Optional[int] = ..., expr: _Optional[str] = ..., start_time_ms: _Optional[int] = ..., queued_ms: _Optional[int] = ..., elapsed_ms: _Optional[int] = ..., state: _Optional[str] = ..., task_ids: _Optional[_Iterable[int]] = ..., trace_id: _Optional[str] = ..., cancellable: bool = ...) -> None: ...
+
+class RunningRequestNodeResult(_message.Message):
+    __slots__ = ("node_id", "status", "unimplemented")
+    NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    UNIMPLEMENTED_FIELD_NUMBER: _ClassVar[int]
+    node_id: int
+    status: _common_pb2.Status
+    unimplemented: bool
+    def __init__(self, node_id: _Optional[int] = ..., status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., unimplemented: bool = ...) -> None: ...
+
+class ListRunningRequestsRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "user", "min_elapsed_ms")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    MIN_ELAPSED_MS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    user: str
+    min_elapsed_ms: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., min_elapsed_ms: _Optional[int] = ...) -> None: ...
+
+class ListRunningRequestsResponse(_message.Message):
+    __slots__ = ("status", "requests", "node_results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    NODE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    requests: _containers.RepeatedCompositeFieldContainer[RunningRequestInfo]
+    node_results: _containers.RepeatedCompositeFieldContainer[RunningRequestNodeResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., requests: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ...) -> None: ...
+
+class CancelRequestsRequest(_message.Message):
+    __slots__ = ("base", "request_ids", "reason", "user")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    REQUEST_IDS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    USER_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    request_ids: _containers.RepeatedScalarFieldContainer[int]
+    reason: str
+    user: str
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., request_ids: _Optional[_Iterable[int]] = ..., reason: _Optional[str] = ..., user: _Optional[str] = ...) -> None: ...
+
+class CancelRequestsResponse(_message.Message):
+    __slots__ = ("status", "canceled", "not_found", "node_results", "undetermined")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    CANCELED_FIELD_NUMBER: _ClassVar[int]
+    NOT_FOUND_FIELD_NUMBER: _ClassVar[int]
+    NODE_RESULTS_FIELD_NUMBER: _ClassVar[int]
+    UNDETERMINED_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    canceled: _containers.RepeatedCompositeFieldContainer[RunningRequestInfo]
+    not_found: _containers.RepeatedScalarFieldContainer[int]
+    node_results: _containers.RepeatedCompositeFieldContainer[RunningRequestNodeResult]
+    undetermined: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[int]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[int]] = ...) -> None: ...

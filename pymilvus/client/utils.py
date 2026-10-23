@@ -172,7 +172,12 @@ def check_invalid_binary_vector(entities: List) -> bool:
 
 
 def len_of(field_data: Any) -> int:
+    from .field_data_extractors import row_validity
+
     field_kind = field_data.WhichOneof("field")
+    validity = row_validity(field_data)
+    if validity:
+        return len(validity)
     if field_kind == "scalars":
         scalar_kind = field_data.scalars.WhichOneof("data")
         if scalar_kind is None:
@@ -181,9 +186,6 @@ def len_of(field_data: Any) -> int:
         return len(scalar_field.data)
 
     if field_kind == "vectors":
-        if len(field_data.valid_data) > 0:
-            return len(field_data.valid_data)
-
         dim = field_data.vectors.dim
         vector_kind = field_data.vectors.WhichOneof("data")
         if vector_kind == "float_vector":
@@ -425,6 +427,19 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
     }
 
 
+def type_schema_to_dict(schema: Any) -> Dict:
+    result = {
+        "nullable": schema.nullable,
+        "params": {kv.key: kv.value for kv in schema.type_params},
+    }
+    kind = schema.WhichOneof("kind")
+    if kind == "array_element":
+        result[kind] = type_schema_to_dict(schema.array_element)
+    elif kind == "leaf_type":
+        result[kind] = DataType(schema.leaf_type)
+    return result
+
+
 def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> List[Dict]:
     """Convert internal struct array fields to a user-friendly format.
 
@@ -452,9 +467,11 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
         # Extract max_capacity from first field (all fields should have the same value)
         max_capacity = None
         for f in struct_field_info.get("fields", []):
-            params = f.get("params", {})
+            params = f.get("type_schema", {}).get("params", f.get("params", {}))
             if isinstance(params, dict) and params.get("max_capacity"):
                 max_capacity = params["max_capacity"]
+                if f.get("type_schema"):
+                    max_capacity = int(max_capacity)
                 break
 
         if max_capacity:
@@ -475,11 +492,28 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
                     "description": f.get("description", ""),
                 }
 
+                if f.get("element_nullable", False):
+                    struct_sub_field["nullable"] = True
+
                 params = f.get("params", {})
                 if params and isinstance(params, dict):
                     cleaned_params = {k: v for k, v in params.items() if k != "max_capacity"}
                     if cleaned_params:
                         struct_sub_field["params"] = cleaned_params
+
+                if user_field_type == DataType.ARRAY:
+                    inner = f.get("type_schema", {}).get("array_element", {})
+                    leaf = inner.get("array_element", {})
+                    if "leaf_type" not in leaf:
+                        raise MilvusException(message="Nested Array sub-field has no leaf type")
+                    struct_sub_field["element_type"] = leaf["leaf_type"]
+                    struct_sub_field["element_nullable"] = leaf.get("nullable", False)
+                    inner_params = dict(inner.get("params", {}))
+                    inner_params.update(leaf.get("params", {}))
+                    for key in ("max_capacity", "max_length"):
+                        if key in inner_params:
+                            inner_params[key] = int(inner_params[key])
+                    struct_sub_field.setdefault("params", {}).update(inner_params)
 
                 struct_fields.append(struct_sub_field)
 

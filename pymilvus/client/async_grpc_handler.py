@@ -1622,21 +1622,29 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        struct_path = ""
+        if "[" in field_schema.name or "]" in field_schema.name:
+            if any(kwargs.get(key) for key in ("index_name", "index_extra_params", "func")):
+                raise ParamError(message="Struct sub-field add cannot bind a function or index")
+            field_schema, struct_path = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
+            **({"struct_path": struct_path} if struct_path else {}),
         )
         fallback_to_legacy = False
         try:
             response = await self._async_stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            if is_external_collection_schema_alter_unsupported(response.alter_status):
+            if not struct_path and is_external_collection_schema_alter_unsupported(
+                response.alter_status
+            ):
                 fallback_to_legacy = True
             else:
                 check_status(response.alter_status)
         except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+            if struct_path or e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
             fallback_to_legacy = True
 
@@ -1782,9 +1790,13 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        struct_path = ""
+        if field_schema is not None and ("[" in field_schema.name or "]" in field_schema.name):
+            field_schema, struct_path = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
+            **({"struct_path": struct_path} if struct_path else {}),
             func=func,
             drop_field_name=drop_field_name,
             drop_field_id=drop_field_id,
