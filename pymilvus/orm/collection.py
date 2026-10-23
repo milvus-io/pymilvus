@@ -253,7 +253,14 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """CollectionSchema: schema of the collection."""
+        """CollectionSchema: current schema of the collection, fetched from the server."""
+        conn, context = self._get_connection()
+        resp = conn.describe_collection(self._name, context=context)
+        schema = CollectionSchema.construct_from_dict(resp)
+        schema_dict = schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
+        self._schema = schema
+        self._schema_dict = schema_dict
         return self._schema
 
     @property
@@ -565,8 +572,9 @@ class Collection:
                 **kwargs,
             )
 
-        check_insert_schema(self.schema, data)
-        entities = Prepare.prepare_data(data, self.schema)
+        schema = self.schema
+        check_insert_schema(schema, data)
+        entities = Prepare.prepare_data(data, schema)
         return conn.batch_insert(
             self._name,
             entities,
@@ -704,8 +712,9 @@ class Collection:
             )
             return MutationResult(res)
 
-        check_upsert_schema(self.schema, data)
-        entities = Prepare.prepare_data(data, self.schema, False)
+        schema = self.schema
+        check_upsert_schema(schema, data)
+        entities = Prepare.prepare_data(data, schema, False)
         res = conn.upsert(
             self._name,
             entities,
