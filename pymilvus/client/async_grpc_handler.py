@@ -48,11 +48,13 @@ from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
+    CompactionPlans,
     CompactionState,
     DatabaseInfo,
     HybridExtraList,
     IndexState,
     LoadState,
+    Plan,
     ReplicaInfo,
     Shard,
     State,
@@ -2649,6 +2651,39 @@ class AsyncGrpcHandler:
         return response
 
     @retry_on_rpc_failure()
+    async def get_flush_all_state(
+        self,
+        flush_all_ts: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> bool:
+        req = Prepare.get_flush_all_state_request(flush_all_ts, kwargs.get("db", ""))
+        response = await self._async_stub.GetFlushAllState(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.flushed
+
+    @retry_on_rpc_failure()
+    async def flush_all(
+        self,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> None:
+        req = Prepare.flush_all_request(kwargs.get("db", ""))
+        response = await self._async_stub.FlushAll(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+
+        while not await self.get_flush_all_state(
+            response.flush_all_ts, timeout=timeout, context=context, **kwargs
+        ):
+            await asyncio.sleep(5)
+
+    @retry_on_rpc_failure()
     async def compact(
         self,
         collection_name: str,
@@ -2702,6 +2737,23 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    async def get_compaction_plans(
+        self,
+        compaction_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_state_with_plans(compaction_id)
+        response = await self._async_stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        plans = CompactionPlans(compaction_id, response.state)
+        plans.plans = [Plan(merge.sources, merge.target) for merge in response.mergeInfos]
+        return plans
+
+    @retry_on_rpc_failure()
     async def run_analyzer(
         self,
         texts: Union[str, List[str]],
@@ -2732,6 +2784,27 @@ class AsyncGrpcHandler:
         if isinstance(texts, str):
             return AnalyzeResult(resp.results[0], with_hash, with_detail)
         return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
+
+    @retry_on_rpc_failure()
+    async def update_replicate_configuration(
+        self,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        request = Prepare.update_replicate_configuration_request(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
+        )
+        status = await self._async_stub.UpdateReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(status)
+        return status
 
     @retry_on_rpc_failure()
     async def get_replicate_configuration(
