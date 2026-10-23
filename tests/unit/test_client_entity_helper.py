@@ -354,6 +354,24 @@ class TestEntityHelperExtended:
         assert result.type == DataType.TEXT
         assert list(result.scalars.string_data.data) == ["short", long_text]
 
+    @pytest.mark.parametrize(
+        "element_type,values",
+        [
+            (DataType.INT64, [[1, 2], []]),
+            (DataType.VARCHAR, [["a"], None]),
+            (DataType.FLOAT, [None, None]),
+        ],
+        ids=["int64", "varchar", "float_all_null"],
+    )
+    def test_entity_to_field_data_array_sets_element_type(self, element_type, values):
+        """Test ARRAY field data carries the element type declared in the schema."""
+        entity = {"name": "arr", "type": DataType.ARRAY, "values": values}
+        field_info = {"name": "arr", "element_type": element_type, "nullable": True}
+
+        result = entity_to_field_data(entity, field_info, len(values))
+
+        assert result.scalars.array_data.element_type == element_type
+
 
 class TestLogicalTypeBatchInsertPaths:
     @staticmethod
