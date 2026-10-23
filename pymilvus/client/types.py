@@ -1570,6 +1570,15 @@ class LoadedSegmentInfo(SegmentInfo):
 
 
 @dataclass
+class SnapshotSummary:
+    """List metadata. create_ts preserves the Milvus timestamp from DescribeSnapshot."""
+
+    name: str
+    create_ts: int
+    description: str = ""
+
+
+@dataclass
 class SnapshotInfo:
     """Information about a snapshot.
 

@@ -7,9 +7,9 @@ import grpc
 import pytest
 from pymilvus import FieldSchema, Function, FunctionType, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
-from pymilvus.client.types import DataType
+from pymilvus.client.types import DataType, SnapshotSummary
 from pymilvus.exceptions import DescribeCollectionException, MilvusException
-from pymilvus.grpc_gen import common_pb2, schema_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 
 from .conftest import (
     COLLECTION_VALIDATION_CASES,
@@ -368,3 +368,79 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.AlterCollectionSchema.assert_called_once()
         assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
         GlobalCache._reset_for_testing()
+
+
+class TestSnapshotSummaries:
+    def test_metadata_and_legacy_names(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            snapshots=["b", "a", "old"],
+            snapshot_summaries=[
+                milvus_pb2.SnapshotSummary(
+                    name="b", create_ts=9007199254740993, description="daily"
+                ),
+                milvus_pb2.SnapshotSummary(name="a", create_ts=9007199254740993),
+                milvus_pb2.SnapshotSummary(name="old"),
+            ],
+        )
+        infos = handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
+        assert infos == [
+            SnapshotSummary("a", 9007199254740993),
+            SnapshotSummary("b", 9007199254740993, "daily"),
+            SnapshotSummary("old", 0),
+        ]
+        handler._stub.DescribeSnapshot.assert_not_called()
+        request = handler._stub.ListSnapshots.call_args.args[0]
+        assert request.collection_name == "books"
+        assert request.db_name == "archive"
+        assert handler._stub.ListSnapshots.call_args.kwargs["timeout"] == 5
+        # The old API continues returning names even when summaries are present.
+        assert handler.list_snapshots("books") == ["b", "a", "old"]
+
+    def test_old_server_fallback(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            snapshots=["old", "b", "a"]
+        )
+        handler._stub.DescribeSnapshot.side_effect = [
+            milvus_pb2.DescribeSnapshotResponse(name="old"),
+            milvus_pb2.DescribeSnapshotResponse(name="b", create_ts=200, description="daily"),
+            milvus_pb2.DescribeSnapshotResponse(name="a", create_ts=200),
+        ]
+        infos = handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
+        assert infos == [
+            SnapshotSummary("a", 200),
+            SnapshotSummary("b", 200, "daily"),
+            SnapshotSummary("old", 0),
+        ]
+        assert handler._stub.DescribeSnapshot.call_count == 3
+        for call in handler._stub.DescribeSnapshot.call_args_list:
+            assert call.args[0].collection_name == "books"
+            assert call.args[0].db_name == "archive"
+            assert call.kwargs["timeout"] == 5
+
+    def test_empty(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse()
+        assert handler.list_snapshot_summaries("books") == []
+        handler._stub.DescribeSnapshot.assert_not_called()
+
+    def test_list_error(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            status=common_pb2.Status(code=100, reason="not found")
+        )
+        with pytest.raises(MilvusException, match="not found"):
+            handler.list_snapshot_summaries("books")
+        handler._stub.DescribeSnapshot.assert_not_called()
+
+    def test_fallback_error(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            snapshots=["deleted"]
+        )
+        handler._stub.DescribeSnapshot.return_value = milvus_pb2.DescribeSnapshotResponse(
+            status=common_pb2.Status(code=100, reason="snapshot deleted")
+        )
+        with pytest.raises(MilvusException, match="snapshot deleted"):
+            handler.list_snapshot_summaries("books")
