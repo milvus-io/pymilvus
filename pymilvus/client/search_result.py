@@ -1,4 +1,5 @@
 import logging
+import math
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -258,6 +259,7 @@ class SearchResult(list):
         self.recalls = res.recalls if len(res.recalls) > 0 else None
 
         # set extra info
+        self._status_extra_info = dict(status.extra_info) if status is not None else {}
         self.extra = {}
         if status and status.extra_info:
             if "report_value" in status.extra_info:
@@ -272,6 +274,19 @@ class SearchResult(list):
         # iterator related
         self._session_ts = session_ts
         self._search_iterator_v2_results = res.search_iterator_v2_results
+        self._iterator_pk_type = res.ids.WhichOneof("id_field")
+        raw_pks = getattr(res.ids, self._iterator_pk_type).data if self._iterator_pk_type else []
+        self._iterator_last_pk = raw_pks[-1] if raw_pks else None
+        self._iterator_result_shape = None
+        if self._status_extra_info.get("search_iter_cursor_version") == "2":
+            self._iterator_result_shape = (
+                res.num_queries,
+                tuple(res.topks),
+                len(raw_pks),
+                len(res.scores),
+                res.scores[-1] if res.scores else None,
+                all(math.isfinite(score) for score in res.scores),
+            )
 
         # search_aggregation response — List[List[AggregationBucket]], one inner
         # list per query vector (nq). Empty outer list when request did not set
@@ -386,6 +401,14 @@ class SearchResult(list):
         """Iterator related inner method"""
         # TODO(Goose): Change it into properties
         return self._search_iterator_v2_results
+
+    def get_search_iterator_raw_shape(self):
+        """Internal protocol shape and final score before client-side rounding."""
+        return self._iterator_result_shape
+
+    def get_search_iterator_cursor_info(self):
+        """Internal iterator metadata, including the unrounded raw response PK."""
+        return self._status_extra_info, self._iterator_pk_type, self._iterator_last_pk
 
 
 class Hits(list):
