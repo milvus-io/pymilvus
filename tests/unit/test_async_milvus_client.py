@@ -55,8 +55,8 @@ async def client_and_handler():
         yield client, mock_handler
 
 
-@pytest.fixture
-def client_with_grpc_handler():
+@pytest_asyncio.fixture
+async def client_with_grpc_handler():
     channel = MagicMock()
     channel._unary_unary_interceptors = []
     handler = AsyncGrpcHandler(channel=channel)
