@@ -1,6 +1,55 @@
 import pytest
 from pymilvus.exceptions import ParamError
-from pymilvus.milvus_client.index import IndexParams, extract_bound_index_param
+from pymilvus.milvus_client.index import IndexParam, IndexParams, extract_bound_index_param
+
+
+class TestIndexParamEquality:
+    @pytest.mark.parametrize(
+        "changes",
+        [
+            {},
+            {"field_name": "other"},
+            {"index_type": "FLAT"},
+            {"index_name": "other"},
+            {"metric_type": "IP"},
+            {"params": {"M": 32}},
+        ],
+    )
+    def test_compare_index_params(self, changes):
+        kwargs = {
+            "field_name": "vector",
+            "index_type": "HNSW",
+            "index_name": "vector_idx",
+            "metric_type": "L2",
+            "params": {"M": 16},
+        }
+        left = IndexParam(**kwargs)
+        right = IndexParam(**{**kwargs, **changes})
+        assert (left == right) is (not changes)
+        assert (left != right) is bool(changes)
+
+    @pytest.mark.parametrize("metric_type", ["L2", "IP"])
+    def test_compare_dict(self, metric_type):
+        index = IndexParam("vector", "HNSW", "vector_idx", metric_type="L2", M=16)
+        config = {
+            "field_name": "vector",
+            "index_type": "HNSW",
+            "index_name": "vector_idx",
+            "metric_type": metric_type,
+            "M": 16,
+        }
+        assert (index == config) is (metric_type == "L2")
+        assert (config == index) is (metric_type == "L2")
+
+    def test_compare_index_lists(self):
+        left, right = IndexParams(), IndexParams()
+        left.add_index("vector", "HNSW", "vector_idx", params={"M": 16}, metric_type="L2")
+        right.add_index("vector", "HNSW", "vector_idx", M=16, metric_type="L2")
+        assert left == right
+
+    @pytest.mark.parametrize("other", [None, "vector", []])
+    def test_compare_unrelated_type(self, other):
+        assert IndexParam("vector", "FLAT", "") != other
 
 
 class TestExtractBoundIndexParam:
