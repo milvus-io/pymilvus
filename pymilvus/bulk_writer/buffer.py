@@ -49,20 +49,6 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def to_raw_type(obj: dict):
-    keys = obj.keys()
-    for k in keys:
-        v = obj[k]
-        if isinstance(v, dict):
-            obj[k] = to_raw_type(v)
-            continue
-        if isinstance(v, np.ndarray):
-            obj[k] = v.tolist()
-        elif isinstance(v, np.generic):
-            obj[k] = v.item()
-    return obj
-
-
 def _float16_vector_numpy_dtype(dtype: DataType):
     return ml_dtypes.bfloat16 if dtype == DataType.BFLOAT16_VECTOR else np.float16
 
@@ -78,6 +64,8 @@ class Buffer:
         self._fields = {}
         self._file_type = file_type
         self._config = config or {}
+        if file_type == BulkFileType.NUMPY and schema.struct_fields:
+            self._throw("NumPy bulk writer does not support struct fields")
         for field in schema.fields:
             if field.is_primary and field.auto_id:
                 continue
@@ -305,10 +293,28 @@ class Buffer:
             elif field.dtype == DataType.STRUCT:
                 sub_list = []
                 for sub_field in field.fields:
-                    sub_list.append(
-                        pa.field(sub_field.name, ARROW_TYPE_CREATOR[sub_field.dtype.name])
+                    if sub_field.dtype == DataType.ARRAY:
+                        sub_type = pa.list_(
+                            pa.field(
+                                "item",
+                                ARROW_TYPE_CREATOR[sub_field.element_type.name],
+                                nullable=sub_field.element_nullable,
+                            )
+                        )
+                    else:
+                        sub_type = ARROW_TYPE_CREATOR[sub_field.dtype.name]
+                        if pa.types.is_list(sub_type):
+                            sub_type = pa.list_(
+                                pa.field("item", sub_type.value_type, nullable=False)
+                            )
+                    sub_list.append(pa.field(sub_field.name, sub_type, nullable=sub_field.nullable))
+                arrow_list.append(
+                    pa.field(
+                        field_name,
+                        pa.list_(pa.field("item", pa.struct(sub_list), nullable=False)),
+                        nullable=field.nullable,
                     )
-                arrow_list.append(pa.field(field_name, pa.list_(pa.struct(sub_list))))
+                )
             elif field.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR} and any(
                 isinstance(val, list) for val in self._buffer[field_name]
             ):
@@ -427,16 +433,10 @@ class Buffer:
                 # boolean values are converted to string array
                 data[k] = pd.Series(v, dtype=np.dtype("str"))
             elif field_schema.dtype in {DataType.STRUCT}:
-                # data.to_csv() converts numpy type with unexpected string, we need a raw struct
-                raw_arr = []
-                for structs in v:
-                    if structs is None:
-                        raw_arr.append(None)
-                        continue
-                    raw_structs = []
-                    for struct in structs:
-                        raw_structs.append(to_raw_type(struct))
-                    raw_arr.append(json.dumps(raw_structs))
+                raw_arr = [
+                    None if structs is None else json.dumps(structs, cls=NumpyEncoder)
+                    for structs in v
+                ]
                 data[k] = pd.Series(raw_arr, dtype=np.dtype("str"))
             else:
                 # pd.Series cannot handle None with specific np.dtype because it cannot convert

@@ -60,7 +60,8 @@ class LocalBulkWriter(BulkWriter):
         self._exit()
 
     def __del__(self):
-        self._exit()
+        if hasattr(self, "_working_thread"):
+            self._exit()
 
     def _exit(self):
         # wait flush thread
