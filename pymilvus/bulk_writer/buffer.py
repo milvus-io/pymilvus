@@ -243,7 +243,7 @@ class Buffer:
             field_schema = self._fields[k]
             if field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 val = v[row_index]
-                if isinstance(val, list):
+                if val is None or isinstance(val, list):
                     row[k] = val
                 else:
                     dt = _float16_vector_numpy_dtype(field_schema.dtype)
