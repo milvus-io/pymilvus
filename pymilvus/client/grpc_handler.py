@@ -137,8 +137,8 @@ class ReconnectHandler:
             try:
                 logger.debug("try disconnecting old connection...")
                 self.conns.disconnect(self.connection_name)
-            except Exception:
-                logger.warning("disconnect failed: {e}")
+            except Exception as e:
+                logger.warning(f"disconnect failed: {e}")
             finally:
                 reconnected = False
                 while not reconnected:
