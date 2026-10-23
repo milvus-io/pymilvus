@@ -598,6 +598,22 @@ class TestCollectionSchemaKeyFields:
         assert schema.partition_key_field.name == "category"
         assert schema.partition_key_field.is_partition_key is True
 
+    def test_partition_key_same_as_primary_from_fields_raises(self):
+        """Test direct schema construction rejects primary field as partition key."""
+        with pytest.raises(PartitionKeyException, match="should not be primary"):
+            CollectionSchema(
+                [FieldSchema("pk", DataType.INT64, is_primary=True, is_partition_key=True)]
+            )
+
+    def test_partition_key_same_as_primary_from_kwargs_raises(self):
+        """Test kwarg schema construction rejects primary field as partition key."""
+        fields = [
+            FieldSchema("pk", DataType.INT64),
+            FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128),
+        ]
+        with pytest.raises(PartitionKeyException, match="should not be primary"):
+            CollectionSchema(fields, primary_field="pk", partition_key_field="pk")
+
     def test_clustering_key_field_from_kwarg(self):
         """Test setting clustering key field from kwarg."""
         fields = [
@@ -721,6 +737,17 @@ class TestCollectionSchemaAddField:
         assert [field.to_dict() for field in schema.fields] == fields_before
         assert schema.primary_field is None
         assert schema.partition_key_field.name == "category"
+
+    def test_add_field_rejects_primary_field_as_partition_key(self):
+        """Test add_field rejects a field that is both primary and partition key."""
+        schema = CollectionSchema([], check_fields=False)
+
+        with pytest.raises(PartitionKeyException, match="should not be primary"):
+            schema.add_field("pk", DataType.INT64, is_primary=True, is_partition_key=True)
+
+        assert schema.fields == []
+        assert schema.primary_field is None
+        assert schema.partition_key_field is None
 
     def test_add_struct_field_missing_struct_schema(self):
         """Test adding struct field without struct_schema raises error."""
@@ -2033,12 +2060,10 @@ class TestValidatePartitionKeyLine63:
     """Cover line 63: partition_key_field.name == primary_field_name path."""
 
     def test_partition_key_same_as_primary(self):
-        """When partition key field is the same as primary, line 63 constructs the exception
-        but does NOT raise it (it's a bug in the source -- missing 'raise').
-        We just verify the code path runs without error."""
+        """Partition key field cannot be the same field as the primary key."""
         pk = FieldSchema("pk", DataType.INT64, is_primary=True, is_partition_key=True)
-        # Exercises the branch where partition key name matches the primary field name
-        validate_partition_key("pk", pk, "pk")
+        with pytest.raises(PartitionKeyException, match="should not be primary"):
+            validate_partition_key("pk", pk, "pk")
 
     def test_partition_key_wrong_type(self):
         """Partition key field with unsupported dtype raises."""
