@@ -26,6 +26,7 @@ from pymilvus.client.types import (
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
+    SnapshotSummary,
 )
 from pymilvus.client.utils import (
     convert_struct_fields_to_user_format,
@@ -3441,6 +3442,28 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.list_snapshots(
+            collection_name=collection_name,
+            db_name=db_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    def list_snapshot_summaries(
+        self,
+        collection_name: str,
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SnapshotSummary]:
+        """Return name, create_ts and description, newest first.
+
+        create_ts preserves the Milvus timestamp returned by DescribeSnapshot.
+        Older servers require an additional DescribeSnapshot RPC for each name.
+        The existing list_snapshots method continues to return List[str].
+        """
+        conn = self._get_connection()
+        return conn.list_snapshot_summaries(
             collection_name=collection_name,
             db_name=db_name,
             timeout=timeout,

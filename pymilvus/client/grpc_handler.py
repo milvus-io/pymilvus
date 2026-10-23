@@ -81,6 +81,7 @@ from .types import (
     SegmentState,
     Shard,
     SnapshotInfo,
+    SnapshotSummary,
     State,
     Status,
     UserInfo,
@@ -3855,6 +3856,38 @@ class GrpcHandler:
 
         # Return list of snapshot names
         return list(response.snapshots)
+
+    @retry_on_rpc_failure()
+    def list_snapshot_summaries(
+        self,
+        collection_name: str,
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[SnapshotSummary]:
+        """List summaries; older servers require one DescribeSnapshot per name."""
+        request = Prepare.list_snapshots_req(collection_name=collection_name, db_name=db_name)
+        response = self._stub.ListSnapshots(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        summaries = [
+            SnapshotSummary(name=info.name, create_ts=info.create_ts, description=info.description)
+            for info in response.snapshot_summaries
+        ]
+        if not summaries and response.snapshots:
+            for name in response.snapshots:
+                info = self.describe_snapshot(
+                    snapshot_name=name,
+                    collection_name=collection_name,
+                    db_name=db_name,
+                    timeout=timeout,
+                    context=context,
+                    **kwargs,
+                )
+                summaries.append(SnapshotSummary(name, info.create_ts, info.description))
+        return sorted(summaries, key=lambda info: (-info.create_ts, info.name))
 
     @retry_on_rpc_failure()
     def describe_snapshot(
