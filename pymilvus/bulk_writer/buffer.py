@@ -19,6 +19,7 @@ import ml_dtypes
 import numpy as np
 import pandas as pd
 import pyarrow as pa
+import pyarrow.parquet as pq
 
 from pymilvus.client.types import (
     DataType,
@@ -359,13 +360,8 @@ class Buffer:
             row_group_size = min(row_group_size, row_group_size_max)
 
         # write to Parquet file
-        data_frame = pd.DataFrame(data=data)
-        data_frame.to_parquet(
-            file_path,
-            row_group_size=row_group_size,
-            engine="pyarrow",
-            schema=self._deduce_arrow_schema(),
-        )  # don't use fastparquet
+        table = pa.Table.from_pydict(data, schema=self._deduce_arrow_schema())
+        pq.write_table(table, file_path, row_group_size=row_group_size)
 
         logger.info(
             f"Successfully persist file {file_path}, total size: {buffer_size},"
