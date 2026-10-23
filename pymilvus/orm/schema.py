@@ -708,6 +708,8 @@ class FieldSchema:
         return _dict
 
     def __getattr__(self, item: str):
+        if item.startswith("_"):
+            raise AttributeError(item)
         if self._type_params and item in self._type_params:
             return self._type_params[item]
         return None
