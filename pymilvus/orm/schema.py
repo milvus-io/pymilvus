@@ -1351,7 +1351,7 @@ def check_upsert_schema(schema: CollectionSchema, data: Union[List[List], pd.Dat
         columns = list(data.columns)
         data = data[columns]
 
-    _check_data_schema_cnt(copy.deepcopy(schema.fields), data)
+    _check_data_schema_cnt([f for f in schema.fields if not f.is_function_output], data)
     _check_insert_data(data)
 
 
