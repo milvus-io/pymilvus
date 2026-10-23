@@ -419,10 +419,7 @@ def sparse_parse_single_row(data: bytes) -> SparseRowOutputType:
     if len(data) % 8 != 0:
         raise ParamError(message=f"The length of data must be a multiple of 8, got {len(data)}")
 
-    return {
-        struct.unpack("I", data[i : i + 4])[0]: struct.unpack("f", data[i + 4 : i + 8])[0]
-        for i in range(0, len(data), 8)
-    }
+    return dict(struct.iter_unpack("If", data))
 
 
 def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> List[Dict]:

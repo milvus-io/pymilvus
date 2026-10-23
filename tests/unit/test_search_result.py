@@ -22,6 +22,7 @@ from pymilvus.client.search_result import (
     extract_struct_field_value,
 )
 from pymilvus.client.types import DataType, HybridExtraList
+from pymilvus.exceptions import ParamError
 from pymilvus.grpc_gen import common_pb2, schema_pb2
 
 LOGGER = logging.getLogger(__name__)
@@ -1199,57 +1200,70 @@ class TestLegacyDetails:
             pass
         assert hits.has_materialized is True
 
-    def test_physical_index_cache(self):
-        # Cover _get_physical_index cache logic
-        # We need a field that has validity
-        # JSON does NOT use _get_physical_index in current implementation (it assumes dense).
-        # We MUST use a vector type to test this cache.
-
-        fields_data = [
-            schema_pb2.FieldData(
-                type=DataType.FLOAT_VECTOR,
-                field_name="fv",
-                valid_data=[True, False, True],  # 3 rows, 2 valid
-                vectors=schema_pb2.VectorField(
-                    dim=2,
-                    float_vector=schema_pb2.FloatArray(
-                        data=[1.0, 1.0, 2.0, 2.0]
-                    ),  # 2 vectors (sparse storage)
-                ),
+    @pytest.mark.parametrize(
+        ("dtype", "dim", "payload", "rows"),
+        [
+            (
+                DataType.FLOAT_VECTOR,
+                2,
+                [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+                [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+            ),
+            (DataType.BINARY_VECTOR, 16, b"abcdef", [b"ab", b"cd", b"ef"]),
+            (DataType.FLOAT16_VECTOR, 2, b"abcdefghijkl", [b"abcd", b"efgh", b"ijkl"]),
+            (DataType.BFLOAT16_VECTOR, 2, b"abcdefghijkl", [b"abcd", b"efgh", b"ijkl"]),
+            (DataType.INT8_VECTOR, 2, b"abcdef", [b"ab", b"cd", b"ef"]),
+            (DataType.SPARSE_FLOAT_VECTOR, 0, None, [{1: 1.0}, {3: 3.0}, {5: 5.0}]),
+        ],
+    )
+    def test_nullable_vector_query_offsets(self, dtype, dim, payload, rows):
+        field = _make_vector_field(dtype, "vector", dim, payload)
+        if dtype == DataType.SPARSE_FLOAT_VECTOR:
+            field.vectors.sparse_float_vector.contents.extend(
+                [struct.pack("If", key, value) for row in rows for key, value in row.items()]
             )
-        ]
-
-        res_data = schema_pb2.SearchResultData(
-            fields_data=fields_data,
-            num_queries=1,
-            top_k=3,
-            scores=[0.1, 0.2, 0.3],
-            ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[1, 2, 3])),
-            topks=[3],
+        field.valid_data.extend([True, False, True, False, True, True])
+        response = schema_pb2.SearchResultData(
+            fields_data=[field],
+            num_queries=4,
+            topks=[2, 0, 2, 2],
+            ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=list(range(6)))),
+            scores=[0.1] * 6,
         )
+        result = SearchResult(response)
+        assert all(not hits.has_materialized for hits in result)
+        assert "vector" not in result[2].get_raw_item(0)["entity"]
 
-        sr = SearchResult(res_data)
-        hits = sr[0]
+        # Read queries out of order, including an empty query and a short payload.
+        for query, expected in [
+            (2, [rows[1], None]),
+            (0, [rows[0], None]),
+            (1, []),
+            (3, [rows[2], None]),
+        ]:
+            assert [hit["entity"]["vector"] for hit in result[query]] == expected
+        materialized = result[0][0]["entity"]["vector"]
+        result.materialize()
+        assert result[0][0]["entity"]["vector"] is materialized
 
-        # Trigger use of _get_physical_index via materialize
-        hits.materialize()
+    def test_sparse_materialization_error_preserves_progress_and_can_retry(self):
+        field = _make_vector_field(DataType.SPARSE_FLOAT_VECTOR, "vector", 0, None)
+        good = struct.pack("If", 7, 0.5)
+        field.vectors.sparse_float_vector.contents.extend([good, b"bad", good])
+        response = schema_pb2.SearchResultData(
+            fields_data=[field],
+            num_queries=1,
+            topks=[3],
+            ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[1, 2, 3])),
+            scores=[0.1] * 3,
+        )
+        hits = SearchResult(response)[0]
+        with pytest.raises(ParamError, match="length of data must be a multiple of 8"):
+            hits.materialize()
 
-        # Check if cache is created
-        assert hasattr(hits, "_prefix_sum_cache")
-        assert len(hits._prefix_sum_cache) > 0
-
-        # Verify correctness
-        # Logical 0 (True) -> Physical 0
-        # Logical 1 (False) -> Physical 0 (but shouldn't be accessed for data)
-        # Logical 2 (True) -> Physical 1
-
-        field_id = id(hits.lazy_field_data[0])
-
-        prefix_sum = hits._prefix_sum_cache[field_id]
-        assert prefix_sum[0] == 0
-        assert prefix_sum[2] == 1
-
-        # Verify data access correct
-        assert hits[0].entity["fv"] == pytest.approx([1.0, 1.0])
-        assert hits[1].entity["fv"] is None
-        assert hits[2].entity["fv"] == pytest.approx([2.0, 2.0])
+        assert hits.has_materialized is False
+        assert hits.get_raw_item(0)["entity"]["vector"] == {7: 0.5}
+        assert "vector" not in hits.get_raw_item(1)["entity"]
+        assert "vector" not in hits.get_raw_item(2)["entity"]
+        response.fields_data[0].vectors.sparse_float_vector.contents[1] = good
+        assert [hit["entity"]["vector"] for hit in hits] == [{7: 0.5}] * 3
