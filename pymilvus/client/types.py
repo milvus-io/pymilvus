@@ -1219,6 +1219,11 @@ class HybridExtraList(list):
         self._has_materialized_float_vector = False
         self._strict_float32 = strict_float32
         self._materialized_bitmap = [False] * len(self)
+        self._materialized_ids: set[int] = set()
+        for i in range(len(self)):
+            item = list.__getitem__(self, i)
+            if isinstance(item, dict) and "_original_idx" not in item:
+                item["_original_idx"] = i
 
     def _get_physical_index(self, field_data: Any, logical_index: int) -> int:
         """Calculate physical index for nullable vectors with sparse storage.
@@ -1304,25 +1309,51 @@ class HybridExtraList(list):
                 results.append(row)
             return results
 
-        if self._materialized_bitmap[index]:
-            return super().__getitem__(index)
-
-        self._pre_materialize_float_vector()
-
         if index < 0:
             index = len(self) + index
 
         row = super().__getitem__(index)
+        if id(row) in self._materialized_ids:
+            return row
+
+        self._pre_materialize_float_vector()
+
         lazy_index = row.pop("_original_idx", index)
         for field_data in self._lazy_field_data:
             self._extract_lazy_fields(lazy_index, field_data, row)
 
-        self._materialized_bitmap[index] = True
+        self._materialized_ids.add(id(row))
+        if 0 <= index < len(self._materialized_bitmap):
+            self._materialized_bitmap[index] = True
         return row
 
     def __iter__(self):
         for i in range(len(self)):
             yield self[i]
+
+    def __reversed__(self):
+        for i in range(len(self) - 1, -1, -1):
+            yield self[i]
+
+    def sort(self, *args, **kwargs):
+        self.materialize()
+        return super().sort(*args, **kwargs)
+
+    def reverse(self):
+        self.materialize()
+        super().reverse()
+
+    def pop(self, index: int = -1):
+        self.materialize()
+        bitmap_index = index if index >= 0 else len(self) + index
+        item = super().pop(index)
+        if 0 <= bitmap_index < len(self._materialized_bitmap):
+            self._materialized_bitmap.pop(bitmap_index)
+        return item
+
+    def copy(self):
+        self.materialize()
+        return list(self)
 
     def __str__(self) -> str:
         preview = [str(self[i]) for i in range(min(10, len(self)))]
