@@ -272,7 +272,10 @@ class Collection:
 
     @property
     def description(self) -> str:
-        """str: a text description of the collection."""
+        """str: a text description of the collection.
+
+        Fetches the current schema from the server on each access.
+        """
         return self.schema.description
 
     @property
@@ -320,7 +323,10 @@ class Collection:
 
     @property
     def primary_field(self) -> FieldSchema:
-        """FieldSchema: the primary field of the collection."""
+        """FieldSchema: the primary field of the collection.
+
+        Fetches the current schema from the server on each access.
+        """
         return self.schema.primary_field
 
     def flush(self, timeout: Optional[float] = None, **kwargs):
