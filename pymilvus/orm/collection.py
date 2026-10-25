@@ -253,7 +253,14 @@ class Collection:
 
     @property
     def schema(self) -> CollectionSchema:
-        """CollectionSchema: schema of the collection."""
+        """CollectionSchema: current schema of the collection, fetched from the server."""
+        conn, context = self._get_connection()
+        resp = conn.describe_collection(self._name, context=context)
+        schema = CollectionSchema.construct_from_dict(resp)
+        schema_dict = schema.to_dict()
+        schema_dict["consistency_level"] = self._consistency_level
+        self._schema = schema
+        self._schema_dict = schema_dict
         return self._schema
 
     @property
@@ -265,7 +272,10 @@ class Collection:
 
     @property
     def description(self) -> str:
-        """str: a text description of the collection."""
+        """str: a text description of the collection.
+
+        Fetches the current schema from the server on each access.
+        """
         return self.schema.description
 
     @property
@@ -313,7 +323,10 @@ class Collection:
 
     @property
     def primary_field(self) -> FieldSchema:
-        """FieldSchema: the primary field of the collection."""
+        """FieldSchema: the primary field of the collection.
+
+        Fetches the current schema from the server on each access.
+        """
         return self.schema.primary_field
 
     def flush(self, timeout: Optional[float] = None, **kwargs):
@@ -565,8 +578,9 @@ class Collection:
                 **kwargs,
             )
 
-        check_insert_schema(self.schema, data)
-        entities = Prepare.prepare_data(data, self.schema)
+        schema = self.schema
+        check_insert_schema(schema, data)
+        entities = Prepare.prepare_data(data, schema)
         return conn.batch_insert(
             self._name,
             entities,
@@ -704,8 +718,9 @@ class Collection:
             )
             return MutationResult(res)
 
-        check_upsert_schema(self.schema, data)
-        entities = Prepare.prepare_data(data, self.schema, False)
+        schema = self.schema
+        check_upsert_schema(schema, data)
+        entities = Prepare.prepare_data(data, schema, False)
         res = conn.upsert(
             self._name,
             entities,
