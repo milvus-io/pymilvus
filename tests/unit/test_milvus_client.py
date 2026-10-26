@@ -2578,3 +2578,19 @@ class TestGrpcHandlerDumpMessages:
         gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
         with pytest.raises(MilvusException, match="oneof"):
             next(gen)
+
+
+@pytest.mark.parametrize("condition", [None, {"field": "version", "op": "gt"}])
+def test_milvus_client_conditional_result_indexes(condition):
+    result = MagicMock(upsert_count=2, primary_keys=[42, 44], succ_index=[0, 2], cost=0)
+    handler = _make_handler(upsert_rows=MagicMock(return_value=result))
+    with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+        client = MilvusClient()
+        response = client.upsert(
+            "col", data=[{"id": 42}, {"id": 43}, {"id": 44}], write_condition=condition
+        )
+        assert response["ids"] == [42, 44]
+        if condition is not None:
+            assert response["succ_index"] == [0, 2]
+        else:
+            assert "succ_index" not in response
