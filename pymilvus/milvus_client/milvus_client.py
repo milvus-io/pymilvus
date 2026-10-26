@@ -3459,7 +3459,8 @@ class MilvusClient(BaseMilvusClient):
         """Return name, create_ts and description, newest first.
 
         create_ts preserves the Milvus timestamp returned by DescribeSnapshot.
-        Older servers require an additional DescribeSnapshot RPC for each name.
+        Servers returning names without summaries raise ServerVersionIncompatibleException.
+        No DescribeSnapshot calls are made. Empty lists are returned unchanged.
         The existing list_snapshots method continues to return List[str].
         """
         conn = self._get_connection()
