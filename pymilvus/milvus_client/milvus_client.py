@@ -3456,7 +3456,7 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[SnapshotSummary]:
-        """Return name, create_ts and description, newest first.
+        """Return name, create_ts and description in server-provided order.
 
         create_ts preserves the Milvus timestamp returned by DescribeSnapshot.
         Servers returning names without summaries raise ServerVersionIncompatibleException.

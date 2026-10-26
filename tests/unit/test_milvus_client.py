@@ -2585,7 +2585,11 @@ class TestSnapshotSummaries:
     def test_list_snapshot_summaries(self):
         handler = MagicMock()
         handler.get_server_type.return_value = "milvus"
-        expected = [SnapshotSummary("backup", 9007199254740993, "daily")]
+        expected = [
+            SnapshotSummary("old", 0),
+            SnapshotSummary("b", 9007199254740993, "daily"),
+            SnapshotSummary("a", 9007199254740993),
+        ]
         handler.list_snapshot_summaries.return_value = expected
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
             client = MilvusClient()

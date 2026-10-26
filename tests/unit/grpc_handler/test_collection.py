@@ -375,23 +375,23 @@ class TestGrpcHandlerCollectionProperties:
 
 
 class TestSnapshotSummaries:
-    def test_metadata_and_legacy_names(self, handler):
+    def test_server_order_and_legacy_names(self, handler):
 
         handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
-            snapshots=["b", "a", "old"],
+            snapshots=["old", "b", "a"],
             snapshot_summaries=[
+                milvus_pb2.SnapshotSummary(name="old"),
                 milvus_pb2.SnapshotSummary(
                     name="b", create_ts=9007199254740993, description="daily"
                 ),
                 milvus_pb2.SnapshotSummary(name="a", create_ts=9007199254740993),
-                milvus_pb2.SnapshotSummary(name="old"),
             ],
         )
         infos = handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
         assert infos == [
-            SnapshotSummary("a", 9007199254740993),
-            SnapshotSummary("b", 9007199254740993, "daily"),
             SnapshotSummary("old", 0),
+            SnapshotSummary("b", 9007199254740993, "daily"),
+            SnapshotSummary("a", 9007199254740993),
         ]
         handler._stub.DescribeSnapshot.assert_not_called()
         request = handler._stub.ListSnapshots.call_args.args[0]
@@ -399,7 +399,7 @@ class TestSnapshotSummaries:
         assert request.db_name == "archive"
         assert handler._stub.ListSnapshots.call_args.kwargs["timeout"] == 5
         # The old API continues returning names even when summaries are present.
-        assert handler.list_snapshots("books") == ["b", "a", "old"]
+        assert handler.list_snapshots("books") == ["old", "b", "a"]
 
     def test_old_server_is_unsupported(self, handler):
         handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(

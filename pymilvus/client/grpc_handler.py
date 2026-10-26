@@ -3867,7 +3867,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[SnapshotSummary]:
-        """List summaries; reject servers returning names without summaries."""
+        """List summaries in server order; reject names-only responses."""
         request = Prepare.list_snapshots_req(collection_name=collection_name, db_name=db_name)
         response = self._stub.ListSnapshots(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -3884,7 +3884,7 @@ class GrpcHandler:
                     "Upgrade the server or use list_snapshots."
                 )
             )
-        return sorted(summaries, key=lambda info: (-info.create_ts, info.name))
+        return summaries
 
     @retry_on_rpc_failure()
     def describe_snapshot(
