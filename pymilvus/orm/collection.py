@@ -36,6 +36,7 @@ from pymilvus.exceptions import (
     DataTypeNotSupportException,
     ExceptionsMessage,
     IndexNotExistException,
+    ParamError,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
 )
@@ -685,6 +686,9 @@ class Collection:
             >>> res.upsert_count
             10
         """
+
+        if kwargs.get("write_condition") is not None:
+            raise ParamError(message="write_condition is supported only by MilvusClient.upsert")
 
         if not is_valid_insert_data(data):
             raise DataTypeNotSupportException(

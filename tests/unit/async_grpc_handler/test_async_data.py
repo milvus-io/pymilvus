@@ -3,16 +3,19 @@
 Coverage: Insert, delete, upsert, query, search, flush, compaction.
 """
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import grpc
 import pytest
 from pymilvus import FieldOp
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.grpc_gen import schema_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 
 
 class TestAsyncGrpcHandlerDataOps:
@@ -633,3 +636,256 @@ class TestAsyncGrpcHandlerCompaction:
             mock_prepare.run_analyzer_request.return_value = MagicMock()
             result = await handler.run_analyzer("hello world")
             assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_conditional_async_transport_failure_is_not_replayed():
+
+    class TransportError(grpc.RpcError):
+        def code(self):
+            return grpc.StatusCode.UNAVAILABLE
+
+        def details(self):
+            return "response lost"
+
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler = AsyncGrpcHandler(channel=channel)
+    handler._is_channel_ready = True
+    handler.ensure_channel_ready = AsyncMock()
+    handler._prepare_row_upsert_request = AsyncMock(
+        return_value=milvus_pb2.UpsertRequest(
+            write_condition=milvus_pb2.WriteCondition(field="version", op=1)
+        )
+    )
+    handler._async_stub = MagicMock()
+    handler._async_stub.Upsert = AsyncMock(side_effect=TransportError())
+    with pytest.raises(MilvusException) as exc:
+        await handler.upsert_rows("coll", [], write_condition={"field": "version", "op": "gt"})
+    assert exc.value.code == 112
+    assert handler._async_stub.Upsert.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("conditional", [False, True])
+@pytest.mark.parametrize("code,expected_calls", [(8, 2), (109, 2), (5, 1), (112, 1), (111, 1)])
+async def test_partial_async_upsert_server_retry_contract(code, expected_calls, conditional):
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler = AsyncGrpcHandler(channel=channel)
+    handler._is_channel_ready = True
+    handler.ensure_channel_ready = AsyncMock()
+    handler._prepare_row_upsert_request = AsyncMock(
+        return_value=milvus_pb2.UpsertRequest(
+            write_condition=milvus_pb2.WriteCondition(field="version", op=1)
+        )
+    )
+    if not conditional:
+        handler._prepare_row_upsert_request.return_value.ClearField("write_condition")
+    handler._invalidate_schema = MagicMock()
+    failed = milvus_pb2.MutationResult(
+        status=common_pb2.Status(
+            code=code,
+            error_code=common_pb2.SchemaMismatch if code == 109 else common_pb2.UnexpectedError,
+            reason="STREAMING_CODE_REPLICATE_VIOLATION: SchemaMismatch RateLimit CAS diagnostic cause",
+        )
+    )
+    succeeded = milvus_pb2.MutationResult(
+        status=common_pb2.Status(),
+        upsert_cnt=1,
+        IDs=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[42])),
+        succ_index=[0],
+    )
+    handler._async_stub = MagicMock()
+    handler._async_stub.Upsert = AsyncMock(side_effect=[failed, succeeded])
+    handler._on_rpc_error = AsyncMock(return_value=True)
+    if expected_calls == 1:
+        with pytest.raises(MilvusException) as exc:
+            await handler.upsert_rows(
+                "coll",
+                [],
+                context=CallContext(db_name="test_db"),
+                write_condition={"field": "version", "op": "gt"} if conditional else None,
+            )
+        assert exc.value.code == code
+        assert exc.value.retriable is False
+    else:
+        result = await handler.upsert_rows(
+            "coll",
+            [],
+            context=CallContext(db_name="test_db"),
+            write_condition={"field": "version", "op": "gt"} if conditional else None,
+        )
+        assert result.succ_index == [0]
+    assert handler._async_stub.Upsert.await_count == expected_calls
+
+    handler._on_rpc_error.assert_not_called()
+
+
+@pytest.fixture
+def async_upsert_timeout_handler():
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler = AsyncGrpcHandler(channel=channel)
+    handler._is_channel_ready = True
+    handler.ensure_channel_ready = AsyncMock()
+    handler._prepare_row_upsert_request = AsyncMock(
+        return_value=milvus_pb2.UpsertRequest(
+            write_condition=milvus_pb2.WriteCondition(field="version", op=1)
+        )
+    )
+    handler._async_stub = MagicMock()
+    handler._async_stub.Upsert = AsyncMock()
+    handler._on_rpc_error = AsyncMock(return_value=True)
+    return handler
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["preparation", "write"])
+@pytest.mark.parametrize("conditional", [False, True])
+async def test_async_upsert_overall_timeout_classifies_write_phase(
+    async_upsert_timeout_handler, phase, conditional
+):
+    handler = async_upsert_timeout_handler
+    if not conditional:
+        handler._prepare_row_upsert_request.return_value.ClearField("write_condition")
+
+    async def block(*_args, **_kwargs):
+        await asyncio.Event().wait()
+
+    if phase == "preparation":
+        handler._prepare_row_upsert_request.side_effect = block
+    else:
+        handler._async_stub.Upsert.side_effect = block
+
+    with pytest.raises(MilvusException) as exc:
+        await handler.upsert_rows(
+            "coll",
+            [],
+            timeout=0.02,
+            write_condition={"field": "version", "op": "gt"} if conditional else None,
+        )
+    if conditional and phase == "write":
+        assert exc.value.code == 112
+        assert "outcome unknown" in exc.value.message
+        assert exc.value.retriable is False
+    else:
+        assert exc.value.code == 1
+        assert "Retry timeout" in exc.value.message
+    assert handler._prepare_row_upsert_request.await_count == 1
+    assert handler._async_stub.Upsert.await_count == (phase == "write")
+    handler._on_rpc_error.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("phase", ["preparation", "write"])
+@pytest.mark.parametrize("timeout", [None, 10])
+async def test_conditional_async_upsert_preserves_explicit_task_cancellation(
+    async_upsert_timeout_handler, phase, timeout
+):
+    handler = async_upsert_timeout_handler
+    started = asyncio.Event()
+
+    async def block(*_args, **_kwargs):
+        started.set()
+        await asyncio.Event().wait()
+
+    if phase == "preparation":
+        handler._prepare_row_upsert_request.side_effect = block
+    else:
+        handler._async_stub.Upsert.side_effect = block
+
+    task = asyncio.create_task(
+        handler.upsert_rows(
+            "coll", [], timeout=timeout, write_condition={"field": "version", "op": "gt"}
+        )
+    )
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert task.cancelled()
+        assert handler._async_stub.Upsert.await_count == (phase == "write")
+        handler._on_rpc_error.assert_not_called()
+    finally:
+        if not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", [8, 109])
+async def test_conditional_async_admission_response_clears_pending_write(
+    async_upsert_timeout_handler, code
+):
+    handler = async_upsert_timeout_handler
+    request = handler._prepare_row_upsert_request.return_value
+
+    async def prepare(*_args, **_kwargs):
+        if handler._prepare_row_upsert_request.await_count > 1:
+            await asyncio.Event().wait()
+        return request
+
+    handler._prepare_row_upsert_request.side_effect = prepare
+    handler._invalidate_schema = MagicMock()
+    handler._async_stub.Upsert.return_value = milvus_pb2.MutationResult(
+        status=common_pb2.Status(
+            code=code,
+            error_code=common_pb2.SchemaMismatch if code == 109 else common_pb2.UnexpectedError,
+        )
+    )
+    with pytest.raises(MilvusException) as exc:
+        await handler.upsert_rows(
+            "coll",
+            [],
+            timeout=0.05,
+            context=CallContext(db_name="test_db"),
+            write_condition={"field": "version", "op": "gt"},
+        )
+    assert exc.value.code == 1
+    assert "Retry timeout" in exc.value.message
+    assert handler._prepare_row_upsert_request.await_count == 2
+    handler._async_stub.Upsert.assert_awaited_once()
+    handler._on_rpc_error.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_conditional_async_timeout_state_is_isolated_between_calls(
+    async_upsert_timeout_handler,
+):
+    handler = async_upsert_timeout_handler
+    write_started = asyncio.Event()
+    request = handler._prepare_row_upsert_request.return_value
+
+    async def prepare(collection_name, *_args, **_kwargs):
+        if collection_name == "preparing":
+            await asyncio.Event().wait()
+        return request
+
+    async def write(*_args, **_kwargs):
+        write_started.set()
+        await asyncio.Event().wait()
+
+    handler._prepare_row_upsert_request.side_effect = prepare
+    handler._async_stub.Upsert.side_effect = write
+    writing = asyncio.create_task(
+        handler.upsert_rows(
+            "writing", [], timeout=1, write_condition={"field": "version", "op": "gt"}
+        )
+    )
+    try:
+        await asyncio.wait_for(write_started.wait(), timeout=1)
+        with pytest.raises(MilvusException) as exc:
+            await handler.upsert_rows(
+                "preparing", [], timeout=0.02, write_condition={"field": "version", "op": "gt"}
+            )
+        assert exc.value.code == 1
+        with pytest.raises(MilvusException) as exc:
+            await writing
+        assert exc.value.code == 112
+        handler._async_stub.Upsert.assert_awaited_once()
+    finally:
+        if not writing.done():
+            writing.cancel()
+            await asyncio.gather(writing, return_exceptions=True)
