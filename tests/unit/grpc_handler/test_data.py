@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import grpc
 import pytest
 from pymilvus import AnnSearchRequest, FieldOp, RRFRanker
 from pymilvus.client.call_context import CallContext
@@ -12,7 +13,7 @@ from pymilvus.exceptions import (
     ParamError,
     SchemaMismatchRetryableException,
 )
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 
 from .conftest import make_mutation_response
 
@@ -796,3 +797,68 @@ class TestGrpcHandlerUpsertFieldOps:
         # ARRAY_REMOVE enum value is 2 per schema.proto FieldPartialUpdateOp.
         assert req.field_ops[0].op == 2
         assert req.partial_update is True
+
+
+@pytest.mark.parametrize("rpc_code", ["UNAVAILABLE", "DEADLINE_EXCEEDED"])
+def test_conditional_write_transport_failure_is_not_replayed(handler, rpc_code):
+
+    class TransportError(grpc.RpcError):
+        def code(self):
+            return getattr(grpc.StatusCode, rpc_code)
+
+        def details(self):
+            return "response lost"
+
+    request = milvus_pb2.UpsertRequest(
+        write_condition=milvus_pb2.WriteCondition(field="version", op=1)
+    )
+    handler._stub.Upsert.side_effect = TransportError()
+    with patch.object(handler, "_prepare_row_upsert_request", return_value=request):
+        with pytest.raises(MilvusException) as exc:
+            handler.upsert_rows("coll", [], write_condition={"field": "version", "op": "gt"})
+    assert exc.value.code == 112
+    assert handler._stub.Upsert.call_count == 1
+
+
+@pytest.mark.parametrize("conditional", [False, True])
+@pytest.mark.parametrize("code,expected_calls", [(8, 2), (109, 2), (5, 1), (112, 1), (111, 1)])
+def test_partial_upsert_server_error_retry_contract(handler, code, expected_calls, conditional):
+
+    request = milvus_pb2.UpsertRequest(
+        write_condition=milvus_pb2.WriteCondition(field="version", op=1)
+    )
+    if not conditional:
+        request.ClearField("write_condition")
+    failed = milvus_pb2.MutationResult(
+        status=common_pb2.Status(
+            code=code,
+            error_code=(common_pb2.SchemaMismatch if code == 109 else common_pb2.UnexpectedError),
+            reason="STREAMING_CODE_REPLICATE_VIOLATION: SchemaMismatch RateLimit CAS diagnostic cause",
+        )
+    )
+    succeeded = make_mutation_response(upsert_cnt=1, ids=[42])
+    handler._stub.Upsert.side_effect = [failed, succeeded]
+    handler._on_rpc_error = MagicMock(return_value=True)
+    with patch.object(handler, "_prepare_row_upsert_request", return_value=request), patch.object(
+        handler, "_invalidate_schema"
+    ):
+        if expected_calls == 1:
+            with pytest.raises(MilvusException) as exc:
+                handler.upsert_rows(
+                    "coll",
+                    [],
+                    context=CallContext(db_name="test_db"),
+                    write_condition={"field": "version", "op": "gt"} if conditional else None,
+                )
+            assert exc.value.code == code
+            assert exc.value.retriable is False
+        else:
+            handler.upsert_rows(
+                "coll",
+                [],
+                context=CallContext(db_name="test_db"),
+                write_condition={"field": "version", "op": "gt"} if conditional else None,
+            )
+    assert handler._stub.Upsert.call_count == expected_calls
+
+    handler._on_rpc_error.assert_not_called()
