@@ -436,6 +436,22 @@ class TestAsyncClientQueryBranches:
             await client.delete("col", pks=3.14)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"ids": []},
+            {"pks": []},
+            {"filter": ""},
+            {"filter": "   "},
+        ],
+    )
+    async def test_delete_empty_filter_or_ids_raises_param_error(self, kwargs):
+        client, _ = _make_client()
+        with pytest.raises(ParamError, match="filter or ids cannot be empty"):
+            await client.delete("col", **kwargs)
+
+    @pytest.mark.asyncio
     async def test_upsert_exception_propagates(self):
         client, handler = _make_client()
         handler.upsert_rows.side_effect = RuntimeError("upsert failed")

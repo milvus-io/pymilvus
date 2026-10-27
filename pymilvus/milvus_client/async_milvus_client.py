@@ -752,6 +752,8 @@ class AsyncMilvusClient(BaseMilvusClient):
                 raise ex from ex
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
+            if not filter or (isinstance(filter, str) and not filter.strip()):
+                raise ParamError(message=ExceptionsMessage.EmptyDeleteFilterParam)
             if not isinstance(filter, str):
                 raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
             expr = filter

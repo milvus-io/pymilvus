@@ -298,6 +298,7 @@ class ExceptionsMessage:
     AmbiguousDeleteFilterParam = (
         "Ambiguous filter parameter, only one deletion condition can be specified."
     )
+    EmptyDeleteFilterParam = "filter or ids cannot be empty"
     AmbiguousQueryFilterParam = (
         "Ambiguous parameter, either ids or filter should be specified, cannot support both."
     )

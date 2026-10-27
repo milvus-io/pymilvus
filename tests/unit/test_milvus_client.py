@@ -1406,6 +1406,23 @@ class TestMilvusClientDeleteBranches:
             with pytest.raises(DataTypeNotMatchException):
                 client.delete("col", filter=123)
 
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"ids": []},
+            {"pks": []},
+            {"filter": ""},
+            {"filter": "   "},
+        ],
+    )
+    def test_delete_empty_filter_or_ids_raises_param_error(self, kwargs):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(ParamError, match="filter or ids cannot be empty"):
+                client.delete("col", **kwargs)
+
 
 # ============================================================
 # Parametrized simple delegation tests
