@@ -304,6 +304,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
                    Example: "localhost:19530"
                 * uri (str, Recommanded) -- The uri of Milvus instance.
                    Example uri: "http://localhost:19530", "tcp:localhost:19530", "https://ok.s3.south.com:19530".
+                   A local file path ending in ".db", such as "./milvus_demo.db", starts
+                   an embedded Milvus Lite instance instead of connecting to a remote server.
+                   The file stores the local database persistently and is created if it does
+                   not exist. Its parent directory must already exist. Install the optional
+                   dependency with `pip install 'pymilvus[milvus_lite]'` to use this mode.
                 * host (str, Optional) -- The host of Milvus instance. Default at "localhost",
                     PyMilvus will fill in the default host if only port is provided.
                 * port (str/int, Optional) -- The port of Milvus instance. Default at 19530,
