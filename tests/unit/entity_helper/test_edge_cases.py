@@ -370,6 +370,31 @@ class TestEntityHelperCoverage:
         with pytest.raises(ParamError, match="exceeds max length"):
             entity_helper.convert_to_str_array(["123456"], field_info)
 
+    def test_row_varchar_value_is_not_walked_per_character(self):
+        """A row's VARCHAR value is one string: packing it must not iterate its characters."""
+
+        class NoIterStr(str):
+            def __iter__(self):
+                raise AssertionError("string was iterated character by character")
+
+        field_info = {"name": "text", "params": {"max_length": 65535}}
+        for dtype, attr_name in [
+            (DataType.VARCHAR, "string_data"),
+            (DataType.GEOMETRY, "geometry_wkt_data"),
+        ]:
+            field_data = schema_types.FieldData()
+            field_data.type = dtype
+            value = NoIterStr("x" * 1000)
+            pack_field_value_to_field_data(value, field_data, field_info, {})
+            assert list(getattr(field_data.scalars, attr_name).data) == [value]
+
+    def test_row_varchar_value_must_be_a_string(self):
+        field_info = {"name": "text", "params": {"max_length": 65535}}
+        field_data = schema_types.FieldData()
+        field_data.type = DataType.VARCHAR
+        with pytest.raises(ParamError, match="expects string input"):
+            pack_field_value_to_field_data(b"abc", field_data, field_info, {})
+
     def test_convert_to_json_errors(self):
         """Cover convert_to_json errors"""
         # non-string key in dict

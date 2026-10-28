@@ -219,6 +219,17 @@ def convert_to_str_array(orig_str_arr: Any, field_info: Dict, check: bool = True
     return arr
 
 
+def convert_to_str_scalar(value: Any, field_info: Dict, check: bool = True):
+    """Normalize one VARCHAR/GEOMETRY/TEXT value from a row.
+
+    ``convert_to_str_array`` takes a list of strings; handing it a single string makes it
+    walk the value character by character, so a string is returned as it is.
+    """
+    if isinstance(value, str) and Config.EncodeProtocol.lower() == "utf-8":
+        return value
+    return convert_to_str_array(value, field_info, check)
+
+
 def entity_to_str_arr(entity_values: Any, field_info: Any, check: bool = True):
     return convert_to_str_array(entity_values, field_info, check=check)
 
@@ -449,9 +460,9 @@ def entity_to_array_arr(entity_values: List[Any], field_info: Any):
 
 
 _ROW_SCALAR_NORMALIZERS = {
-    DataType.VARCHAR: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
-    DataType.TEXT: lambda v, fi: convert_to_str_array(v, fi, check=False),
-    DataType.GEOMETRY: lambda v, fi: convert_to_str_array(v, fi, CHECK_STR_ARRAY),
+    DataType.VARCHAR: lambda v, fi: convert_to_str_scalar(v, fi, CHECK_STR_ARRAY),
+    DataType.TEXT: lambda v, fi: convert_to_str_scalar(v, fi, check=False),
+    DataType.GEOMETRY: lambda v, fi: convert_to_str_scalar(v, fi, CHECK_STR_ARRAY),
     DataType.JSON: lambda v, _: convert_to_json(v),
     DataType.ARRAY: convert_to_array,
 }
