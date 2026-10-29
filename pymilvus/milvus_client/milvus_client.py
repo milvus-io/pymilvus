@@ -503,6 +503,63 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def grep(
+        self,
+        collection_name: str,
+        text_field: str,
+        args: str,
+        filter: str = "",
+        output_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        offset: int = 0,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        *,
+        match_field: str = "matches",
+        **kwargs,
+    ) -> List[dict]:
+        """Match a text field using a QueryScan grep chain.
+
+        Args:
+            collection_name: Collection to query.
+            text_field: VarChar/Text field to match.
+            args: Raw rg-style arguments, for example ``-i -e 'timeout'``.
+                Forwarded unchanged; the server validates flags and patterns.
+            filter: Query expression selecting candidate documents.
+            output_fields: Ordinary fields to return. Defaults to query's default projection.
+            limit: Maximum number of matching documents to return, not matching lines.
+            offset: Number of matching documents to skip.
+            timeout: Timeout in seconds, forwarded to query.
+            partition_names: Partitions to query.
+            match_field: Result column for matching-line details. Must not collide
+                with a collection or system field; use another name if necessary.
+            **kwargs: Additional query options, including filter_params and
+                consistency_level. function_chains is not accepted.
+
+        Returns:
+            Query rows with an additional match_field containing a list of objects
+            with content, starts and ends. Spans are half-open UTF-8 byte offsets
+            within each returned line. The query result is returned unchanged.
+
+        Notes:
+            Requires a server supporting QueryScan; older servers may ignore the
+            chain. Supported rg flags are server-dependent. The initial server
+            implementation excludes context flags such as -C, count, aggregation,
+            GROUP BY, ORDER BY and query iterators.
+        """
+        chain = self._prepare_grep_chain(text_field, args, match_field, **kwargs)
+        return self.query(
+            collection_name=collection_name,
+            filter=filter,
+            output_fields=output_fields,
+            limit=limit,
+            offset=offset,
+            timeout=timeout,
+            partition_names=partition_names,
+            function_chains=chain,
+            **kwargs,
+        )
+
     def query(
         self,
         collection_name: str,
@@ -511,6 +568,7 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         ids: Optional[Union[List, str, int]] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[dict]:
         """Query for entries in the Collection.
@@ -522,6 +580,10 @@ class MilvusClient(BaseMilvusClient):
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
+
+            function_chains (FunctionChain or List[FunctionChain], optional): At most one
+                QUERY_SCAN chain. Requires server support; older servers may ignore it.
+                Exported output_columns are returned alongside ordinary output_fields.
 
         Raises:
             ValueError: Missing collection.
@@ -559,6 +621,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,
