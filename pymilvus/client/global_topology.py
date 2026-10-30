@@ -3,7 +3,7 @@ import random
 import threading
 import time
 from dataclasses import dataclass
-from queue import Queue
+from queue import Empty, Queue
 from typing import Callable, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -69,6 +69,9 @@ MAX_RETRIES = 3
 BASE_DELAY = 1.0  # seconds
 MAX_DELAY = 10.0  # seconds
 REQUEST_TIMEOUT = 10  # seconds
+# During a cached-version refresh, bound the extra wait after the first healthy
+# answer so a blackholed seed cannot stall RPC recovery for its full timeout.
+PROBE_GRACE_PERIOD = 1.0  # seconds
 
 # SRV-based topology discovery.
 #
@@ -158,7 +161,7 @@ def _resolve_srv(hostname: str) -> List[SrvTarget]:
 
 
 def _weighted_choice(group: List[SrvTarget]) -> SrvTarget:
-    """Pick one target from a same-priority group, weighted by SRV weight."""
+    """Pick one target, weighted by SRV weight."""
     weights = [max(t.weight, 0) for t in group]
     if sum(weights) == 0:
         return random.choice(group)  # noqa: S311 - all-zero weights: pick uniformly
@@ -169,7 +172,8 @@ def _pick_candidates(targets: List[SrvTarget], count: int = DEFAULT_PROBE_COUNT)
     """Select seeds to probe: one weighted pick per priority, lowest first.
 
     Spans priorities (so a dead nearest region does not stall discovery) and
-    returns at least ``count`` seeds when that many exist.
+    returns at least ``count`` seeds when that many exist. Additional seeds are
+    drawn from the remaining targets without replacement.
     """
     by_priority = {}
     for t in targets:
@@ -181,12 +185,11 @@ def _pick_candidates(targets: List[SrvTarget], count: int = DEFAULT_PROBE_COUNT)
         if len(picked) >= count:
             return picked
 
-    # Few priority groups: top up from the remaining nearest targets.
-    for t in targets:
-        if len(picked) >= count:
-            break
-        if t not in picked:
-            picked.append(t)
+    remaining = [t for t in targets if t not in picked]
+    while len(picked) < count and remaining:
+        choice = _weighted_choice(remaining)
+        picked.append(choice)
+        remaining.remove(choice)
     return picked
 
 
@@ -205,6 +208,8 @@ def _probe_seed(base_url: str, hostname: str, token: str) -> GlobalTopology:
     )
     if response.status_code != 200:
         msg = f"Topology request failed with status {response.status_code}: {response.text}"
+        if response.status_code in (401, 403):
+            raise MilvusException(message=msg)
         raise RuntimeError(msg)
 
     result = response.json()
@@ -266,18 +271,19 @@ def _probe_candidates(
     candidates: List[SrvTarget],
     hostname: str,
     token: str,
-    wait_all: bool,
+    bounded_refresh: bool,
     on_higher_version: Optional[Callable[[GlobalTopology], None]] = None,
 ) -> Tuple[Optional[GlobalTopology], Optional[MilvusException], Optional[BaseException]]:
     """Probe seeds concurrently; return (best topology, sticky API error, last error).
 
-    With ``wait_all`` (a topology version is already cached locally) every seed
-    is polled and the highest version wins, guarding the cache against stale
-    answers. Without it (first fetch, nothing to guard) the first seed that
-    answers wins so a slow seed does not stall the initial connection; the
-    seeds still in flight keep being polled in the background and
-    ``on_higher_version`` triggers the replacement flow when one returns a
-    newer version. An API-level error (e.g. auth failure) is the same across
+    With ``bounded_refresh`` (a topology version is already cached locally)
+    every seed is polled, and the highest version to answer within a short
+    grace period wins. This guards the cache against stale answers without
+    letting a blackholed seed stall RPC recovery. Without it (first fetch,
+    nothing to guard) the first seed that answers wins so a slow seed does not
+    stall the initial connection; the seeds still in flight keep being polled
+    in the background and ``on_higher_version`` triggers the replacement flow
+    when one returns a newer version. An API-level error (e.g. auth failure) is the same across
     seeds, so it is captured and surfaced when no seed succeeds instead of a
     generic "unreachable". The last non-API error is returned as well so the
     caller can keep the underlying cause in its final exception.
@@ -296,8 +302,17 @@ def _probe_candidates(
         ).start()
 
     pending = len(candidates)
+    deadline: Optional[float] = None
     while pending > 0:
-        target, topology, error = results.get()
+        timeout = None if deadline is None else max(0.0, deadline - time.monotonic())
+        try:
+            target, topology, error = results.get(timeout=timeout)
+        except Empty:
+            logger.warning(
+                f"Timed out waiting for {pending} topology probe(s); "
+                "using the best available answer"
+            )
+            break
         pending -= 1
         if error is not None:
             if isinstance(error, MilvusException):
@@ -308,10 +323,12 @@ def _probe_candidates(
             continue
         if best is None or topology.version > best.version:
             best = topology
-        if not wait_all:
+        if bounded_refresh and deadline is None:
+            deadline = time.monotonic() + PROBE_GRACE_PERIOD
+        if not bounded_refresh:
             break  # First answer wins; the watcher keeps an eye on the rest.
 
-    if not wait_all and best is not None and on_higher_version is not None and pending > 0:
+    if not bounded_refresh and best is not None and on_higher_version is not None and pending > 0:
         # First fetch: hand the results still in flight to a background watcher.
         _watch_remaining(results, pending, best, on_higher_version)
     return best, api_error, last_error
@@ -338,9 +355,10 @@ def fetch_topology(
         global_endpoint: The global cluster endpoint (URL or bare hostname).
         token: Authentication token.
         cached_version: Version of the topology already cached locally, if any.
-            When set, every seed is polled and the highest version wins; when
-            None (first fetch) the first seed that answers wins, and the rest
-            keep being polled in the background.
+            When set, every seed is polled and the highest version to answer
+            within the grace period wins; when None (first fetch) the first
+            seed that answers wins, and the rest keep being polled in the
+            background.
         on_topology_change: Replacement flow invoked with a topology whose
             version is higher than the first answer (only used when
             ``cached_version`` is None).
@@ -386,7 +404,8 @@ def fetch_topology(
         # First fetch: probe the nearest DEFAULT_PROBE_COUNT seeds so a slow
         # region does not stall the initial connection. With a cached version
         # the cache must not regress, so probe every seed and take the highest
-        # version - partial replication means the nearest seeds may lag.
+        # answer within the grace period - partial replication means the
+        # nearest seeds may lag.
         candidates = _pick_candidates(
             targets, count=len(targets) if cached_version is not None else DEFAULT_PROBE_COUNT
         )
@@ -395,7 +414,7 @@ def fetch_topology(
             candidates,
             hostname,
             token,
-            wait_all=cached_version is not None,
+            bounded_refresh=cached_version is not None,
             on_higher_version=on_topology_change if cached_version is None else None,
         )
         if probe_error is not None:

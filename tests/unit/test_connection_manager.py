@@ -446,6 +446,41 @@ class TestRegularStrategy:
 # =============================================================================
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "expected_address"),
+    [
+        ("https://primary.example.com", "primary.example.com:443"),
+        ("http://primary.example.com", "primary.example.com:19530"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("strategy_cls", "handler_path"),
+    [
+        (GlobalStrategy, "pymilvus.client.grpc_handler.GrpcHandler"),
+        (AsyncGlobalStrategy, "pymilvus.client.async_grpc_handler.AsyncGrpcHandler"),
+    ],
+)
+def test_global_handler_normalizes_primary_address(
+    strategy_cls, handler_path, endpoint, expected_address
+):
+    """The handler, recovery comparison and reconnect share one normalized address."""
+    config = ConnectionConfig.from_uri("https://global-cluster.example.com", token="mytoken")
+    topology = _make_topology(1, "c1", endpoint, capability=0b11)
+
+    with patch("pymilvus.client.connection_manager.fetch_topology", return_value=topology), patch(
+        handler_path
+    ) as mock_handler_cls, patch("pymilvus.client.connection_manager.TopologyRefresher"):
+        strategy_cls().create_handler(config)
+
+    mock_handler_cls.assert_called_once_with(
+        uri=endpoint,
+        address=expected_address,
+        token="mytoken",
+        db_name="",
+        secure=True,
+    )
+
+
 class TestGlobalStrategy:
     """Tests for GlobalStrategy."""
 
@@ -472,6 +507,7 @@ class TestGlobalStrategy:
         )
         mock_handler_cls.assert_called_once_with(
             uri="https://primary:19530",
+            address="primary:19530",
             token="mytoken",
             db_name="",
             secure=True,
@@ -510,6 +546,7 @@ class TestGlobalStrategy:
         [
             ("old-primary:19530", "https://new-primary:19530", True),
             ("same-primary:19530", "https://same-primary:19530", False),
+            ("same-primary:443", "https://same-primary", False),
         ],
     )
     def test_on_unavailable_topology_refresh(
@@ -611,6 +648,7 @@ class TestGlobalStrategy:
         # The handler is built on the accepted topology, not the raw first answer.
         mock_handler_cls.assert_called_once_with(
             uri="https://new-primary:19530",
+            address="new-primary:19530",
             token="mytoken",
             db_name="",
             secure=True,
@@ -1113,6 +1151,7 @@ class TestAsyncGlobalStrategy:
         mock_fetch.assert_called_once()
         mock_handler_cls.assert_called_once_with(
             uri="https://primary:19530",
+            address="primary:19530",
             token="mytoken",
             db_name="",
             secure=True,
@@ -1855,7 +1894,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
-            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:19530")
+            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = mgr.get_or_create(config)
@@ -1872,7 +1911,7 @@ class TestReplicateViolationRecovery:
             # In-place recovery: reconnect called with new primary address
             handler.reconnect.assert_called_once()
             call_kwargs = handler.reconnect.call_args
-            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:19530"
+            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:443"
 
     def test_replicate_violation_ignored_for_regular_strategy(self):
         """Test handle_error returns True for REPLICATE_VIOLATION on regular connections
@@ -1919,7 +1958,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
-            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:19530")
+            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = mgr.get_or_create(config)
@@ -1947,7 +1986,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
-            mock_handler = _make_async_handler(server_address="in01.zilliz.com:19530")
+            mock_handler = _make_async_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = await mgr.get_or_create(config)
@@ -1962,7 +2001,7 @@ class TestReplicateViolationRecovery:
             # In-place recovery: reconnect called with new primary address
             handler.reconnect.assert_called_once()
             call_kwargs = handler.reconnect.call_args
-            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:19530"
+            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:443"
 
     @pytest.mark.asyncio
     async def test_async_unrelated_milvus_exception_not_retried(self):

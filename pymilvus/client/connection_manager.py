@@ -376,10 +376,11 @@ class _GlobalStrategyMixin:
 
     @staticmethod
     def _primary_host_port(topology: GlobalTopology) -> str:
-        """Normalize the primary endpoint to bare 'host:port' for comparison."""
+        """Normalize the primary endpoint for handlers and recovery comparisons."""
         parsed = urlparse(topology.primary.endpoint)
         host = parsed.hostname or "localhost"
-        port = parsed.port or DEFAULT_PORT
+        default_port = 443 if parsed.scheme.lower() == "https" else DEFAULT_PORT
+        port = parsed.port or default_port
         return f"{host}:{port}"
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
@@ -464,6 +465,7 @@ class GlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
         primary = topology.primary
         return GrpcHandler(
             uri=primary.endpoint,
+            address=self._primary_host_port(topology),
             token=config.token,
             db_name=config.db_name,
             **config.get_handler_kwargs(),
@@ -877,6 +879,7 @@ class AsyncGlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
         primary = topology.primary
         return AsyncGrpcHandler(
             uri=primary.endpoint,
+            address=self._primary_host_port(topology),
             token=config.token,
             db_name=config.db_name,
             **config.get_handler_kwargs(),
