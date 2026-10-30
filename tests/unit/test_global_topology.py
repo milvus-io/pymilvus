@@ -288,6 +288,49 @@ class TestFetchTopology:
                 fetch_topology(_GLOBAL_URL, _TOKEN)
             mock_get.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("weights", "expected_names"),
+        [
+            ([0, 0, 0], {"b", "c"}),
+            ([1, 100, 1], {"a", "c"}),
+        ],
+        ids=["zero_weights", "weighted"],
+    )
+    def test_first_fetch_selects_second_seed_randomly(self, weights, expected_names):
+        hosts = [f"ha-mgr-{name}.global-cluster.example.com" for name in "abc"]
+        probed = set()
+        probed_lock = threading.Lock()
+        all_probed = threading.Event()
+
+        def fake_get(url, **kwargs):
+            with probed_lock:
+                probed.add(url.split("//", 1)[1].split(":", 1)[0])
+                if len(probed) == 2:
+                    all_probed.set()
+            return _mock_response(version="5")
+
+        with _patch_srv(
+            *[
+                _FakeSrvRecord(host, priority=10, weight=weight)
+                for host, weight in zip(hosts, weights)
+            ]
+        ), patch(
+            "pymilvus.client.global_topology.random.choice",
+            side_effect=lambda group: group[-1],
+        ), patch(
+            "pymilvus.client.global_topology.random.choices",
+            side_effect=lambda group, **kwargs: [group[-1]],
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            side_effect=fake_get,
+        ):
+            topology = fetch_topology(_GLOBAL_URL, _TOKEN, on_topology_change=lambda t: None)
+            assert topology.version == 5
+            assert all_probed.wait(timeout=2.0)
+
+        expected_hosts = {f"ha-mgr-{name}.global-cluster.example.com" for name in expected_names}
+        assert probed == expected_hosts
+
     def test_selects_highest_version_across_seeds(self):
         # A version is cached locally: every seed is polled, highest wins.
         with _patch_srv(
@@ -327,11 +370,57 @@ class TestFetchTopology:
             assert topology.version == 10
             assert len(probed) == len(hosts)
 
+    def test_cached_version_does_not_wait_for_blackholed_seed(self):
+        # Once a healthy seed answers, a blackholed seed must not stall the
+        # failing RPC's topology refresh for the full request timeout.
+        slow_gate = threading.Event()
+        slow_probe_finished = threading.Event()
+        fetch_finished = threading.Event()
+        outcome = []
+
+        def fake_get(url, **kwargs):
+            if "ha-mgr-us1" in url:
+                try:
+                    slow_gate.wait(timeout=5.0)
+                    return _mock_response(version="11")
+                finally:
+                    slow_probe_finished.set()
+            return _mock_response(version="10")
+
+        def run_fetch():
+            try:
+                outcome.append(fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=9))
+            except BaseException as e:
+                outcome.append(e)
+            finally:
+                fetch_finished.set()
+
+        with _patch_srv(
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            side_effect=fake_get,
+        ), patch(
+            "pymilvus.client.global_topology.PROBE_GRACE_PERIOD", 0.05
+        ):
+            fetch_thread = threading.Thread(target=run_fetch, daemon=True)
+            fetch_thread.start()
+            try:
+                assert fetch_finished.wait(timeout=1.0)
+                assert outcome[0].version == 10
+            finally:
+                slow_gate.set()
+                fetch_thread.join(timeout=2.0)
+                assert slow_probe_finished.wait(timeout=2.0)
+            assert not fetch_thread.is_alive()
+
     def test_first_answer_wins_without_cached_version(self):
         # First fetch, nothing cached: the first seed that answers wins.
         # The newer answer is gated behind the return, so the completion
         # order of the two probes is deterministic.
         slow_gate = threading.Event()
+        probe_finished = threading.Event()
 
         def fake_get(url, **kwargs):
             if "ha-mgr-us1" in url:
@@ -346,9 +435,15 @@ class TestFetchTopology:
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
         ):
-            topology = fetch_topology(_GLOBAL_URL, _TOKEN)
-            assert topology.version == 5
-            slow_gate.set()  # let the leftover background probe finish
+            try:
+                topology = fetch_topology(
+                    _GLOBAL_URL, _TOKEN, on_topology_change=lambda t: probe_finished.set()
+                )
+                assert topology.version == 5
+            finally:
+                slow_gate.set()
+                probe_finished.wait(timeout=2.0)
+            assert probe_finished.is_set()
 
     def test_background_higher_version_triggers_replacement(self):
         # The first answer is handed over immediately, but a newer answer from
@@ -469,6 +564,19 @@ class TestFetchTopology:
                 fetch_topology(_GLOBAL_URL, _TOKEN)
             assert mock_get.call_count == 1  # single seed, one round
             mock_sleep.assert_not_called()  # deterministic rejection, no retry
+
+    @pytest.mark.parametrize("status", [401, 403])
+    def test_raises_http_auth_error_without_retry(self, status):
+        mock_response = _mock_response()
+        mock_response.status_code = status
+        mock_response.text = "Invalid token"
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+            "pymilvus.client.global_topology.requests.get", return_value=mock_response
+        ) as mock_get, patch("pymilvus.client.global_topology.time.sleep") as mock_sleep:
+            with pytest.raises(MilvusException, match=f"status {status}"):
+                fetch_topology(_GLOBAL_URL, _TOKEN)
+            assert mock_get.call_count == 1
+            mock_sleep.assert_not_called()
 
     def test_srv_resolution_failure_raises(self):
         with patch(
