@@ -4,7 +4,7 @@
 import asyncio
 import threading
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import ANY, AsyncMock, Mock, patch
 
 import grpc
 import pytest
@@ -446,6 +446,41 @@ class TestRegularStrategy:
 # =============================================================================
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "expected_address"),
+    [
+        ("https://primary.example.com", "primary.example.com:443"),
+        ("http://primary.example.com", "primary.example.com:19530"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("strategy_cls", "handler_path"),
+    [
+        (GlobalStrategy, "pymilvus.client.grpc_handler.GrpcHandler"),
+        (AsyncGlobalStrategy, "pymilvus.client.async_grpc_handler.AsyncGrpcHandler"),
+    ],
+)
+def test_global_handler_normalizes_primary_address(
+    strategy_cls, handler_path, endpoint, expected_address
+):
+    """The handler, recovery comparison and reconnect share one normalized address."""
+    config = ConnectionConfig.from_uri("https://global-cluster.example.com", token="mytoken")
+    topology = _make_topology(1, "c1", endpoint, capability=0b11)
+
+    with patch("pymilvus.client.connection_manager.fetch_topology", return_value=topology), patch(
+        handler_path
+    ) as mock_handler_cls, patch("pymilvus.client.connection_manager.TopologyRefresher"):
+        strategy_cls().create_handler(config)
+
+    mock_handler_cls.assert_called_once_with(
+        uri=endpoint,
+        address=expected_address,
+        token="mytoken",
+        db_name="",
+        secure=True,
+    )
+
+
 class TestGlobalStrategy:
     """Tests for GlobalStrategy."""
 
@@ -467,9 +502,12 @@ class TestGlobalStrategy:
         strategy = GlobalStrategy()
         handler = strategy.create_handler(config)
 
-        mock_fetch.assert_called_once_with("https://global-cluster.example.com:19530", "mytoken")
+        mock_fetch.assert_called_once_with(
+            "https://global-cluster.example.com:19530", "mytoken", on_topology_change=ANY
+        )
         mock_handler_cls.assert_called_once_with(
             uri="https://primary:19530",
+            address="primary:19530",
             token="mytoken",
             db_name="",
             secure=True,
@@ -504,19 +542,22 @@ class TestGlobalStrategy:
         mock_handler.close.assert_called_once()
 
     @pytest.mark.parametrize(
-        "old_endpoint,new_endpoint,expected_recovery",
+        "connected_address,new_endpoint,expected_recovery",
         [
-            ("https://old-primary:19530", "https://new-primary:19530", True),
-            ("https://same-primary:19530", "https://same-primary:19530", False),
+            ("old-primary:19530", "https://new-primary:19530", True),
+            ("same-primary:19530", "https://same-primary:19530", False),
+            ("same-primary:443", "https://same-primary", False),
         ],
     )
-    def test_on_unavailable_topology_refresh(self, old_endpoint, new_endpoint, expected_recovery):
-        """Test on_unavailable refreshes topology and returns recovery status."""
+    def test_on_unavailable_topology_refresh(
+        self, connected_address, new_endpoint, expected_recovery
+    ):
+        """on_unavailable compares the current primary with the handler's address."""
         config = ConnectionConfig.from_uri(
             "https://global-cluster.example.com:19530", token="mytoken"
         )
 
-        old_topology = _make_topology(1, "c1", old_endpoint, capability=0b11)
+        old_topology = _make_topology(1, "c1", "https://same-primary:19530", capability=0b11)
         new_topology = _make_topology(2, "c2", new_endpoint, capability=0b11)
 
         with patch("pymilvus.client.connection_manager.fetch_topology") as mock_fetch, patch(
@@ -525,6 +566,7 @@ class TestGlobalStrategy:
             mock_fetch.side_effect = [old_topology, new_topology]
             strategy = GlobalStrategy()
             handler = strategy.create_handler(config)
+            handler.server_address = connected_address
             managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
 
             result = strategy.on_unavailable(managed)
@@ -562,6 +604,166 @@ class TestGlobalStrategy:
 
             result = strategy.on_unavailable(managed)
             assert result is True
+
+    def test_on_topology_change_rejects_stale_version(self):
+        """Topology callbacks are compare-and-set: versions never roll back."""
+        mixin = _GlobalStrategyMixin()
+        newer = _make_topology(9, "c1", "https://primary:19530", capability=0b11)
+
+        mixin._on_topology_change(newer)
+        assert mixin.get_topology() is newer
+
+        mixin._on_topology_change(_make_topology(5, "c2", "https://old:19530", capability=0b11))
+        assert mixin.get_topology() is newer
+
+        mixin._on_topology_change(_make_topology(9, "c3", "https://tie:19530", capability=0b11))
+        assert mixin.get_topology() is newer  # equal version does not replace either
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_initial_fetch_does_not_overwrite_newer_callback(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A background answer arriving during the first fetch must not be lost."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        first_answer = _make_topology(5, "c1", "https://primary:19530", capability=0b11)
+        background_newer = _make_topology(9, "c2", "https://new-primary:19530", capability=0b11)
+
+        def fetch_with_early_callback(uri, token, on_topology_change=None, **kwargs):
+            # The watcher fires before fetch_topology returns the first answer.
+            on_topology_change(background_newer)
+            return first_answer
+
+        mock_fetch.side_effect = fetch_with_early_callback
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        strategy.create_handler(config)
+
+        assert strategy.get_topology() is background_newer
+        # The handler is built on the accepted topology, not the raw first answer.
+        mock_handler_cls.assert_called_once_with(
+            uri="https://new-primary:19530",
+            address="new-primary:19530",
+            token="mytoken",
+            db_name="",
+            secure=True,
+        )
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_rejects_stale_fetch(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A stale answer on the UNAVAILABLE path must not roll back topology."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        cached = _make_topology(9, "c1", "https://primary:19530", capability=0b11)
+        stale = _make_topology(5, "c2", "https://old-primary:19530", capability=0b11)
+        mock_fetch.side_effect = [cached, stale]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        handler.server_address = "primary:19530"  # handler sits on the cached primary
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        result = strategy.on_unavailable(managed)
+
+        assert result is False  # stale answer rejected, primary unchanged
+        assert strategy.get_topology() is cached
+        mock_fetch.assert_called_with(
+            "https://global-cluster.example.com:19530",
+            "mytoken",
+            cached_version=9,
+            on_topology_change=strategy._on_topology_change,
+        )
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_handles_no_newer_topology(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls, sample_topology
+    ):
+        """fetch_topology returning None means no seed beat the cached version."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        mock_fetch.side_effect = [sample_topology, None]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        handler.server_address = "primary:19530"  # handler sits on the cached primary
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        result = strategy.on_unavailable(managed)
+
+        assert result is False  # topology untouched, primary unchanged
+        assert strategy.get_topology() is sample_topology
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_recovers_when_cache_ahead_of_handler(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A handler stuck on a demoted primary recovers even with nothing newer.
+
+        The watcher or refresher may advance the cache without reconnecting the
+        handler. fetch_topology then finds nothing newer (None), so comparing
+        cached primaries would see no change; comparing the current primary
+        against the handler's connected address must trigger recovery.
+        """
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        cached = _make_topology(9, "c1", "https://new-primary:19530", capability=0b11)
+        mock_fetch.side_effect = [cached, None]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        handler.server_address = "old-primary:19530"  # still on the demoted primary
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        result = strategy.on_unavailable(managed)
+
+        assert result is True
+        assert strategy.get_topology() is cached
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_on_unavailable_recovers_when_no_writable_cluster(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """A topology with no writable cluster must not blow up on_unavailable."""
+        config = ConnectionConfig.from_uri(
+            "https://global-cluster.example.com:19530", token="mytoken"
+        )
+        cached = _make_topology(1, "c1", "https://primary:19530", capability=0b11)
+        no_primary = _make_topology(2, "c2", "https://replica:19530", capability=0b01)
+        mock_fetch.side_effect = [cached, no_primary]
+        mock_handler_cls.return_value = _make_sync_handler()
+        mock_refresher_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        handler = strategy.create_handler(config)
+        handler.server_address = "primary:19530"
+        managed = ManagedConnection(handler=handler, config=config, strategy=strategy)
+
+        assert strategy.on_unavailable(managed) is True
+        assert strategy.get_topology() is no_primary
 
 
 # =============================================================================
@@ -952,6 +1154,7 @@ class TestAsyncGlobalStrategy:
         mock_fetch.assert_called_once()
         mock_handler_cls.assert_called_once_with(
             uri="https://primary:19530",
+            address="primary:19530",
             token="mytoken",
             db_name="",
             secure=True,
@@ -1694,7 +1897,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
-            mock_handler = _make_sync_handler()
+            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = mgr.get_or_create(config)
@@ -1711,7 +1914,7 @@ class TestReplicateViolationRecovery:
             # In-place recovery: reconnect called with new primary address
             handler.reconnect.assert_called_once()
             call_kwargs = handler.reconnect.call_args
-            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:19530"
+            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:443"
 
     def test_replicate_violation_ignored_for_regular_strategy(self):
         """Test handle_error returns True for REPLICATE_VIOLATION on regular connections
@@ -1758,7 +1961,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls:
-            mock_handler = _make_sync_handler()
+            mock_handler = _make_sync_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = mgr.get_or_create(config)
@@ -1786,7 +1989,7 @@ class TestReplicateViolationRecovery:
         with patch(
             "pymilvus.client.connection_manager.fetch_topology", return_value=mock_topology
         ), patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as mock_handler_cls:
-            mock_handler = _make_async_handler()
+            mock_handler = _make_async_handler(server_address="in01.zilliz.com:443")
             mock_handler_cls.return_value = mock_handler
 
             handler = await mgr.get_or_create(config)
@@ -1801,7 +2004,7 @@ class TestReplicateViolationRecovery:
             # In-place recovery: reconnect called with new primary address
             handler.reconnect.assert_called_once()
             call_kwargs = handler.reconnect.call_args
-            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:19530"
+            assert call_kwargs.kwargs.get("address") == "in02.zilliz.com:443"
 
     @pytest.mark.asyncio
     async def test_async_unrelated_milvus_exception_not_retried(self):
@@ -2072,6 +2275,80 @@ class TestInPlaceRecovery:
             assert results[0] is True
             assert results[1] is True
             # But reconnect called only once — the second thread saw the gen bump
+            assert handler.reconnect.call_count == 1
+            assert managed.recovery_gen == 1
+
+    def test_concurrent_recovery_retries_when_strategy_returns_false(self):
+        """A late thread retries when another thread recovered during its refresh."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+        old_topology = _make_topology(1, "in01", "https://old-primary:19530")
+        new_topology = _make_topology(2, "in02", "https://new-primary:19530")
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=old_topology
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls, patch(
+            "pymilvus.client.connection_manager.TopologyRefresher"
+        ):
+            handler = _make_sync_handler(server_address="old-primary:19530")
+            mock_handler_cls.return_value = handler
+            mgr.get_or_create(config)
+            managed = mgr._get_managed(handler)
+            managed.strategy._on_topology_change(new_topology)
+
+            def reconnect(address=None, timeout=None):
+                handler.server_address = address
+
+            handler.reconnect.side_effect = reconnect
+            a_fetch_entered = threading.Event()
+            b_finished = threading.Event()
+            results = {}
+            errors = []
+            error = MilvusException(code=65535, message="STREAMING_CODE_REPLICATE_VIOLATION")
+
+            def fetch_during_recovery(*args, **kwargs):
+                if threading.current_thread().name == "recovery-a":
+                    a_fetch_entered.set()
+                    if not b_finished.wait(timeout=5):
+                        raise TimeoutError("thread B did not finish recovery")
+
+            def call_handle_error(name):
+                try:
+                    results[name] = mgr.handle_error(handler, error)
+                except BaseException as e:
+                    errors.append(e)
+                finally:
+                    if name == "B":
+                        b_finished.set()
+
+            thread_a = threading.Thread(target=call_handle_error, args=("A",), name="recovery-a")
+            thread_b = threading.Thread(target=call_handle_error, args=("B",), name="recovery-b")
+
+            with patch(
+                "pymilvus.client.connection_manager.fetch_topology",
+                side_effect=fetch_during_recovery,
+            ):
+                thread_a.start()
+                a_entered = a_fetch_entered.wait(timeout=2)
+                try:
+                    if a_entered:
+                        thread_b.start()
+                        thread_b.join(timeout=5)
+                finally:
+                    b_finished.set()
+                    thread_a.join(timeout=5)
+                    if thread_b.ident is not None:
+                        thread_b.join(timeout=5)
+
+            assert a_entered
+            assert not thread_a.is_alive()
+            assert not thread_b.is_alive()
+            assert not errors
+            # B recovered; A sees the new address and returns False from
+            # on_unavailable, but must still retry because B bumped the gen.
+            assert results == {"A": True, "B": True}
             assert handler.reconnect.call_count == 1
             assert managed.recovery_gen == 1
 
