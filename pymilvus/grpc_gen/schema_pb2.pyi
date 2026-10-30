@@ -65,6 +65,7 @@ class FunctionChainStage(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     FunctionChainStageL1Rerank: _ClassVar[FunctionChainStage]
     FunctionChainStageL2Rerank: _ClassVar[FunctionChainStage]
     FunctionChainStagePostProcess: _ClassVar[FunctionChainStage]
+    FunctionChainStageQueryScan: _ClassVar[FunctionChainStage]
 
 class ShardState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -118,6 +119,7 @@ FunctionChainStageL0Rerank: FunctionChainStage
 FunctionChainStageL1Rerank: FunctionChainStage
 FunctionChainStageL2Rerank: FunctionChainStage
 FunctionChainStagePostProcess: FunctionChainStage
+FunctionChainStageQueryScan: FunctionChainStage
 ShardNormal: ShardState
 ShardCreating: ShardState
 ShardSplitting: ShardState
@@ -196,14 +198,16 @@ class FunctionScore(_message.Message):
     def __init__(self, functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
 
 class FunctionChain(_message.Message):
-    __slots__ = ("name", "stage", "ops")
+    __slots__ = ("name", "stage", "ops", "output_columns")
     NAME_FIELD_NUMBER: _ClassVar[int]
     STAGE_FIELD_NUMBER: _ClassVar[int]
     OPS_FIELD_NUMBER: _ClassVar[int]
+    OUTPUT_COLUMNS_FIELD_NUMBER: _ClassVar[int]
     name: str
     stage: FunctionChainStage
     ops: _containers.RepeatedCompositeFieldContainer[FunctionChainOp]
-    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ...) -> None: ...
+    output_columns: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, name: _Optional[str] = ..., stage: _Optional[_Union[FunctionChainStage, str]] = ..., ops: _Optional[_Iterable[_Union[FunctionChainOp, _Mapping]]] = ..., output_columns: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class FunctionChainOp(_message.Message):
     __slots__ = ("op", "expr", "inputs", "outputs", "params")
