@@ -3456,9 +3456,11 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ) -> List[SnapshotSummary]:
-        """Return name, create_ts and description in server-provided order.
+        """Return snapshot metadata in server-provided order.
 
         create_ts preserves the Milvus timestamp returned by DescribeSnapshot.
+        create_utc_ts is the WAL boundary's Unix time in milliseconds, not snapshot
+        completion time. Zero means unknown or unsupported by the server.
         Servers returning names without summaries raise ServerVersionIncompatibleException.
         No DescribeSnapshot calls are made. Empty lists are returned unchanged.
         The existing list_snapshots method continues to return List[str].

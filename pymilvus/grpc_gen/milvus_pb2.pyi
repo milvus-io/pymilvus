@@ -1150,7 +1150,7 @@ class DropCollectionFunctionRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collectionID: _Optional[int] = ..., function_name: _Optional[str] = ...) -> None: ...
 
 class UpsertRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace", "field_ops", "rls_principal", "skip_rls")
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "fields_data", "hash_keys", "num_rows", "schema_timestamp", "partial_update", "namespace", "field_ops", "rls_principal", "skip_rls", "write_condition")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -1164,6 +1164,7 @@ class UpsertRequest(_message.Message):
     FIELD_OPS_FIELD_NUMBER: _ClassVar[int]
     RLS_PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
     SKIP_RLS_FIELD_NUMBER: _ClassVar[int]
+    WRITE_CONDITION_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -1177,7 +1178,8 @@ class UpsertRequest(_message.Message):
     field_ops: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FieldPartialUpdateOp]
     rls_principal: str
     skip_rls: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ..., field_ops: _Optional[_Iterable[_Union[_schema_pb2.FieldPartialUpdateOp, _Mapping]]] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ...) -> None: ...
+    write_condition: WriteCondition
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ..., field_ops: _Optional[_Iterable[_Union[_schema_pb2.FieldPartialUpdateOp, _Mapping]]] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ..., write_condition: _Optional[_Union[WriteCondition, _Mapping]] = ...) -> None: ...
 
 class MutationResult(_message.Message):
     __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp")
@@ -1448,7 +1450,7 @@ class FlushResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., db_name: _Optional[str] = ..., coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., flush_coll_segIDs: _Optional[_Mapping[str, _schema_pb2.LongArray]] = ..., coll_seal_times: _Optional[_Mapping[str, int]] = ..., coll_flush_ts: _Optional[_Mapping[str, int]] = ..., channel_cps: _Optional[_Mapping[str, _msg_pb2.MsgPosition]] = ...) -> None: ...
 
 class QueryRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency", "expr_template_values", "namespace", "rls_principal", "skip_rls")
+    __slots__ = ("base", "db_name", "collection_name", "expr", "output_fields", "partition_names", "travel_timestamp", "guarantee_timestamp", "query_params", "not_return_all_meta", "consistency_level", "use_default_consistency", "expr_template_values", "namespace", "rls_principal", "skip_rls", "function_chains")
     class ExprTemplateValuesEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -1472,6 +1474,7 @@ class QueryRequest(_message.Message):
     NAMESPACE_FIELD_NUMBER: _ClassVar[int]
     RLS_PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
     SKIP_RLS_FIELD_NUMBER: _ClassVar[int]
+    FUNCTION_CHAINS_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
@@ -1488,7 +1491,8 @@ class QueryRequest(_message.Message):
     namespace: str
     rls_principal: str
     skip_rls: bool
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ...) -> None: ...
+    function_chains: _containers.RepeatedCompositeFieldContainer[_schema_pb2.FunctionChain]
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., expr: _Optional[str] = ..., output_fields: _Optional[_Iterable[str]] = ..., partition_names: _Optional[_Iterable[str]] = ..., travel_timestamp: _Optional[int] = ..., guarantee_timestamp: _Optional[int] = ..., query_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., not_return_all_meta: bool = ..., consistency_level: _Optional[_Union[_common_pb2.ConsistencyLevel, str]] = ..., use_default_consistency: bool = ..., expr_template_values: _Optional[_Mapping[str, _schema_pb2.TemplateValue]] = ..., namespace: _Optional[str] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ..., function_chains: _Optional[_Iterable[_Union[_schema_pb2.FunctionChain, _Mapping]]] = ...) -> None: ...
 
 class ElementIndices(_message.Message):
     __slots__ = ("indices",)
@@ -3978,11 +3982,39 @@ class CancelRequestsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[int]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class SnapshotSummary(_message.Message):
-    __slots__ = ("name", "create_ts", "description")
+    __slots__ = ("name", "create_ts", "description", "create_utc_ts")
     NAME_FIELD_NUMBER: _ClassVar[int]
     CREATE_TS_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREATE_UTC_TS_FIELD_NUMBER: _ClassVar[int]
     name: str
     create_ts: int
     description: str
-    def __init__(self, name: _Optional[str] = ..., create_ts: _Optional[int] = ..., description: _Optional[str] = ...) -> None: ...
+    create_utc_ts: int
+    def __init__(self, name: _Optional[str] = ..., create_ts: _Optional[int] = ..., description: _Optional[str] = ..., create_utc_ts: _Optional[int] = ...) -> None: ...
+
+class WriteCondition(_message.Message):
+    __slots__ = ("field", "op", "on_missing")
+    class Op(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        __slots__ = ()
+        OP_UNSPECIFIED: _ClassVar[WriteCondition.Op]
+        GT: _ClassVar[WriteCondition.Op]
+        GTE: _ClassVar[WriteCondition.Op]
+    OP_UNSPECIFIED: WriteCondition.Op
+    GT: WriteCondition.Op
+    GTE: WriteCondition.Op
+    class MissingRowPolicy(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+        __slots__ = ()
+        INSERT_IF_MISSING: _ClassVar[WriteCondition.MissingRowPolicy]
+        SKIP_IF_MISSING: _ClassVar[WriteCondition.MissingRowPolicy]
+        ERROR_IF_MISSING: _ClassVar[WriteCondition.MissingRowPolicy]
+    INSERT_IF_MISSING: WriteCondition.MissingRowPolicy
+    SKIP_IF_MISSING: WriteCondition.MissingRowPolicy
+    ERROR_IF_MISSING: WriteCondition.MissingRowPolicy
+    FIELD_FIELD_NUMBER: _ClassVar[int]
+    OP_FIELD_NUMBER: _ClassVar[int]
+    ON_MISSING_FIELD_NUMBER: _ClassVar[int]
+    field: str
+    op: WriteCondition.Op
+    on_missing: WriteCondition.MissingRowPolicy
+    def __init__(self, field: _Optional[str] = ..., op: _Optional[_Union[WriteCondition.Op, str]] = ..., on_missing: _Optional[_Union[WriteCondition.MissingRowPolicy, str]] = ...) -> None: ...

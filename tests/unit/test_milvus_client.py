@@ -2587,7 +2587,7 @@ class TestSnapshotSummaries:
         handler.get_server_type.return_value = "milvus"
         expected = [
             SnapshotSummary("old", 0),
-            SnapshotSummary("b", 9007199254740993, "daily"),
+            SnapshotSummary("b", 9007199254740993, "daily", create_utc_ts=34359738368),
             SnapshotSummary("a", 9007199254740993),
         ]
         handler.list_snapshot_summaries.return_value = expected

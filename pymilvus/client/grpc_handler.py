@@ -3874,7 +3874,12 @@ class GrpcHandler:
         )
         check_status(response.status)
         summaries = [
-            SnapshotSummary(name=info.name, create_ts=info.create_ts, description=info.description)
+            SnapshotSummary(
+                name=info.name,
+                create_ts=info.create_ts,
+                description=info.description,
+                create_utc_ts=info.create_utc_ts,
+            )
             for info in response.snapshot_summaries
         ]
         if not summaries and response.snapshots:

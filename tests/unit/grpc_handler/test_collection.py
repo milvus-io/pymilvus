@@ -382,7 +382,10 @@ class TestSnapshotSummaries:
             snapshot_summaries=[
                 milvus_pb2.SnapshotSummary(name="old"),
                 milvus_pb2.SnapshotSummary(
-                    name="b", create_ts=9007199254740993, description="daily"
+                    name="b",
+                    create_ts=9007199254740993,
+                    description="daily",
+                    create_utc_ts=34359738368,
                 ),
                 milvus_pb2.SnapshotSummary(name="a", create_ts=9007199254740993),
             ],
@@ -390,7 +393,7 @@ class TestSnapshotSummaries:
         infos = handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
         assert infos == [
             SnapshotSummary("old", 0),
-            SnapshotSummary("b", 9007199254740993, "daily"),
+            SnapshotSummary("b", 9007199254740993, "daily", create_utc_ts=34359738368),
             SnapshotSummary("a", 9007199254740993),
         ]
         handler._stub.DescribeSnapshot.assert_not_called()

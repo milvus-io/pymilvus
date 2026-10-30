@@ -1571,11 +1571,16 @@ class LoadedSegmentInfo(SegmentInfo):
 
 @dataclass
 class SnapshotSummary:
-    """List metadata. create_ts preserves the Milvus timestamp from DescribeSnapshot."""
+    """List metadata with the original Milvus TT and its Unix-millisecond time.
+
+    create_utc_ts is the physical time of the WAL boundary, not snapshot
+    completion time. Zero means unknown or unsupported by the server.
+    """
 
     name: str
     create_ts: int
     description: str = ""
+    create_utc_ts: int = 0
 
 
 @dataclass
