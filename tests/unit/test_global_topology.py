@@ -415,6 +415,124 @@ class TestFetchTopology:
                 assert slow_probe_finished.wait(timeout=2.0)
             assert not fetch_thread.is_alive()
 
+    def test_cached_version_accepts_late_higher_version(self):
+        # The foreground return stays bounded, but a newer answer arriving
+        # after the grace period must still reach the replacement callback.
+        slow_gate = threading.Event()
+        late_accepted = threading.Event()
+        probe_finished = threading.Event()
+        received = []
+
+        def on_topology_change(topology):
+            received.append(topology)
+            late_accepted.set()
+
+        def fake_get(url, **kwargs):
+            if "ha-mgr-us1" in url:
+                try:
+                    slow_gate.wait(timeout=5.0)
+                    return _mock_response(version="10")
+                finally:
+                    probe_finished.set()
+            return _mock_response(version="9")
+
+        with _patch_srv(
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            side_effect=fake_get,
+        ), patch(
+            "pymilvus.client.global_topology.PROBE_GRACE_PERIOD", 0.05
+        ):
+            try:
+                topology = fetch_topology(
+                    _GLOBAL_URL,
+                    _TOKEN,
+                    cached_version=9,
+                    on_topology_change=on_topology_change,
+                )
+                assert topology is None
+                slow_gate.set()
+                assert late_accepted.wait(timeout=2.0)
+            finally:
+                slow_gate.set()
+                assert probe_finished.wait(timeout=2.0)
+
+        assert [t.version for t in received] == [10]
+
+    def test_cached_version_drains_all_late_answers(self):
+        # A callback rejected by CAS must not stop the watcher: a later seed
+        # may carry the version that actually advances the shared cache.
+        v10_gate = threading.Event()
+        v11_gate = threading.Event()
+        v10_callback = threading.Event()
+        v11_accepted = threading.Event()
+        v10_probe_finished = threading.Event()
+        v11_probe_finished = threading.Event()
+        holder = {"version": 9}
+        received = []
+
+        def on_topology_change(topology):
+            received.append(topology.version)
+            if topology.version > holder["version"]:
+                holder["version"] = topology.version
+                if topology.version == 11:
+                    v11_accepted.set()
+                return True
+            if topology.version == 10:
+                v10_callback.set()
+            return False
+
+        def fake_get(url, **kwargs):
+            if "ha-mgr-us1" in url:
+                try:
+                    v10_gate.wait(timeout=5.0)
+                    return _mock_response(version="10")
+                finally:
+                    v10_probe_finished.set()
+            if "ha-mgr-eu1" in url:
+                try:
+                    v11_gate.wait(timeout=5.0)
+                    return _mock_response(version="11")
+                finally:
+                    v11_probe_finished.set()
+            return _mock_response(version="9")
+
+        with _patch_srv(
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-eu1.global-cluster.example.com", priority=30),
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            side_effect=fake_get,
+        ), patch(
+            "pymilvus.client.global_topology.PROBE_GRACE_PERIOD", 0.05
+        ):
+            try:
+                topology = fetch_topology(
+                    _GLOBAL_URL,
+                    _TOKEN,
+                    cached_version=9,
+                    on_topology_change=on_topology_change,
+                )
+                assert topology is None
+                # Another path installs v10 before the watcher's v10 arrives.
+                holder["version"] = 10
+                v10_gate.set()
+                assert v10_callback.wait(timeout=2.0)
+                assert holder["version"] == 10
+                v11_gate.set()
+                assert v11_accepted.wait(timeout=2.0)
+            finally:
+                v10_gate.set()
+                v11_gate.set()
+                assert v10_probe_finished.wait(timeout=2.0)
+                assert v11_probe_finished.wait(timeout=2.0)
+
+        assert received == [10, 11]
+        assert holder["version"] == 11
+
     def test_first_answer_wins_without_cached_version(self):
         # First fetch, nothing cached: the first seed that answers wins.
         # The newer answer is gated behind the return, so the completion
@@ -763,7 +881,10 @@ class TestTopologyRefresher:
             refresher._try_refresh()
 
         mock_fetch.assert_called_once_with(
-            "https://glo.global-cluster.example.com", "test-token", cached_version=9
+            "https://glo.global-cluster.example.com",
+            "test-token",
+            cached_version=9,
+            on_topology_change=refresher._on_topology_change,
         )
         assert callback_received == []
 

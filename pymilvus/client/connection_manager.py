@@ -396,6 +396,7 @@ class _GlobalStrategyMixin:
                 self._config.uri,
                 self._config.token,
                 cached_version=old_topology.version if old_topology else None,
+                on_topology_change=self._on_topology_change,
             )
         except Exception:
             logger.warning("Failed to refresh topology on UNAVAILABLE", exc_info=True)
@@ -772,12 +773,14 @@ class ConnectionManager:
         # Run strategy decision outside lock (may do network I/O)
         should_recover = managed.strategy.on_unavailable(managed)
 
-        if should_recover:
-            with self._lock:
-                # Re-verify no other thread has already recovered this
-                # connection while we were outside the lock.
-                if managed.recovery_gen != saved_gen:
-                    return True
+        with self._lock:
+            # Re-verify no other thread has already recovered this
+            # connection while we were outside the lock. The original RPC
+            # should retry after such a recovery even if this thread's
+            # strategy no longer sees a need to recover again.
+            if managed.recovery_gen != saved_gen:
+                return True
+            if should_recover:
                 self._recover(managed)
 
         return should_recover
