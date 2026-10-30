@@ -26,6 +26,7 @@ from pymilvus.client.types import (
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
+    SnapshotSummary,
 )
 from pymilvus.client.utils import (
     convert_struct_fields_to_user_format,
@@ -3441,6 +3442,31 @@ class MilvusClient(BaseMilvusClient):
         """
         conn = self._get_connection()
         return conn.list_snapshots(
+            collection_name=collection_name,
+            db_name=db_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
+        )
+
+    def list_snapshot_summaries(
+        self,
+        collection_name: str,
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SnapshotSummary]:
+        """Return snapshot metadata in server-provided order.
+
+        create_ts preserves the Milvus timestamp returned by DescribeSnapshot.
+        create_utc_ts is the WAL boundary's Unix time in milliseconds, not snapshot
+        completion time. Zero means unknown or unsupported by the server.
+        Servers returning names without summaries raise ServerVersionIncompatibleException.
+        No DescribeSnapshot calls are made. Empty lists are returned unchanged.
+        The existing list_snapshots method continues to return List[str].
+        """
+        conn = self._get_connection()
+        return conn.list_snapshot_summaries(
             collection_name=collection_name,
             db_name=db_name,
             timeout=timeout,

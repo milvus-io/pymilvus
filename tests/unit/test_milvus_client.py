@@ -24,6 +24,7 @@ from pymilvus.client.types import (
     RefreshExternalCollectionJobInfo,
     RestoreSnapshotJobInfo,
     SnapshotInfo,
+    SnapshotSummary,
     Status,
 )
 from pymilvus.exceptions import (
@@ -2578,3 +2579,36 @@ class TestGrpcHandlerDumpMessages:
         gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
         with pytest.raises(MilvusException, match="oneof"):
             next(gen)
+
+
+class TestSnapshotSummaries:
+    def test_list_snapshot_summaries(self):
+        handler = MagicMock()
+        handler.get_server_type.return_value = "milvus"
+        expected = [
+            SnapshotSummary("old", 0),
+            SnapshotSummary("b", 9007199254740993, "daily", create_utc_ts=34359738368),
+            SnapshotSummary("a", 9007199254740993),
+        ]
+        handler.list_snapshot_summaries.return_value = expected
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            assert client.list_snapshot_summaries("books", db_name="archive", timeout=5) == expected
+        handler.list_snapshot_summaries.assert_called_once_with(
+            collection_name="books", db_name="archive", timeout=5, context=ANY
+        )
+
+    def test_unsupported_server_error(self):
+        handler = MagicMock()
+        handler.get_server_type.return_value = "milvus"
+        handler.list_snapshot_summaries.side_effect = ServerVersionIncompatibleException(
+            message="The server does not support snapshot summaries."
+        )
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with pytest.raises(
+                ServerVersionIncompatibleException, match="does not support snapshot summaries"
+            ):
+                client.list_snapshot_summaries("books")
+        handler.list_snapshot_summaries.assert_called_once()
+        handler.list_snapshots.assert_not_called()

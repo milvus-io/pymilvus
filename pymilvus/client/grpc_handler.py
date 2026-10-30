@@ -26,6 +26,7 @@ from pymilvus.exceptions import (
     ExceptionsMessage,
     MilvusException,
     ParamError,
+    ServerVersionIncompatibleException,
 )
 from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import common_pb2, milvus_pb2_grpc
@@ -81,6 +82,7 @@ from .types import (
     SegmentState,
     Shard,
     SnapshotInfo,
+    SnapshotSummary,
     State,
     Status,
     UserInfo,
@@ -3855,6 +3857,39 @@ class GrpcHandler:
 
         # Return list of snapshot names
         return list(response.snapshots)
+
+    @retry_on_rpc_failure()
+    def list_snapshot_summaries(
+        self,
+        collection_name: str,
+        db_name: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[SnapshotSummary]:
+        """List summaries in server order; reject names-only responses."""
+        request = Prepare.list_snapshots_req(collection_name=collection_name, db_name=db_name)
+        response = self._stub.ListSnapshots(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        summaries = [
+            SnapshotSummary(
+                name=info.name,
+                create_ts=info.create_ts,
+                description=info.description,
+                create_utc_ts=info.create_utc_ts,
+            )
+            for info in response.snapshot_summaries
+        ]
+        if not summaries and response.snapshots:
+            raise ServerVersionIncompatibleException(
+                message=(
+                    "The server does not support snapshot summaries. "
+                    "Upgrade the server or use list_snapshots."
+                )
+            )
+        return summaries
 
     @retry_on_rpc_failure()
     def describe_snapshot(

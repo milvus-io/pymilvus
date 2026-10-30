@@ -7,9 +7,13 @@ import grpc
 import pytest
 from pymilvus import FieldSchema, Function, FunctionType, StructFieldSchema
 from pymilvus.client.cache import GlobalCache
-from pymilvus.client.types import DataType
-from pymilvus.exceptions import DescribeCollectionException, MilvusException
-from pymilvus.grpc_gen import common_pb2, schema_pb2
+from pymilvus.client.types import DataType, SnapshotSummary
+from pymilvus.exceptions import (
+    DescribeCollectionException,
+    MilvusException,
+    ServerVersionIncompatibleException,
+)
+from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 
 from .conftest import (
     COLLECTION_VALIDATION_CASES,
@@ -368,3 +372,62 @@ class TestGrpcHandlerCollectionProperties:
         handler._stub.AlterCollectionSchema.assert_called_once()
         assert GlobalCache.schema.get(handler.server_address, "", "coll") is None
         GlobalCache._reset_for_testing()
+
+
+class TestSnapshotSummaries:
+    def test_server_order_and_legacy_names(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            snapshots=["old", "b", "a"],
+            snapshot_summaries=[
+                milvus_pb2.SnapshotSummary(name="old"),
+                milvus_pb2.SnapshotSummary(
+                    name="b",
+                    create_ts=9007199254740993,
+                    description="daily",
+                    create_utc_ts=34359738368,
+                ),
+                milvus_pb2.SnapshotSummary(name="a", create_ts=9007199254740993),
+            ],
+        )
+        infos = handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
+        assert infos == [
+            SnapshotSummary("old", 0),
+            SnapshotSummary("b", 9007199254740993, "daily", create_utc_ts=34359738368),
+            SnapshotSummary("a", 9007199254740993),
+        ]
+        handler._stub.DescribeSnapshot.assert_not_called()
+        request = handler._stub.ListSnapshots.call_args.args[0]
+        assert request.collection_name == "books"
+        assert request.db_name == "archive"
+        assert handler._stub.ListSnapshots.call_args.kwargs["timeout"] == 5
+        # The old API continues returning names even when summaries are present.
+        assert handler.list_snapshots("books") == ["old", "b", "a"]
+
+    def test_old_server_is_unsupported(self, handler):
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            snapshots=["old", "b", "a"]
+        )
+        with pytest.raises(
+            ServerVersionIncompatibleException, match="does not support snapshot summaries"
+        ):
+            handler.list_snapshot_summaries("books", db_name="archive", timeout=5)
+        handler._stub.ListSnapshots.assert_called_once()
+        handler._stub.DescribeSnapshot.assert_not_called()
+        assert handler.list_snapshots("books") == ["old", "b", "a"]
+        handler._stub.DescribeSnapshot.assert_not_called()
+
+    def test_empty(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse()
+        assert handler.list_snapshot_summaries("books") == []
+        handler._stub.DescribeSnapshot.assert_not_called()
+
+    def test_list_error(self, handler):
+
+        handler._stub.ListSnapshots.return_value = milvus_pb2.ListSnapshotsResponse(
+            status=common_pb2.Status(code=100, reason="not found")
+        )
+        with pytest.raises(MilvusException, match="not found"):
+            handler.list_snapshot_summaries("books")
+        handler._stub.DescribeSnapshot.assert_not_called()

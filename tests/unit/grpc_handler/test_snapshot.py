@@ -2,11 +2,18 @@
 
 from unittest.mock import MagicMock
 
+from pymilvus.client.types import SnapshotSummary
+
 from .conftest import make_response, make_status
 
 
 class TestGrpcHandlerSnapshotOps:
     """Tests for snapshot operations."""
+
+    def test_legacy_summary_constructor(self):
+        summary = SnapshotSummary("snap", 123, "desc")
+        assert summary.create_ts == 123
+        assert summary.create_utc_ts == 0
 
     def test_create_snapshot(self, handler):
         handler._stub.CreateSnapshot.return_value = make_status()
