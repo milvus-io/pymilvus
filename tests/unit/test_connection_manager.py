@@ -680,7 +680,10 @@ class TestGlobalStrategy:
         assert result is False  # stale answer rejected, primary unchanged
         assert strategy.get_topology() is cached
         mock_fetch.assert_called_with(
-            "https://global-cluster.example.com:19530", "mytoken", cached_version=9
+            "https://global-cluster.example.com:19530",
+            "mytoken",
+            cached_version=9,
+            on_topology_change=strategy._on_topology_change,
         )
 
     @patch("pymilvus.client.connection_manager.TopologyRefresher")
@@ -2272,6 +2275,80 @@ class TestInPlaceRecovery:
             assert results[0] is True
             assert results[1] is True
             # But reconnect called only once — the second thread saw the gen bump
+            assert handler.reconnect.call_count == 1
+            assert managed.recovery_gen == 1
+
+    def test_concurrent_recovery_retries_when_strategy_returns_false(self):
+        """A late thread retries when another thread recovered during its refresh."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.zilliz.com", token="test"
+        )
+        old_topology = _make_topology(1, "in01", "https://old-primary:19530")
+        new_topology = _make_topology(2, "in02", "https://new-primary:19530")
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=old_topology
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler") as mock_handler_cls, patch(
+            "pymilvus.client.connection_manager.TopologyRefresher"
+        ):
+            handler = _make_sync_handler(server_address="old-primary:19530")
+            mock_handler_cls.return_value = handler
+            mgr.get_or_create(config)
+            managed = mgr._get_managed(handler)
+            managed.strategy._on_topology_change(new_topology)
+
+            def reconnect(address=None, timeout=None):
+                handler.server_address = address
+
+            handler.reconnect.side_effect = reconnect
+            a_fetch_entered = threading.Event()
+            b_finished = threading.Event()
+            results = {}
+            errors = []
+            error = MilvusException(code=65535, message="STREAMING_CODE_REPLICATE_VIOLATION")
+
+            def fetch_during_recovery(*args, **kwargs):
+                if threading.current_thread().name == "recovery-a":
+                    a_fetch_entered.set()
+                    if not b_finished.wait(timeout=5):
+                        raise TimeoutError("thread B did not finish recovery")
+
+            def call_handle_error(name):
+                try:
+                    results[name] = mgr.handle_error(handler, error)
+                except BaseException as e:
+                    errors.append(e)
+                finally:
+                    if name == "B":
+                        b_finished.set()
+
+            thread_a = threading.Thread(target=call_handle_error, args=("A",), name="recovery-a")
+            thread_b = threading.Thread(target=call_handle_error, args=("B",), name="recovery-b")
+
+            with patch(
+                "pymilvus.client.connection_manager.fetch_topology",
+                side_effect=fetch_during_recovery,
+            ):
+                thread_a.start()
+                a_entered = a_fetch_entered.wait(timeout=2)
+                try:
+                    if a_entered:
+                        thread_b.start()
+                        thread_b.join(timeout=5)
+                finally:
+                    b_finished.set()
+                    thread_a.join(timeout=5)
+                    if thread_b.ident is not None:
+                        thread_b.join(timeout=5)
+
+            assert a_entered
+            assert not thread_a.is_alive()
+            assert not thread_b.is_alive()
+            assert not errors
+            # B recovered; A sees the new address and returns False from
+            # on_unavailable, but must still retry because B bumped the gen.
+            assert results == {"A": True, "B": True}
             assert handler.reconnect.call_count == 1
             assert managed.recovery_gen == 1
 

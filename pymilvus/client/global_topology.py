@@ -245,24 +245,26 @@ def _watch_remaining(
 ) -> None:
     """Drain the answers still in flight and trigger replacement on a newer one.
 
-    Runs in a daemon thread after the first answer is handed over, so a slow
-    seed does not stall the initial connection while a newer version from the
-    remaining seeds can still win the replacement flow. Only results the caller
-    did not consume arrive here, so each seed is logged at most once.
+    Runs in a daemon thread after the foreground caller stops waiting, so a
+    slow seed stalls neither initial connection nor recovery while a newer
+    version from the remaining seeds can still win the replacement flow. Only
+    results the caller did not consume arrive here, so each seed is logged at
+    most once.
     """
 
     def watch() -> None:
+        best_version = topology.version
         for _ in range(remaining):
             target, new_topology, error = results.get()
             if error is not None:  # one bad seed must not fail the rest
                 logger.warning(f"Topology probe failed for {target.target}: {error}")
                 continue
-            if new_topology.version > topology.version:
+            if new_topology.version > best_version:
+                best_version = new_topology.version
                 try:
                     on_higher_version(new_topology)
                 except Exception:
                     logger.warning("Topology replacement callback failed", exc_info=True)
-                return  # one replacement is enough; the refresher keeps polling
 
     threading.Thread(target=watch, daemon=True).start()
 
@@ -281,12 +283,13 @@ def _probe_candidates(
     grace period wins. This guards the cache against stale answers without
     letting a blackholed seed stall RPC recovery. Without it (first fetch,
     nothing to guard) the first seed that answers wins so a slow seed does not
-    stall the initial connection; the seeds still in flight keep being polled
-    in the background and ``on_higher_version`` triggers the replacement flow
-    when one returns a newer version. An API-level error (e.g. auth failure) is the same across
-    seeds, so it is captured and surfaced when no seed succeeds instead of a
-    generic "unreachable". The last non-API error is returned as well so the
-    caller can keep the underlying cause in its final exception.
+    stall the initial connection. In either mode, responses still pending when
+    the foreground returns keep being polled in the background, and
+    ``on_higher_version`` triggers the replacement flow for a newer version.
+    An API-level error (e.g. auth failure) is the same across seeds, so it is
+    captured and surfaced when no seed succeeds instead of a generic
+    "unreachable". The last non-API error is returned as well so the caller can
+    keep the underlying cause in its final exception.
 
     Probes run in plain daemon threads (not a ThreadPoolExecutor, whose
     non-daemon workers are joined at interpreter exit): once the caller has
@@ -328,8 +331,8 @@ def _probe_candidates(
         if not bounded_refresh:
             break  # First answer wins; the watcher keeps an eye on the rest.
 
-    if not bounded_refresh and best is not None and on_higher_version is not None and pending > 0:
-        # First fetch: hand the results still in flight to a background watcher.
+    if best is not None and on_higher_version is not None and pending > 0:
+        # Keep accepting late answers after the bounded foreground return.
         _watch_remaining(results, pending, best, on_higher_version)
     return best, api_error, last_error
 
@@ -360,8 +363,9 @@ def fetch_topology(
             seed that answers wins, and the rest keep being polled in the
             background.
         on_topology_change: Replacement flow invoked with a topology whose
-            version is higher than the first answer (only used when
-            ``cached_version`` is None).
+            version is higher than the best foreground answer. This covers
+            answers still pending after a first fetch or after the cached
+            refresh grace period.
 
     Returns:
         GlobalTopology object containing cluster information, or None when
@@ -415,7 +419,7 @@ def fetch_topology(
             hostname,
             token,
             bounded_refresh=cached_version is not None,
-            on_higher_version=on_topology_change if cached_version is None else None,
+            on_higher_version=on_topology_change,
         )
         if probe_error is not None:
             last_error = probe_error
@@ -520,7 +524,10 @@ class TopologyRefresher:
             if current is None:
                 return
             new_topology = fetch_topology(
-                self._global_endpoint, self._token, cached_version=current.version
+                self._global_endpoint,
+                self._token,
+                cached_version=current.version,
+                on_topology_change=self._on_topology_change,
             )
 
             if new_topology is not None and new_topology.version > current.version:
