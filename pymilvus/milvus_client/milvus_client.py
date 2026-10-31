@@ -579,6 +579,8 @@ class MilvusClient(BaseMilvusClient):
 
         Args:
             filter (str): The filter to use for the query.
+            ids (list, str, int, optional): Primary keys to retrieve. None leaves IDs
+                unrestricted; an empty list returns [] without sending a query RPC.
             output_fields (List[str], optional): List of which field values to return. If None
                 specified, all fields excluding vector field will be returned.
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
@@ -605,6 +607,9 @@ class MilvusClient(BaseMilvusClient):
             ids = [ids]
 
         conn = self._get_connection()
+
+        if isinstance(ids, list) and not ids:
+            return []
 
         if ids:
             schema_dict, _ = conn._get_schema(
