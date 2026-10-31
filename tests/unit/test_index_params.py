@@ -47,6 +47,22 @@ class TestIndexParamEquality:
         right.add_index("vector", "HNSW", "vector_idx", M=16, metric_type="L2")
         assert left == right
 
+    @pytest.mark.parametrize(
+        "left_nlist, right_nlist, equal",
+        [("128", "128", True), (128, 128, True), ("128", 128, False)],
+        ids=["string-string", "int-int", "string-int"],
+    )
+    def test_compare_nlist_preserves_type(self, left_nlist, right_nlist, equal):
+        left = IndexParam("vector", "IVF_FLAT", "vector_idx", nlist=left_nlist)
+        right = IndexParam("vector", "IVF_FLAT", "vector_idx", nlist=right_nlist)
+        assert (left == right) is equal
+        assert (right == left) is equal
+        assert (left != right) is (not equal)
+        assert (left == right.to_dict()) is equal
+        assert (right.to_dict() == left) is equal
+        assert (left.to_dict() == right) is equal
+        assert (right == left.to_dict()) is equal
+
     @pytest.mark.parametrize("other", [None, "vector", []])
     def test_compare_unrelated_type(self, other):
         assert IndexParam("vector", "FLAT", "") != other
