@@ -27,7 +27,11 @@ from pymilvus.settings import Config
 
 from . import __version__, blob, check, entity_helper, utils
 from .abstract import BaseRanker
-from .check import check_pass_param, is_legal_collection_properties, validate_str
+from .check import (
+    _raise_param_error,
+    check_pass_param,
+    validate_str,
+)
 from .constants import (
     CLUSTER_ID,
     COLLECTION_ID,
@@ -136,11 +140,15 @@ class Prepare:
         )
 
         properties = kwargs.get("properties")
-        if is_legal_collection_properties(properties):
-            properties = [
-                common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()
-            ]
-            req.properties.extend(properties)
+        if properties is not None:
+            if not isinstance(properties, dict):
+                _raise_param_error("properties", properties)
+            if properties:
+                kvs = [
+                    common_types.KeyValuePair(key=str(k), value=str(v))
+                    for k, v in properties.items()
+                ]
+                req.properties.extend(kvs)
 
         same_key = set(kwargs.keys()).intersection({"num_shards", "shards_num"})
         if len(same_key) > 0:
@@ -3131,13 +3139,16 @@ class Prepare:
 
     @classmethod
     def create_database_req(cls, db_name: str, properties: Optional[dict] = None):
+        check_pass_param(db_name=db_name)
+        if properties is not None and not isinstance(properties, dict):
+            _raise_param_error("properties", properties)
         req = milvus_types.CreateDatabaseRequest(db_name=db_name)
 
-        if is_legal_collection_properties(properties):
-            properties = [
+        if properties:
+            kvs = [
                 common_types.KeyValuePair(key=str(k), value=str(v)) for k, v in properties.items()
             ]
-            req.properties.extend(properties)
+            req.properties.extend(kvs)
         return req
 
     @classmethod
@@ -3151,7 +3162,7 @@ class Prepare:
 
     @classmethod
     def alter_database_properties_req(cls, db_name: str, properties: Dict):
-        check_pass_param(db_name=db_name)
+        check_pass_param(db_name=db_name, properties=properties)
         kvs = [common_types.KeyValuePair(key=k, value=str(v)) for k, v in properties.items()]
         return milvus_types.AlterDatabaseRequest(db_name=db_name, properties=kvs)
 

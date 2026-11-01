@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
+from pymilvus.exceptions import ParamError
 
 
 class TestAsyncGrpcHandlerDatabase:
@@ -38,6 +39,19 @@ class TestAsyncGrpcHandlerDatabase:
             await handler.create_database("test_db", timeout=30)
 
             mock_stub.CreateDatabase.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    async def test_create_database_invalid_properties(self, invalid_properties: object) -> None:
+        """Test create_database async API with invalid properties raises ParamError"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        with pytest.raises(ParamError):
+            await handler.create_database("test_db", properties=invalid_properties)
 
     @pytest.mark.asyncio
     async def test_drop_database(self) -> None:
@@ -141,6 +155,19 @@ class TestAsyncGrpcHandlerDatabase:
             mock_prepare.alter_database_req.return_value = MagicMock()
             await handler.alter_database("test_db", properties={"key": "value"})
             mock_stub.AlterDatabase.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    async def test_alter_database_invalid_properties(self, invalid_properties: object) -> None:
+        """Test alter_database async API with invalid properties raises ParamError"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+
+        with pytest.raises(ParamError):
+            await handler.alter_database("test_db", properties=invalid_properties)
 
     @pytest.mark.asyncio
     async def test_drop_database_properties(self) -> None:

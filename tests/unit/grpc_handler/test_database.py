@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+from pymilvus.exceptions import ParamError
+
 from .conftest import make_response, make_status
 
 
@@ -12,6 +15,16 @@ class TestGrpcHandlerDatabaseOps:
         handler._stub.CreateDatabase.return_value = make_status()
         handler.create_database("db")
         handler._stub.CreateDatabase.assert_called_once()
+
+    def test_create_database_with_properties(self, handler):
+        handler._stub.CreateDatabase.return_value = make_status()
+        handler.create_database("db", properties={"replica.number": "2"})
+        handler._stub.CreateDatabase.assert_called_once()
+
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    def test_create_database_invalid_properties(self, handler, invalid_properties):
+        with pytest.raises(ParamError):
+            handler.create_database("db", properties=invalid_properties)
 
     def test_drop_database(self, handler):
         handler._stub.DropDatabase.return_value = make_status()
@@ -38,6 +51,11 @@ class TestGrpcHandlerDatabaseOps:
         handler._stub.AlterDatabase.return_value = make_status()
         handler.alter_database("db", {"key": "value"})
         handler._stub.AlterDatabase.assert_called_once()
+
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    def test_alter_database_invalid_properties(self, handler, invalid_properties):
+        with pytest.raises(ParamError):
+            handler.alter_database("db", invalid_properties)
 
     def test_drop_database_properties(self, handler):
         handler._stub.AlterDatabase.return_value = make_status()
