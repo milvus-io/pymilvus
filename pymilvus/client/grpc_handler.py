@@ -1460,6 +1460,11 @@ class GrpcHandler:
             timeout=timeout,
         )
 
+        # Convert EmbeddingList to flat array if present
+        if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
+            data = [emb_list.to_flat_array() for emb_list in data]
+            kwargs["is_embedding_list"] = True
+
         use_default_consistency = ts_utils.construct_guarantee_ts(
             collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
         )
