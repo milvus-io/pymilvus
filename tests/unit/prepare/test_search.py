@@ -440,6 +440,22 @@ class TestBuildIdsProto:
         with pytest.raises(ParamError, match="Unsupported id type"):
             Prepare._build_ids_proto([1.5, 2.5])
 
+    @pytest.mark.parametrize(
+        "ids",
+        [
+            [1, "a"],
+            ["a", 1],
+            [1, "2"],
+            [1, True],
+            [np.int64(1), 2.5],
+            ["a", None],
+        ],
+    )
+    def test_mixed_ids(self, ids):
+        """Ids must be all integers or all strings."""
+        with pytest.raises(ParamError, match="mixed types are not allowed"):
+            Prepare._build_ids_proto(ids)
+
 
 class TestPrepareExpressionTemplate:
     """Tests for prepare_expression_template."""
