@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema
+from pymilvus.client.prepare import Prepare
 from pymilvus.client.types import HighlightType
 from pymilvus.exceptions import (
     AutoIDException,
@@ -2271,3 +2272,20 @@ class TestExternalCollectionSchema:
         )
         with pytest.raises(ParamError, match="External collections do not support auto_id"):
             schema.verify()
+
+
+@pytest.mark.parametrize("dim", [-1, 0, 1.5, True, None, "abc", "true"])
+def test_field_schema_rejects_an_invalid_dim(dim):
+    with pytest.raises(ParamError, match="dim should be a positive integer"):
+        FieldSchema("fvec", DataType.FLOAT_VECTOR, dim=dim)
+
+
+def test_field_schema_coerces_a_digit_string_dim():
+    assert FieldSchema("fvec", DataType.FLOAT_VECTOR, dim="128").params["dim"] == 128
+
+
+@pytest.mark.parametrize("dim", [-1, 0, 1.5, True, None, "abc", "true"])
+def test_prepare_rejects_an_invalid_dim(dim):
+    field = {"name": "fvec", "type": DataType.FLOAT_VECTOR, "params": {"dim": dim}}
+    with pytest.raises(ParamError, match="dim should be a positive integer"):
+        Prepare.get_field_schema(field)

@@ -348,6 +348,8 @@ class Prepare:
         type_params = field.get("params", {})
         if not isinstance(type_params, dict):
             raise ParamError(message="params should be dictionary type")
+        if "dim" in type_params:
+            type_params["dim"] = utils.check_dim_value(type_params["dim"])
         kvs = [
             common_types.KeyValuePair(
                 key=str(k) if k != "mmap_enabled" else "mmap.enabled",
