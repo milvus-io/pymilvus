@@ -175,6 +175,11 @@ class Connections(metaclass=SingleInstanceMetaClass):
             )
         """
         for alias, config in kwargs.items():
+            if not isinstance(config, dict):
+                raise ConnectionConfigException(
+                    message=ExceptionsMessage.ConnConfigType % alias
+                )
+
             addr, parsed_uri = self.__get_full_address(
                 config.get("address", ""),
                 config.get("uri", ""),

@@ -4,7 +4,11 @@ from urllib import parse
 import pytest
 from pymilvus import DefaultConfig, MilvusException, connections
 from pymilvus.client.call_context import CallContext
-from pymilvus.exceptions import ConnectionNotExistException, ErrorCode
+from pymilvus.exceptions import (
+    ConnectionConfigException,
+    ConnectionNotExistException,
+    ErrorCode,
+)
 
 from .conftest import GRPC_PREFIX
 
@@ -807,3 +811,11 @@ class TestConnectKeepAlive:
         ), mock.patch(f"{GRPC_PREFIX}.register_reconnect_handler") as mock_register:
             connections.connect(alias, address="localhost:19530", keep_alive=True)
             mock_register.assert_called_once()
+
+
+@pytest.mark.parametrize("config", ["localhost:19530", None, ["localhost:19530"], 19530])
+def test_add_connection_rejects_a_config_that_is_not_a_dict(config):
+    with pytest.raises(ConnectionConfigException, match="must be a dict"):
+        connections.add_connection(bad_config_type=config)
+
+    assert "bad_config_type" not in connections.list_connections()
