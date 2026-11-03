@@ -906,7 +906,7 @@ class TestAnnSearchRequest:
             name="boost",
             function_type=FunctionType.RERANK,
             input_field_names=["text"],
-            params={"weight": 2.0},
+            params={"reranker": "boost", "weight": 2.0},
         )
         ranker = FunctionScore(functions=[function], params={"boost_mode": "multiply"})
         request = AnnSearchRequest(

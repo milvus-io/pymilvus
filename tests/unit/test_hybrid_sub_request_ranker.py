@@ -40,7 +40,7 @@ def _boost_function(name="boost", weight=2.0):
         FunctionType.RERANK,
         input_field_names=["text"],
         output_field_names=[],
-        params={"weight": weight},
+        params={"reranker": "boost", "weight": weight},
     )
 
 
@@ -192,3 +192,49 @@ async def test_request_ranker_takes_precedence_over_kwargs_ranker(hybrid_call):
     request = await call(reqs, None, ranker=shared)
 
     assert request.requests[0].function_score.functions[0].name == "own"
+
+
+@pytest.mark.parametrize(
+    "ranker",
+    [
+        Function(
+            "decay",
+            FunctionType.RERANK,
+            input_field_names=["ts"],
+            params={"reranker": "decay", "function": "gauss", "origin": 0, "scale": 10},
+        ),
+        FunctionScore(
+            functions=[
+                _boost_function(),
+                Function(
+                    "rrf", FunctionType.RERANK, input_field_names=[], params={"reranker": "rrf"}
+                ),
+            ]
+        ),
+        Function(
+            "untyped", FunctionType.RERANK, input_field_names=["text"], params={"weight": 2.0}
+        ),
+    ],
+    ids=["decay", "mixed_boost_rrf", "missing_reranker"],
+)
+def test_sub_request_ranker_rejects_non_boost(ranker):
+    """The server only applies boost per sub-request, so others fail before the RPC."""
+    with pytest.raises(ParamError, match="only supports boost functions"):
+        _ann_request(ranker)
+
+
+def test_sub_request_ranker_rejects_empty_function_score():
+    with pytest.raises(ParamError, match="at least one boost function"):
+        _ann_request(FunctionScore(functions=[]))
+
+
+def test_sub_request_ranker_rejects_other_types():
+    with pytest.raises(ParamError, match="must be a Function or a FunctionScore"):
+        _ann_request(WeightedRanker(0.5, 0.5))
+
+
+def test_sub_request_ranker_reranker_param_is_case_insensitive():
+    function = Function(
+        "b", FunctionType.RERANK, input_field_names=["text"], params={"Reranker": "BOOST"}
+    )
+    assert _ann_request(function).ranker is function
