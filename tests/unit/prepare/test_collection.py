@@ -555,3 +555,21 @@ class TestAlterCollectionSchemaRequest:
     def test_error_on_multiple_drop_identifiers(self, kwargs):
         with pytest.raises(ParamError, match="exactly one valid Drop identifier"):
             Prepare.alter_collection_schema_request(collection_name="coll", **kwargs)
+
+
+class TestLoadPartitionsRequest:
+    """Tests for load_partitions."""
+
+    def test_rejects_invalid_partition_names_by_their_public_name(self):
+        """The error must name `partition_names`, the argument the caller actually passed.
+
+        The validator was registered under the internal key `partition_name_array`, and the
+        message is built from that registry key, so callers were told a parameter name that
+        appears nowhere in the public API (#2589).
+        """
+        with pytest.raises(ParamError, match=r"`partition_names` value \['p1', 1\] is illegal"):
+            Prepare.load_partitions("coll", ["p1", 1])
+
+    def test_accepts_valid_partition_names(self):
+        req = Prepare.load_partitions("coll", ["p1", "p2"])
+        assert list(req.partition_names) == ["p1", "p2"]
