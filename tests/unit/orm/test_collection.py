@@ -67,6 +67,22 @@ class TestCollectionLifecycle:
 
         connections.disconnect("default")
 
+    def test_init_forwards_timeout_to_create_collection(
+        self, mock_grpc_connect, mock_grpc_close, collection_schema
+    ):
+        """The timeout given to Collection(...) reaches the create RPC."""
+        connections.connect(keep_alive=False)
+
+        create = MagicMock(return_value=None)
+        with mock.patch(f"{GRPC_PREFIX}.create_collection", create), mock.patch(
+            f"{GRPC_PREFIX}.has_collection", return_value=False
+        ):
+            Collection(name="ut_timeout_forward", schema=collection_schema, timeout=10.0)
+
+        assert create.call_args.kwargs["timeout"] == 10.0
+
+        connections.disconnect("default")
+
     def test_init_with_timeout_kwarg(self, mock_grpc_connect, mock_grpc_close, collection_schema):
         """Collection(timeout=...) should not raise TypeError for duplicate kwarg."""
         connections.connect(keep_alive=False)
