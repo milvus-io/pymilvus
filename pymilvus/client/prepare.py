@@ -2025,11 +2025,25 @@ class Prepare:
             raise ParamError(message="ids must not contain boolean values")
 
         if isinstance(first, (int, np.integer)):
+            for value in ids:
+                if isinstance(value, (bool, np.bool_)) or not isinstance(
+                    value, (int, np.integer)
+                ):
+                    raise ParamError(
+                        message="ids must be all integers or all strings, "
+                        "mixed types are not allowed"
+                    )
             return schema_types.IDs(
                 int_id=schema_types.LongArray(data=[int(value) for value in ids])
             )
 
         if isinstance(first, str):
+            for value in ids:
+                if not isinstance(value, str):
+                    raise ParamError(
+                        message="ids must be all integers or all strings, "
+                        "mixed types are not allowed"
+                    )
             return schema_types.IDs(str_id=schema_types.StringArray(data=list(ids)))
 
         raise ParamError(message=f"Unsupported id type: {type(first)}")
