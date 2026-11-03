@@ -3,6 +3,13 @@ from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.index import IndexParams, extract_bound_index_param
 
 
+class TestIndexParamsPublicExport:
+    def test_reexported_from_package_root(self):
+        from pymilvus import IndexParams as RootIndexParams
+
+        assert RootIndexParams is IndexParams
+
+
 class TestExtractBoundIndexParam:
     """Tests for the shared bound-index validation used by add_function_field."""
 
