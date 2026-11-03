@@ -138,14 +138,11 @@ def is_legal_ids(ids: Any) -> bool:
         return True
 
     if isinstance(first, str):
+        # String ids are packed as a StringArray, i.e. they are VARCHAR primary
+        # keys, so the int64 range does not apply to them: only the type and the
+        # max VARCHAR length do.
         for i in ids:
             if not isinstance(i, str) or not i or len(i) > Config.MaxVarCharLength:
-                return False
-            try:
-                value = int(i)
-            except (TypeError, ValueError, OverflowError):
-                continue
-            if not (_INT64_MIN <= value <= _INT64_MAX):
                 return False
         return True
 

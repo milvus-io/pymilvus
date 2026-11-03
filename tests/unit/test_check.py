@@ -106,6 +106,7 @@ class TestIsLegalIds:
         [
             ["abc", "def"],
             ["-123", "456"],
+            ["92233720368547758080"],  # numeric-looking VARCHAR pk beyond int64
         ],
     )
     def test_valid_str_ids(self, ids):
