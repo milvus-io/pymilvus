@@ -198,6 +198,10 @@ class ExceptionsMessage:
     )
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
+    ConnConfigType = (
+        "Config of connection %r must be a dict, "
+        "e.g. connections.add_connection(default={'host': 'localhost', 'port': '19530'})."
+    )
     ConnectFirst = "should create connection first."
     CollectionNotExistNoSchema = "Collection %r not exist, or you can pass in schema to create one."
     NoSchema = "Should be passed into the schema."
