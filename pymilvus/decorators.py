@@ -11,6 +11,7 @@ from typing import Any, Callable, Optional, Set
 import grpc
 
 from .exceptions import (
+    _NON_REPLAYABLE_ERROR_CODES,
     DataNotMatchException,
     ErrorCode,
     MilvusException,
@@ -25,6 +26,13 @@ WARNING_COLOR = "\033[93m{}\033[0m"
 # gRPC connectivity state: int -> enum mapping
 _CONNECTIVITY_INT_TO_ENUM = {state.value[0]: state for state in grpc.ChannelConnectivity}
 _DEPRECATED_WARNING_DEPTH = contextvars.ContextVar("deprecated_warning_depth", default=0)
+_ASYNC_RPC_TIMEOUT_STATE = contextvars.ContextVar("async_rpc_timeout_state", default=None)
+
+
+def _set_async_conditional_write_pending(pending: bool) -> None:
+    state = _ASYNC_RPC_TIMEOUT_STATE.get()
+    if state is not None:
+        state["conditional_write_pending"] = pending
 
 
 def _get_rpc_error_info(e: grpc.RpcError, channel: grpc.Channel = None) -> str:
@@ -152,8 +160,7 @@ def warn_deprecated(
     reason: str = "is an ORM-style PyMilvus API",
 ) -> None:
     warnings.warn(
-        f"`{api_name}` {reason} and will be removed in PyMilvus 3.1. "
-        f"Use `{replacement}` instead.",
+        f"`{api_name}` {reason} and will be removed in PyMilvus 3.1. Use `{replacement}` instead.",
         category=PyMilvusDeprecationWarning,
         stacklevel=stacklevel,
     )
@@ -323,6 +330,10 @@ def retry_on_rpc_failure(
                 )
 
                 while True:
+                    # wait_for runs func in a child task. A mutable, task-local value
+                    # lets the deadline owner observe the child's current RPC phase.
+                    timeout_state = {"conditional_write_pending": False}
+                    timeout_token = _ASYNC_RPC_TIMEOUT_STATE.set(timeout_state)
                     try:
                         if retry_timeout is not None:
                             remaining = retry_timeout - (time.time() - start_time)
@@ -350,6 +361,9 @@ def retry_on_rpc_failure(
                         await asyncio.sleep(back_off)
                         back_off = min(back_off * back_off_multiplier, max_back_off)
                     except MilvusException as e:
+                        # Final write outcomes must not be overridden by connection recovery.
+                        if e.code in _NON_REPLAYABLE_ERROR_CODES:
+                            raise e from e
                         if is_timeout(start_time):
                             LOGGER.warning(WARNING_COLOR.format(to_msg))
                             raise MilvusException(
@@ -369,10 +383,16 @@ def retry_on_rpc_failure(
                         else:
                             raise e from e
                     except asyncio.TimeoutError as e:
+                        if timeout_state["conditional_write_pending"]:
+                            raise MilvusException(
+                                code=ErrorCode.CONDITIONAL_UPSERT_EXECUTION,
+                                message="Conditional upsert outcome unknown; automatic replay is unsafe",
+                            ) from e
                         raise MilvusException(message=to_msg) from e
                     except Exception as e:
                         raise e from e
                     finally:
+                        _ASYNC_RPC_TIMEOUT_STATE.reset(timeout_token)
                         counter += 1
 
             return async_handler
@@ -437,6 +457,9 @@ def retry_on_rpc_failure(
                     time.sleep(back_off)
                     back_off = min(back_off * back_off_multiplier, max_back_off)
                 except MilvusException as e:
+                    # A redirect hint in the diagnostic cause cannot authorize replay.
+                    if e.code in _NON_REPLAYABLE_ERROR_CODES:
+                        raise e from e
                     if timeout(start_time):
                         LOGGER.warning(WARNING_COLOR.format(to_msg))
                         raise MilvusException(

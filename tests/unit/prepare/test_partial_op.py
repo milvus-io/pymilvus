@@ -4,7 +4,7 @@ import pytest
 from pymilvus import CollectionSchema, DataType, FieldOp, FieldOpType, FieldSchema
 from pymilvus.client.field_ops import normalize_field_ops
 from pymilvus.client.prepare import Prepare
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import DataNotMatchException, ParamError
 from pymilvus.grpc_gen import milvus_pb2, schema_pb2
 
 # ============================================================
@@ -279,3 +279,101 @@ def test_normalize_field_ops_rejects_out_of_range_int():
         normalize_field_ops({"tags": 99})
     with pytest.raises(ParamError, match="invalid field_op enum value"):
         normalize_field_ops({"tags": -1})
+
+
+@pytest.fixture
+def version_fields():
+    return [
+        {"name": "pk", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+        {"name": "version", "type": DataType.INT64},
+        {
+            "name": "tags",
+            "type": DataType.ARRAY,
+            "element_type": DataType.INT64,
+            "params": {"max_capacity": 32},
+        },
+    ]
+
+
+@pytest.mark.parametrize("op,expected", [("gt", 1), ("GTE", 2)])
+@pytest.mark.parametrize(
+    "missing,expected_missing", [(None, 0), ("insert", 0), ("SKIP", 1), ("error", 2)]
+)
+def test_conditional_upsert_wire_and_implicit_partial(
+    version_fields, op, expected, missing, expected_missing
+):
+    condition = {"field": "version", "op": op}
+    if missing is not None:
+        condition["on_missing"] = missing
+    request = Prepare.row_upsert_param(
+        "test",
+        [{"pk": 1, "version": 12}],
+        "",
+        version_fields,
+        write_condition=condition,
+    )
+    assert request.partial_update
+    assert request.write_condition.field == "version"
+    assert request.write_condition.op == expected
+    assert request.write_condition.on_missing == expected_missing
+    assert milvus_pb2.WriteCondition.MissingRowPolicy.Name(expected_missing) == (
+        f"{(missing or 'insert').upper()}_IF_MISSING"
+    )
+    assert request.num_rows == 1
+
+
+@pytest.mark.parametrize(
+    "condition",
+    [
+        {},
+        {"field": "version"},
+        {"field": "version", "op": "eq"},
+        {"field": "version", "op": "gt", "on_missing": "other"},
+        {"field": "version", "op": "gt", "on_missing": "ERROR_IF_MISSING"},
+        {"field": "version", "op": "gt", "extra": True},
+        [],
+    ],
+)
+def test_conditional_upsert_rejects_invalid_options(version_fields, condition):
+    with pytest.raises(ParamError):
+        Prepare.row_upsert_param(
+            "test",
+            [{"pk": 1, "version": 12}],
+            "",
+            version_fields,
+            write_condition=condition,
+        )
+
+
+def test_conditional_upsert_gte_rejects_relative_op(version_fields):
+    with pytest.raises(ParamError, match="incompatible"):
+        Prepare.row_upsert_param(
+            "test",
+            [{"pk": 1, "version": 12, "tags": [5]}],
+            "",
+            version_fields,
+            field_ops={"tags": FieldOp.array_append()},
+            write_condition={"field": "version", "op": "gte"},
+        )
+
+
+def test_conditional_upsert_missing_version_column(version_fields):
+    with pytest.raises(ParamError, match="must be supplied"):
+        Prepare.row_upsert_param(
+            "test",
+            [{"pk": 1}],
+            "",
+            version_fields,
+            write_condition={"field": "version", "op": "gt"},
+        )
+
+
+def test_conditional_upsert_unknown_cached_field_can_refresh(version_fields):
+    with pytest.raises(DataNotMatchException):
+        Prepare.row_upsert_param(
+            "test",
+            [{"pk": 1, "version": 12}],
+            "",
+            version_fields,
+            write_condition={"field": "new_version", "op": "gt"},
+        )

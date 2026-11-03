@@ -15,6 +15,7 @@ from grpc._cython import cygrpc
 from pymilvus.client.call_context import CallContext, _api_level_md
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import (
+    _set_async_conditional_write_pending,
     ignore_unimplemented,
     retry_on_rpc_failure,
     retry_on_schema_mismatch,
@@ -965,6 +966,7 @@ class AsyncGrpcHandler:
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
             field_ops=field_ops,
+            write_condition=kwargs.get("write_condition"),
             **Prepare._rls_context(kwargs),
         )
 
@@ -984,9 +986,24 @@ class AsyncGrpcHandler:
         request = await self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, context=context, **kwargs
         )
-        response = await self._async_stub.Upsert(
-            request, timeout=timeout, metadata=_api_level_md(context)
-        )
+        conditional_write = request.HasField("write_condition")
+        if conditional_write:
+            _set_async_conditional_write_pending(True)
+        try:
+            response = await self._async_stub.Upsert(
+                request, timeout=timeout, metadata=_api_level_md(context)
+            )
+        except grpc.RpcError as exc:
+            if conditional_write:
+                raise MilvusException(
+                    code=ErrorCode.CONDITIONAL_UPSERT_EXECUTION,
+                    message="Conditional upsert outcome unknown; automatic replay is unsafe",
+                ) from exc
+            raise
+        if conditional_write:
+            # A received admission error can safely retry preparation. Only an
+            # unanswered write RPC makes an overall deadline outcome unknown.
+            _set_async_conditional_write_pending(False)
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(

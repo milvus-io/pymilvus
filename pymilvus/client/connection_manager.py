@@ -28,7 +28,11 @@ from pymilvus.client.global_topology import (
     TopologyRefresher,
     fetch_topology,
 )
-from pymilvus.exceptions import ConnectionConfigException, MilvusException
+from pymilvus.exceptions import (
+    _NON_REPLAYABLE_ERROR_CODES,
+    ConnectionConfigException,
+    MilvusException,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -703,6 +707,8 @@ class ConnectionManager:
             if error.code() != grpc.StatusCode.UNAVAILABLE:
                 return False
         elif isinstance(error, MilvusException):
+            if error.code in _NON_REPLAYABLE_ERROR_CODES:
+                return False
             if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
                 return False
         else:
@@ -1092,6 +1098,8 @@ class AsyncConnectionManager:
             if error.code() != grpc.StatusCode.UNAVAILABLE:
                 return False
         elif isinstance(error, MilvusException):
+            if error.code in _NON_REPLAYABLE_ERROR_CODES:
+                return False
             if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
                 return False
         else:

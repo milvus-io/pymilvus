@@ -18,6 +18,7 @@ from pymilvus.exceptions import (
     DataTypeNotMatchException,
     DataTypeNotSupportException,
     IndexNotExistException,
+    ParamError,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
 )
@@ -756,3 +757,11 @@ class TestQueryIteratorMethod:
     def test_query_iterator_non_str_expr_raises(self, collection):
         with pytest.raises(DataTypeNotMatchException):
             collection.query_iterator(batch_size=10, expr=123)
+
+
+def test_orm_rejects_conditional_upsert_before_connection_access():
+    collection = object.__new__(Collection)
+    with pytest.raises(ParamError, match="only by MilvusClient"):
+        collection.upsert(
+            [{"id": 1, "version": 12}], write_condition={"field": "version", "op": "gt"}
+        )

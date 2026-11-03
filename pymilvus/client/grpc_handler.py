@@ -1326,6 +1326,7 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
             field_ops=field_ops,
+            write_condition=kwargs.get("write_condition"),
             **Prepare._rls_context(kwargs),
         )
 
@@ -1346,7 +1347,15 @@ class GrpcHandler:
         request = self._prepare_row_upsert_request(
             collection_name, entities, partition_name, timeout, context=context, **kwargs
         )
-        response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(context))
+        try:
+            response = self._stub.Upsert(request, timeout=timeout, metadata=_api_level_md(context))
+        except grpc.RpcError as exc:
+            if request.HasField("write_condition"):
+                raise MilvusException(
+                    code=ErrorCode.CONDITIONAL_UPSERT_EXECUTION,
+                    message="Conditional upsert outcome unknown; automatic replay is unsafe",
+                ) from exc
+            raise
         check_status(response.status)
         m = MutationResult(response)
         ts_utils.update_collection_ts(

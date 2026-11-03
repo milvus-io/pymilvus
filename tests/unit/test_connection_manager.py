@@ -2733,3 +2733,34 @@ class TestAsyncMilvusClientChangedCode:
 
             await client.close()
             mock_manager.release.assert_called_once()
+
+
+@pytest.mark.parametrize("code", [5, 111, 112])
+def test_terminal_classification_blocks_sync_recovery_despite_redirect_cause(code):
+    mgr = ConnectionManager.get_instance()
+    config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+    with patch("pymilvus.client.grpc_handler.GrpcHandler") as handler_class:
+        handler_class.return_value = _make_sync_handler()
+        handler = mgr.get_or_create(config)
+        managed = mgr._get_managed(handler)
+        with patch.object(managed.strategy, "on_unavailable", return_value=True) as recover:
+            error = MilvusException(code=code, message="STREAMING_CODE_REPLICATE_VIOLATION")
+            assert mgr.handle_error(handler, error) is False
+            recover.assert_not_called()
+        handler.reconnect.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("code", [5, 111, 112])
+async def test_terminal_classification_blocks_async_recovery_despite_redirect_cause(code):
+    mgr = AsyncConnectionManager.get_instance()
+    config = ConnectionConfig.from_uri("http://localhost:19530", token="test")
+    with patch("pymilvus.client.async_grpc_handler.AsyncGrpcHandler") as handler_class:
+        handler_class.return_value = _make_async_handler()
+        handler = await mgr.get_or_create(config)
+        managed = mgr._get_managed(handler)
+        with patch.object(managed.strategy, "on_unavailable", return_value=True) as recover:
+            error = MilvusException(code=code, message="STREAMING_CODE_REPLICATE_VIOLATION")
+            assert await mgr.handle_error(handler, error) is False
+            recover.assert_not_called()
+        handler.reconnect.assert_not_called()

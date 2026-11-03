@@ -1357,7 +1357,9 @@ class Prepare:
         ops = normalize_field_ops(field_ops)
         # Non-REPLACE ops imply partial_update semantics; auto-promote so
         # callers do not need to set both kwargs explicitly.
-        effective_partial_update = partial_update or bool(ops)
+        effective_partial_update = (
+            partial_update or bool(ops) or kwargs.get("write_condition") is not None
+        )
         request = milvus_types.UpsertRequest(
             collection_name=collection_name,
             partition_name=p_name,
@@ -1376,7 +1378,53 @@ class Prepare:
             effective_partial_update,
         )
         cls._apply_field_ops(request, ops)
+        cls._apply_write_condition(request, kwargs.get("write_condition"), fields_info)
         return request
+
+    @staticmethod
+    def _apply_write_condition(
+        request: milvus_types.UpsertRequest, condition: Optional[Dict[str, Any]], fields_info: Any
+    ):
+        if condition is None:
+            return
+        if not isinstance(condition, dict) or set(condition) - {"field", "op", "on_missing"}:
+            raise ParamError(
+                message="write_condition must contain field, op and optional on_missing"
+            )
+        field = condition.get("field")
+        op = condition.get("op")
+        missing = condition.get("on_missing", "insert")
+        if not isinstance(field, str) or not field:
+            raise ParamError(message="write_condition.field must be a nonempty field name")
+        if not isinstance(op, str) or op.lower() not in ("gt", "gte"):
+            raise ParamError(message="write_condition.op must be gt or gte")
+        if not isinstance(missing, str) or missing.lower() not in ("insert", "skip", "error"):
+            raise ParamError(message="write_condition.on_missing must be insert, skip or error")
+        if field not in {info["name"] for info in fields_info}:
+            raise DataNotMatchException(
+                message=f"write_condition field {field!r} is absent from cached schema"
+            )
+        if field not in {data.field_name for data in request.fields_data}:
+            raise ParamError(message="write_condition version column must be supplied")
+        op_value = {"gt": milvus_types.WriteCondition.GT, "gte": milvus_types.WriteCondition.GTE}[
+            op.lower()
+        ]
+        for operation in request.field_ops:
+            if operation.op != schema_types.FieldPartialUpdateOp.REPLACE and (
+                operation.field_name == field or op_value == milvus_types.WriteCondition.GTE
+            ):
+                raise ParamError(message="write_condition is incompatible with field_ops")
+        request.write_condition.CopyFrom(
+            milvus_types.WriteCondition(
+                field=field,
+                op=op_value,
+                on_missing={
+                    "insert": milvus_types.WriteCondition.INSERT_IF_MISSING,
+                    "skip": milvus_types.WriteCondition.SKIP_IF_MISSING,
+                    "error": milvus_types.WriteCondition.ERROR_IF_MISSING,
+                }[missing.lower()],
+            )
+        )
 
     @staticmethod
     def _pre_insert_batch_check(

@@ -62,3 +62,24 @@ class TestAsyncConnectionReuse:
             AsyncConnectionManager._reset_instance()
             loop1.close()
             loop2.close()
+
+
+def test_async_conditional_upsert_result_indexes():
+    async def run():
+        client = object.__new__(AsyncMilvusClient)
+        result = MagicMock(upsert_count=2, primary_keys=[42, 44], succ_index=[0, 2], cost=0)
+        handler = MagicMock()
+        handler.upsert_rows = AsyncMock(return_value=result)
+        client._get_connection = AsyncMock(return_value=handler)
+        client._generate_call_context = MagicMock(return_value=None)
+        response = await client.upsert(
+            "col",
+            [{"id": 42}, {"id": 43}, {"id": 44}],
+            write_condition={"field": "version", "op": "gt"},
+        )
+        assert response["succ_index"] == [0, 2]
+        assert response["ids"] == [42, 44]
+        response = await client.upsert("col", [{"id": 42}])
+        assert "succ_index" not in response
+
+    asyncio.run(run())
