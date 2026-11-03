@@ -18,7 +18,7 @@ import pandas as pd
 from pandas.api.types import is_list_like, is_scalar
 
 from pymilvus.client.types import FunctionType, HighlightType
-from pymilvus.client.utils import convert_struct_fields_to_user_format
+from pymilvus.client.utils import check_dim_value, convert_struct_fields_to_user_format
 from pymilvus.exceptions import (
     AutoIDException,
     CannotInferSchemaException,
@@ -644,6 +644,9 @@ class FieldSchema:
                 if k in self._kwargs:
                     if self._type_params is None:
                         self._type_params = {}
+                    if k == "dim":
+                        self._type_params[k] = check_dim_value(self._kwargs[k])
+                        continue
                     if isinstance(self._kwargs[k], str):
                         if self._kwargs[k].lower() == "true":
                             self._type_params[k] = True

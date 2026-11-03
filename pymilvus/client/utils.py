@@ -15,6 +15,23 @@ from pymilvus.settings import Config
 from .constants import LOGICAL_BITS, LOGICAL_BITS_MASK
 from .types import DataType
 
+
+def check_dim_value(dim: Any) -> int:
+    """Validate a vector field's ``dim`` and return it as a positive int.
+
+    Digit strings are coerced to int for backward compatibility; booleans,
+    floats and everything else are rejected here instead of failing later on
+    the server with an error nobody can trace back to the field.
+    """
+    original = dim
+    if isinstance(dim, str):
+        if not dim.isdigit():
+            raise ParamError(message=f"dim should be a positive integer, got {original!r}")
+        dim = int(dim)
+    if isinstance(dim, bool) or not isinstance(dim, int) or dim <= 0:
+        raise ParamError(message=f"dim should be a positive integer, got {original!r}")
+    return dim
+
 MILVUS = "milvus"
 ZILLIZ = "zilliz"
 
