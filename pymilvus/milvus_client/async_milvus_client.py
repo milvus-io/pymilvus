@@ -691,7 +691,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         Requires server support; older servers may ignore function_chains. Exported
         output_columns are returned alongside ordinary output_fields.
 
-        ``ids=None`` leaves IDs unrestricted. An empty list returns ``[]`` without
+        ``ids=None`` leaves IDs unrestricted. An empty selection returns ``[]`` without
         sending a query RPC; connection and filter argument checks still apply.
         """
         if filter and not isinstance(filter, str):
@@ -705,7 +705,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
         conn = await self._get_connection()
 
-        if isinstance(ids, list) and not ids:
+        if ids is not None and not ids:
             return []
 
         if ids:

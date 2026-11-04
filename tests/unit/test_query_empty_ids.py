@@ -49,9 +49,10 @@ async def _query(client, **kwargs):
 
 
 @pytest.mark.asyncio
-async def test_query_empty_ids_does_not_request_unfiltered_rows(query_client):
+@pytest.mark.parametrize("ids", [[], (), set()], ids=["list", "tuple", "set"])
+async def test_query_empty_ids_does_not_request_unfiltered_rows(query_client, ids):
     client, get_connection, rpc = query_client
-    assert await _query(client, ids=[]) == []
+    assert await _query(client, ids=ids) == []
     get_connection.assert_called_once()
     rpc.assert_not_called()
 
@@ -65,6 +66,8 @@ async def test_query_empty_ids_does_not_request_unfiltered_rows(query_client):
         ({"ids": 0}, "id in [0]", [0]),
         ({"ids": ""}, "id in ['']", [""]),
         ({"ids": [1, 2]}, "id in [1,2]", [1, 2]),
+        ({"ids": (1,)}, "id in [1]", [1]),
+        ({"ids": {1}}, "id in [1]", [1]),
         ({"filter": "id > 0"}, "id > 0", [1, 2]),
         (
             {"filter": "id > {minimum}", "filter_params": {"minimum": 0}},
@@ -104,25 +107,27 @@ async def test_query_other_selectors_keep_real_request_path(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("ids", [[], (), set()], ids=["list", "tuple", "set"])
 @pytest.mark.parametrize(
     "filter_value,error",
     [("id > 0", ParamError), (123, DataTypeNotMatchException)],
 )
-async def test_empty_ids_preserves_filter_validation(query_client, filter_value, error):
+async def test_empty_ids_preserves_filter_validation(query_client, filter_value, error, ids):
     client, get_connection, rpc = query_client
     with pytest.raises(error):
-        await _query(client, ids=[], filter=filter_value)
+        await _query(client, ids=ids, filter=filter_value)
     get_connection.assert_not_called()
     rpc.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_query_empty_ids_preserves_closed_client_guard(query_client, monkeypatch):
+@pytest.mark.parametrize("ids", [[], (), set()], ids=["list", "tuple", "set"])
+async def test_query_empty_ids_preserves_closed_client_guard(query_client, monkeypatch, ids):
     client, _, rpc = query_client
     monkeypatch.setattr(client, "_get_connection", type(client)._get_connection.__get__(client))
     closed = client.close()
     if inspect.isawaitable(closed):
         await closed
     with pytest.raises(MilvusException, match="should create connection first"):
-        await _query(client, ids=[])
+        await _query(client, ids=ids)
     rpc.assert_not_called()
