@@ -2442,8 +2442,25 @@ class Prepare:
         output_fields: List[str],
         partition_names: List[str],
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ):
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if chains is None:
+            chains = []
+        if not isinstance(chains, list) or not all(isinstance(c, FunctionChain) for c in chains):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        if len(chains) > 1:
+            raise ParamError(message="query supports at most one QUERY_SCAN function chain")
+        for chain in chains:
+            if chain.stage != FunctionChainStage.QUERY_SCAN:
+                raise ParamError(message="query function chains require QUERY_SCAN stage")
+            if not chain.ops:
+                raise ParamError(message="query function chain must contain at least one op")
         req = milvus_types.QueryRequest(
             db_name="",
             collection_name=collection_name,
@@ -2454,6 +2471,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            function_chains=[chain.to_proto() for chain in chains],
             namespace=kwargs.get("namespace"),
             **cls._rls_context(kwargs),
         )
