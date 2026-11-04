@@ -324,9 +324,8 @@ class Buffer:
         data = {}
         for k, v in self._buffer.items():
             field_schema = self._fields[k]
-            if field_schema.dtype == DataType.JSON:
-                data[k] = [json.dumps(val) for val in v]
-            elif field_schema.dtype == DataType.SPARSE_FLOAT_VECTOR:
+            if field_schema.dtype in {DataType.JSON, DataType.SPARSE_FLOAT_VECTOR}:
+                # A null value must stay a Parquet null, not the JSON text "null"
                 data[k] = [None if val is None else json.dumps(val) for val in v]
             elif field_schema.dtype in {DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR}:
                 arr = []
