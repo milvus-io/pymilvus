@@ -5,7 +5,7 @@ consumers decide materialization policy and call these helpers for the shared
 type facts: protobuf slot, row width, and validity-mask handling.
 """
 
-from typing import Any, List, Optional
+from typing import Any, Iterator, List, Optional
 
 import orjson
 
@@ -222,6 +222,46 @@ def decode_range(field_data: Any, start: int, end: int) -> List[Any]:
         ]
 
     return [decode_cell(field_data, index) for index in range(start, end)]
+
+
+def iter_vector_range(field_data: Any, start: int, end: int) -> Iterator[Any]:
+    """Decode consecutive dense/sparse rows without repeated payload reads.
+
+    Nullable vector payloads omit null rows. Count preceding values once, then
+    advance through the physical rows as values are consumed. Yielding each
+    cell preserves the caller's partial progress if a later cell is invalid.
+    """
+    if start >= end:
+        return
+
+    valid_data = field_data.valid_data
+    has_validity = len(valid_data) > 0
+    physical = physical_index(field_data, start)
+    is_dense = type_info.is_dense_vector_type(field_data.type)
+    data = None
+    width = None
+
+    for index in range(start, end):
+        if has_validity and valid_data[index] is False:
+            yield None
+            continue
+
+        # Defer metadata validation and payload reads until a non-null cell,
+        # matching decode_cell for all-null results and invalid dimensions.
+        if data is None:
+            if is_dense:
+                width = dense_vector_width(field_data.type, field_data.vectors.dim)
+                data = get_field_data(field_data)
+            else:
+                data = field_data.vectors.sparse_float_vector.contents
+
+        if is_dense:
+            offset = physical * width
+            limit = offset + width
+            yield None if len(data) < limit else data[offset:limit]
+        else:
+            yield None if physical >= len(data) else sparse_parse_single_row(data[physical])
+        physical += 1
 
 
 def _resolve_vector_array_element_type(vector_data: Any, element_type: DataType) -> DataType:

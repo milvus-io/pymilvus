@@ -261,6 +261,18 @@ class TestCheckInvalidBinaryVector:
 
 
 class TestSparseParseSingleRow:
+    @pytest.mark.parametrize("container", [bytes, bytearray, memoryview])
+    def test_duplicate_indices_and_native_value_encoding(self, container):
+        data = b"".join(
+            struct.pack("If", index, value)
+            for index, value in [(7, 1.0), (2, -0.5), (7, 3.0), (2**32 - 1, float("inf"))]
+        )
+
+        result = utils.sparse_parse_single_row(container(data))
+
+        assert list(result) == [7, 2, 2**32 - 1]
+        assert result == {7: 3.0, 2: -0.5, 2**32 - 1: float("inf")}
+
     def test_basic_parsing(self):
         data = struct.pack("If", 0, 1.0) + struct.pack("If", 1, 2.0)
         result = utils.sparse_parse_single_row(data)

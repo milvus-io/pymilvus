@@ -70,7 +70,6 @@ class HybridHits(list):
         self.lazy_field_data = []
         self.has_materialized = False
         self.start = start
-        self._prefix_sum_cache = {}
 
         offsets = all_offsets[start:end] if all_offsets else None
 
@@ -131,44 +130,25 @@ class HybridHits(list):
         self.materialize()
         return super().__iter__()
 
-    def _get_physical_index(self, field_data: Any, logical_index: int) -> int:
-        """Calculate physical index for nullable vectors with sparse storage.
-
-        Uses prefix sum for O(1) lookup instead of O(n) iteration.
-        Caches prefix sum in instance variable using field_data id as key.
-        """
-        field_id = id(field_data)
-        if field_id not in self._prefix_sum_cache:
-            if len(field_data.valid_data) == 0:
-                self._prefix_sum_cache[field_id] = None
-            else:
-                self._prefix_sum_cache[field_id] = np.cumsum(
-                    [0] + [1 if v else 0 for v in field_data.valid_data]
-                )
-        prefix_sum = self._prefix_sum_cache[field_id]
-        if prefix_sum is None:
-            return logical_index
-        return int(prefix_sum[logical_index])
-
     def materialize(self):
         if not self.has_materialized:
             n = len(self)
             for field_data in self.lazy_field_data:
                 field_name = field_data.field_name
 
-                if is_dense_vector_type(field_data.type) or field_data.type in (
-                    DataType.SPARSE_FLOAT_VECTOR,
-                    DataType._ARRAY_OF_VECTOR,
-                ):
+                if is_dense_vector_type(field_data.type) or is_sparse_vector_type(field_data.type):
+                    values = field_data_extractors.iter_vector_range(
+                        field_data, self.start, self.start + n
+                    )
+                    for i, value in enumerate(values):
+                        self.get_raw_item(i)["entity"][field_name] = value
+                elif field_data.type == DataType._ARRAY_OF_VECTOR:
                     for i in range(n):
                         item = self.get_raw_item(i)
                         actual_idx = self.start + i
                         item["entity"][field_name] = field_data_extractors.decode_cell(
                             field_data,
                             actual_idx,
-                            physical_index_override=self._get_physical_index(
-                                field_data, actual_idx
-                            ),
                         )
                 elif field_data.type == DataType.JSON:
                     idx = self.start

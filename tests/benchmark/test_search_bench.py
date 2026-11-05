@@ -1,3 +1,5 @@
+import struct
+
 import pytest
 from pymilvus import DataType, MilvusClient
 
@@ -9,6 +11,58 @@ from .conftest import (
 
 
 class TestSearchBench:
+    @pytest.mark.parametrize("vector_field", ["embedding", "float16_vector", "sparse_vector"])
+    @pytest.mark.parametrize(
+        ("num_queries", "top_k", "nullable"), [(1, 10, False), (1, 10000, False), (100, 100, True)]
+    )
+    def test_search_materialize_vectors(
+        self, benchmark, mocked_milvus_client, vector_field, num_queries, top_k, nullable
+    ):
+        output_fields = ["age", "name", "json_field", vector_field]
+        response = mock_responses.create_search_results_from_schema(
+            get_default_test_schema(), num_queries, top_k, output_fields
+        )
+        total = num_queries * top_k
+        validity = [i % 4 != 1 for i in range(total)]
+        present = sum(validity) if nullable else total
+        vector = response.results.fields_data[-1].vectors
+        if vector_field == "sparse_vector":
+            row = b"".join(struct.pack("If", i * 3, i / 16.0) for i in range(64))
+            vector.sparse_float_vector.contents[:] = [row] * present
+        elif nullable and vector_field == "embedding":
+            del vector.float_vector.data[present * vector.dim :]
+        elif nullable:
+            vector.float16_vector = vector.float16_vector[: present * vector.dim * 2]
+        if nullable:
+            for field in response.results.fields_data:
+                field.valid_data.extend(validity)
+
+        setup_search_mock(mocked_milvus_client, lambda *args, **kwargs: response)
+        query_vectors = [[0.1] * 128] * num_queries
+
+        def search_and_read_fields():
+            result = mocked_milvus_client.search(
+                collection_name="test_collection",
+                data=query_vectors,
+                limit=top_k,
+                output_fields=output_fields,
+            )
+            count = 0
+            vector_values = 0
+            for hits in result:
+                for hit in hits:
+                    for name in output_fields:
+                        value = hit["entity"][name]
+                        if name == vector_field and value is not None:
+                            vector_values += len(value)
+                    count += 1
+            return count, vector_values
+
+        count, vector_values = benchmark(search_and_read_fields)
+        assert count == total
+        width = {"embedding": 128, "float16_vector": 256, "sparse_vector": 64}[vector_field]
+        assert vector_values == present * width
+
     @pytest.mark.benchmark(group="nullable_large_topk_varchar")
     def test_search_nullable_varchar_256_topk_100000(self, benchmark, mocked_milvus_client):
         schema = MilvusClient.create_schema()
