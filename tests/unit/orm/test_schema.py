@@ -1919,6 +1919,12 @@ class TestFunctionOutputFieldHandling:
         df = pd.DataFrame({"pk": [1, 2], "vec": [[1.0, 2.0], [3.0, 4.0]]})
         check_upsert_schema(schema, df)
 
+    def test_check_upsert_schema_skips_function_output(self):
+        """Function output fields should be excluded from upsert column checks."""
+        schema = self._schema_with_function_output()
+        df = pd.DataFrame({"pk": [1], "text": ["hello"]})
+        check_upsert_schema(schema, df)
+
     def test_check_upsert_schema_list_data(self):
         """check_upsert_schema with list-based column data."""
         schema = CollectionSchema(
