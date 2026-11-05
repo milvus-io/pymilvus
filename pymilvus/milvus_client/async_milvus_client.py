@@ -2112,7 +2112,7 @@ class AsyncMilvusClient(BaseMilvusClient):
 
     async def cancel_requests(
         self,
-        request_ids: Sequence[int],
+        request_ids: Sequence[str],
         reason: str = "",
         user: Optional[str] = None,
         timeout: Optional[float] = None,

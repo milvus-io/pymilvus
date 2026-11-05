@@ -1681,10 +1681,11 @@ class RunningRequest:
     """A Search, HybridSearch or Query that a proxy is executing.
 
     Returned by ``MilvusClient.list_running_requests``; ``request_id`` is the
-    handle that ``MilvusClient.cancel_requests`` takes.
+    handle that ``MilvusClient.cancel_requests`` takes. It is an opaque string
+    such as ``"25-to03zu-rs"``; pass it back unchanged.
     """
 
-    request_id: int
+    request_id: str
     proxy_id: int
     type: str
     db_name: str
@@ -1762,8 +1763,8 @@ class CancelRequestsResult:
     """
 
     canceled: List[RunningRequest] = field(default_factory=list)
-    not_found: List[int] = field(default_factory=list)
-    undetermined: List[int] = field(default_factory=list)
+    not_found: List[str] = field(default_factory=list)
+    undetermined: List[str] = field(default_factory=list)
     node_results: List[RequestNodeResult] = field(default_factory=list)
 
     def __repr__(self) -> str:

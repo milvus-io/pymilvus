@@ -538,18 +538,24 @@ class TestRunningRequestRequests:
             Prepare.list_running_requests_request(min_elapsed_ms=value)
 
     def test_cancel_requests_basic(self):
-        req = Prepare.cancel_requests_request([1, 2, 3], reason="slow", user="alice")
-        assert list(req.request_ids) == [1, 2, 3]
+        req = Prepare.cancel_requests_request(
+            ["25-to03zu-1", "25-to03zu-2", "25-to03zu-3"], reason="slow", user="alice"
+        )
+        assert list(req.request_ids) == ["25-to03zu-1", "25-to03zu-2", "25-to03zu-3"]
         assert req.reason == "slow"
         assert req.user == "alice"
 
-    def test_cancel_requests_accepts_any_int_sequence(self):
-        req = Prepare.cancel_requests_request((7,))
-        assert list(req.request_ids) == [7]
+    def test_cancel_requests_accepts_any_str_sequence(self):
+        req = Prepare.cancel_requests_request(("25-to03zu-1",))
+        assert list(req.request_ids) == ["25-to03zu-1"]
         assert req.reason == ""
         assert req.user == ""
 
-    @pytest.mark.parametrize("ids", [[], None, "12", [1, "2"], [1.0], [True]])
+    # ids are the strings list_running_requests returned; the old numeric form
+    # is rejected rather than converted
+    @pytest.mark.parametrize(
+        "ids", [[], None, "25-to03zu-1", [1], ["25-to03zu-1", 2], [""], [True], [b"25-to03zu-1"]]
+    )
     def test_cancel_requests_rejects_bad_ids(self, ids):
         with pytest.raises(ParamError):
             Prepare.cancel_requests_request(ids)

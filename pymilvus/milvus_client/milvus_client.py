@@ -2753,7 +2753,7 @@ class MilvusClient(BaseMilvusClient):
 
     def cancel_requests(
         self,
-        request_ids: Sequence[int],
+        request_ids: Sequence[str],
         reason: str = "",
         user: Optional[str] = None,
         timeout: Optional[float] = None,
@@ -2768,7 +2768,8 @@ class MilvusClient(BaseMilvusClient):
         own requests.
 
         Args:
-            request_ids (``List[int]``): Ids to cancel. Must not be empty.
+            request_ids (``List[str]``): Ids to cancel, as ``list_running_requests``
+                returned them. Must not be empty.
             reason (``str``, optional): Free text recorded in the audit log and
                 returned to the client whose request was canceled.
             user (``str``, optional): Only cancel requests issued by this user;
@@ -2783,7 +2784,7 @@ class MilvusClient(BaseMilvusClient):
                 proxy that did not answer may still be running.
 
         Raises:
-            ParamError: If ``request_ids`` is empty or not a list of int.
+            ParamError: If ``request_ids`` is empty or not a list of str.
             MilvusException: If anything goes wrong.
         """
         conn = self._get_connection()

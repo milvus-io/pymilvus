@@ -388,13 +388,19 @@ class TestAsyncGrpcHandlerRunningRequests:
                 status=common_pb2.Status(code=0),
                 requests=[
                     milvus_types.RunningRequestInfo(
-                        request_id=9, proxy_id=1, type="Query", state="Running", elapsed_ms=40
+                        request_id="25-to03zu-9",
+                        proxy_id=1,
+                        type="Query",
+                        state="Running",
+                        elapsed_ms=40,
                     )
                 ],
             )
         )
         result = await handler.list_running_requests(collection_name="c1", min_elapsed_ms=10)
-        assert [(r.request_id, r.type, r.elapsed_ms) for r in result] == [(9, "Query", 40)]
+        assert [(r.request_id, r.type, r.elapsed_ms) for r in result] == [
+            ("25-to03zu-9", "Query", 40)
+        ]
         req = handler._async_stub.ListRunningRequests.call_args.args[0]
         assert req.collection_name == "c1"
         assert req.min_elapsed_ms == 10
@@ -405,16 +411,18 @@ class TestAsyncGrpcHandlerRunningRequests:
         handler._async_stub.CancelRequests = AsyncMock(
             return_value=milvus_types.CancelRequestsResponse(
                 status=common_pb2.Status(code=0),
-                canceled=[milvus_types.RunningRequestInfo(request_id=9, state="Canceling")],
-                not_found=[10],
+                canceled=[
+                    milvus_types.RunningRequestInfo(request_id="25-to03zu-9", state="Canceling")
+                ],
+                not_found=["25-to03zu-a"],
             )
         )
-        result = await handler.cancel_requests([9, 10], reason="ops")
-        assert [r.request_id for r in result.canceled] == [9]
-        assert result.not_found == [10]
+        result = await handler.cancel_requests(["25-to03zu-9", "25-to03zu-a"], reason="ops")
+        assert [r.request_id for r in result.canceled] == ["25-to03zu-9"]
+        assert result.not_found == ["25-to03zu-a"]
         assert result.undetermined == []
         req = handler._async_stub.CancelRequests.call_args.args[0]
-        assert list(req.request_ids) == [9, 10]
+        assert list(req.request_ids) == ["25-to03zu-9", "25-to03zu-a"]
         assert req.reason == "ops"
 
     @pytest.mark.asyncio

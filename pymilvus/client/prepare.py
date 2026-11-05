@@ -2788,17 +2788,17 @@ class Prepare:
     @classmethod
     def cancel_requests_request(
         cls,
-        request_ids: Sequence[int],
+        request_ids: Sequence[str],
         reason: str = "",
         user: Optional[str] = None,
     ):
         if request_ids is None or isinstance(request_ids, (str, bytes)):
-            raise ParamError(message="request_ids must be a list of int")
+            raise ParamError(message="request_ids must be a list of str")
         request_ids = list(request_ids)
         if len(request_ids) == 0:
             raise ParamError(message="request_ids must not be empty")
         for request_id in request_ids:
-            if isinstance(request_id, bool) or not isinstance(request_id, int):
+            if not isinstance(request_id, str) or not request_id:
                 raise ParamError(message=f"request_id value {request_id} is illegal")
         return milvus_types.CancelRequestsRequest(
             request_ids=request_ids,
