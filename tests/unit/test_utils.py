@@ -318,6 +318,31 @@ class TestConvertStructFieldsToUserFormat:
             }
         ]
 
+    def test_struct_params_are_kept(self):
+        converted = utils.convert_struct_fields_to_user_format(
+            [
+                {
+                    "field_id": 10,
+                    "name": "metadata",
+                    "params": {"mmap_enabled": True, "warmup": "disable"},
+                    "fields": [
+                        {
+                            "field_id": 11,
+                            "name": "metadata[score]",
+                            "element_type": DataType.FLOAT,
+                            "params": {"max_capacity": "16"},
+                        }
+                    ],
+                }
+            ]
+        )
+
+        assert converted[0]["params"] == {
+            "mmap_enabled": True,
+            "warmup": "disable",
+            "max_capacity": "16",
+        }
+
     def test_strip_struct_sub_field_name_passthrough(self):
         assert utils.strip_struct_sub_field_name("metadata", "score") == "score"
 
