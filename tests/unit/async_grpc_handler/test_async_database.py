@@ -157,7 +157,7 @@ class TestAsyncGrpcHandlerDatabase:
             mock_stub.AlterDatabase.assert_called_once()
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True, {}, None])
     async def test_alter_database_invalid_properties(self, invalid_properties: object) -> None:
         """Test alter_database async API with invalid properties raises ParamError"""
         mock_channel = MagicMock()

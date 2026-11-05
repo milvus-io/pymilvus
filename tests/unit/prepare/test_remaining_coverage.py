@@ -190,6 +190,12 @@ class TestDatabaseRequests:
         req = Prepare.alter_database_properties_req("test_db", {"prop1": "value1"})
         assert req.db_name == "test_db"
 
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True, {}, None])
+    def test_alter_database_properties_invalid(self, invalid_properties):
+        """Test alter database properties with invalid/empty properties raises ParamError."""
+        with pytest.raises(ParamError):
+            Prepare.alter_database_properties_req("test_db", invalid_properties)
+
     def test_drop_database_properties(self):
         """Test drop database properties request."""
         req = Prepare.drop_database_properties_req("test_db", ["prop1", "prop2"])

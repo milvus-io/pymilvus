@@ -52,7 +52,7 @@ class TestGrpcHandlerDatabaseOps:
         handler.alter_database("db", {"key": "value"})
         handler._stub.AlterDatabase.assert_called_once()
 
-    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True, {}, None])
     def test_alter_database_invalid_properties(self, handler, invalid_properties):
         with pytest.raises(ParamError):
             handler.alter_database("db", invalid_properties)
