@@ -10,6 +10,7 @@ from pymilvus import CollectionSchema, DataType, FieldOp, FieldSchema
 from pymilvus.client.abstract import StructArrayFieldSchema
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
+from pymilvus.client.call_context import CallContext
 from pymilvus.client.entity_helper import (
     convert_to_array,
     convert_to_array_of_vector,
@@ -816,7 +817,7 @@ def test_path_replace_rejects_noncanonical_struct_path(path):
 
 
 def test_path_replace_unknown_child_and_extra_operand_sibling_are_rejected():
-    with pytest.raises(ParamError, match="not found"):
+    with pytest.raises(DataNotMatchException, match="not found"):
         path_replace_request(make_schema(), [{"id": 1, "clips": [{"unknown": 1}]}], "[0][unknown]")
     with pytest.raises(DataNotMatchException, match="unexpected fields"):
         path_replace_request(
@@ -891,3 +892,96 @@ def test_path_replace_struct_operand_keeps_numpy_row_support():
     field = request.fields_data[1].struct_arrays.fields[0]
     assert field.field_name == "score"
     assert list(field.scalars.array_data.data[0].long_data.data) == [9]
+
+
+@pytest.mark.parametrize("path", ["[0][embedding]", "[0]"])
+@pytest.mark.parametrize("value", [[1.0, 2.0], None])
+def test_path_replace_vector_operand_sets_both_dims(path, value):
+    request = path_replace_request(
+        make_schema(), [{"id": 1, "clips": [{"embedding": value}]}], path
+    )
+    vector = request.fields_data[1].struct_arrays.fields[0].vectors
+    assert vector.dim == vector.vector_array.dim == 2
+    assert vector.vector_array.element_type == DataType.FLOAT_VECTOR
+    row = vector.vector_array.data[0]
+    assert row.dim == 2
+    assert list(row.valid_data) == [value is not None]
+    assert list(row.float_vector.data) == (value if value is not None else [])
+
+
+def test_empty_struct_vector_column_sets_both_dims():
+    request = Prepare.row_insert_param(
+        "videos", [{"id": 1, "clips": []}], "", [PK], [wire_info(make_schema())]
+    )
+    vector = request.fields_data[1].struct_arrays.fields[0].vectors
+    assert vector.dim == vector.vector_array.dim == 2
+    assert vector.vector_array.element_type == DataType.FLOAT_VECTOR
+    assert len(vector.vector_array.data) == 1
+    assert vector.vector_array.data[0].dim == 2
+    assert not vector.vector_array.data[0].float_vector.data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("child_added", [False, True])
+async def test_path_replace_refreshes_stale_schema_before_sending_child(asynchronous, child_added):
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler_type = AsyncGrpcHandler if asynchronous else GrpcHandler
+    handler = handler_type(uri="http://unit-test:1", channel=channel)
+    stub = AsyncMock() if asynchronous else MagicMock()
+    if asynchronous:
+        handler._async_stub = stub
+    else:
+        handler._stub = stub
+    schema = make_schema()
+    cached = {"fields": [PK], "struct_array_fields": [wire_info(schema)], "update_timestamp": 1}
+    if child_added:
+        schema.struct_fields[0].add_field("lang", DataType.INT64, nullable=True)
+    stub.DescribeCollection.return_value = milvus_pb2.DescribeCollectionResponse(
+        status=common_pb2.Status(),
+        schema=Prepare.get_schema_from_collection_schema("videos", schema),
+        update_timestamp=2,
+    )
+    stub.Upsert.return_value = milvus_pb2.MutationResult(
+        status=common_pb2.Status(),
+        upsert_cnt=1,
+        timestamp=42,
+    )
+    context = CallContext(db_name="test_db")
+    GlobalCache._reset_for_testing()
+    GlobalCache.schema.set(handler.server_address, context.get_db_name(), "videos", cached)
+    try:
+
+        async def upsert():
+            result = handler.upsert_rows(
+                "videos",
+                [{"id": 1, "clips": [{"lang": 7}]}],
+                context=context,
+                field_ops={"clips": FieldOp.path_replace("[0][lang]")},
+            )
+            return await result if asynchronous else result
+
+        if child_added:
+            result = await upsert()
+            assert result.upsert_count == 1
+            stub.Upsert.assert_called_once()
+            request = stub.Upsert.call_args.args[0]
+            assert request.schema_timestamp == 2
+            assert request.field_ops[0].path == "[0][lang]"
+            fields = request.fields_data[1].struct_arrays.fields
+            assert [field.field_name for field in fields] == ["lang"]
+            assert list(fields[0].scalars.array_data.data[0].long_data.data) == [7]
+        else:
+            with pytest.raises(DataNotMatchException, match="not found"):
+                await upsert()
+            stub.Upsert.assert_not_called()
+        stub.DescribeCollection.assert_called_once()
+        refreshed = GlobalCache.schema.get(handler.server_address, context.get_db_name(), "videos")
+        assert refreshed["update_timestamp"] == 2
+        if asynchronous:
+            stub.DescribeCollection.assert_awaited_once()
+            if child_added:
+                stub.Upsert.assert_awaited_once()
+    finally:
+        GlobalCache._reset_for_testing()

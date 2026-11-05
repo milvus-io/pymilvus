@@ -837,7 +837,8 @@ class Prepare:
                 field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector([], field_info)
@@ -895,7 +896,8 @@ class Prepare:
                 field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector(values, field_info)
@@ -1640,7 +1642,9 @@ class Prepare:
                     if Prepare._strip_struct_sub_field_name(name, field["name"]) == child
                 ]
                 if not fields:
-                    raise ParamError(message=f"PATH_REPLACE child {child!r} not found in {name!r}")
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE child {child!r} not found in {name!r}"
+                    )
                 selected_struct = {**struct, "fields": fields}
             for entity in entities:
                 if not isinstance(entity, dict):
