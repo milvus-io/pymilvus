@@ -61,8 +61,7 @@ def construct_guarantee_ts(
         return True
 
     consistency_level = kwargs.get("consistency_level")
-    use_default = consistency_level is None
-    if use_default:
+    if consistency_level is None:
         # in case of the default consistency is Customized or Session,
         # we set guarantee_timestamp to the cached mutation ts or 1
         kwargs[GUARANTEE_TIMESTAMP] = (
@@ -86,4 +85,4 @@ def construct_guarantee_ts(
     else:
         # Users customize the consistency level, no modification on `guarantee_timestamp`.
         kwargs.setdefault(GUARANTEE_TIMESTAMP, get_eventually_ts())
-    return use_default
+    return False

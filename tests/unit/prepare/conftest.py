@@ -5,6 +5,8 @@ from typing import Optional
 import numpy as np
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema, Function, FunctionType
+from pymilvus.client.abstract import StructArrayFieldSchema
+from pymilvus.client.prepare import Prepare
 from pymilvus.orm.schema import FunctionScore, LexicalHighlighter, StructFieldSchema
 
 # ============================================================
@@ -186,9 +188,9 @@ def make_fields_info(schema: CollectionSchema):
 
 
 def make_struct_fields_info(schema: CollectionSchema):
-    """Extract struct fields info from CollectionSchema."""
-    schema_dict = schema.to_dict()
-    return schema_dict.get("struct_fields", [])
+    """Struct fields info in the describe format the handlers pass to Prepare."""
+    proto = Prepare.get_schema_from_collection_schema("test", schema)
+    return [StructArrayFieldSchema(field).dict() for field in proto.struct_array_fields]
 
 
 def generate_vectors(count: int, dim: int, dtype: str = "float32") -> list:

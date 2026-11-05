@@ -279,3 +279,58 @@ def test_normalize_field_ops_rejects_out_of_range_int():
         normalize_field_ops({"tags": 99})
     with pytest.raises(ParamError, match="invalid field_op enum value"):
         normalize_field_ops({"tags": -1})
+
+
+@pytest.mark.parametrize("path", [None, 1, ""])
+def test_path_replace_factory_requires_string_path(path):
+    with pytest.raises(ParamError, match="non-empty string path"):
+        FieldOp.path_replace(path)
+
+
+@pytest.mark.parametrize("path", ["[1]", "[1][tags]", '["profile"]["name"]'])
+def test_path_replace_factory_and_raw_proto_keep_path(array_schema, path):
+    op = FieldOp.path_replace(path)
+    op.field_name = "ignored_proto_name"
+    snapshot = op.SerializeToString()
+    request = Prepare.row_upsert_param(
+        "videos",
+        [{"pk": 1, "tags": [9]}],
+        "",
+        _fields_info(array_schema),
+        field_ops={"tags": op},
+    )
+    assert request.partial_update
+    assert request.field_ops[0] == schema_pb2.FieldPartialUpdateOp(
+        field_name="tags", op=FieldOpType.PATH_REPLACE, path=path
+    )
+    assert op.SerializeToString() == snapshot
+
+
+@pytest.mark.parametrize("op", [FieldOpType.PATH_REPLACE, schema_pb2.FieldPartialUpdateOp(op=3)])
+def test_path_replace_requires_path_even_for_raw_proto_or_enum(op):
+    with pytest.raises(ParamError, match="requires a path"):
+        normalize_field_ops({"tags": op})
+
+
+@pytest.mark.parametrize(
+    "op", [FieldOpType.REPLACE, FieldOpType.ARRAY_APPEND, FieldOpType.ARRAY_REMOVE]
+)
+def test_path_rejected_on_other_ops(op):
+    with pytest.raises(ParamError, match="only supported for PATH_REPLACE"):
+        normalize_field_ops({"tags": schema_pb2.FieldPartialUpdateOp(op=op, path="[0]")})
+
+
+def test_batch_array_path_replace_preserves_singleton_payload_and_path(array_schema):
+    request = Prepare.batch_upsert_param(
+        "videos",
+        [
+            {"name": "pk", "type": DataType.INT64, "values": [1]},
+            {"name": "tags", "type": DataType.ARRAY, "values": [[9]]},
+        ],
+        "",
+        _fields_info(array_schema),
+        field_ops={"tags": FieldOp.path_replace("[2]")},
+    )
+    assert request.partial_update
+    assert request.field_ops[0].path == "[2]"
+    assert list(request.fields_data[1].scalars.array_data.data[0].long_data.data) == [9]

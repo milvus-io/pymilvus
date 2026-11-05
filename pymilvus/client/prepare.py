@@ -55,7 +55,7 @@ from .constants import (
     STRICT_CAST,
     STRICT_GROUP_SIZE,
 )
-from .entity_helper import convert_to_array, convert_to_array_of_vector, set_array_element_type
+from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .field_ops import FieldOpsInput, normalize_field_ops
 from .search_aggregation import SearchAggregation
 from .type_info import (
@@ -197,6 +197,7 @@ class Prepare:
                 is_primary_key=f.is_primary,
                 default_value=f.default_value,
                 nullable=f.nullable,
+                element_nullable=f.element_nullable,
                 autoID=f.auto_id,
                 is_partition_key=f.is_partition_key,
                 is_dynamic=f.is_dynamic,
@@ -255,39 +256,91 @@ class Prepare:
                 struct_schema.type_params.append(kv_pair)
 
         for f in struct.fields:
-            if isVectorDataType(f.dtype):
-                actual_dtype = DataType._ARRAY_OF_VECTOR
-                actual_element_type = f.dtype
-            else:
-                actual_dtype = DataType.ARRAY
-                actual_element_type = f.dtype
-
-            field_schema = schema_types.FieldSchema(
-                name=f.name,
-                data_type=actual_dtype,
-                description=f.description,
-                is_primary_key=f.is_primary,
-                default_value=f.default_value,
-                nullable=struct.nullable,
-                autoID=f.auto_id,
-                is_partition_key=f.is_partition_key,
-                is_dynamic=f.is_dynamic,
-                element_type=actual_element_type,
-                is_clustering_key=f.is_clustering_key,
-                is_function_output=f.is_function_output,
+            struct_schema.fields.append(
+                Prepare.get_struct_sub_field_schema(f, struct.nullable, struct.max_capacity)
             )
 
-            field_params = dict(f.params) if f.params else {}
-            field_params["max_capacity"] = struct.max_capacity
-
-            for k, v in field_params.items():
-                kv_pair = common_types.KeyValuePair(
-                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
-                )
-                field_schema.type_params.append(kv_pair)
-            struct_schema.fields.append(field_schema)
-
         return struct_schema
+
+    @staticmethod
+    def get_struct_sub_field_schema(
+        field: FieldSchema, row_nullable: bool, max_capacity: Optional[int] = None
+    ) -> schema_types.FieldSchema:
+        validation = StructFieldSchema()
+        validation._fields = [field]
+        validation._check_fields()
+        proto, _, _ = Prepare.get_field_schema(field.to_dict())
+        proto.nullable = row_nullable
+        proto.element_nullable = field.nullable
+        proto.element_type = field.dtype
+        proto.data_type = (
+            DataType._ARRAY_OF_VECTOR if isVectorDataType(field.dtype) else DataType.ARRAY
+        )
+        params = dict(field.params)
+        if "max_capacity" in field._kwargs:
+            params.setdefault("max_capacity", field._kwargs["max_capacity"])
+        if field.dtype == DataType.ARRAY:
+            if "max_capacity" not in params:
+                raise ParamError(
+                    message=f"max_capacity is required for Array sub-field {field.name}"
+                )
+            inner_capacity = params.pop("max_capacity")
+            leaf_params = {}
+            if "max_length" in params:
+                leaf_params["max_length"] = params.pop("max_length")
+            leaf = schema_types.TypeSchema(
+                leaf_type=field.element_type,
+                nullable=field.element_nullable,
+                type_params=Prepare._schema_type_params(leaf_params),
+            )
+            inner = schema_types.TypeSchema(
+                nullable=field.nullable,
+                array_element=leaf,
+                type_params=Prepare._schema_type_params({"max_capacity": inner_capacity}),
+            )
+            proto.type_schema.CopyFrom(
+                schema_types.TypeSchema(nullable=row_nullable, array_element=inner)
+            )
+            if max_capacity is not None:
+                proto.type_schema.type_params.extend(
+                    Prepare._schema_type_params({"max_capacity": max_capacity})
+                )
+        if max_capacity is not None:
+            params["max_capacity"] = max_capacity
+        del proto.type_params[:]
+        proto.type_params.extend(Prepare._schema_type_params(params))
+        return proto
+
+    @staticmethod
+    def _schema_type_params(params: Dict) -> List:
+        return [
+            common_types.KeyValuePair(
+                key="mmap.enabled" if key == "mmap_enabled" else str(key),
+                value=value if isinstance(value, str) else json.dumps(value),
+            )
+            for key, value in params.items()
+        ]
+
+    @staticmethod
+    def struct_field_path(field_name: str) -> Optional[tuple]:
+        if "[" not in field_name and "]" not in field_name:
+            return None
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z_0-9]*)\[([A-Za-z_][A-Za-z_0-9]*)\]", field_name)
+        if match is None:
+            raise ParamError(message=f"Invalid struct sub-field path: {field_name}")
+        return match.groups()
+
+    @staticmethod
+    def prepare_collection_field(
+        field: FieldSchema,
+    ) -> Union[FieldSchema, schema_types.FieldSchema]:
+        if Prepare.struct_field_path(field.name) is None:
+            return field
+        if not field.nullable:
+            raise ParamError(message="Adding a struct sub-field requires nullable=True")
+        # The proto keeps the name s[x]; the server resolves the parent struct
+        # from it and normalizes row nullability.
+        return Prepare.get_struct_sub_field_schema(field, row_nullable=False)
 
     @staticmethod
     def get_field_schema(
@@ -340,6 +393,7 @@ class Prepare:
             is_partition_key=field.get("is_partition_key", False),
             is_clustering_key=field.get("is_clustering_key", False),
             nullable=nullable,
+            element_nullable=field.get("element_nullable", False),
             default_value=field.get("default_value"),
             element_type=field.get("element_type"),
             external_field=field.get("external_field", ""),
@@ -368,6 +422,19 @@ class Prepare:
     ) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError(message="Param fields must be a dict")
+
+        if (
+            fields.get("struct_fields")
+            or fields.get("struct_array_fields")
+            or any(
+                CollectionSchema._is_struct_array_field_dict(field)
+                for field in fields.get("fields") or []
+            )
+        ):
+            raise ParamError(
+                message="Struct fields are not supported in a dict schema, "
+                "define them with CollectionSchema and StructFieldSchema"
+            )
 
         all_fields = fields.get("fields")
         if all_fields is None:
@@ -453,7 +520,14 @@ class Prepare:
             func_schemas = []
 
             if field_schema is not None:
-                field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
+                if Prepare.struct_field_path(field_schema.name) is not None and (
+                    func is not None or index_name or index_extra_params
+                ):
+                    raise ParamError(message="Struct sub-field add cannot bind a function or index")
+                if isinstance(field_schema, schema_types.FieldSchema):
+                    field_schema_proto = field_schema
+                else:
+                    field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
 
                 field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
                     field_schema=field_schema_proto,
@@ -732,7 +806,7 @@ class Prepare:
             raise TypeError(msg)
 
         # Get expected fields for this specific struct
-        expected_fields = {field["name"] for field in struct_info["fields"]}
+        expected_fields = {field["name"]: field for field in struct_info["fields"]}
 
         # Handle empty array - create empty data structures
         if not values:
@@ -760,10 +834,11 @@ class Prepare:
                 continue
 
             if field_info["type"] == DataType.ARRAY:
-                set_array_element_type(field_data, field_info)
+                field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector([], field_info)
@@ -771,7 +846,7 @@ class Prepare:
 
     @staticmethod
     def _validate_and_collect_struct_values(
-        values: List, expected_fields: set, struct_field_name: str = ""
+        values: List, expected_fields: Dict, struct_field_name: str = ""
     ) -> Dict[str, List]:
         """Validate struct items and collect field values."""
         field_values = {field: [] for field in expected_fields}
@@ -784,8 +859,12 @@ class Prepare:
 
             # Validate fields
             actual_fields = set(struct_item.keys())
-            missing_fields = expected_fields - actual_fields
-            extra_fields = actual_fields - expected_fields
+            missing_fields = {
+                name
+                for name, info in expected_fields.items()
+                if name not in actual_fields and not info.get("element_nullable", False)
+            }
+            extra_fields = actual_fields - expected_fields.keys()
 
             if missing_fields:
                 msg = f"{field_prefix}Element at index {idx} missing required fields: {missing_fields}"
@@ -795,9 +874,9 @@ class Prepare:
                 raise ValueError(msg)
 
             # Collect values
-            for field_name in expected_fields:
-                value = struct_item[field_name]
-                if value is None:
+            for field_name, field_info in expected_fields.items():
+                value = struct_item.get(field_name)
+                if value is None and not field_info.get("element_nullable", False):
                     msg = f"{field_prefix}Field '{field_name}' in element at index {idx} cannot be None"
                     raise ValueError(msg)
                 field_values[field_name].append(value)
@@ -814,10 +893,11 @@ class Prepare:
             field_info = struct_field_info[field_name]
 
             if field_info["type"] == DataType.ARRAY:
-                set_array_element_type(field_data, field_info)
+                field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector(values, field_info)
@@ -900,14 +980,6 @@ class Prepare:
                     normalized_field["name"] = Prepare._strip_struct_sub_field_name(
                         struct_name, field["name"]
                     )
-                    field_type = normalized_field["type"]
-                    if field_type not in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR}:
-                        normalized_field["element_type"] = field_type
-                        normalized_field["type"] = (
-                            DataType._ARRAY_OF_VECTOR
-                            if isVectorDataType(field_type)
-                            else DataType.ARRAY
-                        )
                     params = dict(normalized_field.get("params", {}) or {})
                     if "max_capacity" not in params and "max_capacity" in normalized_struct:
                         params["max_capacity"] = normalized_struct["max_capacity"]
@@ -1091,6 +1163,8 @@ class Prepare:
 
         request.fields_data.extend(fields_data.values())
         request.fields_data.extend(struct_fields_data.values())
+        for field_data in request.fields_data:
+            entity_helper.sync_row_validity(field_data)
 
         expected_num_input_fields = (
             len(input_fields_info) + len(input_struct_field_info) + (1 if enable_dynamic else 0)
@@ -1280,6 +1354,8 @@ class Prepare:
             request.fields_data.extend(
                 struct_fields_data[struct_name] for struct_name in struct_field_names
             )
+        for field_data in request.fields_data:
+            entity_helper.sync_row_validity(field_data)
 
         for field in input_fields_info:
             is_dynamic = False
@@ -1369,6 +1445,7 @@ class Prepare:
             **cls._rls_context(kwargs),
         )
 
+        struct_fields_info = cls._prepare_struct_path_replace(entities, struct_fields_info, ops)
         request = cls._parse_upsert_row_request(
             request,
             fields_info,
@@ -1535,6 +1612,59 @@ class Prepare:
         return request
 
     @staticmethod
+    def _prepare_struct_path_replace(
+        entities: List,
+        struct_fields_info: Optional[List[Dict]],
+        field_ops: Dict[str, schema_types.FieldPartialUpdateOp],
+    ) -> Optional[List[Dict]]:
+        if not struct_fields_info or not field_ops:
+            return struct_fields_info
+        selected_structs = []
+        for struct in struct_fields_info:
+            name = struct["name"]
+            op = field_ops.get(name)
+            if op is None or op.op != schema_types.FieldPartialUpdateOp.PATH_REPLACE:
+                selected_structs.append(struct)
+                continue
+            # Parse only the shape needed to select operand columns. The server
+            # validates the index range and applies the replacement to old rows.
+            match = re.fullmatch(r"\[(?:0|[1-9][0-9]*)\](?:\[([^\[\]\s]+)\])?", op.path)
+            if match is None:
+                raise ParamError(
+                    message=f"PATH_REPLACE on struct {name!r} requires [index] or [index][child]"
+                )
+            child = match.group(1)
+            selected_struct = struct
+            if child is not None:
+                fields = [
+                    field
+                    for field in struct["fields"]
+                    if Prepare._strip_struct_sub_field_name(name, field["name"]) == child
+                ]
+                if not fields:
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE child {child!r} not found in {name!r}"
+                    )
+                selected_struct = {**struct, "fields": fields}
+            for entity in entities:
+                if not isinstance(entity, dict):
+                    continue  # The row parser reports invalid entity types.
+                value = entity.get(name)
+                is_array = isinstance(value, list) or (
+                    isinstance(value, np.ndarray) and value.ndim > 0
+                )
+                if not is_array or len(value) != 1:
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE requires exactly one element for struct field {name!r} in every row"
+                    )
+                if child is not None and isinstance(value[0], dict) and child not in value[0]:
+                    raise ParamError(
+                        message=f"PATH_REPLACE operand for struct field {name!r} must explicitly contain child {child!r}"
+                    )
+            selected_structs.append(selected_struct)
+        return selected_structs
+
+    @staticmethod
     def _apply_field_ops(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         field_ops: "dict[str, schema_types.FieldPartialUpdateOp]",
@@ -1549,7 +1679,9 @@ class Prepare:
         if not field_ops:
             return
         for field_name, op in field_ops.items():
-            request.field_ops.add(field_name=field_name, op=op.op)
+            entry = request.field_ops.add()
+            entry.CopyFrom(op)
+            entry.field_name = field_name
 
     @classmethod
     def delete_request(
@@ -2444,8 +2576,25 @@ class Prepare:
         output_fields: List[str],
         partition_names: List[str],
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ):
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if chains is None:
+            chains = []
+        if not isinstance(chains, list) or not all(isinstance(c, FunctionChain) for c in chains):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        if len(chains) > 1:
+            raise ParamError(message="query supports at most one QUERY_SCAN function chain")
+        for chain in chains:
+            if chain.stage != FunctionChainStage.QUERY_SCAN:
+                raise ParamError(message="query function chains require QUERY_SCAN stage")
+            if not chain.ops:
+                raise ParamError(message="query function chain must contain at least one op")
         req = milvus_types.QueryRequest(
             db_name="",
             collection_name=collection_name,
@@ -2456,6 +2605,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            function_chains=[chain.to_proto() for chain in chains],
             namespace=kwargs.get("namespace"),
             **cls._rls_context(kwargs),
         )

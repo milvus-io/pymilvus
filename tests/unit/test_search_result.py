@@ -883,6 +883,14 @@ class TestHelpers:
     def test_extract_array_row_data(self, scalar_field, dtype, expected):
         assert extract_array_row_data([scalar_field], dtype) == expected
 
+    def test_extract_array_row_data_rejects_timestamptz(self):
+        scalar = schema_pb2.ScalarField(
+            string_data=schema_pb2.StringArray(data=["2026-05-27T00:00:00Z"])
+        )
+
+        with pytest.raises(MilvusException, match="Unsupported data type"):
+            extract_array_row_data([scalar], DataType.TIMESTAMPTZ)
+
     def test_apply_valid_data(self):
         # Both data and valid_data are pre-sliced by caller; same length required.
         data = [1, 2, 3]

@@ -35,14 +35,29 @@ def get_field_data(field_data: Any) -> Any:
     raise MilvusException(msg)
 
 
+def row_validity(field_data: Any) -> Any:
+    if len(field_data.valid_data) > 0:
+        return field_data.valid_data
+    field = field_data.WhichOneof("field")
+    if field in ("scalars", "vectors"):
+        validity = getattr(field_data, field).valid_data
+        if len(validity) > 0:
+            return validity
+    return field_data.valid_data
+
+
 def is_null_cell(field_data: Any, logical_index: int) -> bool:
-    return len(field_data.valid_data) > 0 and field_data.valid_data[logical_index] is False
+    validity = row_validity(field_data)
+    if validity and logical_index >= len(validity):
+        raise MilvusException(message=f"Row validity is shorter than row {logical_index}")
+    return bool(validity) and validity[logical_index] is False
 
 
 def physical_index(field_data: Any, logical_index: int) -> int:
-    if len(field_data.valid_data) == 0:
+    validity = row_validity(field_data)
+    if len(validity) == 0:
         return logical_index
-    return sum(1 for valid in field_data.valid_data[:logical_index] if valid)
+    return sum(validity[:logical_index])
 
 
 def dense_vector_width(dtype: DataType, dim: int) -> Optional[int]:
@@ -72,6 +87,30 @@ def decode_array_value(array_cell: Any, index: int) -> Any:
     return data[index]
 
 
+def decode_scalar_array(array_cell: Any) -> List[Any]:
+    """Decode dense scalar output, including each nested Array's own bitmap."""
+    attr = array_cell.WhichOneof("data")
+    if attr is None:
+        if array_cell.valid_data:
+            raise MilvusException(message="Array validity has no typed payload")
+        return []
+    data = getattr(array_cell, attr).data
+    validity = array_cell.valid_data
+    if not validity and attr != "array_data":
+        return list(data)
+    if validity and len(validity) != len(data):
+        raise MilvusException(message="Dense Array payload and validity lengths differ")
+    result = []
+    for index, value in enumerate(data):
+        if validity and not validity[index]:
+            result.append(None)
+        elif attr == "array_data":
+            result.append(decode_scalar_array(value))
+        else:
+            result.append(value)
+    return result
+
+
 def vector_array_length(vector_data: Any, element_type: DataType) -> int:
     """Return the number of vector values stored in one VectorArray row."""
     element_type = _resolve_vector_array_element_type(vector_data, element_type)
@@ -82,9 +121,19 @@ def vector_array_length(vector_data: Any, element_type: DataType) -> int:
 
     width = dense_vector_width(element_type, vector_data.dim)
     if not width:
+        if vector_data.valid_data or _vector_array_payload(vector_data, element_type):
+            raise MilvusException(message="Vector Array has no dimension")
         return 0
     payload = _vector_array_payload(vector_data, element_type)
-    return len(payload) // width
+    if len(payload) % width:
+        raise MilvusException(message="Vector Array payload has an invalid width")
+    physical_length = len(payload) // width
+    validity = vector_data.valid_data
+    if validity:
+        if sum(validity) != physical_length:
+            raise MilvusException(message="Compact Vector Array payload and validity differ")
+        return len(validity)
+    return physical_length
 
 
 def decode_vector_array_value(vector_data: Any, element_type: DataType, index: int) -> Any:
@@ -113,10 +162,11 @@ def decode_array_cell(field_data: Any, logical_index: int) -> Any:
     array_data = field_data.scalars.array_data
     if logical_index >= len(array_data.data):
         return None
-    attr = type_info.get_array_element_attr(array_data.element_type)
-    if attr is None:
+    if array_data.element_type not in (DataType.NONE, DataType.ARRAY) and (
+        type_info.get_array_element_attr(array_data.element_type) is None
+    ):
         raise MilvusException(message=f"Unsupported data type: {array_data.element_type}")
-    return list(getattr(array_data.data[logical_index], attr).data)
+    return decode_scalar_array(array_data.data[logical_index])
 
 
 def decode_vector_array_cell(
@@ -140,10 +190,19 @@ def decode_vector_array_cell(
         return _vector_array_payload(vector_data, element_type)
 
     length = vector_array_length(vector_data, element_type)
-    return [
-        decode_vector_array_value(vector_data, element_type, vector_index)
-        for vector_index in range(length)
-    ]
+    values = []
+    physical = 0
+    validity = vector_data.valid_data
+    width = dense_vector_width(element_type, vector_data.dim)
+    payload = _vector_array_payload(vector_data, element_type)
+    for logical in range(length):
+        if validity and not validity[logical]:
+            values.append(None)
+        else:
+            value = payload[physical * width : (physical + 1) * width]
+            values.append(list(value) if element_type == DataType.FLOAT_VECTOR else value)
+            physical += 1
+    return values
 
 
 def decode_cell(
@@ -214,12 +273,14 @@ def decode_range(field_data: Any, start: int, end: int) -> List[Any]:
     field_type = field_data.type
     if type_info.is_scalar_type(field_type) and field_type != DataType.JSON:
         # Scalar payloads stay aligned with logical rows, including nullable fields.
-        data = list(get_field_data(field_data)[start:end])
-        if len(field_data.valid_data) == 0:
+        payload = get_field_data(field_data)
+        data = list(payload[start:end])
+        validity = row_validity(field_data)
+        if validity and len(validity) != len(payload):
+            raise MilvusException(message="Dense scalar payload and row validity lengths differ")
+        if len(validity) == 0:
             return data
-        return [
-            value if valid else None for value, valid in zip(data, field_data.valid_data[start:end])
-        ]
+        return [value if valid else None for value, valid in zip(data, validity[start:end])]
 
     return [decode_cell(field_data, index) for index in range(start, end)]
 

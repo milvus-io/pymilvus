@@ -270,6 +270,8 @@ class MsgType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ListRLSPrincipals: _ClassVar[MsgType]
     DeleteRLSPrincipalTags: _ClassVar[MsgType]
     GetExportSnapshotState: _ClassVar[MsgType]
+    ListRunningRequests: _ClassVar[MsgType]
+    CancelRequests: _ClassVar[MsgType]
 
 class DslType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -429,6 +431,8 @@ class ObjectPrivilege(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PrivilegeViewRLS: _ClassVar[ObjectPrivilege]
     PrivilegeManageRLS: _ClassVar[ObjectPrivilege]
     PrivilegeImportBinlog: _ClassVar[ObjectPrivilege]
+    PrivilegeListRunningRequests: _ClassVar[ObjectPrivilege]
+    PrivilegeCancelRequests: _ClassVar[ObjectPrivilege]
 
 class StateCode(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -709,6 +713,8 @@ GetRLSPrincipalTags: MsgType
 ListRLSPrincipals: MsgType
 DeleteRLSPrincipalTags: MsgType
 GetExportSnapshotState: MsgType
+ListRunningRequests: MsgType
+CancelRequests: MsgType
 Dsl: DslType
 BoolExprV1: DslType
 UndefiedState: CompactionState
@@ -844,6 +850,8 @@ PrivilegeSkipRLS: ObjectPrivilege
 PrivilegeViewRLS: ObjectPrivilege
 PrivilegeManageRLS: ObjectPrivilege
 PrivilegeImportBinlog: ObjectPrivilege
+PrivilegeListRunningRequests: ObjectPrivilege
+PrivilegeCancelRequests: ObjectPrivilege
 Initializing: StateCode
 Healthy: StateCode
 Abnormal: StateCode

@@ -313,7 +313,11 @@ class MilvusClient(BaseMilvusClient):
                     ``FieldOp.array_append()``), a string alias (``"array_append"``,
                     ``"array_remove"``, ``"replace"``), or a
                     :class:`schema_pb2.FieldPartialUpdateOp` message. Any non-REPLACE op implies
-                    partial_update=True.
+                    partial_update=True. ``FieldOp.path_replace("[1][tags]")`` replaces
+                    one struct child. Pass one struct element containing only ``tags``
+                    in each operand row. ``FieldOp.path_replace("[1]")`` replaces the
+                    whole element, requiring every non-nullable child. Omitted nullable
+                    children become null. Other elements and children stay unchanged.
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
@@ -503,6 +507,67 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def grep(
+        self,
+        collection_name: str,
+        text_field: str,
+        args: str,
+        filter: str = "",
+        output_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        offset: int = 0,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        *,
+        match_field: str = "matches",
+        **kwargs,
+    ) -> List[dict]:
+        """Match a text field using a QueryScan grep chain.
+
+        Args:
+            collection_name: Collection to query.
+            text_field: VarChar/Text field to match.
+            args: Raw rg-style arguments, for example ``-i -e 'timeout'``.
+                Forwarded unchanged; the server validates flags and patterns.
+            filter: Query expression selecting candidate documents.
+            output_fields: Ordinary fields to return. Defaults to query's default projection.
+            limit: Maximum number of matching documents to return, not matching lines.
+            offset: Number of matching documents to skip.
+            timeout: Timeout in seconds, forwarded to query.
+            partition_names: Partitions to query.
+            match_field: Result column for matching-line details. Must not collide
+                with a collection or system field; use another name if necessary.
+            **kwargs: Additional query options, including filter_params and
+                consistency_level. function_chains is not accepted.
+
+        Returns:
+            Query rows with an additional match_field containing a list of objects
+            with content, line_number, line_start_offset, starts and ends.
+            ``line_number`` is one-based. ``line_start_offset`` is the zero-based
+            UTF-8 byte offset of the line within the input field; spans are
+            half-open UTF-8 byte offsets within that line. Add the line start
+            offset to a span endpoint to obtain its field-relative offset. The
+            query result is returned unchanged.
+
+        Notes:
+            Requires a server supporting QueryScan; older servers may ignore the
+            chain. Supported rg flags are server-dependent. The initial server
+            implementation excludes context flags such as -C, count, aggregation,
+            GROUP BY, ORDER BY and query iterators.
+        """
+        chain = self._prepare_grep_chain(text_field, args, match_field, **kwargs)
+        return self.query(
+            collection_name=collection_name,
+            filter=filter,
+            output_fields=output_fields,
+            limit=limit,
+            offset=offset,
+            timeout=timeout,
+            partition_names=partition_names,
+            function_chains=chain,
+            **kwargs,
+        )
+
     def query(
         self,
         collection_name: str,
@@ -511,6 +576,7 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         ids: Optional[Union[List, str, int]] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[dict]:
         """Query for entries in the Collection.
@@ -522,6 +588,10 @@ class MilvusClient(BaseMilvusClient):
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
+
+            function_chains (FunctionChain or List[FunctionChain], optional): At most one
+                QUERY_SCAN chain. Requires server support; older servers may ignore it.
+                Exported output_columns are returned alongside ordinary output_fields.
 
         Raises:
             ValueError: Missing collection.
@@ -559,6 +629,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1230,6 +1301,12 @@ class MilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         """Add a new field to the collection.
+
+        Use ``field_name="clips[lang]"`` to add a sub-field to an existing struct.
+        Its type describes one struct element and requires ``nullable=True``.
+        For an Array sub-field, ``max_capacity`` is the inner array capacity and
+        ``element_nullable`` controls null scalar leaves. The outer capacity and
+        row nullability follow the parent struct.
 
         Args:
             collection_name(``string``): The name of collection.

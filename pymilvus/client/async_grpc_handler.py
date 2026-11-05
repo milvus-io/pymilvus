@@ -1622,6 +1622,11 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        is_sub_field = "[" in field_schema.name or "]" in field_schema.name
+        if is_sub_field:
+            if any(kwargs.get(key) for key in ("index_name", "index_extra_params", "func")):
+                raise ParamError(message="Struct sub-field add cannot bind a function or index")
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -1631,12 +1636,14 @@ class AsyncGrpcHandler:
             response = await self._async_stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            if is_external_collection_schema_alter_unsupported(response.alter_status):
+            if not is_sub_field and is_external_collection_schema_alter_unsupported(
+                response.alter_status
+            ):
                 fallback_to_legacy = True
             else:
                 check_status(response.alter_status)
         except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+            if is_sub_field or e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
             fallback_to_legacy = True
 
@@ -1782,6 +1789,8 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        if field_schema is not None:
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -2811,6 +2820,39 @@ class AsyncGrpcHandler:
         return response
 
     @retry_on_rpc_failure()
+    async def get_flush_all_state(
+        self,
+        flush_all_ts: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> bool:
+        req = Prepare.get_flush_all_state_request(flush_all_ts, kwargs.get("db", ""))
+        response = await self._async_stub.GetFlushAllState(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.flushed
+
+    @retry_on_rpc_failure()
+    async def flush_all(
+        self,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> None:
+        req = Prepare.flush_all_request(kwargs.get("db", ""))
+        response = await self._async_stub.FlushAll(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+
+        while not await self.get_flush_all_state(
+            response.flush_all_ts, timeout=timeout, context=context, **kwargs
+        ):
+            await asyncio.sleep(5)
+
+    @retry_on_rpc_failure()
     async def compact(
         self,
         collection_name: str,
@@ -2864,6 +2906,21 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    async def get_compaction_plans(
+        self,
+        compaction_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_state_with_plans(compaction_id)
+        response = await self._async_stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, compaction_id=compaction_id)
+
+    @retry_on_rpc_failure()
     async def get_compaction_tasks(
         self,
         collection_name: str,
@@ -2909,6 +2966,27 @@ class AsyncGrpcHandler:
         if isinstance(texts, str):
             return AnalyzeResult(resp.results[0], with_hash, with_detail)
         return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
+
+    @retry_on_rpc_failure()
+    async def update_replicate_configuration(
+        self,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        request = Prepare.update_replicate_configuration_request(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
+        )
+        status = await self._async_stub.UpdateReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(status)
+        return status
 
     @retry_on_rpc_failure()
     async def get_replicate_configuration(

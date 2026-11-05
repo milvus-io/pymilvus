@@ -1,18 +1,37 @@
-"""Cover the handler raise sites that surface the error classification
-(is_input_error / retriable) via MilvusException.from_status."""
-
-from unittest.mock import AsyncMock, MagicMock
+"""Sync and async handlers preserve server error details and classification."""
 
 import pytest
 from pymilvus.exceptions import DescribeCollectionException, MilvusException
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2
 
 COLLECTION = "test_collection"
+ERROR_CASES = [
+    pytest.param(
+        "describe_collection",
+        "DescribeCollection",
+        milvus_pb2.DescribeCollectionResponse,
+        DescribeCollectionException,
+        id="describe-collection",
+    ),
+    pytest.param(
+        "has_collection",
+        "DescribeCollection",
+        milvus_pb2.DescribeCollectionResponse,
+        MilvusException,
+        id="has-collection",
+    ),
+    pytest.param(
+        "list_indexes",
+        "DescribeIndex",
+        milvus_pb2.DescribeIndexResponse,
+        MilvusException,
+        id="list-indexes",
+    ),
+]
 
 
 def _input_error_status():
-    # An error status that is NOT any of the not-found special cases the
-    # handlers short-circuit on, so the code falls through to the raise.
+    # Use an ordinary error, outside the handlers' not-found special cases.
     return common_pb2.Status(
         code=1100,
         reason="invalid parameter",
@@ -21,64 +40,38 @@ def _input_error_status():
     )
 
 
-def _error_response():
-    resp = MagicMock()
-    resp.status = _input_error_status()
-    return resp
+@pytest.mark.parametrize("method_name,rpc_name,response_type,error_type", ERROR_CASES)
+def test_sync_handler_classification(
+    mock_grpc_handler, method_name, rpc_name, response_type, error_type
+):
+    getattr(mock_grpc_handler._stub, rpc_name).return_value = response_type(
+        status=_input_error_status()
+    )
+
+    with pytest.raises(error_type) as exc:
+        getattr(mock_grpc_handler, method_name)(COLLECTION)
+
+    assert exc.value.code == 1100
+    assert exc.value.message == "invalid parameter"
+    assert exc.value.compatible_code == common_pb2.Success
+    assert exc.value.is_input_error is True
+    assert exc.value.retriable is False
 
 
-class TestSyncHandlerClassification:
-    def test_describe_collection_surfaces_classification(self, mock_grpc_handler):
-        mock_grpc_handler._stub.DescribeCollection = MagicMock(return_value=_error_response())
-        with pytest.raises(DescribeCollectionException) as exc:
-            mock_grpc_handler.describe_collection(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
-        assert exc.value.retriable is False
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method_name,rpc_name,response_type,error_type", ERROR_CASES)
+async def test_async_handler_classification(
+    mock_async_grpc_handler, method_name, rpc_name, response_type, error_type
+):
+    getattr(mock_async_grpc_handler._async_stub, rpc_name).return_value = response_type(
+        status=_input_error_status()
+    )
 
-    def test_has_collection_surfaces_classification(self, mock_grpc_handler):
-        mock_grpc_handler._stub.DescribeCollection = MagicMock(return_value=_error_response())
-        with pytest.raises(MilvusException) as exc:
-            mock_grpc_handler.has_collection(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
+    with pytest.raises(error_type) as exc:
+        await getattr(mock_async_grpc_handler, method_name)(COLLECTION)
 
-    def test_list_indexes_surfaces_classification(self, mock_grpc_handler):
-        mock_grpc_handler._stub.DescribeIndex = MagicMock(return_value=_error_response())
-        with pytest.raises(MilvusException) as exc:
-            mock_grpc_handler.list_indexes(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
-
-
-class TestAsyncHandlerClassification:
-    @pytest.mark.asyncio
-    async def test_describe_collection_surfaces_classification(self, mock_async_grpc_handler):
-        mock_async_grpc_handler._async_stub.DescribeCollection = AsyncMock(
-            return_value=_error_response()
-        )
-        with pytest.raises(DescribeCollectionException) as exc:
-            await mock_async_grpc_handler.describe_collection(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
-        assert exc.value.retriable is False
-
-    @pytest.mark.asyncio
-    async def test_has_collection_surfaces_classification(self, mock_async_grpc_handler):
-        mock_async_grpc_handler._async_stub.DescribeCollection = AsyncMock(
-            return_value=_error_response()
-        )
-        with pytest.raises(MilvusException) as exc:
-            await mock_async_grpc_handler.has_collection(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
-
-    @pytest.mark.asyncio
-    async def test_list_indexes_surfaces_classification(self, mock_async_grpc_handler):
-        mock_async_grpc_handler._async_stub.DescribeIndex = AsyncMock(
-            return_value=_error_response()
-        )
-        with pytest.raises(MilvusException) as exc:
-            await mock_async_grpc_handler.list_indexes(COLLECTION)
-        assert exc.value.code == 1100
-        assert exc.value.is_input_error is True
+    assert exc.value.code == 1100
+    assert exc.value.message == "invalid parameter"
+    assert exc.value.compatible_code == common_pb2.Success
+    assert exc.value.is_input_error is True
+    assert exc.value.retriable is False
