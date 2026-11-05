@@ -7,6 +7,7 @@ Merged and refactored from:
 """
 
 import copy
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -353,6 +354,15 @@ class TestFieldSchemaDeepCopy:
         field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
         field_copy = field.__deepcopy__(None)
         assert field == field_copy
+
+    def test_copy_and_pickle_roundtrip(self):
+        """copy.copy and pickle must not recurse in __getattr__."""
+        field = FieldSchema("text", DataType.VARCHAR, max_length=10)
+        field_copy = copy.copy(field)
+        assert field_copy == field
+        assert field_copy is not field
+        restored = pickle.loads(pickle.dumps(field))  # noqa: S301
+        assert restored == field
 
 
 class TestFieldSchemaTypeParams:

@@ -708,8 +708,15 @@ class FieldSchema:
         return _dict
 
     def __getattr__(self, item: str):
-        if self._type_params and item in self._type_params:
-            return self._type_params[item]
+        # Let the copy/pickle protocols probe dunder hooks without them resolving to
+        # a truthy None, which would make hasattr() succeed on a non-callable.
+        if item.startswith("__") and item.endswith("__"):
+            raise AttributeError(item)
+        # Access _type_params through __dict__ so that objects restored without
+        # calling __init__ (copy.copy, pickle) do not recurse into __getattr__.
+        type_params = self.__dict__.get("_type_params")
+        if type_params and item in type_params:
+            return type_params[item]
         return None
 
     def __eq__(self, other: object):
