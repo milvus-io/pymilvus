@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from queue import Empty, SimpleQueue
 from threading import Lock, Thread
 from typing import Callable, Optional
 
@@ -45,6 +46,7 @@ class LocalBulkWriter(BulkWriter):
         self._flush_count = 0
         self._working_thread = {}
         self._working_thread_lock = Lock()
+        self._flush_errors = SimpleQueue()
         self._local_files = []
 
         self._make_dir()
@@ -57,19 +59,25 @@ class LocalBulkWriter(BulkWriter):
         return self
 
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object):
-        self._exit()
+        self._exit(raise_error=exc_type is None)
 
     def __del__(self):
-        self._exit()
+        self._exit(raise_error=False)
 
-    def _exit(self):
+    def _exit(self, raise_error: bool = True):
         # wait flush thread
-        if len(self._working_thread) > 0:
-            for k, th in self._working_thread.items():
+        try:
+            for k, th in list(self._working_thread.items()):
                 logger.info(f"Wait flush thread '{k}' to finish")
                 th.join()
 
-        self._rm_dir()
+            self._raise_flush_error()
+        except Exception:
+            if raise_error:
+                raise
+            logger.exception("Failed to flush data before closing the bulk writer")
+        finally:
+            self._rm_dir()
 
     def _make_dir(self):
         Path(self._local_path).mkdir(exist_ok=True)
@@ -95,7 +103,7 @@ class LocalBulkWriter(BulkWriter):
         # continue to append if the new buffer size is less than target size
         with self._working_thread_lock:
             if self.buffer_size > self.chunk_size:
-                self.commit(_async=True)
+                self.commit(_async=True, _auto_flush=True)
 
     def commit(self, **kwargs):
         # _async=True, the flush thread is asynchronously
@@ -104,6 +112,10 @@ class LocalBulkWriter(BulkWriter):
                 f"Previous flush action is not finished, {threading.current_thread().name} is waiting..."
             )
             time.sleep(1.0)
+
+        _auto_flush = kwargs.get("_auto_flush", False)
+        if not _auto_flush:
+            self._raise_flush_error()
 
         logger.info(
             f"Prepare to flush buffer, row_count: {self.buffer_row_count}, size: {self.buffer_size}"
@@ -120,7 +132,16 @@ class LocalBulkWriter(BulkWriter):
             x.join()
 
         super().commit()  # reset the buffer size
+        if not _async:
+            self._raise_flush_error()
         logger.info(f"Commit done with async={_async}")
+
+    def _raise_flush_error(self):
+        try:
+            error = self._flush_errors.get_nowait()
+        except Empty:
+            return
+        raise error
 
     def _flush(self, call_back: Optional[Callable] = None):
         try:
@@ -138,8 +159,8 @@ class LocalBulkWriter(BulkWriter):
                 if call_back:
                     call_back(file_list)
         except Exception as e:
-            logger.error(f"Failed to fulsh, error: {e}")
-            raise e from e
+            logger.error(f"Failed to flush, error: {e}")
+            self._flush_errors.put(e)
         finally:
             del self._working_thread[threading.current_thread().name]
             logger.info(f"Flush thread finished, name: {threading.current_thread().name}")
