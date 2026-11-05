@@ -449,6 +449,11 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
         if struct_field_info.get("nullable", False):
             user_struct_field["nullable"] = True
 
+        # Keep the struct's own params, such as mmap_enabled and warmup
+        struct_params = struct_field_info.get("params")
+        if isinstance(struct_params, dict):
+            user_struct_field["params"].update(struct_params)
+
         # Extract max_capacity from first field (all fields should have the same value)
         max_capacity = None
         for f in struct_field_info.get("fields", []):
