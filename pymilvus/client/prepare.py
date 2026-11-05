@@ -1657,6 +1657,10 @@ class Prepare:
                     raise DataNotMatchException(
                         message=f"PATH_REPLACE requires exactly one element for struct field {name!r} in every row"
                     )
+                if child is not None and isinstance(value[0], dict) and child not in value[0]:
+                    raise ParamError(
+                        message=f"PATH_REPLACE operand for struct field {name!r} must explicitly contain child {child!r}"
+                    )
             selected_structs.append(selected_struct)
         return selected_structs
 

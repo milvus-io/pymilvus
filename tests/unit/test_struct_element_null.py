@@ -771,6 +771,17 @@ def test_path_replace_nullable_child_none_is_one_null_element(child):
             assert not value.long_data.data
 
 
+@pytest.mark.parametrize("child,value", [("embedding", [1, 2]), ("score", 10), ("tags", ["a"])])
+@pytest.mark.parametrize("missing_position", [None, 0, 1])
+def test_path_replace_requires_explicit_child_in_every_operand(child, value, missing_position):
+    operands = [{}] if missing_position is None else [{child: value}, {child: value}]
+    if missing_position is not None:
+        operands[missing_position] = {}
+    rows = [{"id": index + 1, "clips": [operand]} for index, operand in enumerate(operands)]
+    with pytest.raises(ParamError, match=f"must explicitly contain child '{child}'"):
+        path_replace_request(make_schema(), rows, f"[0][{child}]")
+
+
 def test_path_replace_whole_element_keeps_required_children_and_fills_nullable_ones():
     schema = make_schema()
     schema.struct_fields[0].fields[1].nullable = False
@@ -919,6 +930,46 @@ def test_empty_struct_vector_column_sets_both_dims():
     assert len(vector.vector_array.data) == 1
     assert vector.vector_array.data[0].dim == 2
     assert not vector.vector_array.data[0].float_vector.data
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("asynchronous", [False, True])
+async def test_path_replace_missing_child_rejects_without_rpc_or_schema_refresh(asynchronous):
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler_type = AsyncGrpcHandler if asynchronous else GrpcHandler
+    handler = handler_type(uri="http://unit-test:1", channel=channel)
+    stub = AsyncMock() if asynchronous else MagicMock()
+    if asynchronous:
+        handler._async_stub = stub
+    else:
+        handler._stub = stub
+    cached = {
+        "fields": [PK],
+        "struct_array_fields": [wire_info(make_schema())],
+        "update_timestamp": 1,
+    }
+    context = CallContext(db_name="test_db")
+    GlobalCache._reset_for_testing()
+    GlobalCache.schema.set(handler.server_address, context.get_db_name(), "videos", cached)
+    try:
+        with pytest.raises(ParamError, match="must explicitly contain child 'score'"):
+            result = handler.upsert_rows(
+                "videos",
+                [{"id": 1, "clips": [{}]}],
+                context=context,
+                field_ops={"clips": FieldOp.path_replace("[0][score]")},
+            )
+            if asynchronous:
+                await result
+        stub.Upsert.assert_not_called()
+        stub.DescribeCollection.assert_not_called()
+        assert (
+            GlobalCache.schema.get(handler.server_address, context.get_db_name(), "videos")
+            == cached
+        )
+    finally:
+        GlobalCache._reset_for_testing()
 
 
 @pytest.mark.asyncio
