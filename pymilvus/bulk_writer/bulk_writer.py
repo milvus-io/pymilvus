@@ -12,6 +12,7 @@
 
 import json
 import logging
+import math
 from threading import Lock
 from typing import Optional
 
@@ -124,6 +125,17 @@ class BulkWriter:
             dim = field.params["dim"]
             try:
                 origin_list = validator(x, dim)
+                if dtype in {
+                    DataType.FLOAT_VECTOR,
+                    DataType.FLOAT16_VECTOR,
+                    DataType.BFLOAT16_VECTOR,
+                }:
+                    finite = np.isfinite(x)
+                    if not finite.all():
+                        index = int(np.flatnonzero(~finite)[0])
+                        self._throw(
+                            f"Non-finite value for field '{field.name}[{index}]': {x[index]}"
+                        )
                 if dtype == DataType.FLOAT_VECTOR:
                     return origin_list, dim * 4  # for float vector, each dim occupies 4 bytes
                 if dtype in [DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR]:
@@ -180,6 +192,8 @@ class BulkWriter:
             self._throw(
                 f"Illegal scalar value for field '{field_name}', value overflow or type mismatch"
             )
+        if isinstance(x, float) and not math.isfinite(x):
+            self._throw(f"Non-finite value for field '{field_name}': {x}")
         if isinstance(x, str):
             return len(x)
         return TYPE_SIZE[dtype.name]
@@ -239,7 +253,6 @@ class BulkWriter:
                     if (field.name not in row) or (row[field.name] is None):
                         data_type = field.default_value.WhichOneof("data")
                         row[field.name] = getattr(field.default_value, data_type)
-                        continue
 
                     # 2: nullable is true, default_value is not null, user_input is not null
                     # check and set the value
@@ -260,7 +273,6 @@ class BulkWriter:
                 if (field.name not in row) or (row[field.name] is None):
                     data_type = field.default_value.WhichOneof("data")
                     row[field.name] = getattr(field.default_value, data_type)
-                    continue
 
                 # 6: nullable is false, default_value is not null, user_input is not null
                 # check and set the value
@@ -335,45 +347,54 @@ class BulkWriter:
         struct_size = 0
         for sub_field in field.fields:
             sub_dtype = DataType(sub_field.dtype)
-            for obj in x:
-                if sub_field.name not in obj:
-                    self._throw(
-                        f"Sub field '{sub_field.name}' of struct field '{field.name}' is missed"
-                    )
-                if sub_dtype in {
-                    DataType.BINARY_VECTOR,
-                    DataType.FLOAT_VECTOR,
-                    DataType.FLOAT16_VECTOR,
-                    DataType.BFLOAT16_VECTOR,
-                    DataType.INT8_VECTOR,
-                }:
-                    origin_list, byte_len = self._verify_vector(obj[sub_field.name], sub_field)
-                    obj[sub_field.name] = self._normalize_struct_vector(origin_list, sub_dtype)
-                    struct_size = struct_size + byte_len
-                elif sub_dtype == DataType.VARCHAR:
-                    struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
-                elif sub_dtype == DataType.TEXT:
-                    struct_size = struct_size + self._verify_text(obj[sub_field.name], sub_field)
-                elif sub_dtype in {
-                    DataType.BOOL,
-                    DataType.INT8,
-                    DataType.INT16,
-                    DataType.INT32,
-                    DataType.INT64,
-                    DataType.FLOAT,
-                    DataType.DOUBLE,
-                }:
-                    if isinstance(obj[sub_field.name], np.generic):
-                        obj[sub_field.name] = obj[sub_field.name].item()
+            for index, obj in enumerate(x):
+                try:
+                    if sub_field.name not in obj:
+                        self._throw(
+                            f"Sub field '{sub_field.name}' of struct field '{field.name}' is missed"
+                        )
+                    if sub_dtype in {
+                        DataType.BINARY_VECTOR,
+                        DataType.FLOAT_VECTOR,
+                        DataType.FLOAT16_VECTOR,
+                        DataType.BFLOAT16_VECTOR,
+                        DataType.INT8_VECTOR,
+                    }:
+                        origin_list, byte_len = self._verify_vector(obj[sub_field.name], sub_field)
+                        obj[sub_field.name] = self._normalize_struct_vector(origin_list, sub_dtype)
+                        struct_size = struct_size + byte_len
+                    elif sub_dtype == DataType.VARCHAR:
+                        struct_size = struct_size + self._verify_varchar(
+                            obj[sub_field.name], sub_field
+                        )
+                    elif sub_dtype == DataType.TEXT:
+                        struct_size = struct_size + self._verify_text(
+                            obj[sub_field.name], sub_field
+                        )
+                    elif sub_dtype in {
+                        DataType.BOOL,
+                        DataType.INT8,
+                        DataType.INT16,
+                        DataType.INT32,
+                        DataType.INT64,
+                        DataType.FLOAT,
+                        DataType.DOUBLE,
+                    }:
+                        if isinstance(obj[sub_field.name], np.generic):
+                            obj[sub_field.name] = obj[sub_field.name].item()
 
-                    struct_size = struct_size + self._verify_scalar(
-                        obj[sub_field.name], sub_dtype, sub_field.name
+                        struct_size = struct_size + self._verify_scalar(
+                            obj[sub_field.name], sub_dtype, sub_field.name
+                        )
+                        obj[sub_field.name] = NUMPY_TYPE_CREATOR[sub_dtype.name].type(
+                            obj[sub_field.name]
+                        )
+                    else:
+                        self._throw(f"Unsupported field type '{sub_dtype.name}' for struct field")
+                except MilvusException as e:
+                    self._throw(
+                        f"Illegal value for field '{field.name}[{index}].{sub_field.name}': {e.message}"
                     )
-                    obj[sub_field.name] = NUMPY_TYPE_CREATOR[sub_dtype.name].type(
-                        obj[sub_field.name]
-                    )
-                else:
-                    self._throw(f"Unsupported field type '{sub_dtype.name}' for struct field")
 
         return struct_size
 

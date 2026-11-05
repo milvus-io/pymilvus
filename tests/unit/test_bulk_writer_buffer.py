@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 from pymilvus.bulk_writer.buffer import Buffer
 from pymilvus.bulk_writer.constants import DYNAMIC_FIELD_NAME, BulkFileType
@@ -228,15 +229,16 @@ class TestBuffer:
             assert rows[1]["text"] == "second"
             assert rows[1]["vector"] == [2.0] * 128
 
-    @patch("pandas.DataFrame.to_parquet")
-    def test_persist_parquet(self, mock_to_parquet, simple_schema):
+    def test_persist_parquet(self, simple_schema, tmp_path):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
         buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
-        files = buffer.persist("/tmp/test")
+        files = buffer.persist(str(tmp_path / "test"))
         assert len(files) == 1
         assert files[0].endswith(".parquet")
-        assert mock_to_parquet.called
+        assert pq.read_table(files[0]).to_pylist() == [
+            {"id": 1, "vector": [1.0] * 128, "text": "test"}
+        ]
 
     @patch("pandas.DataFrame.to_csv")
     def test_persist_csv(self, mock_to_csv, simple_schema):
@@ -323,16 +325,21 @@ class TestBuffer:
             assert len(files) == 1
             assert Path(files[0]).exists()
 
-    def test_persist_with_kwargs(self, simple_schema):
+    def test_persist_with_kwargs(self, simple_schema, tmp_path):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
         buffer.append_row({"id": 1, "vector": [1.0] * 128, "text": "test"})
 
-        with patch("pandas.DataFrame.to_parquet") as mock_to_parquet:
-            files = buffer.persist(
-                "/tmp/test", buffer_size=1024, buffer_row_count=1, row_group_bytes=32 * 1024 * 1024
-            )
-            assert len(files) == 1
-            mock_to_parquet.assert_called_once()
+        files = buffer.persist(
+            str(tmp_path / "test"),
+            buffer_size=1024,
+            buffer_row_count=1,
+            row_group_bytes=32 * 1024 * 1024,
+        )
+        assert len(files) == 1
+        assert pq.read_metadata(files[0]).num_rows == 1
+        assert pq.read_table(files[0]).to_pylist() == [
+            {"id": 1, "vector": [1.0] * 128, "text": "test"}
+        ]
 
     def test_raw_obj_conversion(self, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.JSON)
@@ -664,12 +671,12 @@ class TestBufferExtended:
         for row in rows:
             buffer.append_row(row)
 
-        with tempfile.TemporaryDirectory() as temp_dir, patch(
-            "pandas.DataFrame.to_parquet"
-        ) as mock_to_parquet:
-            files = buffer.persist(temp_dir, buffer_size=1024, buffer_row_count=row_count)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(
+                str(Path(temp_dir) / "variants"), buffer_size=1024, buffer_row_count=row_count
+            )
             assert len(files) == 1
-            mock_to_parquet.assert_called_once()
+            assert pq.read_table(files[0]).num_rows == row_count
 
     def test_persist_csv_with_all_field_types(self):
         """Test CSV persist with common field types"""
@@ -748,8 +755,7 @@ class TestBufferExtended:
         value_row = dict(zip(rows[0], rows[1]))
         assert json.loads(value_row["float16_vector"]) == [1.0, 2.0, 3.0, 4.0]
 
-    @patch("pandas.DataFrame.to_parquet")
-    def test_persist_parquet_with_float16_list_vectors(self, mock_to_parquet):
+    def test_persist_parquet_with_float16_list_vectors(self):
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
             FieldSchema(name="float16_vector", dtype=DataType.FLOAT16_VECTOR, dim=4),
@@ -759,11 +765,12 @@ class TestBufferExtended:
         buffer.append_row({"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]})
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            files = buffer.persist(temp_dir)
+            files = buffer.persist(str(Path(temp_dir) / "half"))
+            table = pq.read_table(files[0])
 
         assert len(files) == 1
-        schema_arg = mock_to_parquet.call_args.kwargs["schema"]
-        assert schema_arg.field("float16_vector").type == pa.list_(pa.float32())
+        assert table.schema.field("float16_vector").type == pa.list_(pa.float32())
+        assert table.to_pylist() == [{"id": 1, "float16_vector": [1.0, 2.0, 3.0, 4.0]}]
 
     def test_persist_csv_nullable_vectors_use_default_nullkey(self):
         """Test CSV persist keeps nullable vectors empty by default"""
