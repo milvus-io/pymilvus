@@ -738,6 +738,12 @@ class AsyncMilvusClient(BaseMilvusClient):
         if filter and len(pks) > 0:
             raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
 
+        if len(pks) == 0:
+            if filter is None or (isinstance(filter, str) and not filter.strip()):
+                raise ParamError(message=ExceptionsMessage.EmptyDeleteFilterParam)
+            if not isinstance(filter, str):
+                raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
+
         expr = ""
         conn = await self._get_connection()
         if len(pks) > 0:
@@ -752,10 +758,6 @@ class AsyncMilvusClient(BaseMilvusClient):
                 raise ex from ex
             expr = self._pack_pks_expr(schema_dict, pks)
         else:
-            if not filter or (isinstance(filter, str) and not filter.strip()):
-                raise ParamError(message=ExceptionsMessage.EmptyDeleteFilterParam)
-            if not isinstance(filter, str):
-                raise DataTypeNotMatchException(message=ExceptionsMessage.ExprType % type(filter))
             expr = filter
 
         ret_pks = []

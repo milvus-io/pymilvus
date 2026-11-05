@@ -424,10 +424,11 @@ class TestAsyncClientQueryBranches:
         handler.query.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_delete_filter_non_str_raises(self):
+    @pytest.mark.parametrize("invalid_filter", [123, 0, False, [], {}])
+    async def test_delete_filter_non_str_raises(self, invalid_filter):
         client, _ = _make_client()
         with pytest.raises(DataTypeNotMatchException):
-            await client.delete("col", filter=123)
+            await client.delete("col", filter=invalid_filter)
 
     @pytest.mark.asyncio
     async def test_delete_pks_kwarg_invalid_raises(self):
