@@ -494,6 +494,30 @@ class TestAsyncGrpcHandlerAlias:
             assert result == ["alias1", "alias2"]
 
     @pytest.mark.asyncio
+    async def test_list_aliases_without_collection_name(self) -> None:
+        """list_aliases should accept an empty collection name and forward db_name"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status.code = 0
+        mock_response.aliases = ["alias1"]
+        mock_stub.ListAliases = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.Prepare") as mock_prepare, patch(
+            "pymilvus.client.async_grpc_handler.check_status"
+        ):
+            mock_prepare.list_aliases_request.return_value = MagicMock()
+            result = await handler.list_aliases("", db_name="db1")
+            assert result == ["alias1"]
+            mock_prepare.list_aliases_request.assert_called_once_with("", "db1")
+
+    @pytest.mark.asyncio
     async def test_describe_alias(self) -> None:
         """Test describe_alias async API"""
         mock_channel = MagicMock()
