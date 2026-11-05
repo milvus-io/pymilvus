@@ -309,6 +309,7 @@ class Connections(metaclass=SingleInstanceMetaClass):
                    The file stores the local database persistently and is created if it does
                    not exist. Its parent directory must already exist. Install the optional
                    dependency with `pip install 'pymilvus[milvus_lite]'` to use this mode.
+                   Milvus Lite is not supported on Windows.
                 * host (str, Optional) -- The host of Milvus instance. Default at "localhost",
                     PyMilvus will fill in the default host if only port is provided.
                 * port (str/int, Optional) -- The port of Milvus instance. Default at 19530,

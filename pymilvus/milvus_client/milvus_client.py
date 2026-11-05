@@ -78,6 +78,12 @@ class MilvusClient(BaseMilvusClient):
             uri (str, optional): The connection address to use to connect to the
                 instance. Defaults to "http://localhost:19530". Another example:
                 "https://username:password@in01-12a.aws-us-west-2.vectordb.zillizcloud.com:19538
+                A local file path ending in ".db", such as "./milvus_demo.db",
+                starts an embedded Milvus Lite instance and stores the database
+                persistently in that file. The file is created if it does not
+                exist; its parent directory must already exist. Install the
+                optional dependency with `pip install 'pymilvus[milvus_lite]'`.
+                Milvus Lite is not supported on Windows.
             timeout (float, optional): What timeout to use for function calls. Defaults
                 to None.
                 Unit: second
