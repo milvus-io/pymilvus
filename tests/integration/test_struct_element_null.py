@@ -1,6 +1,7 @@
 """Set MILVUS_ELEMENT_NULL_URI after obtaining the new-cluster address."""
 
 import asyncio
+import copy
 import inspect
 import logging
 import os
@@ -14,6 +15,7 @@ from pymilvus import (
     AsyncMilvusClient,
     CollectionSchema,
     DataType,
+    FieldOp,
     FieldSchema,
     MilvusClient,
     RRFRanker,
@@ -82,7 +84,7 @@ async def queried(client, name, ids):
     return {row["id"]: row["clips"] for row in rows}
 
 
-async def compact_and_reload(client, inspector, name):
+async def compact_and_reload(client, name):
     await call(client.flush, name)
     job = await call(client.compact, name)
     deadline = time.monotonic() + 120
@@ -90,8 +92,7 @@ async def compact_and_reload(client, inspector, name):
         if time.monotonic() >= deadline:
             pytest.fail(f"Compaction {job} did not complete within 120 seconds")
         await asyncio.sleep(0.5)
-    # The existing async handler does not implement get_compaction_plans.
-    plans = inspector.get_compaction_plans(job)
+    plans = await call(client.get_compaction_plans, job)
     assert any(
         plan.sources and plan.targets for plan in plans.plans
     ), "Compaction produced no output segment"
@@ -272,7 +273,7 @@ async def test_struct_nulls_search_evolution(client_type, nullable):
         await call(client.insert, name, [{"id": 6, "clips": sample_clips()}])
         assert (await queried(client, name, [6]))[6] == expected[3]
 
-        await compact_and_reload(client, inspector, name)
+        await compact_and_reload(client, name)
         assert await queried(client, name, list(expected)) == expected
         assert await queried(client, name, [5, 6]) == {5: expected[3], 6: expected[3]}
         compacted_hits = await call(
@@ -367,7 +368,10 @@ async def test_struct_nulls_search_evolution(client_type, nullable):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("client_type", [MilvusClient, AsyncMilvusClient])
 @pytest.mark.parametrize("nullable", [False, True])
-async def test_partial_upsert_preserves_omitted_struct(client_type, nullable, monkeypatch):
+@pytest.mark.parametrize("added_child", [False, True])
+async def test_partial_upsert_preserves_omitted_struct(
+    client_type, nullable, added_child, monkeypatch
+):
     name = "struct_partial_" + uuid4().hex
     client = client_type(uri=URI, timeout=30)
     inspector = MilvusClient(uri=URI, timeout=30)
@@ -386,6 +390,17 @@ async def test_partial_upsert_preserves_omitted_struct(client_type, nullable, mo
             consistency_level="Strong",
         )
         await call(client.insert, name, [{"id": 3, "clips": sample_clips()}])
+        expected = sample_clips()
+        ids = [3]
+        if added_child:
+            await call(client.flush, name)
+            await call(
+                client.add_collection_field, name, "clips[lang]", DataType.INT64, nullable=True
+            )
+            for clip in expected:
+                clip["lang"] = None
+            await call(client.insert, name, [{"id": 4, "clips": sample_clips()}])
+            ids.append(4)
         query = Prepare.query_request(
             name, "id == 3", ["clips"], [], use_default_consistency=False, consistency_level=0
         )
@@ -423,11 +438,17 @@ async def test_partial_upsert_preserves_omitted_struct(client_type, nullable, mo
                 return response
 
             monkeypatch.setattr(conn._stub, "Upsert", record_upsert)
-        await call(client.upsert, name, [{"id": 3, "marker": 99}], partial_update=True)
-        assert (await queried(client, name, [3]))[3] == sample_clips()
-        assert await call(client.query, name, filter="id == 3", output_fields=["id", "marker"]) == [
-            {"id": 3, "marker": 99}
-        ]
+        await call(
+            client.upsert,
+            name,
+            [{"id": row_id, "marker": 99} for row_id in ids],
+            partial_update=True,
+        )
+        assert await queried(client, name, ids) == dict.fromkeys(ids, expected)
+        markers = await call(
+            client.query, name, filter=f"id in {ids}", output_fields=["id", "marker"]
+        )
+        assert {row["id"]: row["marker"] for row in markers} == dict.fromkeys(ids, 99)
     finally:
         try:
             if owned:
@@ -691,6 +712,146 @@ async def test_other_vector_types_keep_null_offsets(
             limit=3,
         )
         assert [(hit["id"], hit["offset"]) for hit in found[0]] == [(1, 1)]
+    finally:
+        try:
+            if owned:
+                if inspector.has_collection(name):
+                    inspector.drop_collection(name)
+                remaining = inspector.has_collection(name)
+                LOGGER.info("COLLECTION_CLEANUP uri=%s name=%s exists=%s", URI, name, remaining)
+                assert not remaining, f"Collection cleanup failed: {name}"
+        finally:
+            inspector.close()
+            await call(client.close)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("client_type", [MilvusClient, AsyncMilvusClient])
+@pytest.mark.parametrize("child_nullable", [False, True])
+@pytest.mark.parametrize("leaf_nullable", [False, True])
+async def test_path_replace_preserves_other_elements_and_children(
+    client_type, child_nullable, leaf_nullable
+):
+    name = "struct_path_" + uuid4().hex
+    client = client_type(uri=URI, timeout=30)
+    inspector = MilvusClient(uri=URI, timeout=30)
+    owned = False
+    LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
+    try:
+        assert not inspector.has_collection(name), f"Refusing existing collection {name}"
+        owned = True
+        clips = StructFieldSchema()
+        clips.add_field("v", DataType.FLOAT_VECTOR, dim=2, nullable=True)
+        clips.add_field("score", DataType.INT64)
+        clips.add_field(
+            "tags",
+            DataType.ARRAY,
+            element_type=DataType.INT64,
+            max_capacity=4,
+            nullable=child_nullable,
+            element_nullable=leaf_nullable,
+        )
+        schema = CollectionSchema([FieldSchema("id", DataType.INT64, is_primary=True)])
+        schema.add_field(
+            "clips",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=clips,
+            max_capacity=8,
+            nullable=True,
+        )
+        index = MilvusClient.prepare_index_params()
+        index.add_index("clips[v]", index_type="FLAT", metric_type="L2")
+        await call(
+            client.create_collection,
+            name,
+            schema=schema,
+            index_params=index,
+            consistency_level="Strong",
+        )
+        expected = [
+            {"v": [1.0, 0.0], "score": 1, "tags": [1, None] if leaf_nullable else [1, 2]},
+            {"v": None, "score": 2, "tags": None if child_nullable else []},
+            {"v": [3.0, 0.0], "score": 3, "tags": []},
+        ]
+        await call(
+            client.insert,
+            name,
+            [{"id": 1, "clips": expected}, {"id": 2, "clips": None}, {"id": 3, "clips": []}],
+        )
+
+        async def replace(operand, path):
+            await call(
+                client.upsert,
+                name,
+                [{"id": 1, "clips": [operand]}],
+                field_ops={"clips": FieldOp.path_replace(path)},
+            )
+
+        for sealed in (False, True):
+            if sealed:
+                await call(client.flush, name)
+                await call(client.release_collection, name)
+                await call(client.load_collection, name)
+            snapshot = copy.deepcopy(expected)
+            for tags in ([], [7, None] if leaf_nullable else [7, 8]):
+                await replace({"tags": tags}, "[1][tags]")
+                expected[1]["tags"] = tags
+                assert (await queried(client, name, [1]))[1] == expected
+            if child_nullable:
+                await replace({"tags": None}, "[1][tags]")
+                expected[1]["tags"] = None
+                assert (await queried(client, name, [1]))[1] == expected
+            await replace({"score": 9}, "[1][score]")
+            expected[1]["score"] = 9
+            assert (await queried(client, name, [1]))[1] == expected
+            for vector in (None, [9.0, 0.0]):
+                await replace({"v": vector}, "[1][v]")
+                expected[1]["v"] = vector
+                assert (await queried(client, name, [1]))[1] == expected
+            found = await call(
+                client.search,
+                name,
+                [[9.0, 0.0]],
+                anns_field="clips[v]",
+                search_params={"metric_type": "L2"},
+                filter="id == 1",
+                limit=1,
+                output_fields=["clips"],
+            )
+            assert found[0][0]["offset"] == 1
+            assert found[0][0]["entity"]["clips"] == expected
+            operand = {"score": 22}
+            if not child_nullable:
+                operand["tags"] = []
+            await replace(operand, "[1]")
+            expected[1] = {"v": None, "score": 22, "tags": None if child_nullable else []}
+            assert (await queried(client, name, [1]))[1] == expected
+            assert expected[0] == snapshot[0] and expected[2] == snapshot[2]
+            assert await queried(client, name, [2, 3]) == {2: None, 3: []}
+
+        for row_id, path in ((1, "[9][score]"), (2, "[0][score]"), (3, "[0][score]")):
+            with pytest.raises(MilvusException):
+                await call(
+                    client.upsert,
+                    name,
+                    [{"id": row_id, "clips": [{"score": 9}]}],
+                    field_ops={"clips": FieldOp.path_replace(path)},
+                )
+        invalid = [
+            ("[0][score]", {"score": None}),
+            ("[0][v]", {"v": []}),
+            ("[0]", {"tags": []}),
+            ("[0][score]", {"score": 1, "tags": []}),
+        ]
+        if not child_nullable:
+            invalid.append(("[0][tags]", {"tags": None}))
+        if not leaf_nullable:
+            invalid.append(("[0][tags]", {"tags": [None]}))
+        for path, operand in invalid:
+            with pytest.raises(MilvusException):
+                await replace(operand, path)
+        assert (await queried(client, name, [1]))[1] == expected
     finally:
         try:
             if owned:

@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import grpc
 import numpy as np
 import pytest
-from pymilvus import CollectionSchema, DataType, FieldSchema
+from pymilvus import CollectionSchema, DataType, FieldOp, FieldSchema
 from pymilvus.client.abstract import StructArrayFieldSchema
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
@@ -681,3 +681,213 @@ async def test_async_add_subfield_reaches_server_when_cache_predates_parent(oper
         assert GlobalCache.schema.get(handler.server_address, "", "videos") is None
     finally:
         GlobalCache._reset_for_testing()
+
+
+@pytest.mark.parametrize("row_nullable", [False, True])
+@pytest.mark.parametrize("child_nullable", [False, True])
+@pytest.mark.parametrize("leaf_nullable", [False, True])
+def test_struct_params_and_nested_schema_roundtrip(row_nullable, child_nullable, leaf_nullable):
+    struct = make_schema(row_nullable, child_nullable, leaf_nullable).struct_fields[0]
+    schema = CollectionSchema([FieldSchema("id", DataType.INT64, is_primary=True)])
+    schema.add_field(
+        "clips",
+        DataType.ARRAY,
+        element_type=DataType.STRUCT,
+        struct_schema=struct,
+        max_capacity=16,
+        nullable=row_nullable,
+        mmap_enabled=True,
+        warmup="sync",
+    )
+    wire = Prepare.get_schema_from_collection_schema("videos", schema)
+    converted = convert_struct_fields_to_user_format([wire_info(schema)])
+    assert converted[0]["params"] == {"mmap_enabled": True, "warmup": "sync", "max_capacity": 16}
+    restored = CollectionSchema.construct_from_dict({"fields": [PK, *converted]})
+    assert restored.struct_fields[0].fields[2].params["max_capacity"] == 8
+    assert restored.struct_fields[0].fields[2].element_nullable == leaf_nullable
+    assert Prepare.get_schema_from_collection_schema("videos", restored) == wire
+
+
+def path_replace_request(schema, rows, path):
+    return Prepare.row_upsert_param(
+        "videos",
+        rows,
+        "",
+        [PK],
+        [wire_info(schema)],
+        field_ops={"clips": FieldOp.path_replace(path)},
+    )
+
+
+@pytest.mark.parametrize("row_nullable", [False, True])
+@pytest.mark.parametrize("stored_names", [False, True])
+def test_path_replace_required_nested_child_only_encodes_that_child(row_nullable, stored_names):
+    schema = make_schema(row_nullable, False, True)
+    info = wire_info(schema)
+    if stored_names:
+        for field in info["fields"]:
+            field["name"] = f"clips[{field['name']}]"
+    rows = [{"id": 1, "clips": [{"tags": ["a", None]}]}, {"id": 2, "clips": [{"tags": []}]}]
+    before = copy.deepcopy((rows, info))
+    request = Prepare.row_upsert_param(
+        "videos", rows, "", [PK], [info], field_ops={"clips": FieldOp.path_replace("[1][tags]")}
+    )
+    assert request.partial_update
+    assert request.field_ops[0].path == "[1][tags]"
+    fields = request.fields_data[1].struct_arrays.fields
+    assert [field.field_name for field in fields] == ["tags"]
+    first, second = fields[0].scalars.array_data.data
+    assert list(first.valid_data) == []
+    leaf = first.array_data.data[0]
+    assert list(leaf.valid_data) == [True, False]
+    assert list(leaf.string_data.data) == ["a"]
+    assert second.array_data.data[0].WhichOneof("data") == "string_data"
+    assert not second.array_data.data[0].string_data.data
+    if row_nullable:
+        assert list(fields[0].valid_data) == [True, True]
+        assert list(fields[0].scalars.valid_data) == [True, True]
+    assert (rows, info) == before
+
+
+@pytest.mark.parametrize("child", ["embedding", "score", "tags"])
+def test_path_replace_nullable_child_none_is_one_null_element(child):
+    request = path_replace_request(
+        make_schema(), [{"id": 1, "clips": [{child: None}]}], f"[0][{child}]"
+    )
+    fields = request.fields_data[1].struct_arrays.fields
+    assert [field.field_name for field in fields] == [child]
+    if child == "embedding":
+        value = fields[0].vectors.vector_array.data[0]
+        assert list(value.valid_data) == [False]
+        assert not value.float_vector.data
+        assert fields[0].vectors.vector_array.dim == 2
+    else:
+        value = fields[0].scalars.array_data.data[0]
+        assert list(value.valid_data) == [False]
+        if child == "tags":
+            assert not value.array_data.data
+        else:
+            assert not value.long_data.data
+
+
+def test_path_replace_whole_element_keeps_required_children_and_fills_nullable_ones():
+    schema = make_schema()
+    schema.struct_fields[0].fields[1].nullable = False
+    request = path_replace_request(schema, [{"id": 1, "clips": [{"score": 9}]}], "[1]")
+    fields = request.fields_data[1].struct_arrays.fields
+    assert [field.field_name for field in fields] == ["embedding", "score", "tags"]
+    assert list(fields[0].vectors.vector_array.data[0].valid_data) == [False]
+    assert list(fields[1].scalars.array_data.data[0].long_data.data) == [9]
+    assert list(fields[2].scalars.array_data.data[0].valid_data) == [False]
+    with pytest.raises(DataNotMatchException, match="missing required fields"):
+        path_replace_request(schema, [{"id": 1, "clips": [{}]}], "[1]")
+
+
+@pytest.mark.parametrize("path", ["[0]", "[0][tags]"])
+def test_path_replace_required_nested_leaf_validation_is_preserved(path):
+    schema = make_schema(False, False, False)
+    operand = (
+        {"tags": [None]}
+        if path.endswith("[tags]")
+        else {"embedding": [1, 2], "score": 1, "tags": [None]}
+    )
+    with pytest.raises((DataNotMatchException, ParamError), match=r"null|None"):
+        path_replace_request(schema, [{"id": 1, "clips": [operand]}], path)
+
+
+@pytest.mark.parametrize("child,value", [("embedding", []), ("score", None), ("tags", None)])
+def test_path_replace_rejects_invalid_required_child_values(child, value):
+    with pytest.raises((DataNotMatchException, ParamError)):
+        path_replace_request(
+            make_schema(False, False), [{"id": 1, "clips": [{child: value}]}], f"[0][{child}]"
+        )
+
+
+@pytest.mark.parametrize("value", [None, [], [{"score": 1}, {"score": 2}], [None]])
+def test_path_replace_requires_one_struct_element(value):
+    with pytest.raises((DataNotMatchException, ParamError)):
+        path_replace_request(make_schema(), [{"id": 1, "clips": value}], "[0][score]")
+
+
+@pytest.mark.parametrize("path", ["[-1]", "[01]", "[0][tags][leaf]", "[0][]", " [0]", "[0][ tags]"])
+def test_path_replace_rejects_noncanonical_struct_path(path):
+    with pytest.raises(ParamError, match=r"requires \[index\]"):
+        path_replace_request(make_schema(), [{"id": 1, "clips": [{"score": 1}]}], path)
+
+
+def test_path_replace_unknown_child_and_extra_operand_sibling_are_rejected():
+    with pytest.raises(ParamError, match="not found"):
+        path_replace_request(make_schema(), [{"id": 1, "clips": [{"unknown": 1}]}], "[0][unknown]")
+    with pytest.raises(DataNotMatchException, match="unexpected fields"):
+        path_replace_request(
+            make_schema(), [{"id": 1, "clips": [{"score": 1, "tags": []}]}], "[0][score]"
+        )
+    with pytest.raises(DataNotMatchException, match="exactly one element"):
+        path_replace_request(make_schema(), [{"id": 1}], "[0][score]")
+
+
+def test_ordinary_partial_upsert_still_requires_complete_struct():
+    with pytest.raises(DataNotMatchException, match="missing required fields"):
+        Prepare.row_upsert_param(
+            "videos",
+            [{"id": 1, "clips": [{"score": 9}]}],
+            "",
+            [PK],
+            [wire_info(make_schema(False, False))],
+            partial_update=True,
+        )
+
+
+def test_sync_path_replace_row_request_uses_only_selected_child():
+    handler, _ = bare_handler()
+    handler._get_schema.return_value = (
+        {"fields": [PK], "struct_array_fields": [wire_info(make_schema(False, False))]},
+        0,
+    )
+    request = handler._prepare_row_upsert_request(
+        "videos",
+        [{"id": 1, "clips": [{"tags": [None, "a"]}]}],
+        field_ops={"clips": FieldOp.path_replace("[1][tags]")},
+    )
+    assert request.field_ops[0].path == "[1][tags]"
+    assert [field.field_name for field in request.fields_data[1].struct_arrays.fields] == ["tags"]
+
+
+@pytest.mark.asyncio
+async def test_async_path_replace_row_request_uses_only_selected_child():
+    handler, _ = bare_handler(True)
+    handler._get_schema.return_value = (
+        {"fields": [PK], "struct_array_fields": [wire_info(make_schema(False, False))]},
+        0,
+    )
+    request = await handler._prepare_row_upsert_request(
+        "videos",
+        [{"id": 1, "clips": [{"tags": [None, "a"]}]}],
+        field_ops={"clips": FieldOp.path_replace("[1][tags]")},
+    )
+    assert request.field_ops[0].path == "[1][tags]"
+    assert [field.field_name for field in request.fields_data[1].struct_arrays.fields] == ["tags"]
+
+
+@pytest.mark.parametrize("tags", [[], [None, "a"]])
+def test_path_replace_whole_element_accepts_required_nested_child(tags):
+    request = path_replace_request(
+        make_schema(True, False, True),
+        [{"id": 1, "clips": [{"embedding": [1, 2], "score": 9, "tags": tags}]}],
+        "[1]",
+    )
+    fields = request.fields_data[1].struct_arrays.fields
+    assert [field.field_name for field in fields] == ["embedding", "score", "tags"]
+    nested = fields[2].scalars.array_data.data[0]
+    leaf = nested.array_data.data[0]
+    assert list(leaf.valid_data) == [value is not None for value in tags]
+    assert list(leaf.string_data.data) == [value for value in tags if value is not None]
+
+
+def test_path_replace_struct_operand_keeps_numpy_row_support():
+    request = path_replace_request(
+        make_schema(), [{"id": 1, "clips": np.array([{"score": 9}], dtype=object)}], "[0][score]"
+    )
+    field = request.fields_data[1].struct_arrays.fields[0]
+    assert field.field_name == "score"
+    assert list(field.scalars.array_data.data[0].long_data.data) == [9]

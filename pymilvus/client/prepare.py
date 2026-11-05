@@ -1443,6 +1443,7 @@ class Prepare:
             **cls._rls_context(kwargs),
         )
 
+        struct_fields_info = cls._prepare_struct_path_replace(entities, struct_fields_info, ops)
         request = cls._parse_upsert_row_request(
             request,
             fields_info,
@@ -1609,6 +1610,53 @@ class Prepare:
         return request
 
     @staticmethod
+    def _prepare_struct_path_replace(
+        entities: List,
+        struct_fields_info: Optional[List[Dict]],
+        field_ops: Dict[str, schema_types.FieldPartialUpdateOp],
+    ) -> Optional[List[Dict]]:
+        if not struct_fields_info or not field_ops:
+            return struct_fields_info
+        selected_structs = []
+        for struct in struct_fields_info:
+            name = struct["name"]
+            op = field_ops.get(name)
+            if op is None or op.op != schema_types.FieldPartialUpdateOp.PATH_REPLACE:
+                selected_structs.append(struct)
+                continue
+            # Parse only the shape needed to select operand columns. The server
+            # validates the index range and applies the replacement to old rows.
+            match = re.fullmatch(r"\[(?:0|[1-9][0-9]*)\](?:\[([^\[\]\s]+)\])?", op.path)
+            if match is None:
+                raise ParamError(
+                    message=f"PATH_REPLACE on struct {name!r} requires [index] or [index][child]"
+                )
+            child = match.group(1)
+            selected_struct = struct
+            if child is not None:
+                fields = [
+                    field
+                    for field in struct["fields"]
+                    if Prepare._strip_struct_sub_field_name(name, field["name"]) == child
+                ]
+                if not fields:
+                    raise ParamError(message=f"PATH_REPLACE child {child!r} not found in {name!r}")
+                selected_struct = {**struct, "fields": fields}
+            for entity in entities:
+                if not isinstance(entity, dict):
+                    continue  # The row parser reports invalid entity types.
+                value = entity.get(name)
+                is_array = isinstance(value, list) or (
+                    isinstance(value, np.ndarray) and value.ndim > 0
+                )
+                if not is_array or len(value) != 1:
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE requires exactly one element for struct field {name!r} in every row"
+                    )
+            selected_structs.append(selected_struct)
+        return selected_structs
+
+    @staticmethod
     def _apply_field_ops(
         request: Union[milvus_types.InsertRequest, milvus_types.UpsertRequest],
         field_ops: "dict[str, schema_types.FieldPartialUpdateOp]",
@@ -1623,7 +1671,9 @@ class Prepare:
         if not field_ops:
             return
         for field_name, op in field_ops.items():
-            request.field_ops.add(field_name=field_name, op=op.op)
+            entry = request.field_ops.add()
+            entry.CopyFrom(op)
+            entry.field_name = field_name
 
     @classmethod
     def delete_request(
