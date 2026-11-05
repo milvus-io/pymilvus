@@ -3584,16 +3584,14 @@ class UnpinSnapshotDataRequest(_message.Message):
 class AlterCollectionSchemaRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "collectionID", "action")
     class FieldInfo(_message.Message):
-        __slots__ = ("field_schema", "index_name", "extra_params", "struct_path")
+        __slots__ = ("field_schema", "index_name", "extra_params")
         FIELD_SCHEMA_FIELD_NUMBER: _ClassVar[int]
         INDEX_NAME_FIELD_NUMBER: _ClassVar[int]
         EXTRA_PARAMS_FIELD_NUMBER: _ClassVar[int]
-        STRUCT_PATH_FIELD_NUMBER: _ClassVar[int]
         field_schema: _schema_pb2.FieldSchema
         index_name: str
         extra_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
-        struct_path: str
-        def __init__(self, field_schema: _Optional[_Union[_schema_pb2.FieldSchema, _Mapping]] = ..., index_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., struct_path: _Optional[str] = ...) -> None: ...
+        def __init__(self, field_schema: _Optional[_Union[_schema_pb2.FieldSchema, _Mapping]] = ..., index_name: _Optional[str] = ..., extra_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
     class AddRequest(_message.Message):
         __slots__ = ("field_infos", "func_schema", "do_physical_backfill")
         FIELD_INFOS_FIELD_NUMBER: _ClassVar[int]
@@ -3982,14 +3980,16 @@ class CancelRequestsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[int]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class SnapshotSummary(_message.Message):
-    __slots__ = ("name", "create_ts", "description")
+    __slots__ = ("name", "create_ts", "description", "create_utc_ts")
     NAME_FIELD_NUMBER: _ClassVar[int]
     CREATE_TS_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREATE_UTC_TS_FIELD_NUMBER: _ClassVar[int]
     name: str
     create_ts: int
     description: str
-    def __init__(self, name: _Optional[str] = ..., create_ts: _Optional[int] = ..., description: _Optional[str] = ...) -> None: ...
+    create_utc_ts: int
+    def __init__(self, name: _Optional[str] = ..., create_ts: _Optional[int] = ..., description: _Optional[str] = ..., create_utc_ts: _Optional[int] = ...) -> None: ...
 
 class WriteCondition(_message.Message):
     __slots__ = ("field", "op", "on_missing")
