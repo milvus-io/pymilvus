@@ -105,8 +105,8 @@ async def compact_and_reload(client, name):
 @pytest.mark.parametrize("nullable", [False, True])
 async def test_struct_nulls_search_evolution(client_type, nullable):
     name = "struct_null_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -373,8 +373,8 @@ async def test_partial_upsert_preserves_omitted_struct(
     client_type, nullable, added_child, monkeypatch
 ):
     name = "struct_partial_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -467,8 +467,8 @@ async def test_partial_upsert_preserves_omitted_struct(
 @pytest.mark.parametrize("metric", ["IP", "COSINE"])
 async def test_nullable_vectors_with_other_metrics(client_type, metric):
     name = "struct_metric_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -522,8 +522,8 @@ async def test_nullable_vectors_with_other_metrics(client_type, metric):
 @pytest.mark.parametrize("leaf_nullable", [False, True])
 async def test_required_children_and_nested_leaf_nulls(client_type, leaf_nullable):
     name = "struct_required_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -596,8 +596,8 @@ async def test_required_children_and_nested_leaf_nulls(client_type, leaf_nullabl
 @pytest.mark.parametrize("client_type", [MilvusClient, AsyncMilvusClient])
 async def test_later_added_struct_preserves_null_rows_when_child_is_added(client_type):
     name = "struct_added_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -667,8 +667,8 @@ async def test_other_vector_types_keep_null_offsets(
     client_type, dtype, value, dim, expected, index_type, metric
 ):
     name = "struct_vector_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
@@ -733,8 +733,8 @@ async def test_path_replace_preserves_other_elements_and_children(
     client_type, child_nullable, leaf_nullable
 ):
     name = "struct_path_" + uuid4().hex
-    client = client_type(uri=URI, timeout=30)
-    inspector = MilvusClient(uri=URI, timeout=30)
+    client = client_type(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
+    inspector = MilvusClient(uri=URI, token=os.environ.get("MILVUS_TOKEN", ""), timeout=30)
     owned = False
     LOGGER.info("COLLECTION_START uri=%s name=%s", URI, name)
     try:
