@@ -429,7 +429,9 @@ class QueryIterator:
         filtered_pk_str = ""
         pk_op = ">=" if self._has_element_cursor() else ">"
         if self._pk_str:
-            filtered_pk_str = f'{self._pk_field_name} {pk_op} "{self._next_id}"'
+            filtered_pk_str = (
+                f"{self._pk_field_name} {pk_op} {json.dumps(self._next_id, ensure_ascii=False)}"
+            )
         else:
             filtered_pk_str = f"{self._pk_field_name} {pk_op} {self._next_id}"
         if current_expr is None or len(current_expr) == 0:
