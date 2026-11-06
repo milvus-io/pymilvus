@@ -1,4 +1,7 @@
+import os
+import pathlib
 import time
+import uuid
 from typing import ClassVar, Dict, List
 from unittest.mock import patch
 
@@ -103,6 +106,48 @@ class TestEntityHelperExtended:
         result = convert_to_str_array([123, "test"], field_info, check=False)
         assert len(result) == 2
 
+    def test_convert_to_str_array_coerces_uuid_and_pathlike(self):
+        """GH-2917: uuid.UUID/os.PathLike values are coerced to str, not rejected."""
+        field_info = {"name": "test_field", "params": {Config.MaxVarCharLengthKey: 64}}
+        u = uuid.uuid4()
+        p = pathlib.PurePosixPath("/tmp/foo")
+
+        result = convert_to_str_array([u, p, "plain"], field_info)
+
+        assert result == [str(u), "/tmp/foo", "plain"]
+
+        # Non-coercible non-string input is still rejected
+        with pytest.raises(ParamError, match="expects string input"):
+            convert_to_str_array([123], field_info)
+
+    def test_convert_to_str_array_coerces_scalar_row_input(self):
+        """GH-2917: convert_to_str_array is also called with a bare scalar (not a
+        list) for row-based inserts via _ROW_SCALAR_NORMALIZERS; UUID/PathLike
+        scalars must be coerced there too, not just inside a list."""
+        field_info = {"name": "test_field", "params": {Config.MaxVarCharLengthKey: 64}}
+        u = uuid.uuid4()
+        p = pathlib.PureWindowsPath("C:\\Users\\a")
+
+        assert convert_to_str_array(u, field_info) == str(u)
+        assert convert_to_str_array(p, field_info) == "C:\\Users\\a"
+        # Plain string scalars are unaffected
+        assert convert_to_str_array("hello", field_info) == "hello"
+
+    def test_convert_to_str_array_coerces_bytes_returning_pathlike(self):
+        """PR review (yhmo): os.PathLike.__fspath__() is allowed to return
+        bytes, not just str. Coercing via os.fspath() would leave raw bytes
+        behind, which still fails the VARCHAR string check; os.fsdecode()
+        must be used to normalize to text."""
+
+        class BytesPath(os.PathLike):
+            def __fspath__(self):
+                return b"/tmp/bytes-path"
+
+        field_info = {"name": "test_field", "params": {Config.MaxVarCharLengthKey: 64}}
+
+        assert convert_to_str_array(BytesPath(), field_info) == "/tmp/bytes-path"
+        assert convert_to_str_array([BytesPath()], field_info) == ["/tmp/bytes-path"]
+
     @patch("pymilvus.client.entity_helper.Config")
     def test_convert_to_str_array_with_encoding(self, mock_config):
         """Test string array conversion with different encoding"""
@@ -205,6 +250,23 @@ class TestEntityHelperExtended:
 
         assert field_data.type == DataType.INT64
         assert field_data.scalars.long_data.data[0] == 42
+
+    def test_pack_field_value_to_field_data_uuid_varchar(self):
+        """GH-2917 end-to-end: a bare uuid.UUID row value for a VARCHAR field
+        is coerced to string rather than rejected/crashing. This exercises the
+        real row-insert path (pack_field_value_to_field_data ->
+        _ROW_SCALAR_NORMALIZERS -> convert_to_str_array), not just the helper
+        function in isolation, since that's the gap a narrower fix could miss."""
+        field_data = schema_pb2.FieldData()
+        field_data.type = DataType.VARCHAR
+        field_data.field_name = "id_str"
+        field_info = {"name": "id_str", "params": {Config.MaxVarCharLengthKey: 64}}
+        vector_bytes_cache: Dict[int, List[bytes]] = {}
+        u = uuid.uuid4()
+
+        pack_field_value_to_field_data(u, field_data, field_info, vector_bytes_cache)
+
+        assert field_data.scalars.string_data.data[0] == str(u)
 
     def test_extract_field_info(self):
         """Test extracting primary field from schema"""

@@ -10,6 +10,8 @@
 # or implied. See the License for the specific language governing permissions and limitations under
 # the License.
 
+import os
+import uuid
 from typing import Any
 
 import numpy as np
@@ -92,12 +94,23 @@ def infer_dtype_by_scalar_data(data: Any, dtype: DataType = None):
         return DataType.VARCHAR
     if isinstance(data, bytes):
         return DataType.BINARY_VECTOR
+    # uuid.UUID and pathlib.Path (and its variants) are unambiguous as their
+    # string form, so treat them as VARCHAR rather than falling through to
+    # UNKNOWN. See GH-2917.
+    if isinstance(data, (uuid.UUID, os.PathLike)):
+        return DataType.VARCHAR
 
     return DataType.UNKNOWN
 
 
 def infer_dtype_bydata(data: Any):
     d_type = DataType.UNKNOWN
+    # pandas' is_scalar() doesn't consider os.PathLike scalar, so it would
+    # otherwise fall through to the data[0] subscript probe below and raise
+    # TypeError (Path objects aren't subscriptable). Handle both PathLike and
+    # UUID here explicitly before that probe. See GH-2917.
+    if isinstance(data, (uuid.UUID, os.PathLike)):
+        return infer_dtype_by_scalar_data(data)
     if is_scalar(data):
         return infer_dtype_by_scalar_data(data)
 
@@ -121,7 +134,7 @@ def infer_dtype_bydata(data: Any):
     if d_type == DataType.UNKNOWN:
         try:
             elem = data[0]
-        except IndexError:
+        except (IndexError, TypeError):
             elem = None
 
         if elem is not None and is_scalar(elem):
