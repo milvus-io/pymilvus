@@ -186,9 +186,12 @@ class TestRowInsertParam:
         embedding_data = struct_data.struct_arrays.fields[1]
 
         assert list(score_data.valid_data) == [False]
-        assert score_data.WhichOneof("field") is None
+        assert list(score_data.scalars.valid_data) == [False]
+        assert not score_data.scalars.array_data.data
         assert list(embedding_data.valid_data) == [False]
-        assert embedding_data.WhichOneof("field") is None
+        assert list(embedding_data.vectors.valid_data) == [False]
+        assert not embedding_data.vectors.vector_array.data
+        assert embedding_data.vectors.dim == 0
 
     def test_insert_non_nullable_struct_none_or_missing_raises(self):
         """Test non-nullable struct cannot be None or missing."""
@@ -843,7 +846,9 @@ class TestStructFieldProcessing:
     ):
         """Test struct values validation error cases."""
         with pytest.raises(error_type, match=error_match):
-            Prepare._validate_and_collect_struct_values(values, required_fields, field_name)
+            Prepare._validate_and_collect_struct_values(
+                values, {name: {} for name in required_fields}, field_name
+            )
 
     @pytest.mark.parametrize(
         "field_info,expected",
