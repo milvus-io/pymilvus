@@ -1,5 +1,5 @@
 import logging
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional
 
 from pymilvus.bulk_writer.volume_file_manager import VolumeFileManager
@@ -112,6 +112,8 @@ class VolumeBulkWriter(LocalBulkWriter):
     def _upload_object(self, file_path: str, object_name: str):
         logger.info(f"Prepare to upload '{file_path}' to '{object_name}'")
         self._volume_file_manager.upload_file_to_volume(
-            file_path, self._remote_path, upload_policy=UploadPolicy.OVERWRITE
+            file_path,
+            str(PurePosixPath(object_name).parent),
+            upload_policy=UploadPolicy.OVERWRITE,
         )
         logger.info(f"Uploaded file '{file_path}' to '{object_name}'")
