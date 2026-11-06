@@ -261,6 +261,35 @@ def test_nested_array_nullable_layers(tmp_path, inner_nullable, leaf_nullable):
 
 
 @pytest.mark.parametrize("file_type", FORMATS)
+@pytest.mark.parametrize("value", [-(2**63) - 1, 2**63])
+def test_nested_int64_array_rejects_overflow_before_buffering(tmp_path, file_type, value):
+    schema = make_schema(
+        [
+            (
+                "tags",
+                DataType.ARRAY,
+                {"element_type": DataType.INT64, "max_capacity": 3, "element_nullable": True},
+            )
+        ]
+    )
+    valid_row = {"id": 1, "clips": [{"tags": [-(2**63), None, 2**63 - 1]}]}
+    with LocalBulkWriter(schema, str(tmp_path), file_type=file_type) as writer:
+        writer.append_row(deepcopy(valid_row))
+        previous_size = writer.buffer_size
+        with pytest.raises(MilvusException, match="overflow") as caught:
+            writer.append_row({"id": 2, "clips": [{"tags": [None, value]}]})
+        assert "clips[0].tags" in caught.value.message
+        assert "tags[1]" in caught.value.message
+        assert writer.total_row_count == writer.buffer_row_count == writer._buffer.row_count == 1
+        assert writer.buffer_size == previous_size
+        assert not writer.batch_files
+        writer.commit()
+        assert len(writer.batch_files) == 1
+        assert len(writer.batch_files[0]) == 1
+        assert read_rows(Path(writer.batch_files[0][0]), file_type) == [valid_row]
+
+
+@pytest.mark.parametrize("file_type", FORMATS)
 def test_all_children_missing_preserves_objects(tmp_path, file_type):
     schema = make_schema(
         [
