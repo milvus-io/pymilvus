@@ -106,7 +106,7 @@ except Exception as ex:
 ## Advanced usage: customized aliases
 
 If single connection doesn't meet your performance needs, you can create multiple connections with customized aliases.
-The following code snippet demonstrate how to create unique connectionswith "c1-alias" and "c2-alias":
+The following code snippet demonstrate how to create unique connections with "c1-alias" and "c2-alias":
 
 ```python
 def advanced_unique_connections():
@@ -120,10 +120,10 @@ Notes:
 
 ### Best Practices
 
-- If you use the default bahavior, that different MilvusClient might share the same connection to Milvus server. Always ensure to **never close the MilvusClient** to avoid influencing shared MilvusClient.
+- If you use the default behavior, that different MilvusClient might share the same connection to Milvus server. Always ensure to **never close the MilvusClient** to avoid influencing shared MilvusClient.
 - If you use customized aliases, be aware to manage them carefully.
     - Ensure MilvusClient are closed when no longer needed to free resources.
     - Ensure no other clients require the connection before closing the MilvusClient.
-    - Aviod using short-lived connections, reuse them as much as possible.
+    - Avoid using short-lived connections, reuse them as much as possible.
 
 By following these guidelines, you can effectively manage Milvus client connections for various application scenarios.
