@@ -561,6 +561,11 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        is_sub_field = "[" in field_schema.name or "]" in field_schema.name
+        if is_sub_field:
+            if any(kwargs.get(key) for key in ("index_name", "index_extra_params", "func")):
+                raise ParamError(message="Struct sub-field add cannot bind a function or index")
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -570,12 +575,14 @@ class GrpcHandler:
             response = self._stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            if is_external_collection_schema_alter_unsupported(response.alter_status):
+            if not is_sub_field and is_external_collection_schema_alter_unsupported(
+                response.alter_status
+            ):
                 fallback_to_legacy = True
             else:
                 check_status(response.alter_status)
         except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+            if is_sub_field or e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
             fallback_to_legacy = True
 
@@ -720,6 +727,8 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        if field_schema is not None:
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,

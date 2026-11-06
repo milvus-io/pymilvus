@@ -3164,26 +3164,30 @@ class GetRLSPrincipalTagsResponse(_message.Message):
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., tags: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., principal_name: _Optional[str] = ...) -> None: ...
 
 class ListRLSPrincipalsRequest(_message.Message):
-    __slots__ = ("base", "db_name", "collection_name")
+    __slots__ = ("base", "db_name", "collection_name", "count")
     BASE_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COUNT_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
     db_name: str
     collection_name: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    count: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., count: bool = ...) -> None: ...
 
 class ListRLSPrincipalsResponse(_message.Message):
-    __slots__ = ("status", "principal_names", "db_name", "collection_name")
+    __slots__ = ("status", "principal_names", "db_name", "collection_name", "principal_cnt")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     PRINCIPAL_NAMES_FIELD_NUMBER: _ClassVar[int]
     DB_NAME_FIELD_NUMBER: _ClassVar[int]
     COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRINCIPAL_CNT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     principal_names: _containers.RepeatedScalarFieldContainer[str]
     db_name: str
     collection_name: str
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., principal_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
+    principal_cnt: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., principal_names: _Optional[_Iterable[str]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., principal_cnt: _Optional[int] = ...) -> None: ...
 
 class DeleteRLSPrincipalTagsRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "principal_name", "tag_keys")
@@ -3360,12 +3364,14 @@ class ListSnapshotsRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ...) -> None: ...
 
 class ListSnapshotsResponse(_message.Message):
-    __slots__ = ("status", "snapshots")
+    __slots__ = ("status", "snapshots", "snapshot_summaries")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOTS_FIELD_NUMBER: _ClassVar[int]
+    SNAPSHOT_SUMMARIES_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     snapshots: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., snapshots: _Optional[_Iterable[str]] = ...) -> None: ...
+    snapshot_summaries: _containers.RepeatedCompositeFieldContainer[SnapshotSummary]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., snapshots: _Optional[_Iterable[str]] = ..., snapshot_summaries: _Optional[_Iterable[_Union[SnapshotSummary, _Mapping]]] = ...) -> None: ...
 
 class DescribeSnapshotRequest(_message.Message):
     __slots__ = ("base", "name", "db_name", "collection_name")
@@ -3854,3 +3860,15 @@ class GetExportSnapshotStateResponse(_message.Message):
     status: _common_pb2.Status
     info: ExportSnapshotInfo
     def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., info: _Optional[_Union[ExportSnapshotInfo, _Mapping]] = ...) -> None: ...
+
+class SnapshotSummary(_message.Message):
+    __slots__ = ("name", "create_ts", "description", "create_utc_ts")
+    NAME_FIELD_NUMBER: _ClassVar[int]
+    CREATE_TS_FIELD_NUMBER: _ClassVar[int]
+    DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
+    CREATE_UTC_TS_FIELD_NUMBER: _ClassVar[int]
+    name: str
+    create_ts: int
+    description: str
+    create_utc_ts: int
+    def __init__(self, name: _Optional[str] = ..., create_ts: _Optional[int] = ..., description: _Optional[str] = ..., create_utc_ts: _Optional[int] = ...) -> None: ...

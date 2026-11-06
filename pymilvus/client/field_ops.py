@@ -17,9 +17,10 @@
 """Field-level partial-update helpers.
 
 These helpers wrap :class:`schema_pb2.FieldPartialUpdateOp` so callers do not
-need to import the generated protobuf module directly. ``FieldOp.array_append``
-and ``FieldOp.array_remove`` return ready-to-use proto messages that can be
-attached to a field during ``MilvusClient.upsert``.
+need to import the generated protobuf module directly. ``FieldOp`` factories
+return proto messages for the ``field_ops`` argument of ``MilvusClient.upsert``.
+The mapping key selects the parent field, including when a supplied proto has
+its own ``field_name``.
 """
 
 from typing import Mapping, Optional, Union
@@ -57,6 +58,18 @@ class FieldOp:
         unset for the REPLACE (default) behavior.
         """
         return schema_pb2.FieldPartialUpdateOp(op=FieldOpType.REPLACE)
+
+    @staticmethod
+    def path_replace(path: str) -> schema_pb2.FieldPartialUpdateOp:
+        """Replace a value selected by a path relative to the parent field.
+
+        For a struct, use ``[index]`` to replace one complete element or
+        ``[index][child]`` to replace one child. Each operand row contains one
+        struct element, with only the selected child for a child path.
+        """
+        if not isinstance(path, str) or not path:
+            raise ParamError(message="PATH_REPLACE requires a non-empty string path")
+        return schema_pb2.FieldPartialUpdateOp(op=FieldOpType.PATH_REPLACE, path=path)
 
     @staticmethod
     def array_append() -> schema_pb2.FieldPartialUpdateOp:
@@ -97,9 +110,17 @@ def normalize_field_ops(
     normalized: dict[str, schema_pb2.FieldPartialUpdateOp] = {}
     for field_name, op in field_ops.items():
         resolved = _coerce_single(field_name, op)
-        if resolved is None or resolved.op == FieldOpType.REPLACE:
+        if resolved is None:
             continue
-        normalized[field_name] = resolved
+        if resolved.op == FieldOpType.PATH_REPLACE:
+            if not resolved.path:
+                raise ParamError(message=f"PATH_REPLACE requires a path for field {field_name!r}")
+        elif resolved.path:
+            raise ParamError(
+                message=f"path is only supported for PATH_REPLACE on field {field_name!r}"
+            )
+        if resolved.op != FieldOpType.REPLACE:
+            normalized[field_name] = resolved
     return normalized
 
 

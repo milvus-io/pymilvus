@@ -499,7 +499,11 @@ class AsyncMilvusClient(BaseMilvusClient):
                     ``FieldOp.array_append()``), a string alias (``"array_append"``,
                     ``"array_remove"``, ``"replace"``), or a
                     :class:`schema_pb2.FieldPartialUpdateOp` message. Any non-REPLACE op implies
-                    partial_update=True.
+                    partial_update=True. ``FieldOp.path_replace("[1][tags]")`` replaces
+                    one struct child. Pass one struct element containing only ``tags``
+                    in each operand row. ``FieldOp.path_replace("[1]")`` replaces the
+                    whole element, requiring every non-nullable child. Omitted nullable
+                    children become null. Other elements and children stay unchanged.
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
@@ -970,6 +974,11 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
+        """Add a field, or a ``struct[subfield]`` path with ``nullable=True``.
+
+        Sub-field types describe one element. Array ``max_capacity`` controls
+        its inner array, and ``element_nullable`` controls scalar leaves.
+        """
         if type_info.is_vector_type(data_type) and not kwargs.get("nullable", False):
             raise ParamError(
                 message="Adding vector field to existing collection requires nullable=True"
