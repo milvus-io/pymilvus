@@ -6,6 +6,7 @@ import orjson
 
 from pymilvus.exceptions import DataTypeNotMatchException, ExceptionsMessage, ParamError
 from pymilvus.function_chain import FunctionChain
+from pymilvus.orm.schema import Function, FunctionScore
 from pymilvus.settings import Config
 
 from . import utils
@@ -523,6 +524,32 @@ class WeightedRanker(BaseRanker):
         }
 
 
+def _check_sub_request_ranker(ranker: Optional[Union[Function, FunctionScore]]):
+    """Mirror the server rule: a sub-request function score may only hold boost rerankers."""
+    if ranker is None:
+        return
+    if isinstance(ranker, Function):
+        functions = [ranker]
+    elif isinstance(ranker, FunctionScore):
+        functions = ranker.functions or []
+    else:
+        raise ParamError(message="AnnSearchRequest ranker must be a Function or a FunctionScore.")
+    if not functions:
+        raise ParamError(
+            message="AnnSearchRequest ranker must contain at least one boost function."
+        )
+    for function in functions:
+        reranker = next(
+            (str(v).lower() for k, v in (function.params or {}).items() if k.lower() == "reranker"),
+            "",
+        )
+        if reranker != "boost":
+            raise ParamError(
+                message="AnnSearchRequest ranker only supports boost functions, "
+                f"got reranker={reranker!r}."
+            )
+
+
 class AnnSearchRequest:
     """An individual ANN recall request for hybrid search.
 
@@ -535,6 +562,13 @@ class AnnSearchRequest:
     Nested chains can be used with a legacy ranker or a top-level L2 chain,
     but cannot be combined with a top-level Function ranker. Operator and
     expression semantics are validated by the server.
+
+    ``ranker`` accepts a boost ``Function`` (``params={"reranker": "boost", ...}``)
+    or a ``FunctionScore`` made only of boost functions, applied only to this
+    request before top-level fusion. Other reranker types (decay, weighted,
+    rrf, model) are rejected, since the server does not apply them per
+    sub-request. It cannot be combined with ``function_chains`` on the same
+    request.
     """
 
     def __init__(
@@ -547,12 +581,15 @@ class AnnSearchRequest:
         expr_params: Optional[dict] = None,
         filter: Optional[str] = None,
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
+        ranker: Optional[Union[Function, FunctionScore]] = None,
     ):
         self._data = data
         self._anns_field = anns_field
         self._param = param
         self._limit = limit
         self._function_chains = function_chains
+        _check_sub_request_ranker(ranker)
+        self._ranker = ranker
 
         if expr is not None and filter is not None:
             raise ParamError(message="Provide either 'expr' or 'filter', not both.")
@@ -594,6 +631,11 @@ class AnnSearchRequest:
     def function_chains(self) -> Optional[Union[FunctionChain, List[FunctionChain]]]:
         """Function chains belonging to this individual ANN request."""
         return self._function_chains
+
+    @property
+    def ranker(self) -> Optional[Union[Function, FunctionScore]]:
+        """Function ranker applied to this individual ANN request before fusion."""
+        return self._ranker
 
     def __str__(self):
         return {
