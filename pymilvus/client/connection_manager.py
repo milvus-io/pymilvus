@@ -381,6 +381,11 @@ class _GlobalStrategyMixin:
         host = parsed.hostname or "localhost"
         default_port = 443 if parsed.scheme.lower() == "https" else DEFAULT_PORT
         port = parsed.port or default_port
+        # urlparse().hostname strips the brackets from an IPv6 literal, but a
+        # gRPC target needs them back, e.g. "[2001:db8::5]:443". Handlers use
+        # the address verbatim, and on_unavailable compares it with
+        # server_address, so one normalized form serves both.
+        host = f"[{host}]" if ":" in host else host
         return f"{host}:{port}"
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:

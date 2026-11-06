@@ -193,6 +193,15 @@ def _pick_candidates(targets: List[SrvTarget], count: int = DEFAULT_PROBE_COUNT)
     return picked
 
 
+class SeedAuthError(MilvusException):
+    """A seed rejected the bearer token outright (HTTP 401/403).
+
+    The same token is sent to every seed, so one definitive rejection means
+    all seeds will reject it too: probing must fail fast instead of waiting
+    out the remaining probes.
+    """
+
+
 def _probe_seed(base_url: str, hostname: str, token: str) -> GlobalTopology:
     """Fetch topology from a single seed. Raises on any failure.
 
@@ -209,7 +218,7 @@ def _probe_seed(base_url: str, hostname: str, token: str) -> GlobalTopology:
     if response.status_code != 200:
         msg = f"Topology request failed with status {response.status_code}: {response.text}"
         if response.status_code in (401, 403):
-            raise MilvusException(message=msg)
+            raise SeedAuthError(message=msg)
         raise RuntimeError(msg)
 
     result = response.json()
@@ -288,8 +297,10 @@ def _probe_candidates(
     ``on_higher_version`` triggers the replacement flow for a newer version.
     An API-level error (e.g. auth failure) is the same across seeds, so it is
     captured and surfaced when no seed succeeds instead of a generic
-    "unreachable". The last non-API error is returned as well so the caller can
-    keep the underlying cause in its final exception.
+    "unreachable". A definitive auth rejection (:class:`SeedAuthError`) aborts
+    the wait immediately when no seed has answered yet, since every seed would
+    reject the same token. The last non-API error is returned as well so the
+    caller can keep the underlying cause in its final exception.
 
     Probes run in plain daemon threads (not a ThreadPoolExecutor, whose
     non-daemon workers are joined at interpreter exit): once the caller has
@@ -318,6 +329,12 @@ def _probe_candidates(
             break
         pending -= 1
         if error is not None:
+            if isinstance(error, SeedAuthError) and best is None:
+                # Credentials are definitive and shared across seeds, and no
+                # seed has answered yet: waiting out the remaining probes
+                # cannot change the outcome, so surface the rejection now.
+                api_error = error
+                break
             if isinstance(error, MilvusException):
                 api_error = error
             else:

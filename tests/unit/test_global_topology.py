@@ -10,6 +10,7 @@ from pymilvus.client.global_topology import (
     ClusterCapability,
     ClusterInfo,
     GlobalTopology,
+    SeedAuthError,
     SrvTarget,
     TopologyRefresher,
     _endpoint_hostname,
@@ -695,6 +696,58 @@ class TestFetchTopology:
                 fetch_topology(_GLOBAL_URL, _TOKEN)
             assert mock_get.call_count == 1
             mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize("status", [401, 403])
+    def test_auth_rejection_fails_fast_with_stalled_seed(self, status):
+        # One seed rejects the token outright while a second one hangs. The
+        # same token goes to every seed, so the rejection is definitive: it
+        # must surface immediately instead of waiting out the stalled probe
+        # (whose grace period only starts after a successful answer).
+        slow_gate = threading.Event()
+        slow_probe_finished = threading.Event()
+
+        def fake_get(url, **kwargs):
+            if "ha-mgr-us1" in url:
+                try:
+                    slow_gate.wait(timeout=5.0)
+                    return _mock_response(version="9")
+                finally:
+                    slow_probe_finished.set()
+            resp = _mock_response(version="9")
+            resp.status_code = status
+            resp.text = "Invalid token"
+            return resp
+
+        try:
+            with _patch_srv(
+                _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+                _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            ), patch("pymilvus.client.global_topology.requests.get", side_effect=fake_get):
+                with pytest.raises(SeedAuthError, match=f"status {status}"):
+                    fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=8)
+                # Returned without collecting the stalled seed's answer.
+                assert not slow_probe_finished.is_set()
+        finally:
+            slow_gate.set()
+            assert slow_probe_finished.wait(timeout=2.0)
+
+    def test_auth_rejection_after_success_keeps_answer(self):
+        # A rejection following a successful answer is anomalous (the token
+        # already worked on the answering seed): the answer must survive.
+        def fake_get(url, **kwargs):
+            if "ha-mgr-ap1" in url:
+                return _mock_response(version="9")
+            resp = _mock_response(version="9")
+            resp.status_code = 401
+            resp.text = "Invalid token"
+            return resp
+
+        with _patch_srv(
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+        ), patch("pymilvus.client.global_topology.requests.get", side_effect=fake_get):
+            topology = fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=8)
+            assert topology is not None and topology.version == 9
 
     def test_srv_resolution_failure_raises(self):
         with patch(

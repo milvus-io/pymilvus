@@ -516,6 +516,39 @@ class TestGlobalStrategy:
         assert handler is mock_handler_cls.return_value
         mock_refresher.start.assert_called_once()
 
+    @pytest.mark.parametrize(
+        "endpoint,expected",
+        [
+            ("https://[2001:db8::5]:19530", "[2001:db8::5]:19530"),
+            ("https://[2001:db8::5]", "[2001:db8::5]:443"),
+            ("http://[::1]:19530", "[::1]:19530"),
+            ("https://host.example.com", "host.example.com:443"),
+            ("https://host.example.com:19530", "host.example.com:19530"),
+        ],
+    )
+    def test_primary_host_port_normalizes_ipv6(self, endpoint, expected):
+        """parsed.hostname strips IPv6 brackets; the normalized form puts them back."""
+        topology = _make_topology(1, "c1", endpoint, capability=0b11)
+        assert GlobalStrategy._primary_host_port(topology) == expected
+
+    @patch("pymilvus.client.connection_manager.TopologyRefresher")
+    @patch("pymilvus.client.grpc_handler.GrpcHandler")
+    @patch("pymilvus.client.connection_manager.fetch_topology")
+    def test_create_handler_ipv6_primary_keeps_brackets(
+        self, mock_fetch, mock_handler_cls, mock_refresher_cls
+    ):
+        """The gRPC target for an IPv6 primary must keep the brackets."""
+        config = ConnectionConfig.from_uri("https://global-cluster.example.com:19530", token="t")
+        mock_fetch.return_value = _make_topology(
+            1, "c1", "https://[2001:db8::5]:19530", capability=0b11
+        )
+        mock_handler_cls.return_value = Mock()
+
+        strategy = GlobalStrategy()
+        strategy.create_handler(config)
+
+        assert mock_handler_cls.call_args.kwargs["address"] == "[2001:db8::5]:19530"
+
     @patch("pymilvus.client.connection_manager.TopologyRefresher")
     @patch("pymilvus.client.grpc_handler.GrpcHandler")
     @patch("pymilvus.client.connection_manager.fetch_topology")
@@ -547,6 +580,8 @@ class TestGlobalStrategy:
             ("old-primary:19530", "https://new-primary:19530", True),
             ("same-primary:19530", "https://same-primary:19530", False),
             ("same-primary:443", "https://same-primary", False),
+            ("[2001:db8::5]:443", "https://[2001:db8::7]", True),
+            ("[2001:db8::5]:443", "https://[2001:db8::5]", False),
         ],
     )
     def test_on_unavailable_topology_refresh(
