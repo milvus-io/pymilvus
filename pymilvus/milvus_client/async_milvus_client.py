@@ -2710,6 +2710,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             collection_name=collection_name,
             target_size=size_mb,
             timeout=remaining_timeout(),
+            context=self._generate_call_context(**kwargs),
             **kwargs,
         )
 

@@ -513,6 +513,27 @@ class TestAsyncClientOptimize:
         assert result.collection_name == "col"
 
     @pytest.mark.asyncio
+    async def test_execute_optimize_compact_uses_client_database(self):
+        client, handler = _make_client()
+        client._config.db_name = "mydb"
+        handler.compact.return_value = 99
+        state = MagicMock()
+        state.state = 2
+        handler.get_compaction_state.return_value = state
+        handler.get_load_state.return_value = LoadState.NotLoad
+        schema = {"fields": [{"name": "id", "type": DataType.INT64}]}
+        handler._get_schema.return_value = (schema, 0)
+        handler.list_indexes.return_value = []
+        task = MagicMock()
+        task.check_cancelled = MagicMock()
+        task.set_progress = MagicMock()
+        task.progress_history = MagicMock(return_value=[])
+        task._target_size = None
+        await client._execute_optimize(task, "col", None, None)
+        context = handler.compact.call_args.kwargs["context"]
+        assert context.get_db_name() == "mydb"
+
+    @pytest.mark.asyncio
     async def test_optimize_wait_true(self):
         client, handler = _make_client()
         handler.compact.return_value = 99
