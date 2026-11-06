@@ -44,7 +44,7 @@ from .check import (
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
-from .embedding_list import EmbeddingList
+from .embedding_list import flatten_embedding_lists
 from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
@@ -1069,10 +1069,7 @@ class AsyncGrpcHandler:
             timeout=timeout,
         )
 
-        # Convert EmbeddingList to flat array if present
-        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
-            data = [emb_list.to_flat_array() for emb_list in data]
-            kwargs["is_embedding_list"] = True
+        data = flatten_embedding_lists(data, kwargs)
 
         use_default_consistency = ts_utils.construct_guarantee_ts(
             collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
@@ -1150,13 +1147,9 @@ class AsyncGrpcHandler:
 
         requests = []
         for req in reqs:
-            data = req.data
             req_kwargs = dict(kwargs)
             req_kwargs.pop("function_chains", None)
-            # Convert EmbeddingList to flat array if present
-            if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
-                data = [emb_list.to_flat_array() for emb_list in data]
-                req_kwargs["is_embedding_list"] = True
+            data = flatten_embedding_lists(req.data, req_kwargs)
 
             if _cached_schema and not req_kwargs.get("schema"):
                 req_kwargs["schema"] = _cached_schema
