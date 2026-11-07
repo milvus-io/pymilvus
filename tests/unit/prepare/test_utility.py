@@ -511,3 +511,51 @@ class TestRegisterRequest:
         """Test register request has empty reserved when no extra kwargs."""
         req = Prepare.register_request(user="u", host="h")
         assert len(req.client_info.reserved) == 0
+
+
+class TestRunningRequestRequests:
+    """Tests for ListRunningRequests / CancelRequests request construction."""
+
+    def test_list_running_requests_defaults(self):
+        req = Prepare.list_running_requests_request()
+        assert req.db_name == ""
+        assert req.collection_name == ""
+        assert req.user == ""
+        assert req.min_elapsed_ms == 0
+
+    def test_list_running_requests_filters(self):
+        req = Prepare.list_running_requests_request(
+            db_name="db1", collection_name="c1", user="alice", min_elapsed_ms=1500
+        )
+        assert req.db_name == "db1"
+        assert req.collection_name == "c1"
+        assert req.user == "alice"
+        assert req.min_elapsed_ms == 1500
+
+    @pytest.mark.parametrize("value", [-1, 1.5, "10", True])
+    def test_list_running_requests_rejects_bad_min_elapsed(self, value):
+        with pytest.raises(ParamError):
+            Prepare.list_running_requests_request(min_elapsed_ms=value)
+
+    def test_cancel_requests_basic(self):
+        req = Prepare.cancel_requests_request(
+            ["25-to03zu-1", "25-to03zu-2", "25-to03zu-3"], reason="slow", user="alice"
+        )
+        assert list(req.request_ids) == ["25-to03zu-1", "25-to03zu-2", "25-to03zu-3"]
+        assert req.reason == "slow"
+        assert req.user == "alice"
+
+    def test_cancel_requests_accepts_any_str_sequence(self):
+        req = Prepare.cancel_requests_request(("25-to03zu-1",))
+        assert list(req.request_ids) == ["25-to03zu-1"]
+        assert req.reason == ""
+        assert req.user == ""
+
+    # ids are the strings list_running_requests returned; the old numeric form
+    # is rejected rather than converted
+    @pytest.mark.parametrize(
+        "ids", [[], None, "25-to03zu-1", [1], ["25-to03zu-1", 2], [""], [True], [b"25-to03zu-1"]]
+    )
+    def test_cancel_requests_rejects_bad_ids(self, ids):
+        with pytest.raises(ParamError):
+            Prepare.cancel_requests_request(ids)
