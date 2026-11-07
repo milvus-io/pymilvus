@@ -17,6 +17,7 @@ from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
+    ListRunningRequestsResult,
     LoadedSegmentInfo,
     LoadState,
     OmitZeroDict,
@@ -24,7 +25,6 @@ from pymilvus.client.types import (
     ReplicaInfo,
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
-    RunningRequest,
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
@@ -2712,7 +2712,7 @@ class MilvusClient(BaseMilvusClient):
         min_elapsed_ms: int = 0,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[RunningRequest]:
+    ) -> ListRunningRequestsResult:
         """List the search, hybrid search and query requests the cluster is executing.
 
         The filters are combined with AND; a filter left as None (or 0) is no
@@ -2722,7 +2722,8 @@ class MilvusClient(BaseMilvusClient):
 
         The call succeeds as long as one proxy answered. A proxy that did not
         answer, or that predates this feature during a rolling upgrade, is
-        logged as a warning and its requests are missing from the result.
+        reported in ``node_results`` (and logged as a warning), and its
+        requests are missing from ``requests``; ``complete`` is False then.
 
         Args:
             db_name (``str``, optional): Only requests on this database.
@@ -2734,8 +2735,9 @@ class MilvusClient(BaseMilvusClient):
                 responds or an error occurs.
 
         Returns:
-            List[RunningRequest]: One entry per request; ``request_id`` is the handle
-                for ``cancel_requests``.
+            ListRunningRequestsResult: ``requests`` has one entry per request, whose
+                ``request_id`` is the handle for ``cancel_requests``; ``node_results``
+                has one entry per proxy.
 
         Raises:
             MilvusException: If anything goes wrong.

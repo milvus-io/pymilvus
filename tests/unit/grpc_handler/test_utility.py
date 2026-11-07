@@ -14,7 +14,7 @@ from pymilvus import (
 )
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.call_context import CallContext
-from pymilvus.client.types import CancelRequestsResult, RunningRequest
+from pymilvus.client.types import CancelRequestsResult, ListRunningRequestsResult, RunningRequest
 from pymilvus.exceptions import AmbiguousIndexName, MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
@@ -789,7 +789,9 @@ class TestGrpcHandlerRunningRequests:
         result = handler.list_running_requests(
             db_name="db1", collection_name="c1", user="alice", min_elapsed_ms=200
         )
-        assert result == []
+        assert isinstance(result, ListRunningRequestsResult)
+        assert result.requests == []
+        assert result.node_results == []
         req = handler._stub.ListRunningRequests.call_args.args[0]
         assert req.db_name == "db1"
         assert req.collection_name == "c1"
@@ -806,8 +808,10 @@ class TestGrpcHandlerRunningRequests:
             node_results=[_node_result(5)],
         )
         result = handler.list_running_requests()
-        assert [r.request_id for r in result] == ["25-to03zu-1", "25-to03zu-2"]
-        first = result[0]
+        assert [r.request_id for r in result.requests] == ["25-to03zu-1", "25-to03zu-2"]
+        assert [n.node_id for n in result.node_results] == [5]
+        assert result.complete
+        first = result.requests[0]
         assert isinstance(first, RunningRequest)
         assert first.proxy_id == 5
         assert first.type == "Search"
@@ -820,10 +824,10 @@ class TestGrpcHandlerRunningRequests:
         assert first.task_ids == [11, 12]
         assert first.trace_id == "abc"
         assert first.cancellable is True
-        assert result[1].state == "Canceling"
+        assert result.requests[1].state == "Canceling"
         assert first.to_dict()["request_id"] == "25-to03zu-1"
 
-    def test_list_running_requests_warns_about_unanswered_proxy(self, handler, caplog, monkeypatch):
+    def test_list_running_requests_reports_unanswered_proxy(self, handler, caplog, monkeypatch):
         handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
             status=common_pb2.Status(code=0),
             requests=[_running_request_info("25-to03zu-1")],
@@ -839,7 +843,14 @@ class TestGrpcHandlerRunningRequests:
         )
         with caplog.at_level(logging.WARNING, logger="pymilvus.client.types"):
             result = handler.list_running_requests()
-        assert [r.request_id for r in result] == ["25-to03zu-1"]
+        assert [r.request_id for r in result.requests] == ["25-to03zu-1"]
+        assert not result.complete
+        by_node = {n.node_id: n for n in result.node_results}
+        assert by_node[5].answered and by_node[5].error is None
+        assert not by_node[6].answered and "deadline exceeded" in by_node[6].error
+        assert not by_node[6].unimplemented
+        assert not by_node[7].answered and by_node[7].unimplemented
+        assert "unanswered=[6, 7]" in repr(result)
         messages = [rec.getMessage() for rec in caplog.records]
         assert any("proxy 6 did not answer" in m and "deadline exceeded" in m for m in messages)
         assert any("proxy 7 did not answer" in m and "not implemented" in m for m in messages)

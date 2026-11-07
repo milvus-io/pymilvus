@@ -56,11 +56,11 @@ from .types import (
     FileResourceInfo,
     HybridExtraList,
     IndexState,
+    ListRunningRequestsResult,
     LoadState,
     RefreshExternalCollectionJobInfo,
     ReplicaInfo,
     RestoreSnapshotJobInfo,
-    RunningRequest,
     SegmentState,
     Shard,
     SnapshotInfo,
@@ -70,9 +70,8 @@ from .types import (
     log_unanswered_request_nodes,
     parse_cancel_requests_result,
     parse_compaction_plans,
+    parse_list_running_requests_result,
     parse_refresh_job_info,
-    parse_request_node_result,
-    parse_running_request,
 )
 from .utils import (
     check_invalid_binary_vector,
@@ -2722,7 +2721,7 @@ class AsyncGrpcHandler:
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
-    ) -> List[RunningRequest]:
+    ) -> ListRunningRequestsResult:
         req = Prepare.list_running_requests_request(
             db_name=db_name,
             collection_name=collection_name,
@@ -2733,10 +2732,9 @@ class AsyncGrpcHandler:
             req, timeout=timeout, metadata=_api_level_md(context)
         )
         check_status(resp.status)
-        log_unanswered_request_nodes(
-            [parse_request_node_result(r) for r in resp.node_results], "list_running_requests"
-        )
-        return [parse_running_request(info) for info in resp.requests]
+        result = parse_list_running_requests_result(resp)
+        log_unanswered_request_nodes(result.node_results, "list_running_requests")
+        return result
 
     @retry_on_rpc_failure()
     async def cancel_requests(

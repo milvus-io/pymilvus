@@ -1753,6 +1753,31 @@ class RequestNodeResult:
 
 
 @dataclass
+class ListRunningRequestsResult:
+    """Outcome of ``MilvusClient.list_running_requests``.
+
+    The call succeeds as long as one proxy answered. ``node_results`` has one
+    entry per proxy; a proxy that did not answer (``answered`` is False),
+    including one that predates this feature during a rolling upgrade, has
+    its requests missing from ``requests``.
+    """
+
+    requests: List[RunningRequest] = field(default_factory=list)
+    node_results: List[RequestNodeResult] = field(default_factory=list)
+
+    @property
+    def complete(self) -> bool:
+        """True when every proxy answered, so ``requests`` covers the whole cluster."""
+        return all(r.answered for r in self.node_results)
+
+    def __repr__(self) -> str:
+        return (
+            f"ListRunningRequestsResult(requests={self.requests}, "
+            f"unanswered={[r.node_id for r in self.node_results if not r.answered]})"
+        )
+
+
+@dataclass
 class CancelRequestsResult:
     """Outcome of ``MilvusClient.cancel_requests``.
 
@@ -1805,6 +1830,15 @@ def parse_request_node_result(
         error = status.reason or f"status code {status.code}"
     return RequestNodeResult(
         node_id=result.node_id, error=error, unimplemented=bool(result.unimplemented)
+    )
+
+
+def parse_list_running_requests_result(
+    response: "milvus_types.ListRunningRequestsResponse",
+) -> ListRunningRequestsResult:
+    return ListRunningRequestsResult(
+        requests=[parse_running_request(info) for info in response.requests],
+        node_results=[parse_request_node_result(r) for r in response.node_results],
     )
 
 

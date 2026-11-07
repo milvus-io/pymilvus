@@ -395,12 +395,20 @@ class TestAsyncGrpcHandlerRunningRequests:
                         elapsed_ms=40,
                     )
                 ],
+                node_results=[
+                    milvus_types.RunningRequestNodeResult(node_id=1, status=common_pb2.Status()),
+                    milvus_types.RunningRequestNodeResult(
+                        node_id=2, status=common_pb2.Status(code=65535, reason="unreachable")
+                    ),
+                ],
             )
         )
         result = await handler.list_running_requests(collection_name="c1", min_elapsed_ms=10)
-        assert [(r.request_id, r.type, r.elapsed_ms) for r in result] == [
+        assert [(r.request_id, r.type, r.elapsed_ms) for r in result.requests] == [
             ("25-to03zu-9", "Query", 40)
         ]
+        assert [(n.node_id, n.answered) for n in result.node_results] == [(1, True), (2, False)]
+        assert not result.complete
         req = handler._async_stub.ListRunningRequests.call_args.args[0]
         assert req.collection_name == "c1"
         assert req.min_elapsed_ms == 10

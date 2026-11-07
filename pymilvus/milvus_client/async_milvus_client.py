@@ -15,13 +15,13 @@ from pymilvus.client.types import (
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
+    ListRunningRequestsResult,
     LoadState,
     OmitZeroDict,
     RefreshExternalCollectionJobInfo,
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     RoleInfo,
-    RunningRequest,
     SegmentInfo,
     SegmentState,
     SnapshotInfo,
@@ -2098,7 +2098,7 @@ class AsyncMilvusClient(BaseMilvusClient):
         min_elapsed_ms: int = 0,
         timeout: Optional[float] = None,
         **kwargs,
-    ) -> List[RunningRequest]:
+    ) -> ListRunningRequestsResult:
         conn = await self._get_connection()
         return await conn.list_running_requests(
             db_name=db_name,
