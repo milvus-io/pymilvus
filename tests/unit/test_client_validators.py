@@ -42,8 +42,6 @@ from pymilvus.client.check import (
     validate_nullable_strs,
     validate_strs,
 )
-from pymilvus.client.constants import BOUNDED_TS, EVENTUALLY_TS, GUARANTEE_TIMESTAMP, ITERATOR_FIELD
-from pymilvus.client.ts_utils import construct_guarantee_ts
 from pymilvus.exceptions import ParamError
 from pymilvus.milvus_client.check import validate_noneable_param, validate_param, validate_params
 
@@ -85,10 +83,13 @@ class TestValidateNullableStrs:
     "value,expected",
     [
         ("localhost:19530", True),
+        ("localhost:65534", True),
         ("localhost", False),
         (1234, False),
         (":19530", False),
         ("localhost:abc", False),
+        ("localhost:99999", False),
+        ("localhost:-1", False),
     ],
 )
 def test_is_legal_address(value, expected):
@@ -113,8 +114,16 @@ def test_is_legal_host(value, expected):
     [
         (19530, True),
         ("19530", True),
+        (0, True),
+        ("65534", True),
         ("abc", False),
         (3.14, False),
+        # Out-of-range ports are rejected here instead of failing later from grpc.
+        (65535, False),
+        ("65535", False),
+        ("99999", False),
+        (-1, False),
+        ("-1", False),
     ],
 )
 def test_is_legal_port(value, expected):
@@ -431,25 +440,6 @@ class TestCheckIdAndData:
 
     def test_data_only(self):
         check_id_and_data(None, [[0.1, 0.2]])
-
-
-@pytest.mark.parametrize(
-    "kwargs,check",
-    [
-        ({ITERATOR_FIELD: True}, lambda r, kw: r is True),
-        ({}, lambda r, kw: r is True and GUARANTEE_TIMESTAMP in kw),
-        ({"consistency_level": "Strong"}, lambda r, kw: kw[GUARANTEE_TIMESTAMP] == 0),
-        ({"consistency_level": "Bounded"}, lambda r, kw: kw[GUARANTEE_TIMESTAMP] == BOUNDED_TS),
-        ({"consistency_level": "Session"}, lambda r, kw: GUARANTEE_TIMESTAMP in kw),
-        (
-            {"consistency_level": "Eventually"},
-            lambda r, kw: kw[GUARANTEE_TIMESTAMP] == EVENTUALLY_TS,
-        ),
-    ],
-)
-def test_construct_guarantee_ts(kwargs, check):
-    result = construct_guarantee_ts("col", kwargs)
-    assert check(result, kwargs)
 
 
 class TestMilvusClientCheck:

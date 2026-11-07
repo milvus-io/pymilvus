@@ -1,4 +1,4 @@
-import logging.config
+import logging
 import os
 
 from dotenv import load_dotenv
@@ -34,69 +34,55 @@ class Config:
 
 
 # logging
-COLORS = {
-    "HEADER": "\033[95m",
-    "INFO": "\033[92m",
-    "DEBUG": "\033[94m",
-    "WARNING": "\033[93m",
-    "ERROR": "\033[95m",
-    "CRITICAL": "\033[91m",
-    "ENDC": "\033[0m",
-}
+LOG_FORMAT = "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)"
+LOG_HANDLER_NAME = "pymilvus_console"
+_LOGGER_LEVELS = (
+    ("pymilvus.milvus_client", "INFO"),
+    ("pymilvus.bulk_writer", "INFO"),
+)
 
 
-class ColorFulFormatColMixin:
-    def format_col(self, message_str: str, level_name: str):
-        if level_name in COLORS:
-            message_str = COLORS.get(level_name) + message_str + COLORS.get("ENDC")
-        return message_str
+def _get_console_handler() -> logging.Handler:
+    """Return the shared pymilvus console handler, creating it on first use.
 
-
-class ColorfulFormatter(logging.Formatter, ColorFulFormatColMixin):
-    def format(self, record: str):
-        message_str = super().format(record)
-
-        return self.format_col(message_str, level_name=record.levelname)
+    The handler is looked up on the ``pymilvus`` logger tree by name so that
+    re-running :func:`init_log` (e.g. ``importlib.reload``) does not stack
+    duplicate handlers.
+    """
+    for name in ("pymilvus", *(name for name, _ in _LOGGER_LEVELS)):
+        for handler in logging.getLogger(name).handlers:
+            if handler.get_name() == LOG_HANDLER_NAME:
+                return handler
+    handler = logging.StreamHandler()
+    handler.set_name(LOG_HANDLER_NAME)
+    handler.setFormatter(logging.Formatter(LOG_FORMAT))
+    return handler
 
 
 def init_log(log_level: str):
-    logging_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "default": {
-                "format": "%(asctime)s [%(levelname)s][%(funcName)s]: %(message)s (%(filename)s:%(lineno)s)",
-            },
-            "colorful_console": {
-                "format": "%(asctime)s | %(levelname)s: %(message)s (%(filename)s:%(lineno)s) (%(process)s)",
-                "()": ColorfulFormatter,
-            },
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "colorful_console",
-            },
-            "no_color_console": {
-                "class": "logging.StreamHandler",
-                "formatter": "default",
-            },
-        },
-        "loggers": {
-            "pymilvus": {"handlers": ["no_color_console"], "level": log_level, "propagate": False},
-            "pymilvus.milvus_client": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-            "pymilvus.bulk_writer": {
-                "handlers": ["no_color_console"],
-                "level": "INFO",
-                "propagate": False,
-            },
-        },
-    }
-    logging.config.dictConfig(logging_config)
+    """Configure logging for the ``pymilvus`` logger tree only.
+
+    Only the ``pymilvus*`` loggers are touched. In particular, this must not go
+    through ``logging.config.dictConfig``: in its default (non-incremental)
+    mode that helper closes every handler already registered in the process
+    and strips handlers the application attached to the ``pymilvus`` logger,
+    silently breaking logging configured before ``import pymilvus``.
+
+    The shared console handler is only attached to a logger that has no other
+    handlers: if the application already routes a ``pymilvus*`` logger to its
+    own handler, adding the console handler as well would emit every record
+    twice.
+    """
+    handler = _get_console_handler()
+    for name, level in (("pymilvus", log_level), *_LOGGER_LEVELS):
+        logger = logging.getLogger(name)
+        logger.setLevel(level)
+        logger.propagate = False
+        has_app_handler = any(h.get_name() != LOG_HANDLER_NAME for h in logger.handlers)
+        if has_app_handler:
+            logger.removeHandler(handler)
+        elif handler not in logger.handlers:
+            logger.addHandler(handler)
 
 
 init_log("WARNING")

@@ -8,7 +8,6 @@ from pymilvus.bulk_writer.volume_restful import (
     list_volumes,
 )
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

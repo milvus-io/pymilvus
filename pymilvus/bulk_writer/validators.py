@@ -90,19 +90,15 @@ def float16_vector_validator(x: object, dim: int, is_bfloat: bool):
                 message="numpy.ndarray's length must be equal to vector dimension"
             )
 
-        if is_bfloat:
-            if x.dtype == "bfloat16":
-                return x.tobytes()
-            if x.dtype in ("float32", "float64"):
-                return x.tolist()
-            msg = 'numpy.ndarray\'s dtype must be "bfloat16", "float32" or "float64" for BFLOAT16_VECTOR type field'
-            raise MilvusException(message=msg)
-
-        if x.dtype == "float16":
+        dtype_name = "bfloat16" if is_bfloat else "float16"
+        if x.dtype == dtype_name:
             return x.tobytes()
         if x.dtype in ("float32", "float64"):
             return x.tolist()
-        msg = 'numpy.ndarray\'s dtype must be "float16", "float32" or "float64" for FLOAT16_VECTOR type field'
+        msg = (
+            f'numpy.ndarray\'s dtype must be "{dtype_name}", "float32" or "float64" '
+            f"for {dtype_name.upper()}_VECTOR type field"
+        )
         raise MilvusException(message=msg)
 
     raise MilvusException(

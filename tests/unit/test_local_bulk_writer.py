@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import ml_dtypes
 import numpy as np
+import pyarrow.parquet as pq
 import pytest
 from pymilvus.bulk_writer.constants import MB, BulkFileType
 from pymilvus.bulk_writer.local_bulk_writer import LocalBulkWriter
@@ -147,6 +148,167 @@ class TestLocalBulkWriter:
             writer.commit()
 
             assert writer.batch_files
+
+    @pytest.fixture
+    def nullable_struct_schema(self):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        struct = MilvusClient.create_struct_field_schema()
+        struct.add_field("value", DataType.INT64)
+        struct.add_field("vector", DataType.FLOAT_VECTOR, dim=2)
+        schema.add_field(
+            "chunks",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct,
+            max_capacity=2,
+            nullable=True,
+        )
+        return schema
+
+    @pytest.mark.parametrize(
+        "file_type,config",
+        [
+            pytest.param(BulkFileType.PARQUET, {}, id="parquet"),
+            pytest.param(BulkFileType.JSON, {}, id="json"),
+            pytest.param(BulkFileType.JSONL, {}, id="jsonl"),
+            pytest.param(BulkFileType.CSV, {}, id="csv-default-nullkey"),
+            pytest.param(BulkFileType.CSV, {"nullkey": "NULL"}, id="csv-custom-nullkey"),
+        ],
+    )
+    @pytest.mark.parametrize("all_null", [False, True])
+    def test_nullable_struct_round_trip(
+        self, nullable_struct_schema, temp_dir, file_type, config, all_null
+    ):
+        rows = [{"id": 1, "chunks": None}, {"id": 2}]
+        expected = [None, None]
+        if not all_null:
+            rows.extend(
+                [
+                    {"id": 3, "chunks": []},
+                    {"id": 4, "chunks": [{"value": 7, "vector": [1.0, 2.0]}]},
+                ]
+            )
+            expected.extend([[], [{"value": 7, "vector": [1.0, 2.0]}]])
+
+        with LocalBulkWriter(
+            schema=nullable_struct_schema,
+            local_path=temp_dir,
+            file_type=file_type,
+            config=config,
+        ) as writer:
+            for row in rows:
+                writer.append_row(row)
+            assert writer.total_row_count == len(rows)
+            assert writer._buffer.row_count == len(rows)
+            writer.commit()
+            assert len(writer.batch_files) == 1
+            assert len(writer.batch_files[0]) == 1
+            file_path = Path(writer.batch_files[0][0])
+
+            if file_type == BulkFileType.PARQUET:
+                table = pq.read_table(file_path)
+                assert table.column("chunks").null_count == 2
+                actual = table.to_pylist()
+            elif file_type == BulkFileType.JSON:
+                actual = json.loads(file_path.read_text())["rows"]
+            elif file_type == BulkFileType.JSONL:
+                actual = [json.loads(line) for line in file_path.read_text().splitlines()]
+            else:
+                with file_path.open(newline="") as csv_file:
+                    actual = list(csv.DictReader(csv_file))
+                for row in actual:
+                    row["id"] = int(row["id"])
+                    row["chunks"] = (
+                        None
+                        if row["chunks"] == config.get("nullkey", "")
+                        else json.loads(row["chunks"])
+                    )
+
+            assert actual == [
+                {"id": i, "chunks": value} for i, value in enumerate(expected, start=1)
+            ]
+
+    @pytest.mark.parametrize("missing", [False, True])
+    def test_non_nullable_struct_rejects_null(self, temp_dir, missing):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        struct = MilvusClient.create_struct_field_schema()
+        struct.add_field("value", DataType.INT64)
+        schema.add_field(
+            "chunks",
+            DataType.ARRAY,
+            element_type=DataType.STRUCT,
+            struct_schema=struct,
+            max_capacity=2,
+            nullable=False,
+        )
+        with LocalBulkWriter(schema=schema, local_path=temp_dir) as writer:
+            row = {"id": 1} if missing else {"id": 1, "chunks": None}
+            message = "is missed" if missing else "only accept list of dict"
+            with pytest.raises(MilvusException, match=message):
+                writer.append_row(row)
+            assert writer.total_row_count == 0
+            assert writer._buffer.row_count == 0
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            {},
+            "invalid",
+            [None],
+            [{"vector": [1.0, 2.0]}],
+            [{"value": 7, "vector": [1.0]}],
+            [{"value": 7, "vector": [1.0, 2.0]}] * 3,
+        ],
+    )
+    def test_nullable_struct_rejects_invalid_value(self, nullable_struct_schema, temp_dir, value):
+        with LocalBulkWriter(schema=nullable_struct_schema, local_path=temp_dir) as writer:
+            with pytest.raises(MilvusException):
+                writer.append_row({"id": 1, "chunks": value})
+            assert writer.total_row_count == 0
+            assert writer._buffer.row_count == 0
+
+    @pytest.mark.parametrize("all_null", [False, True])
+    def test_nullable_sparse_parquet_round_trip(self, temp_dir, all_null):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR, nullable=True)
+        rows = [{"id": 1, "sparse": None}, {"id": 2}]
+        expected = [None, None]
+        if not all_null:
+            rows.append({"id": 3, "sparse": {1: 0.5, 10: 0.25}})
+            expected.append({"1": 0.5, "10": 0.25})
+
+        with LocalBulkWriter(
+            schema=schema, local_path=temp_dir, file_type=BulkFileType.PARQUET
+        ) as writer:
+            for row in rows:
+                writer.append_row(row)
+            writer.commit()
+            assert len(writer.batch_files) == 1
+            assert len(writer.batch_files[0]) == 1
+            table = pq.read_table(writer.batch_files[0][0])
+            assert table.num_rows == len(rows)
+            assert table.column("id").to_pylist() == list(range(1, len(rows) + 1))
+            sparse = table.column("sparse")
+            # JSON text "null" is not a Parquet null and loses vector nullability on import.
+            assert sparse.null_count == 2
+            values = sparse.to_pylist()
+            assert values[:2] == [None, None]
+            assert [None if value is None else json.loads(value) for value in values] == expected
+
+    @pytest.mark.parametrize("missing", [False, True])
+    def test_non_nullable_sparse_rejects_null(self, temp_dir, missing):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("sparse", DataType.SPARSE_FLOAT_VECTOR, nullable=False)
+        with LocalBulkWriter(schema=schema, local_path=temp_dir) as writer:
+            row = {"id": 1} if missing else {"id": 1, "sparse": None}
+            with pytest.raises(MilvusException, match="not nullable"):
+                writer.append_row(row)
+            assert writer.total_row_count == 0
+            assert writer._buffer.row_count == 0
 
     def test_context_manager(self, simple_schema, temp_dir):
         with LocalBulkWriter(

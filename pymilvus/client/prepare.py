@@ -3,7 +3,7 @@ import datetime
 import json
 import re
 import warnings
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
 import orjson
@@ -67,6 +67,7 @@ from .types import (
     DataType,
     PlaceholderType,
     ResourceGroupConfig,
+    SegmentState,
     get_consistency_level,
 )
 from .utils import get_params, traverse_info, traverse_upsert_info
@@ -86,6 +87,17 @@ _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
 
 
 class Prepare:
+    @staticmethod
+    def _rls_context(kwargs: Mapping) -> Dict:
+        context = {}
+        for name, expected_type in (("rls_principal", str), ("skip_rls", bool)):
+            if name in kwargs:
+                value = kwargs[name]
+                if not isinstance(value, expected_type):
+                    raise ParamError(message=f"{name} must be a {expected_type.__name__}")
+                context[name] = value
+        return context
+
     @classmethod
     def create_collection_request(
         cls,
@@ -185,6 +197,7 @@ class Prepare:
                 is_primary_key=f.is_primary,
                 default_value=f.default_value,
                 nullable=f.nullable,
+                element_nullable=f.element_nullable,
                 autoID=f.auto_id,
                 is_partition_key=f.is_partition_key,
                 is_dynamic=f.is_dynamic,
@@ -243,39 +256,91 @@ class Prepare:
                 struct_schema.type_params.append(kv_pair)
 
         for f in struct.fields:
-            if isVectorDataType(f.dtype):
-                actual_dtype = DataType._ARRAY_OF_VECTOR
-                actual_element_type = f.dtype
-            else:
-                actual_dtype = DataType.ARRAY
-                actual_element_type = f.dtype
-
-            field_schema = schema_types.FieldSchema(
-                name=f.name,
-                data_type=actual_dtype,
-                description=f.description,
-                is_primary_key=f.is_primary,
-                default_value=f.default_value,
-                nullable=struct.nullable,
-                autoID=f.auto_id,
-                is_partition_key=f.is_partition_key,
-                is_dynamic=f.is_dynamic,
-                element_type=actual_element_type,
-                is_clustering_key=f.is_clustering_key,
-                is_function_output=f.is_function_output,
+            struct_schema.fields.append(
+                Prepare.get_struct_sub_field_schema(f, struct.nullable, struct.max_capacity)
             )
 
-            field_params = dict(f.params) if f.params else {}
-            field_params["max_capacity"] = struct.max_capacity
-
-            for k, v in field_params.items():
-                kv_pair = common_types.KeyValuePair(
-                    key=str(k) if k != "mmap_enabled" else "mmap.enabled", value=json.dumps(v)
-                )
-                field_schema.type_params.append(kv_pair)
-            struct_schema.fields.append(field_schema)
-
         return struct_schema
+
+    @staticmethod
+    def get_struct_sub_field_schema(
+        field: FieldSchema, row_nullable: bool, max_capacity: Optional[int] = None
+    ) -> schema_types.FieldSchema:
+        validation = StructFieldSchema()
+        validation._fields = [field]
+        validation._check_fields()
+        proto, _, _ = Prepare.get_field_schema(field.to_dict())
+        proto.nullable = row_nullable
+        proto.element_nullable = field.nullable
+        proto.element_type = field.dtype
+        proto.data_type = (
+            DataType._ARRAY_OF_VECTOR if isVectorDataType(field.dtype) else DataType.ARRAY
+        )
+        params = dict(field.params)
+        if "max_capacity" in field._kwargs:
+            params.setdefault("max_capacity", field._kwargs["max_capacity"])
+        if field.dtype == DataType.ARRAY:
+            if "max_capacity" not in params:
+                raise ParamError(
+                    message=f"max_capacity is required for Array sub-field {field.name}"
+                )
+            inner_capacity = params.pop("max_capacity")
+            leaf_params = {}
+            if "max_length" in params:
+                leaf_params["max_length"] = params.pop("max_length")
+            leaf = schema_types.TypeSchema(
+                leaf_type=field.element_type,
+                nullable=field.element_nullable,
+                type_params=Prepare._schema_type_params(leaf_params),
+            )
+            inner = schema_types.TypeSchema(
+                nullable=field.nullable,
+                array_element=leaf,
+                type_params=Prepare._schema_type_params({"max_capacity": inner_capacity}),
+            )
+            proto.type_schema.CopyFrom(
+                schema_types.TypeSchema(nullable=row_nullable, array_element=inner)
+            )
+            if max_capacity is not None:
+                proto.type_schema.type_params.extend(
+                    Prepare._schema_type_params({"max_capacity": max_capacity})
+                )
+        if max_capacity is not None:
+            params["max_capacity"] = max_capacity
+        del proto.type_params[:]
+        proto.type_params.extend(Prepare._schema_type_params(params))
+        return proto
+
+    @staticmethod
+    def _schema_type_params(params: Dict) -> List:
+        return [
+            common_types.KeyValuePair(
+                key="mmap.enabled" if key == "mmap_enabled" else str(key),
+                value=value if isinstance(value, str) else json.dumps(value),
+            )
+            for key, value in params.items()
+        ]
+
+    @staticmethod
+    def struct_field_path(field_name: str) -> Optional[tuple]:
+        if "[" not in field_name and "]" not in field_name:
+            return None
+        match = re.fullmatch(r"([A-Za-z_][A-Za-z_0-9]*)\[([A-Za-z_][A-Za-z_0-9]*)\]", field_name)
+        if match is None:
+            raise ParamError(message=f"Invalid struct sub-field path: {field_name}")
+        return match.groups()
+
+    @staticmethod
+    def prepare_collection_field(
+        field: FieldSchema,
+    ) -> Union[FieldSchema, schema_types.FieldSchema]:
+        if Prepare.struct_field_path(field.name) is None:
+            return field
+        if not field.nullable:
+            raise ParamError(message="Adding a struct sub-field requires nullable=True")
+        # The proto keeps the name s[x]; the server resolves the parent struct
+        # from it and normalizes row nullability.
+        return Prepare.get_struct_sub_field_schema(field, row_nullable=False)
 
     @staticmethod
     def get_field_schema(
@@ -328,6 +393,7 @@ class Prepare:
             is_partition_key=field.get("is_partition_key", False),
             is_clustering_key=field.get("is_clustering_key", False),
             nullable=nullable,
+            element_nullable=field.get("element_nullable", False),
             default_value=field.get("default_value"),
             element_type=field.get("element_type"),
             external_field=field.get("external_field", ""),
@@ -356,6 +422,19 @@ class Prepare:
     ) -> schema_types.CollectionSchema:
         if not isinstance(fields, dict):
             raise ParamError(message="Param fields must be a dict")
+
+        if (
+            fields.get("struct_fields")
+            or fields.get("struct_array_fields")
+            or any(
+                CollectionSchema._is_struct_array_field_dict(field)
+                for field in fields.get("fields") or []
+            )
+        ):
+            raise ParamError(
+                message="Struct fields are not supported in a dict schema, "
+                "define them with CollectionSchema and StructFieldSchema"
+            )
 
         all_fields = fields.get("fields")
         if all_fields is None:
@@ -441,7 +520,14 @@ class Prepare:
             func_schemas = []
 
             if field_schema is not None:
-                field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
+                if Prepare.struct_field_path(field_schema.name) is not None and (
+                    func is not None or index_name or index_extra_params
+                ):
+                    raise ParamError(message="Struct sub-field add cannot bind a function or index")
+                if isinstance(field_schema, schema_types.FieldSchema):
+                    field_schema_proto = field_schema
+                else:
+                    field_schema_proto, _, _ = cls.get_field_schema(field_schema.to_dict())
 
                 field_info = milvus_types.AlterCollectionSchemaRequest.FieldInfo(
                     field_schema=field_schema_proto,
@@ -720,7 +806,7 @@ class Prepare:
             raise TypeError(msg)
 
         # Get expected fields for this specific struct
-        expected_fields = {field["name"] for field in struct_info["fields"]}
+        expected_fields = {field["name"]: field for field in struct_info["fields"]}
 
         # Handle empty array - create empty data structures
         if not values:
@@ -748,9 +834,11 @@ class Prepare:
                 continue
 
             if field_info["type"] == DataType.ARRAY:
+                field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array([], field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector([], field_info)
@@ -758,7 +846,7 @@ class Prepare:
 
     @staticmethod
     def _validate_and_collect_struct_values(
-        values: List, expected_fields: set, struct_field_name: str = ""
+        values: List, expected_fields: Dict, struct_field_name: str = ""
     ) -> Dict[str, List]:
         """Validate struct items and collect field values."""
         field_values = {field: [] for field in expected_fields}
@@ -771,8 +859,12 @@ class Prepare:
 
             # Validate fields
             actual_fields = set(struct_item.keys())
-            missing_fields = expected_fields - actual_fields
-            extra_fields = actual_fields - expected_fields
+            missing_fields = {
+                name
+                for name, info in expected_fields.items()
+                if name not in actual_fields and not info.get("element_nullable", False)
+            }
+            extra_fields = actual_fields - expected_fields.keys()
 
             if missing_fields:
                 msg = f"{field_prefix}Element at index {idx} missing required fields: {missing_fields}"
@@ -782,9 +874,9 @@ class Prepare:
                 raise ValueError(msg)
 
             # Collect values
-            for field_name in expected_fields:
-                value = struct_item[field_name]
-                if value is None:
+            for field_name, field_info in expected_fields.items():
+                value = struct_item.get(field_name)
+                if value is None and not field_info.get("element_nullable", False):
                     msg = f"{field_prefix}Field '{field_name}' in element at index {idx} cannot be None"
                     raise ValueError(msg)
                 field_values[field_name].append(value)
@@ -801,9 +893,11 @@ class Prepare:
             field_info = struct_field_info[field_name]
 
             if field_info["type"] == DataType.ARRAY:
+                field_data.scalars.array_data.element_type = field_info["element_type"]
                 field_data.scalars.array_data.data.append(convert_to_array(values, field_info))
             elif field_info["type"] == DataType._ARRAY_OF_VECTOR:
-                field_data.vectors.vector_array.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.dim = Prepare._get_dim_value(field_info)
+                field_data.vectors.vector_array.dim = field_data.vectors.dim
                 field_data.vectors.vector_array.element_type = field_info["element_type"]
                 field_data.vectors.vector_array.data.append(
                     convert_to_array_of_vector(values, field_info)
@@ -886,14 +980,6 @@ class Prepare:
                     normalized_field["name"] = Prepare._strip_struct_sub_field_name(
                         struct_name, field["name"]
                     )
-                    field_type = normalized_field["type"]
-                    if field_type not in {DataType.ARRAY, DataType._ARRAY_OF_VECTOR}:
-                        normalized_field["element_type"] = field_type
-                        normalized_field["type"] = (
-                            DataType._ARRAY_OF_VECTOR
-                            if isVectorDataType(field_type)
-                            else DataType.ARRAY
-                        )
                     params = dict(normalized_field.get("params", {}) or {})
                     if "max_capacity" not in params and "max_capacity" in normalized_struct:
                         params["max_capacity"] = normalized_struct["max_capacity"]
@@ -1077,6 +1163,8 @@ class Prepare:
 
         request.fields_data.extend(fields_data.values())
         request.fields_data.extend(struct_fields_data.values())
+        for field_data in request.fields_data:
+            entity_helper.sync_row_validity(field_data)
 
         expected_num_input_fields = (
             len(input_fields_info) + len(input_struct_field_info) + (1 if enable_dynamic else 0)
@@ -1266,6 +1354,8 @@ class Prepare:
             request.fields_data.extend(
                 struct_fields_data[struct_name] for struct_name in struct_field_names
             )
+        for field_data in request.fields_data:
+            entity_helper.sync_row_validity(field_data)
 
         for field in input_fields_info:
             is_dynamic = False
@@ -1303,6 +1393,7 @@ class Prepare:
         schema_timestamp: int = 0,
         enable_dynamic: bool = False,
         namespace: Optional[str] = None,
+        **kwargs,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1315,6 +1406,7 @@ class Prepare:
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **cls._rls_context(kwargs),
         )
 
         return cls._parse_row_request(
@@ -1333,6 +1425,7 @@ class Prepare:
         schema_timestamp: int = 0,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        **kwargs,
     ):
         if not fields_info:
             raise ParamError(message="Missing collection meta to validate entities")
@@ -1349,8 +1442,10 @@ class Prepare:
             num_rows=len(entities),
             schema_timestamp=schema_timestamp,
             partial_update=effective_partial_update,
+            **cls._rls_context(kwargs),
         )
 
+        struct_fields_info = cls._prepare_struct_path_replace(entities, struct_fields_info, ops)
         request = cls._parse_upsert_row_request(
             request,
             fields_info,
@@ -1472,10 +1567,13 @@ class Prepare:
         entities: List,
         partition_name: str,
         fields_info: Any,
+        **kwargs,
     ):
         location = cls._pre_insert_batch_check(entities, fields_info)
         tag = partition_name if isinstance(partition_name, str) else ""
-        request = milvus_types.InsertRequest(collection_name=collection_name, partition_name=tag)
+        request = milvus_types.InsertRequest(
+            collection_name=collection_name, partition_name=tag, **cls._rls_context(kwargs)
+        )
 
         return cls._parse_batch_request(
             request,
@@ -1493,6 +1591,7 @@ class Prepare:
         fields_info: Any,
         partial_update: bool = False,
         field_ops: FieldOpsInput = None,
+        **kwargs,
     ):
         ops = normalize_field_ops(field_ops)
         # Non-REPLACE ops imply partial_update semantics; auto-promote before
@@ -1505,11 +1604,65 @@ class Prepare:
             collection_name=collection_name,
             partition_name=tag,
             partial_update=effective_partial_update,
+            **cls._rls_context(kwargs),
         )
 
         request = cls._parse_batch_request(request, entities, fields_info, location)
         cls._apply_field_ops(request, ops)
         return request
+
+    @staticmethod
+    def _prepare_struct_path_replace(
+        entities: List,
+        struct_fields_info: Optional[List[Dict]],
+        field_ops: Dict[str, schema_types.FieldPartialUpdateOp],
+    ) -> Optional[List[Dict]]:
+        if not struct_fields_info or not field_ops:
+            return struct_fields_info
+        selected_structs = []
+        for struct in struct_fields_info:
+            name = struct["name"]
+            op = field_ops.get(name)
+            if op is None or op.op != schema_types.FieldPartialUpdateOp.PATH_REPLACE:
+                selected_structs.append(struct)
+                continue
+            # Parse only the shape needed to select operand columns. The server
+            # validates the index range and applies the replacement to old rows.
+            match = re.fullmatch(r"\[(?:0|[1-9][0-9]*)\](?:\[([^\[\]\s]+)\])?", op.path)
+            if match is None:
+                raise ParamError(
+                    message=f"PATH_REPLACE on struct {name!r} requires [index] or [index][child]"
+                )
+            child = match.group(1)
+            selected_struct = struct
+            if child is not None:
+                fields = [
+                    field
+                    for field in struct["fields"]
+                    if Prepare._strip_struct_sub_field_name(name, field["name"]) == child
+                ]
+                if not fields:
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE child {child!r} not found in {name!r}"
+                    )
+                selected_struct = {**struct, "fields": fields}
+            for entity in entities:
+                if not isinstance(entity, dict):
+                    continue  # The row parser reports invalid entity types.
+                value = entity.get(name)
+                is_array = isinstance(value, list) or (
+                    isinstance(value, np.ndarray) and value.ndim > 0
+                )
+                if not is_array or len(value) != 1:
+                    raise DataNotMatchException(
+                        message=f"PATH_REPLACE requires exactly one element for struct field {name!r} in every row"
+                    )
+                if child is not None and isinstance(value[0], dict) and child not in value[0]:
+                    raise ParamError(
+                        message=f"PATH_REPLACE operand for struct field {name!r} must explicitly contain child {child!r}"
+                    )
+            selected_structs.append(selected_struct)
+        return selected_structs
 
     @staticmethod
     def _apply_field_ops(
@@ -1526,7 +1679,9 @@ class Prepare:
         if not field_ops:
             return
         for field_name, op in field_ops.items():
-            request.field_ops.add(field_name=field_name, op=op.op)
+            entry = request.field_ops.add()
+            entry.CopyFrom(op)
+            entry.field_name = field_name
 
     @classmethod
     def delete_request(
@@ -1549,6 +1704,7 @@ class Prepare:
             expr=filter,
             consistency_level=get_consistency_level(consistency_level),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            **cls._rls_context(kwargs),
         )
 
     @classmethod
@@ -1712,9 +1868,39 @@ class Prepare:
         return [chain.to_proto() for chain in chains]
 
     @staticmethod
-    def check_no_hybrid_function_chains(function_chains: Any) -> None:
-        if function_chains is not None:
-            raise ParamError(message="function_chains is not supported for hybrid_search yet")
+    def hybrid_function_chains_schema(
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]],
+        rerank: Optional[Union[BaseRanker, Function]],
+    ) -> List[schema_types.FunctionChain]:
+        if function_chains is None or function_chains == []:
+            return []
+        if rerank is not None:
+            raise ParamError(message="function_chains and ranker cannot be used together")
+
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if not isinstance(chains, list) or not all(
+            isinstance(chain, FunctionChain) for chain in chains
+        ):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        supported_stages = {
+            FunctionChainStage.PRE_PROCESS,
+            FunctionChainStage.L2_RERANK,
+            FunctionChainStage.POST_PROCESS,
+        }
+        for chain in chains:
+            if chain.stage not in supported_stages:
+                stage_name = schema_types.FunctionChainStage.Name(int(chain.stage))
+                raise ParamError(message=f"stage {stage_name} is not supported in hybrid_search")
+
+        rerank_chains = [chain for chain in chains if chain.stage == FunctionChainStage.L2_RERANK]
+        if len(rerank_chains) != 1:
+            raise ParamError(message="hybrid_search requires exactly one L2_RERANK function chain")
+
+        return [chain.to_proto() for chain in chains]
 
     @classmethod
     def search_requests_with_expr(
@@ -1940,7 +2126,7 @@ class Prepare:
             err_msg = "Either data or ids must be provided"
             raise ValueError(err_msg)
 
-        request = milvus_types.SearchRequest(**request_kwargs)
+        request = milvus_types.SearchRequest(**request_kwargs, **cls._rls_context(kwargs))
 
         if search_aggregation is not None:
             request.search_aggregation.CopyFrom(search_aggregation.to_proto())
@@ -1993,12 +2179,33 @@ class Prepare:
         output_fields: Optional[List[str]] = None,
         round_decimal: int = -1,
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> milvus_types.HybridSearchRequest:
         if rerank is not None and not isinstance(rerank, (Function, BaseRanker)):
             raise ParamError(message="The hybrid search rerank must be a Function or a Ranker.")
         if kwargs.get(SEARCH_AGGREGATION) is not None:
             raise ParamError(message="search_aggregation is not supported in hybrid_search")
+        chain_protos = cls.hybrid_function_chains_schema(function_chains, rerank)
+        for index, sub_request in enumerate(reqs):
+            nested_chains = sub_request.function_chains
+            if nested_chains and isinstance(rerank, Function):
+                raise ParamError(
+                    message=f"function_score cannot be used with function_chains in sub-search[{index}]"
+                )
+            seen_stages = set()
+            for chain in nested_chains:
+                stage = chain.stage
+                stage_name = schema_types.FunctionChainStage.Name(stage)
+                if stage in seen_stages:
+                    raise ParamError(
+                        message=f"stage {stage_name} appears more than once in hybrid sub-search[{index}]"
+                    )
+                if not chain.ops:
+                    raise ParamError(
+                        message=f"function chain in hybrid sub-search[{index}] must contain at least one op"
+                    )
+                seen_stages.add(stage)
         rerank_param = {}
         if isinstance(rerank, BaseRanker):
             rerank_param = rerank.dict()
@@ -2015,6 +2222,7 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             namespace=kwargs.get("namespace"),
+            **cls._rls_context(kwargs),
         )
 
         request.rank_params.extend(
@@ -2023,6 +2231,7 @@ class Prepare:
                 for key, value in rerank_param.items()
             ]
         )
+        request.function_chains.extend(chain_protos)
 
         for param_key in (RANK_GROUP_SCORER, GROUP_BY_FIELD, GROUP_SIZE, STRICT_GROUP_SIZE):
             val = kwargs.get(param_key)
@@ -2228,6 +2437,13 @@ class Prepare:
             priority = kwargs.get("priority")
             req.load_params["load_priority"] = priority
 
+        if "warmup" in kwargs:
+            if kwargs["warmup"] != "sync":
+                raise ParamError(message="load parameter warmup only supports sync")
+            if req.refresh:
+                raise ParamError(message="load parameter warmup cannot be used with refresh")
+            req.load_params["warmup"] = "sync"
+
         return req
 
     @classmethod
@@ -2292,8 +2508,32 @@ class Prepare:
         return milvus_types.GetCollectionStatisticsRequest(collection_name=collection_name)
 
     @classmethod
-    def get_persistent_segment_info_request(cls, collection_name: str):
-        return milvus_types.GetPersistentSegmentInfoRequest(collectionName=collection_name)
+    def get_persistent_segment_info_request(
+        cls,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+    ):
+        if states is None:
+            normalized_states = []
+        else:
+            if isinstance(states, (str, bytes)) or not isinstance(states, Sequence):
+                message = "states must be a sequence of SegmentState values"
+                raise ParamError(message=message)
+            if not states:
+                message = "states must not be empty; use None for the default state filter"
+                raise ParamError(message=message)
+
+            normalized_states = []
+            for state in states:
+                if not isinstance(state, SegmentState):
+                    message = f"invalid SegmentState value: {state!r}"
+                    raise ParamError(message=message)
+                normalized_states.append(state.value)
+
+        return milvus_types.GetPersistentSegmentInfoRequest(
+            collectionName=collection_name,
+            states=normalized_states,
+        )
 
     @classmethod
     def get_flush_state_request(cls, segment_ids: List[int], collection_name: str, flush_ts: int):
@@ -2336,8 +2576,25 @@ class Prepare:
         output_fields: List[str],
         partition_names: List[str],
         use_default_consistency: bool = True,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ):
+        chains = (
+            [function_chains] if isinstance(function_chains, FunctionChain) else function_chains
+        )
+        if chains is None:
+            chains = []
+        if not isinstance(chains, list) or not all(isinstance(c, FunctionChain) for c in chains):
+            raise ParamError(
+                message="function_chains must be a FunctionChain or a list of FunctionChain"
+            )
+        if len(chains) > 1:
+            raise ParamError(message="query supports at most one QUERY_SCAN function chain")
+        for chain in chains:
+            if chain.stage != FunctionChainStage.QUERY_SCAN:
+                raise ParamError(message="query function chains require QUERY_SCAN stage")
+            if not chain.ops:
+                raise ParamError(message="query function chain must contain at least one op")
         req = milvus_types.QueryRequest(
             db_name="",
             collection_name=collection_name,
@@ -2348,7 +2605,9 @@ class Prepare:
             use_default_consistency=use_default_consistency,
             consistency_level=kwargs.get("consistency_level", 0),
             expr_template_values=cls.prepare_expression_template(kwargs.get("expr_params", {})),
+            function_chains=[chain.to_proto() for chain in chains],
             namespace=kwargs.get("namespace"),
+            **cls._rls_context(kwargs),
         )
         collection_id = kwargs.get(COLLECTION_ID)
         if collection_id is not None:
@@ -2499,6 +2758,15 @@ class Prepare:
         return request
 
     @classmethod
+    def get_compaction_tasks(cls, collection_name: str):
+        if not isinstance(collection_name, str) or not collection_name:
+            raise ParamError(message=f"collection_name value {collection_name} is illegal")
+
+        return milvus_types.GetCompactionPlansRequest(
+            collection_name=collection_name,
+        )
+
+    @classmethod
     def get_replicas(cls, collection_id: int):
         if collection_id is None or not isinstance(collection_id, int):
             raise ParamError(message=f"collection_id value {collection_id} is illegal")
@@ -2523,6 +2791,13 @@ class Prepare:
             if k in ("bucket", "backup", "sep", "nullkey"):
                 kv_pair = common_types.KeyValuePair(key=str(k), value=str(v))
                 req.options.append(kv_pair)
+
+        for key, value in cls._rls_context(kwargs).items():
+            req.options.append(
+                common_types.KeyValuePair(
+                    key=key, value=str(value).lower() if isinstance(value, bool) else value
+                )
+            )
 
         return req
 
@@ -2584,6 +2859,231 @@ class Prepare:
     @classmethod
     def list_usernames_request(cls):
         return milvus_types.ListCredUsersRequest()
+
+    @classmethod
+    def _parse_row_policy_type(cls, policy_type: Union[str, int]):
+        if isinstance(policy_type, bool):
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+        if isinstance(policy_type, int):
+            if policy_type not in (
+                milvus_types.RowPolicyTypePermissive,
+                milvus_types.RowPolicyTypeRestrictive,
+            ):
+                raise ParamError(message=f"invalid row policy type {policy_type}")
+            return policy_type
+
+        if not isinstance(policy_type, str):
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+
+        normalized = policy_type.replace("_", "").replace("-", "").lower()
+        mapping = {
+            "permissive": milvus_types.RowPolicyTypePermissive,
+            "rowpolicytypepermissive": milvus_types.RowPolicyTypePermissive,
+            "restrictive": milvus_types.RowPolicyTypeRestrictive,
+            "rowpolicytyperestrictive": milvus_types.RowPolicyTypeRestrictive,
+        }
+        if normalized not in mapping:
+            raise ParamError(message=f"invalid row policy type {policy_type}")
+        return mapping[normalized]
+
+    @classmethod
+    def _parse_row_policy_action(cls, action: Union[str, int]):
+        if isinstance(action, bool):
+            raise ParamError(message=f"invalid row policy action {action}")
+        if isinstance(action, int):
+            try:
+                milvus_types.RowPolicyAction.Name(action)
+            except ValueError as exc:
+                raise ParamError(message=f"invalid row policy action {action}") from exc
+            return action
+
+        if not isinstance(action, str):
+            raise ParamError(message=f"invalid row policy action {action}")
+
+        normalized = action.replace("_", "").replace("-", "").lower()
+        mapping = {name.lower(): value for name, value in milvus_types.RowPolicyAction.items()}
+        if normalized not in mapping:
+            raise ParamError(message=f"invalid row policy action {action}")
+        return mapping[normalized]
+
+    @classmethod
+    def _parse_row_policy_actions(cls, actions: Union[str, int, List[Union[str, int]]]):
+        if isinstance(actions, (str, int)) and not isinstance(actions, bool):
+            actions = [actions]
+        if not isinstance(actions, list) or len(actions) == 0:
+            raise ParamError(message=f"invalid row policy actions {actions}")
+        return [cls._parse_row_policy_action(action) for action in actions]
+
+    @classmethod
+    def _check_rls_collection(cls, db_name: str, collection_name: str):
+        if not isinstance(db_name, str):
+            raise ParamError(message=f"invalid db_name {db_name}")
+        if not validate_str(collection_name):
+            raise ParamError(message=f"invalid collection_name {collection_name}")
+
+    @classmethod
+    def _encode_rls_tags(cls, tags: Mapping[str, Any]) -> str:
+        if not isinstance(tags, Mapping) or not tags:
+            raise ParamError(message="tags must be a non-empty mapping")
+        for key, value in tags.items():
+            if not isinstance(key, str):
+                raise ParamError(message="tag keys must be strings")
+            values = value if isinstance(value, list) else [value]
+            if any(isinstance(v, bool) or not isinstance(v, (str, int, float)) for v in values):
+                raise ParamError(message="tag values must be strings, numbers, or arrays of them")
+        try:
+            return json.dumps(
+                dict(tags), ensure_ascii=False, allow_nan=False, separators=(",", ":")
+            )
+        except (ValueError, OverflowError) as exc:
+            raise ParamError(message="tag numbers must be finite JSON numbers") from exc
+
+    @classmethod
+    def _check_string_list(cls, name: str, values: Optional[List[str]]):
+        if values is None:
+            return
+        if not isinstance(values, list):
+            raise ParamError(message=f"invalid {name} {values}")
+        for value in values:
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {values}")
+
+    @classmethod
+    def create_row_policy_request(
+        cls,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        for name, value in {
+            "using_expr": using_expr,
+            "check_expr": check_expr,
+            "description": description,
+        }.items():
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {value}")
+
+        return milvus_types.CreateRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+            policy_type=cls._parse_row_policy_type(policy_type),
+            actions=cls._parse_row_policy_actions(actions),
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+        )
+
+    @classmethod
+    def update_row_policy_request(
+        cls,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        for name, value in {
+            "using_expr": using_expr,
+            "check_expr": check_expr,
+            "description": description,
+        }.items():
+            if not isinstance(value, str):
+                raise ParamError(message=f"invalid {name} {value}")
+
+        return milvus_types.UpdateRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+            policy_type=cls._parse_row_policy_type(policy_type),
+            actions=cls._parse_row_policy_actions(actions),
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+        )
+
+    @classmethod
+    def drop_row_policy_request(cls, db_name: str, collection_name: str, policy_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(policy_name):
+            raise ParamError(message=f"invalid policy_name {policy_name}")
+        return milvus_types.DropRowPolicyRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            policy_name=policy_name,
+        )
+
+    @classmethod
+    def list_row_policies_request(cls, db_name: str, collection_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        return milvus_types.ListRowPoliciesRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+
+    @classmethod
+    def set_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str, tags: Mapping[str, Any]
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        return milvus_types.SetRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+            tags=cls._encode_rls_tags(tags),
+        )
+
+    @classmethod
+    def get_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        return milvus_types.GetRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+        )
+
+    @classmethod
+    def list_rls_principals_request(cls, db_name: str, collection_name: str):
+        cls._check_rls_collection(db_name, collection_name)
+        return milvus_types.ListRLSPrincipalsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+        )
+
+    @classmethod
+    def delete_rls_principal_tags_request(
+        cls, db_name: str, collection_name: str, principal_name: str, tag_keys: Optional[List[str]]
+    ):
+        cls._check_rls_collection(db_name, collection_name)
+        if not validate_str(principal_name):
+            raise ParamError(message=f"invalid principal_name {principal_name}")
+        cls._check_string_list("tag_keys", tag_keys)
+        return milvus_types.DeleteRLSPrincipalTagsRequest(
+            db_name=db_name,
+            collection_name=collection_name,
+            principal_name=principal_name,
+            tag_keys=tag_keys or [],
+        )
 
     @classmethod
     def create_role_request(cls, role_name: str, description: str = ""):

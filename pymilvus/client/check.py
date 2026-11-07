@@ -51,14 +51,15 @@ def is_legal_host(host: Any) -> bool:
 
 
 def is_legal_port(port: Any) -> bool:
-    if isinstance(port, (str, int)):
-        try:
-            int(port)
-        except ValueError:
-            return False
-        else:
-            return True
-    return False
+    """Whether port is a legal port number, within the range [0, 65535)."""
+    if not isinstance(port, (str, int)):
+        return False
+    try:
+        port_int = int(port)
+    except ValueError:
+        return False
+    # Reject out-of-range ports up front, instead of failing later from grpc.
+    return 0 <= port_int < 65535
 
 
 def int_or_str(item: Union[int, str]) -> str:

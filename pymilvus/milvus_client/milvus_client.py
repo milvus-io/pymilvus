@@ -1,7 +1,7 @@
 import copy
 import logging
 import time
-from typing import Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
@@ -12,6 +12,7 @@ from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIterat
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
 from pymilvus.client.types import (
+    _DEFAULT_RETAINED_SEGMENT_STATES,
     CompactionPlans,
     ExceptionsMessage,
     FunctionType,
@@ -23,6 +24,7 @@ from pymilvus.client.types import (
     ResourceGroupConfig,
     RestoreSnapshotJobInfo,
     SegmentInfo,
+    SegmentState,
     SnapshotInfo,
 )
 from pymilvus.client.utils import (
@@ -311,7 +313,11 @@ class MilvusClient(BaseMilvusClient):
                     ``FieldOp.array_append()``), a string alias (``"array_append"``,
                     ``"array_remove"``, ``"replace"``), or a
                     :class:`schema_pb2.FieldPartialUpdateOp` message. Any non-REPLACE op implies
-                    partial_update=True.
+                    partial_update=True. ``FieldOp.path_replace("[1][tags]")`` replaces
+                    one struct child. Pass one struct element containing only ``tags``
+                    in each operand row. ``FieldOp.path_replace("[1]")`` replaces the
+                    whole element, requiring every non-nullable child. Omitted nullable
+                    children become null. Other elements and children stay unchanged.
 
         Raises:
             DataNotMatchException: If the data has missing fields an exception will be thrown.
@@ -358,19 +364,26 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        ranker: Union[BaseRanker, Function],
+        ranker: Optional[Union[BaseRanker, Function]] = None,
         limit: int = 10,
         output_fields: Optional[List[str]] = None,
         timeout: Optional[float] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[List[dict]]:
         """Conducts multi vector similarity search with a rerank for rearrangement.
 
         Args:
             collection_name(``string``): The name of collection.
-            reqs (``List[AnnSearchRequest]``): The vector search requests.
-            ranker (``Union[BaseRanker, Function]``): The ranker.
+            reqs (``List[AnnSearchRequest]``): The vector search requests. Each request
+                can provide its own ``function_chains``. Supported stages are
+                determined by the server.
+            ranker (``Union[BaseRanker, Function]``): The ranker. A Function ranker
+                cannot be combined with per-request function chains.
+            function_chains (``FunctionChain`` or ``List[FunctionChain]``, optional):
+                Top-level fusion/reranking chain, separate from per-request chains.
+                Mutually exclusive with ranker. Use an L2 chain starting with merge.
             limit (``int``): The max number of returned record, also known as `topk`.
 
             partition_names (``List[str]``, optional): The names of partitions to search on.
@@ -413,6 +426,7 @@ class MilvusClient(BaseMilvusClient):
             partition_names=partition_names,
             output_fields=output_fields,
             timeout=timeout,
+            function_chains=function_chains,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
@@ -493,6 +507,67 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
+    def grep(
+        self,
+        collection_name: str,
+        text_field: str,
+        args: str,
+        filter: str = "",
+        output_fields: Optional[List[str]] = None,
+        limit: int = 100,
+        offset: int = 0,
+        timeout: Optional[float] = None,
+        partition_names: Optional[List[str]] = None,
+        *,
+        match_field: str = "matches",
+        **kwargs,
+    ) -> List[dict]:
+        """Match a text field using a QueryScan grep chain.
+
+        Args:
+            collection_name: Collection to query.
+            text_field: VarChar/Text field to match.
+            args: Raw rg-style arguments, for example ``-i -e 'timeout'``.
+                Forwarded unchanged; the server validates flags and patterns.
+            filter: Query expression selecting candidate documents.
+            output_fields: Ordinary fields to return. Defaults to query's default projection.
+            limit: Maximum number of matching documents to return, not matching lines.
+            offset: Number of matching documents to skip.
+            timeout: Timeout in seconds, forwarded to query.
+            partition_names: Partitions to query.
+            match_field: Result column for matching-line details. Must not collide
+                with a collection or system field; use another name if necessary.
+            **kwargs: Additional query options, including filter_params and
+                consistency_level. function_chains is not accepted.
+
+        Returns:
+            Query rows with an additional match_field containing a list of objects
+            with content, line_number, line_start_offset, starts and ends.
+            ``line_number`` is one-based. ``line_start_offset`` is the zero-based
+            UTF-8 byte offset of the line within the input field; spans are
+            half-open UTF-8 byte offsets within that line. Add the line start
+            offset to a span endpoint to obtain its field-relative offset. The
+            query result is returned unchanged.
+
+        Notes:
+            Requires a server supporting QueryScan; older servers may ignore the
+            chain. Supported rg flags are server-dependent. The initial server
+            implementation excludes context flags such as -C, count, aggregation,
+            GROUP BY, ORDER BY and query iterators.
+        """
+        chain = self._prepare_grep_chain(text_field, args, match_field, **kwargs)
+        return self.query(
+            collection_name=collection_name,
+            filter=filter,
+            output_fields=output_fields,
+            limit=limit,
+            offset=offset,
+            timeout=timeout,
+            partition_names=partition_names,
+            function_chains=chain,
+            **kwargs,
+        )
+
     def query(
         self,
         collection_name: str,
@@ -501,6 +576,7 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         ids: Optional[Union[List, str, int]] = None,
         partition_names: Optional[List[str]] = None,
+        function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         **kwargs,
     ) -> List[dict]:
         """Query for entries in the Collection.
@@ -512,6 +588,10 @@ class MilvusClient(BaseMilvusClient):
             partitions (List[str], optional): Which partitions to perform query. Defaults to None.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
+
+            function_chains (FunctionChain or List[FunctionChain], optional): At most one
+                QUERY_SCAN chain. Requires server support; older servers may ignore it.
+                Exported output_columns are returned alongside ordinary output_fields.
 
         Raises:
             ValueError: Missing collection.
@@ -549,6 +629,7 @@ class MilvusClient(BaseMilvusClient):
             output_fields=output_fields,
             partition_names=partition_names,
             timeout=timeout,
+            function_chains=function_chains,
             expr_params=kwargs.pop("filter_params", {}),
             context=self._generate_call_context(**kwargs),
             **kwargs,
@@ -1221,6 +1302,12 @@ class MilvusClient(BaseMilvusClient):
     ):
         """Add a new field to the collection.
 
+        Use ``field_name="clips[lang]"`` to add a sub-field to an existing struct.
+        Its type describes one struct element and requires ``nullable=True``.
+        For an Array sub-field, ``max_capacity`` is the inner array capacity and
+        ``element_nullable`` controls null scalar leaves. The outer capacity and
+        row nullability follow the parent struct.
+
         Args:
             collection_name(``string``): The name of collection.
             name (str): The name of the field.
@@ -1750,6 +1837,193 @@ class MilvusClient(BaseMilvusClient):
         conn = self._get_connection()
         return conn.list_usernames(
             timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    def create_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Create a collection policy; an existing name is an error.
+
+        Actions: query, query_iterator, search, search_iterator, hybrid_search,
+        delete, insert, upsert. get uses the query action. policy_type accepts
+        permissive or restrictive. Expressions are validated by Milvus.
+        db_name defaults to this client's database.
+        """
+        conn = self._get_connection()
+        conn.create_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def update_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Replace the named policy definition, preserving its server-side identity.
+
+        The policy must exist. All definition fields replace their old values;
+        omitted expressions and description become empty strings.
+        """
+        conn = self._get_connection()
+        conn.update_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr=using_expr,
+            check_expr=check_expr,
+            description=description,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def drop_row_policy(
+        self,
+        collection_name: str,
+        policy_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Drop a policy by name. Dropping a missing policy succeeds."""
+        conn = self._get_connection()
+        conn.drop_row_policy(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            policy_name,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def list_row_policies(
+        self,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        """Return policy definitions with protobuf enum names for type and actions."""
+        conn = self._get_connection()
+        return conn.list_row_policies(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def set_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Incrementally upsert a non-empty mapping of principal tags.
+
+        Values may be strings, finite numbers, or one-dimensional arrays of
+        strings or numbers. Milvus checks homogeneity and numeric precision.
+        Keys omitted from this call retain their values.
+        """
+        conn = self._get_connection()
+        conn.set_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            tags,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def get_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        """Return decoded JSON tags, preserving integer, float and array values."""
+        conn = self._get_connection()
+        return conn.get_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def list_rls_principals(
+        self,
+        collection_name: str,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[str]:
+        """List application principal names with stored tags in the collection."""
+        conn = self._get_connection()
+        return conn.list_rls_principals(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
+        )
+
+    def delete_rls_principal_tags(
+        self,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        db_name: Optional[str] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ):
+        """Delete selected tag keys, or all tags when tag_keys is None or empty."""
+        conn = self._get_connection()
+        conn.delete_rls_principal_tags(
+            self._config.db_name if db_name is None else db_name,
+            collection_name,
+            principal_name,
+            tag_keys=tag_keys,
+            timeout=timeout,
+            context=self._generate_rls_call_context(db_name=db_name, **kwargs),
+            **kwargs,
         )
 
     def describe_user(self, user_name: str, timeout: Optional[float] = None, **kwargs):
@@ -2797,12 +3071,15 @@ class MilvusClient(BaseMilvusClient):
         self,
         collection_name: str,
         timeout: Optional[float] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[SegmentInfo]:
         """List persistent segments for a collection.
 
         Args:
             collection_name (str): The name of the collection.
+            states (Optional[Sequence[SegmentState]]): Segment states to include; when omitted,
+                the server preserves the legacy persistent-state filter.
             timeout (Optional[float]): An optional duration of time in seconds to allow for the RPC.
             **kwargs: Additional arguments.
 
@@ -2811,23 +3088,48 @@ class MilvusClient(BaseMilvusClient):
         """
         infos = self._get_connection().get_persistent_segment_infos(
             collection_name,
+            states=states,
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
         )
         return [
             SegmentInfo(
-                info.segmentID,
-                info.collectionID,
-                collection_name,
-                info.num_rows,
-                info.is_sorted,
-                info.state,
-                info.level,
-                info.storage_version,
+                segment_id=info.segmentID,
+                collection_id=info.collectionID,
+                collection_name=collection_name,
+                num_rows=info.num_rows,
+                is_sorted=info.is_sorted,
+                state=info.state,
+                level=info.level,
+                storage_version=info.storage_version,
+                partition_id=info.partitionID,
+                insert_channel=info.insert_channel,
+                compaction_from=list(info.compaction_from),
             )
             for info in infos
         ]
+
+    def list_segments(
+        self,
+        collection_name: str,
+        states: Optional[Sequence[SegmentState]] = None,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[SegmentInfo]:
+        """List collection segments still retained in the requested lifecycle states.
+
+        Dropped segment metadata is subject to server-side garbage collection, so callers that
+        need lineage history must poll and cache it during the retention window.
+        """
+        if states is None:
+            states = _DEFAULT_RETAINED_SEGMENT_STATES
+        return self.list_persistent_segments(
+            collection_name,
+            states=states,
+            timeout=timeout,
+            **kwargs,
+        )
 
     def get_compaction_plans(
         self,
@@ -2847,6 +3149,24 @@ class MilvusClient(BaseMilvusClient):
         """
         return self._get_connection().get_compaction_plans(
             job_id, timeout=timeout, context=self._generate_call_context(**kwargs), **kwargs
+        )
+
+    def list_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        """List all compaction tasks still retained for a collection.
+
+        Terminal tasks are subject to server-side garbage collection and are not an audit log.
+        """
+        validate_param("collection_name", collection_name, str)
+        return self._get_connection().get_compaction_tasks(
+            collection_name,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def _is_collection_loaded(self, collection_name: str, timeout: Optional[float] = None) -> bool:

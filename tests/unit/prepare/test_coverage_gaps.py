@@ -2,8 +2,10 @@
 
 import numpy as np
 import pytest
+from pymilvus import SegmentState
 from pymilvus.client.prepare import Prepare
-from pymilvus.exceptions import ParamError
+from pymilvus.exceptions import ErrorCode, ParamError
+from pymilvus.grpc_gen import common_pb2
 
 
 class TestCreateCollectionNumPartitions:
@@ -259,13 +261,66 @@ class TestSegmentRequests:
 
     def test_get_persistent_segment_info(self):
         """Test get persistent segment info request."""
-        req = Prepare.get_persistent_segment_info_request("test_coll")
+        req = Prepare.get_persistent_segment_info_request(
+            "test_coll", states=[SegmentState.Growing, SegmentState.Dropped]
+        )
         assert req.collectionName == "test_coll"
+        assert req.dbName == ""
+        assert list(req.states) == [
+            common_pb2.SegmentState.Growing,
+            common_pb2.SegmentState.Dropped,
+        ]
+
+    def test_get_persistent_segment_info_reuses_state_sequence(self):
+        states = (SegmentState.Growing, SegmentState.Dropped)
+
+        first = Prepare.get_persistent_segment_info_request("test_coll", states=states)
+        second = Prepare.get_persistent_segment_info_request("test_coll", states=states)
+
+        expected = [common_pb2.SegmentState.Growing, common_pb2.SegmentState.Dropped]
+        assert list(first.states) == expected
+        assert list(second.states) == expected
+
+    @pytest.mark.parametrize(
+        "states",
+        [
+            "Flushed",
+            iter(["Dropped"]),
+            {"Dropped"},
+        ],
+    )
+    def test_get_persistent_segment_info_rejects_non_sequence_states(self, states):
+        with pytest.raises(ParamError, match="states must be a sequence") as exc_info:
+            Prepare.get_persistent_segment_info_request("test_coll", states=states)
+        assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
+        assert exc_info.value.message == "states must be a sequence of SegmentState values"
+
+    def test_get_persistent_segment_info_rejects_empty_states(self):
+        with pytest.raises(ParamError, match="states must not be empty") as exc_info:
+            Prepare.get_persistent_segment_info_request("test_coll", states=[])
+        assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
+        assert exc_info.value.message == (
+            "states must not be empty; use None for the default state filter"
+        )
+
+    @pytest.mark.parametrize("state", ["Dropped", common_pb2.Dropped, True, None])
+    def test_get_persistent_segment_info_rejects_invalid_state(self, state):
+        with pytest.raises(ParamError, match="invalid SegmentState value") as exc_info:
+            Prepare.get_persistent_segment_info_request("test_coll", states=[state])
+        assert exc_info.value.code == ErrorCode.UNEXPECTED_ERROR
+        assert exc_info.value.message == f"invalid SegmentState value: {state!r}"
+
+    def test_get_compaction_tasks(self):
+        req = Prepare.get_compaction_tasks("test_coll")
+        assert req.collection_name == "test_coll"
+        assert req.db_name == ""
+        assert req.compactionID == 0
 
     def test_get_query_segment_info(self):
         """Test get query segment info request."""
         req = Prepare.get_query_segment_info_request("test_coll")
         assert req.collectionName == "test_coll"
+        assert req.dbName == ""
 
 
 class TestPartitionRequests:

@@ -40,10 +40,11 @@ jobs:
         run: |
           uv sync --group dev --frozen --python python
 
-      - name: Run unit coverage and lite integration tests
-        run: |
-          make coverage
-          make integration-lite
+      - name: Run unit coverage
+        run: make coverage
+
+      - name: Run lite integration tests
+        run: make integration-lite
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

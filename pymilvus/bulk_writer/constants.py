@@ -34,6 +34,9 @@ GB = 1024 * MB
 DYNAMIC_FIELD_NAME = "$meta"
 DEFAULT_BUCKET_NAME = "a-bucket"
 
+# HTTP header carrying the client idempotency key on bulk import requests.
+IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
+
 TYPE_SIZE = {
     DataType.BOOL.name: 1,
     DataType.INT8.name: 1,
@@ -55,7 +58,9 @@ TYPE_VALIDATOR = {
     DataType.INT32.name: lambda x: isinstance(x, int)
     and not isinstance(x, bool)
     and -2147483648 <= x <= 2147483647,
-    DataType.INT64.name: lambda x: isinstance(x, int) and not isinstance(x, bool),
+    DataType.INT64.name: lambda x: isinstance(x, int)
+    and not isinstance(x, bool)
+    and -9223372036854775808 <= x <= 9223372036854775807,
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,

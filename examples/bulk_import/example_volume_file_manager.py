@@ -1,4 +1,5 @@
 from pymilvus.bulk_writer.constants import ConnectType
+from pymilvus.bulk_writer.upload_policy import UploadPolicy
 from pymilvus.bulk_writer.volume_file_manager import VolumeFileManager
 
 if __name__ == "__main__":
@@ -8,5 +9,7 @@ if __name__ == "__main__":
         volume_name='_volume_name_for_project_',
         connect_type=ConnectType.AUTO,
     )
-    result = volume_file_manager.upload_file_to_volume("/Users/zilliz/data/", "data/")
+    result = volume_file_manager.upload_file_to_volume(
+        "/Users/zilliz/data/", "data/", upload_policy=UploadPolicy.SKIP_IF_SAME_SIZE
+    )
     print(f"\nuploadFileToVolume results: {result}")

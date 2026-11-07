@@ -3,8 +3,7 @@ import logging
 
 from pymilvus.bulk_writer.constants import ConnectType
 
-logger = logging.getLogger("EndpointResolver")
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EndpointResolver:

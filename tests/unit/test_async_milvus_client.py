@@ -1,5 +1,6 @@
 """Test cases for AsyncMilvusClient new features"""
 
+import asyncio
 import inspect
 from typing import ClassVar
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -16,9 +17,11 @@ from pymilvus import (
     FunctionType,
     PyMilvusDeprecationWarning,
     SearchAggregation,
+    SegmentState,
     TopHits,
 )
 from pymilvus.client.abstract import AnnSearchRequest
+from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.connection_manager import AsyncConnectionManager
 from pymilvus.client.types import (
     CompactionPlans,
@@ -50,6 +53,18 @@ async def client_and_handler():
         client = AsyncMilvusClient()
         await client._connect()
         yield client, mock_handler
+
+
+@pytest_asyncio.fixture
+async def client_with_grpc_handler():
+    channel = MagicMock()
+    channel._unary_unary_interceptors = []
+    handler = AsyncGrpcHandler(channel=channel)
+    handler._is_channel_ready = True
+    handler._async_stub = AsyncMock()
+    client = AsyncMilvusClient(db_name="test_db")
+    client._handler = handler
+    return client, handler
 
 
 class TestAsyncMilvusClientNewFeatures:
@@ -163,11 +178,14 @@ class TestAsyncMilvusClientNewFeatures:
         mock_segment_info = MagicMock()
         mock_segment_info.segmentID = 1001
         mock_segment_info.collectionID = 2001
+        mock_segment_info.partitionID = 3001
         mock_segment_info.num_rows = 1000
         mock_segment_info.is_sorted = True
-        mock_segment_info.state = 3  # FLUSHED
+        mock_segment_info.state = common_pb2.SegmentState.Flushed
         mock_segment_info.level = 1
         mock_segment_info.storage_version = 1
+        mock_segment_info.insert_channel = "test-channel"
+        mock_segment_info.compaction_from = [10, 11]
 
         mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[mock_segment_info])
 
@@ -188,16 +206,41 @@ class TestAsyncMilvusClientNewFeatures:
             assert segment_info.segment_id == 1001
             assert segment_info.collection_id == 2001
             assert segment_info.collection_name == "test_collection"
+            assert segment_info.partition_id == 3001
             assert segment_info.num_rows == 1000
             assert segment_info.is_sorted is True
-            assert segment_info.state == 3
+            assert segment_info.state is SegmentState.Flushed
             assert segment_info.level == 1
             assert segment_info.storage_version == 1
+            assert segment_info.insert_channel == "test-channel"
+            assert segment_info.compaction_from == [10, 11]
+            segment_info.compaction_from.append(12)
+            assert mock_segment_info.compaction_from == [10, 11]
 
             # Verify call arguments
             mock_handler.get_persistent_segment_infos.assert_called_once_with(
-                "test_collection", timeout=None, context=ANY
+                "test_collection", states=None, timeout=None, context=ANY
             )
+
+    @pytest.mark.asyncio
+    async def test_list_segments_defaults_to_all_lifecycle_states(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.get_persistent_segment_infos = AsyncMock(return_value=[])
+
+        assert await client.list_segments("test_collection") == []
+        mock_handler.get_persistent_segment_infos.assert_awaited_once_with(
+            "test_collection",
+            states=(
+                SegmentState.Growing,
+                SegmentState.Sealed,
+                SegmentState.Flushing,
+                SegmentState.Flushed,
+                SegmentState.Importing,
+                SegmentState.Dropped,
+            ),
+            timeout=None,
+            context=ANY,
+        )
 
     @pytest.mark.asyncio
     async def test_describe_collection_without_struct_array_fields(self, client_and_handler):
@@ -276,6 +319,16 @@ class TestAsyncMilvusClientNewFeatures:
         assert call_args[0][2] == mock_function_ranker  # ranker is 3rd positional arg
 
     @pytest.mark.asyncio
+    async def test_hybrid_search_passes_function_chains(self, client_and_handler):
+        client, mock_handler = client_and_handler
+        mock_handler.hybrid_search = AsyncMock(return_value=[])
+        chain = FunctionChain(FunctionChainStage.L2_RERANK).merge("rrf")
+
+        await client.hybrid_search("test_collection", reqs=[], function_chains=chain)
+
+        assert mock_handler.hybrid_search.call_args.kwargs["function_chains"] is chain
+
+    @pytest.mark.asyncio
     async def test_compact_with_is_l0(self, client_and_handler):
         """Test compact method accepts is_l0 parameter"""
         client, mock_handler = client_and_handler
@@ -348,65 +401,290 @@ class TestAsyncMilvusClientNewFeatures:
             await client.compact("col", target_size=512, target_size_unit="zb")
 
     @pytest.mark.asyncio
-    async def test_flush_all(self, client_and_handler):
-        """Test flush_all method"""
-        client, mock_handler = client_and_handler
-        mock_handler.flush_all = AsyncMock()
+    @pytest.mark.parametrize("timeout", [None, 10])
+    async def test_flush_all(self, client_with_grpc_handler, timeout):
+        client, handler = client_with_grpc_handler
+        flush_rpc = handler._async_stub.FlushAll
+        flush_rpc.return_value = milvus_pb2.FlushAllResponse(flush_all_ts=123)
+        state_rpc = handler._async_stub.GetFlushAllState
+        state_rpc.side_effect = [
+            milvus_pb2.GetFlushAllStateResponse(flushed=False),
+            milvus_pb2.GetFlushAllStateResponse(flushed=True),
+        ]
 
-        await client.flush_all(timeout=10)
-        mock_handler.flush_all.assert_called_once_with(timeout=10, context=ANY)
+        with patch(
+            "pymilvus.client.async_grpc_handler.asyncio.sleep", new_callable=AsyncMock
+        ) as sleep:
+            result = await client.flush_all(
+                timeout=timeout, db="test_db", client_request_id="flush-request"
+            )
+
+        assert result is None
+        sleep.assert_awaited_once()
+        flush_rpc.assert_awaited_once_with(
+            milvus_pb2.FlushAllRequest(db_name="test_db"), timeout=timeout, metadata=ANY
+        )
+        assert state_rpc.await_count == 2
+        for rpc_call in [flush_rpc.call_args, *state_rpc.call_args_list]:
+            assert rpc_call.kwargs["timeout"] == timeout
+            metadata = rpc_call.kwargs["metadata"]
+            assert ("dbname", "test_db") in metadata
+            assert ("client-request-id", "flush-request") in metadata
+        for rpc_call in state_rpc.call_args_list:
+            assert rpc_call.args[0] == milvus_pb2.GetFlushAllStateRequest(
+                flush_all_ts=123, db_name="test_db"
+            )
 
     @pytest.mark.asyncio
-    async def test_get_flush_all_state(self, client_and_handler):
-        """Test get_flush_all_state method"""
-        client, mock_handler = client_and_handler
-        mock_handler.get_flush_all_state = AsyncMock(return_value=True)
+    @pytest.mark.parametrize("blocked_at", ["FlushAll", "GetFlushAllState", "poll_delay"])
+    async def test_flush_all_timeout(self, client_with_grpc_handler, blocked_at):
+        client, handler = client_with_grpc_handler
+        handler._async_stub.FlushAll.return_value = milvus_pb2.FlushAllResponse(flush_all_ts=123)
+        handler._async_stub.GetFlushAllState.return_value = milvus_pb2.GetFlushAllStateResponse(
+            flushed=False
+        )
 
-        result = await client.get_flush_all_state(timeout=10)
+        async def wait_forever(*args, **kwargs):
+            await asyncio.Future()
 
-        assert result is True
-        mock_handler.get_flush_all_state.assert_called_once_with(timeout=10, context=ANY)
+        if blocked_at != "poll_delay":
+            getattr(handler._async_stub, blocked_at).side_effect = wait_forever
+
+        with pytest.raises(MilvusException, match=r"\[flush_all\] Retry timeout"):
+            await client.flush_all(timeout=0.05)
+
+        handler._async_stub.FlushAll.assert_awaited_once()
+        if blocked_at == "FlushAll":
+            handler._async_stub.GetFlushAllState.assert_not_awaited()
+        else:
+            handler._async_stub.GetFlushAllState.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_get_compaction_plans(self, client_and_handler):
-        """Test get_compaction_plans method"""
+    async def test_flush_all_cancellation(self, client_with_grpc_handler):
+        client, handler = client_with_grpc_handler
+        handler._async_stub.FlushAll.return_value = milvus_pb2.FlushAllResponse(flush_all_ts=123)
+        polling = asyncio.Event()
+        poll_cancelled = asyncio.Event()
+
+        async def wait_for_state(*args, **kwargs):
+            polling.set()
+            try:
+                await asyncio.Future()
+            finally:
+                poll_cancelled.set()
+
+        handler._async_stub.GetFlushAllState.side_effect = wait_for_state
+        task = asyncio.create_task(client.flush_all())
+        try:
+            await asyncio.wait_for(polling.wait(), timeout=1)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            assert poll_cancelled.is_set()
+            handler._async_stub.FlushAll.assert_awaited_once()
+            handler._async_stub.GetFlushAllState.assert_awaited_once()
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("flushed", [False, True])
+    async def test_get_flush_all_state(self, client_with_grpc_handler, flushed):
+        client, handler = client_with_grpc_handler
+        rpc = handler._async_stub.GetFlushAllState
+        rpc.return_value = milvus_pb2.GetFlushAllStateResponse(flushed=flushed)
+
+        result = await client.get_flush_all_state(
+            flush_all_ts=123, timeout=10, client_request_id="flush-state-request"
+        )
+
+        assert result is flushed
+        rpc.assert_awaited_once_with(
+            milvus_pb2.GetFlushAllStateRequest(flush_all_ts=123), timeout=10, metadata=ANY
+        )
+        metadata = rpc.call_args.kwargs["metadata"]
+        assert ("dbname", "test_db") in metadata
+        assert ("client-request-id", "flush-state-request") in metadata
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("with_plans", [False, True])
+    async def test_get_compaction_plans(self, client_with_grpc_handler, with_plans):
+        client, handler = client_with_grpc_handler
+        merge_infos = (
+            [
+                milvus_pb2.CompactionMergeInfo(
+                    plan_id=10,
+                    sources=[1, 2],
+                    target=3,
+                    targets=[3, 4],
+                    type=common_pb2.CompactionTypeMix,
+                    state=common_pb2.CompactionTaskStateCompleted,
+                )
+            ]
+            if with_plans
+            else []
+        )
+        rpc = handler._async_stub.GetCompactionStateWithPlans
+        rpc.return_value = milvus_pb2.GetCompactionPlansResponse(
+            state=common_pb2.Completed, mergeInfos=merge_infos
+        )
+
+        result = await client.get_compaction_plans(
+            job_id=123, timeout=10, client_request_id="plans-request"
+        )
+
+        assert isinstance(result, CompactionPlans)
+        assert result.compaction_id == 123
+        assert result.state.name == "Completed"
+        assert result.collection_name == ""
+        assert len(result.plans) == len(merge_infos)
+        if with_plans:
+            plan = result.plans[0]
+            assert plan.plan_id == 10
+            assert plan.sources == [1, 2]
+            assert plan.targets == [3, 4]
+            assert plan.compaction_type.name == "MixCompaction"
+            assert plan.state.name == "Completed"
+        rpc.assert_awaited_once_with(
+            milvus_pb2.GetCompactionPlansRequest(compactionID=123), timeout=10, metadata=ANY
+        )
+        metadata = rpc.call_args.kwargs["metadata"]
+        assert ("dbname", "test_db") in metadata
+        assert ("client-request-id", "plans-request") in metadata
+
+    @pytest.mark.asyncio
+    async def test_list_compaction_tasks(self, client_and_handler):
         client, mock_handler = client_and_handler
         mock_plans = MagicMock(spec=CompactionPlans)
-        mock_handler.get_compaction_plans = AsyncMock(return_value=mock_plans)
+        mock_handler.get_compaction_tasks = AsyncMock(return_value=mock_plans)
 
-        result = await client.get_compaction_plans(job_id=123, timeout=10)
+        result = await client.list_compaction_tasks("test_collection", timeout=10)
 
-        assert result == mock_plans
-        mock_handler.get_compaction_plans.assert_called_once_with(123, timeout=10, context=ANY)
+        assert result is mock_plans
+        mock_handler.get_compaction_tasks.assert_awaited_once_with(
+            "test_collection", timeout=10, context=ANY
+        )
 
     @pytest.mark.asyncio
-    async def test_update_replicate_configuration(self, client_and_handler):
-        """Test update_replicate_configuration method"""
-        client, mock_handler = client_and_handler
+    @pytest.mark.parametrize("force_promote", [False, True])
+    async def test_update_replicate_configuration(self, client_with_grpc_handler, force_promote):
+        client, handler = client_with_grpc_handler
         clusters = [
             {
                 "cluster_id": "cluster1",
                 "connection_param": {"uri": "http://localhost:19530", "token": "token1"},
+                "pchannels": ["channel1"],
             }
         ]
         cross_cluster_topology = [
             {"source_cluster_id": "cluster1", "target_cluster_id": "cluster2"}
         ]
-        mock_status = MagicMock()
-        mock_handler.update_replicate_configuration = AsyncMock(return_value=mock_status)
+        status = common_pb2.Status()
+        rpc = handler._async_stub.UpdateReplicateConfiguration
+        rpc.return_value = status
 
         result = await client.update_replicate_configuration(
-            clusters=clusters, cross_cluster_topology=cross_cluster_topology, timeout=10
-        )
-
-        assert result == mock_status
-        mock_handler.update_replicate_configuration.assert_called_once_with(
             clusters=clusters,
             cross_cluster_topology=cross_cluster_topology,
-            force_promote=False,
+            force_promote=force_promote,
             timeout=10,
-            context=ANY,
+            client_request_id="replicate-request",
         )
+
+        assert result is status
+        rpc.assert_awaited_once()
+        request = rpc.call_args.args[0]
+        assert request.force_promote is force_promote
+        config = request.replicate_configuration
+        assert list(config.clusters) == [
+            common_pb2.MilvusCluster(
+                cluster_id="cluster1",
+                connection_param=common_pb2.ConnectionParam(
+                    uri="http://localhost:19530", token="token1"
+                ),
+                pchannels=["channel1"],
+            )
+        ]
+        assert list(config.cross_cluster_topology) == [
+            common_pb2.CrossClusterTopology(
+                source_cluster_id="cluster1", target_cluster_id="cluster2"
+            )
+        ]
+        assert rpc.call_args.kwargs["timeout"] == 10
+        metadata = rpc.call_args.kwargs["metadata"]
+        assert ("dbname", "test_db") in metadata
+        assert ("client-request-id", "replicate-request") in metadata
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "method, kwargs, rpc_name, response_type",
+        [
+            (
+                "get_compaction_plans",
+                {"job_id": 123},
+                "GetCompactionStateWithPlans",
+                milvus_pb2.GetCompactionPlansResponse,
+            ),
+            (
+                "get_flush_all_state",
+                {"flush_all_ts": 123},
+                "GetFlushAllState",
+                milvus_pb2.GetFlushAllStateResponse,
+            ),
+            ("flush_all", {}, "FlushAll", milvus_pb2.FlushAllResponse),
+            ("flush_all", {}, "GetFlushAllState", milvus_pb2.GetFlushAllStateResponse),
+            (
+                "update_replicate_configuration",
+                {"clusters": []},
+                "UpdateReplicateConfiguration",
+                None,
+            ),
+        ],
+    )
+    async def test_utility_rpc_errors(
+        self, client_with_grpc_handler, method, kwargs, rpc_name, response_type
+    ):
+        client, handler = client_with_grpc_handler
+        handler._async_stub.FlushAll.return_value = milvus_pb2.FlushAllResponse(flush_all_ts=123)
+        status = common_pb2.Status(code=1100, reason="request rejected")
+        rpc = getattr(handler._async_stub, rpc_name)
+        rpc.return_value = status if response_type is None else response_type(status=status)
+
+        with pytest.raises(MilvusException, match="request rejected") as exc:
+            await getattr(client, method)(**kwargs)
+
+        assert exc.value.code == 1100
+        rpc.assert_awaited_once()
+        if rpc_name == "FlushAll":
+            handler._async_stub.GetFlushAllState.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "method, kwargs, rpc_name, message",
+        [
+            (
+                "get_compaction_plans",
+                {"job_id": "invalid"},
+                "GetCompactionStateWithPlans",
+                "compaction_id",
+            ),
+            (
+                "update_replicate_configuration",
+                {},
+                "UpdateReplicateConfiguration",
+                "'clusters' must be provided",
+            ),
+        ],
+    )
+    async def test_utility_rejects_invalid_input_before_rpc(
+        self, client_with_grpc_handler, method, kwargs, rpc_name, message
+    ):
+        client, handler = client_with_grpc_handler
+
+        with pytest.raises(ParamError, match=message):
+            await getattr(client, method)(**kwargs)
+
+        getattr(handler._async_stub, rpc_name).assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_get_replicate_configuration(self, client_and_handler):

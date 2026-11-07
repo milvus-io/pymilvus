@@ -54,6 +54,7 @@ class FunctionChainStage(IntEnum):
         L1_RERANK: Runs at the second reranking stage.
         L2_RERANK: Runs at the third reranking stage.
         POST_PROCESS: Runs after the main query/search process.
+        QUERY_SCAN: Runs on query candidates before final pagination and projection.
 
     Examples:
         Create a chain for the search reranking stage::
@@ -68,6 +69,7 @@ class FunctionChainStage(IntEnum):
     L1_RERANK = schema_pb2.FunctionChainStageL1Rerank
     L2_RERANK = schema_pb2.FunctionChainStageL2Rerank
     POST_PROCESS = schema_pb2.FunctionChainStagePostProcess
+    QUERY_SCAN = schema_pb2.FunctionChainStageQueryScan
 
 
 @dataclass(frozen=True)
@@ -320,12 +322,20 @@ class FunctionChain:
             proto = chain.to_proto()
     """
 
-    def __init__(self, stage: FunctionChainStage, name: str = ""):
+    def __init__(
+        self,
+        stage: FunctionChainStage,
+        name: str = "",
+        *,
+        output_columns: Optional[Sequence[str]] = None,
+    ):
         """Create a function chain builder for the given execution stage.
 
         Args:
             stage: Execution stage where the chain should run.
             name: Optional chain name.
+            output_columns: QueryScan columns to return alongside ordinary fields.
+                Exporting columns requires a non-empty chain name. Omit to filter only.
         """
         try:
             self._stage = FunctionChainStage(stage)
@@ -335,6 +345,55 @@ class FunctionChain:
             raise ParamError(message="Function chain name must be a string")
         self._name = name
         self._ops: List[FunctionChainOp] = []
+        if output_columns is None:
+            output_columns = ()
+        if not isinstance(output_columns, (list, tuple)) or not all(
+            isinstance(column, str) and column for column in output_columns
+        ):
+            raise ParamError(message="output_columns must be a list or tuple of non-empty strings")
+        if len(set(output_columns)) != len(output_columns):
+            raise ParamError(message="output_columns must be unique")
+        if "_original_idx" in output_columns:
+            raise ParamError(message="output_columns contains reserved name: _original_idx")
+        if output_columns and (self._stage != FunctionChainStage.QUERY_SCAN or not name):
+            raise ParamError(message="output_columns requires a named QUERY_SCAN function chain")
+        self._output_columns = tuple(output_columns)
+
+    @property
+    def output_columns(self) -> Sequence[str]:
+        """Immutable view of columns exported into query results."""
+        return self._output_columns
+
+    def grep(
+        self, value: Union[str, ColumnRef], *, arguments: str, output: str = "matches"
+    ) -> "FunctionChain":
+        """Filter query candidates by matching a VarChar/Text field.
+
+        ``arguments`` is an rg-style string, for example ``-i -e 'timeout'``.
+        It is forwarded unchanged; the server validates supported flags and patterns.
+        Export ``output`` through ``output_columns`` to return JSON matching-line
+        details (content, line_number, line_start_offset, starts, ends). ``line_number``
+        is one-based, while offsets and spans are UTF-8 byte offsets. Spans are
+        relative to the line; ``line_start_offset`` is relative to the input field.
+        Use query's limit/offset for pagination. Requires a server supporting QueryScan;
+        older servers may ignore function chains. The current server supports one grep
+        op and excludes count, aggregation, order-by and query iterators.
+        """
+        if self._stage != FunctionChainStage.QUERY_SCAN:
+            raise ParamError(message="grep requires QUERY_SCAN stage")
+        input_name = _column_name(value, "grep input")
+        output_name = _column_name(output, "grep output")
+        if not isinstance(arguments, str):
+            raise ParamError(message="grep arguments must be a string")
+        self._ops.append(
+            FunctionChainOp(
+                op="grep",
+                inputs=(input_name,),
+                outputs=(output_name,),
+                params={"arguments": arguments},
+            )
+        )
+        return self
 
     @property
     def name(self) -> str:
@@ -362,6 +421,51 @@ class FunctionChain:
             A tuple containing the operations in insertion order.
         """
         return tuple(self._ops)
+
+    def merge(
+        self,
+        strategy: str,
+        *,
+        weights: Optional[Sequence[float]] = None,
+        norm_score: Optional[bool] = None,
+        k: Optional[int] = None,
+    ) -> "FunctionChain":
+        """Append a Hybrid Search merge operation.
+
+        ``rrf`` accepts ``k`` and optional per-input ``weights``; ``weighted``
+        requires ``weights``; ``max``, ``sum``, and ``avg`` optionally normalize
+        scores. Strategy-specific
+        defaults match the legacy Hybrid Search rankers. Merge semantics are
+        validated by the server.
+
+        Example:
+            Merge two Hybrid Search result sets with weighted scores::
+
+                chain = FunctionChain(FunctionChainStage.L2_RERANK).merge(
+                    "weighted", weights=[0.7, 0.3]
+                )
+
+            Use weighted reciprocal rank fusion::
+
+                chain = FunctionChain(FunctionChainStage.L2_RERANK).merge(
+                    "rrf", k=60, weights=[0.7, 0.3]
+                )
+        """
+        params: Dict[str, Any] = {"strategy": strategy}
+        if strategy == "rrf" and k is None:
+            k = 60
+        elif strategy in {"weighted", "max", "sum", "avg"} and norm_score is None:
+            norm_score = True
+
+        if weights is not None:
+            params["weights"] = weights
+        if norm_score is not None:
+            params["norm_score"] = norm_score
+        if k is not None:
+            params["k"] = k
+
+        self._ops.append(FunctionChainOp(op="merge", params=params))
+        return self
 
     def map(self, output: str, expr: FunctionChainExpr) -> "FunctionChain":
         """Append a map operation that writes an expression result to an output field.
@@ -459,6 +563,8 @@ class FunctionChain:
         return self
 
     def to_proto(self) -> schema_pb2.FunctionChain:
-        proto = schema_pb2.FunctionChain(name=self._name, stage=int(self._stage))
+        proto = schema_pb2.FunctionChain(
+            name=self._name, stage=int(self._stage), output_columns=self._output_columns
+        )
         proto.ops.extend([op.to_proto() for op in self._ops])
         return proto

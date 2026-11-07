@@ -1,10 +1,11 @@
 import base64
+import json
 import logging
 import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -69,7 +70,6 @@ from .types import (
     HybridExtraList,
     IndexState,
     LoadState,
-    Plan,
     PrivilegeGroupInfo,
     RefreshExternalCollectionJobInfo,
     Replica,
@@ -78,12 +78,14 @@ from .types import (
     ResourceGroupInfo,
     RestoreSnapshotJobInfo,
     RoleInfo,
+    SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     UserInfo,
     get_extra_info,
+    parse_compaction_plans,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -98,6 +100,17 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _row_policy_to_dict(policy: milvus_types.RowPolicy) -> Dict:
+    return {
+        "policy_name": policy.policy_name,
+        "policy_type": milvus_types.RowPolicyType.Name(policy.policy_type),
+        "actions": [milvus_types.RowPolicyAction.Name(action) for action in policy.actions],
+        "using_expr": policy.using_expr,
+        "check_expr": policy.check_expr,
+        "description": policy.description,
+    }
 
 
 class ReconnectHandler:
@@ -548,6 +561,11 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        is_sub_field = "[" in field_schema.name or "]" in field_schema.name
+        if is_sub_field:
+            if any(kwargs.get(key) for key in ("index_name", "index_extra_params", "func")):
+                raise ParamError(message="Struct sub-field add cannot bind a function or index")
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -557,12 +575,14 @@ class GrpcHandler:
             response = self._stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            if is_external_collection_schema_alter_unsupported(response.alter_status):
+            if not is_sub_field and is_external_collection_schema_alter_unsupported(
+                response.alter_status
+            ):
                 fallback_to_legacy = True
             else:
                 check_status(response.alter_status)
         except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+            if is_sub_field or e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
             fallback_to_legacy = True
 
@@ -707,6 +727,8 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        if field_schema is not None:
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -1014,6 +1036,7 @@ class GrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **Prepare._rls_context(kwargs),
         )
 
     def _get_schema(
@@ -1064,6 +1087,12 @@ class GrpcHandler:
         param = kwargs.get("insert_param")
         if param and not isinstance(param, milvus_types.InsertRequest):
             raise ParamError(message="The value of key 'insert_param' is invalid")
+        if param and (rls_context := Prepare._rls_context(kwargs)):
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in rls_context.items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -1078,7 +1107,13 @@ class GrpcHandler:
         return (
             param
             if param
-            else Prepare.batch_insert_param(collection_name, entities, partition_name, fields_info)
+            else Prepare.batch_insert_param(
+                collection_name,
+                entities,
+                partition_name,
+                fields_info,
+                **Prepare._rls_context(kwargs),
+            )
         )
 
     @retry_on_rpc_failure()
@@ -1187,6 +1222,12 @@ class GrpcHandler:
         param = kwargs.get("upsert_param")
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if param and (rls_context := Prepare._rls_context(kwargs)):
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in rls_context.items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -1212,6 +1253,7 @@ class GrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                **Prepare._rls_context(kwargs),
             )
         )
 
@@ -1293,6 +1335,7 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
             field_ops=field_ops,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -1467,7 +1510,7 @@ class GrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Union[BaseRanker, Function],
+        rerank: Optional[Union[BaseRanker, Function]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1476,7 +1519,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+        function_chains = kwargs.pop("function_chains", None)
 
         check_pass_param(
             limit=limit,
@@ -1505,6 +1548,7 @@ class GrpcHandler:
             # Convert EmbeddingList to flat array if present in the request data
             data = req.data
             req_kwargs = dict(kwargs)
+            req_kwargs.pop("function_chains", None)
             if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
                 req_kwargs["is_embedding_list"] = True
@@ -1522,6 +1566,7 @@ class GrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                function_chains=req.function_chains,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
@@ -1536,6 +1581,7 @@ class GrpcHandler:
             output_fields,
             round_decimal,
             use_default_consistency=use_default_consistency,
+            function_chains=function_chains,
             **kwargs,
         )
         return self._execute_hybrid_search(
@@ -2224,9 +2270,10 @@ class GrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(collection_name, states=states)
         response = self._stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -2532,11 +2579,22 @@ class GrpcHandler:
         )
         check_status(response.status)
 
-        cp = CompactionPlans(compaction_id, response.state)
+        return parse_compaction_plans(response, compaction_id=compaction_id)
 
-        cp.plans = [Plan(m.sources, m.target) for m in response.mergeInfos]
-
-        return cp
+    @retry_on_rpc_failure()
+    def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(collection_name)
+        response = self._stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, collection_name=collection_name)
 
     @retry_on_rpc_failure()
     def get_replicas(
@@ -2723,6 +2781,191 @@ class GrpcHandler:
         resp = self._stub.ListCredUsers(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(resp.status)
         return resp.usernames
+
+    @retry_on_rpc_failure()
+    def create_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.create_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = self._stub.CreateRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def update_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.update_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = self._stub.UpdateRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def drop_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.drop_row_policy_request(db_name, collection_name, policy_name)
+        resp = self._stub.DropRowPolicy(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def list_row_policies(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        req = Prepare.list_row_policies_request(db_name, collection_name)
+        resp = self._stub.ListRowPolicies(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return [_row_policy_to_dict(policy) for policy in resp.policies]
+
+    @retry_on_rpc_failure()
+    def set_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.set_rls_principal_tags_request(db_name, collection_name, principal_name, tags)
+        resp = self._stub.SetRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    def get_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        req = Prepare.get_rls_principal_tags_request(db_name, collection_name, principal_name)
+        resp = self._stub.GetRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return json.loads(resp.tags)
+
+    @retry_on_rpc_failure()
+    def list_rls_principals(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[str]:
+        req = Prepare.list_rls_principals_request(db_name, collection_name)
+        resp = self._stub.ListRLSPrincipals(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp.status)
+        return list(resp.principal_names)
+
+    @retry_on_rpc_failure()
+    def delete_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        req = Prepare.delete_rls_principal_tags_request(
+            db_name, collection_name, principal_name, tag_keys
+        )
+        resp = self._stub.DeleteRLSPrincipalTags(
+            req,
+            wait_for_ready=True,
+            timeout=timeout,
+            metadata=_api_level_md(context),
+        )
+        check_status(resp)
 
     @retry_on_rpc_failure()
     def create_role(

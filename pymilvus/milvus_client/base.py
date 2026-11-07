@@ -1,10 +1,12 @@
 """Base class for Milvus clients."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.constants import CLUSTER_ID
+from pymilvus.exceptions import ParamError
+from pymilvus.function_chain import FunctionChain, FunctionChainStage
 from pymilvus.orm.collection import CollectionSchema, FieldSchema
 from pymilvus.orm.schema import StructFieldSchema
 from pymilvus.orm.types import DataType
@@ -18,9 +20,31 @@ logger = logging.getLogger(__name__)
 class BaseMilvusClient:
     """Base class for Milvus clients (synchronous and asynchronous)."""
 
+    @staticmethod
+    def _prepare_grep_chain(
+        text_field: str, args: str, match_field: str, **kwargs
+    ) -> FunctionChain:
+        if "function_chains" in kwargs:
+            raise ParamError(message="grep does not accept function_chains")
+        for name, value in (("text_field", text_field), ("match_field", match_field)):
+            if not isinstance(value, str) or not value.strip():
+                raise ParamError(message=f"{name} must be a non-empty string")
+        if not isinstance(args, str):
+            raise ParamError(message="grep args must be a string")
+        return FunctionChain(
+            FunctionChainStage.QUERY_SCAN, name="grep", output_columns=[match_field]
+        ).grep(text_field, arguments=args, output=match_field)
+
     def _generate_call_context(self, **kwargs) -> CallContext:
         client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
         return CallContext(db_name=self._config.db_name, client_request_id=client_request_id)
+
+    def _generate_rls_call_context(self, db_name: Optional[str] = None, **kwargs) -> CallContext:
+        client_request_id = kwargs.get("client_request_id") or kwargs.get("client-request-id", "")
+        return CallContext(
+            db_name=self._config.db_name if db_name is None else db_name,
+            client_request_id=client_request_id,
+        )
 
     def _with_cluster_id(self, kwargs: Dict) -> Dict:
         cluster_id = getattr(self, "_cluster_id", "")

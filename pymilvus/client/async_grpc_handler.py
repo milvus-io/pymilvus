@@ -1,10 +1,11 @@
 import asyncio
 import base64
+import json
 import logging
 import socket
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib import parse
 
 import grpc
@@ -48,6 +49,7 @@ from .prepare import Prepare
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
+    CompactionPlans,
     CompactionState,
     DatabaseInfo,
     FileResourceInfo,
@@ -57,11 +59,13 @@ from .types import (
     RefreshExternalCollectionJobInfo,
     ReplicaInfo,
     RestoreSnapshotJobInfo,
+    SegmentState,
     Shard,
     SnapshotInfo,
     State,
     Status,
     get_extra_info,
+    parse_compaction_plans,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -76,6 +80,17 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _row_policy_to_dict(policy: milvus_types.RowPolicy) -> Dict:
+    return {
+        "policy_name": policy.policy_name,
+        "policy_type": milvus_types.RowPolicyType.Name(policy.policy_type),
+        "actions": [milvus_types.RowPolicyAction.Name(action) for action in policy.actions],
+        "using_expr": policy.using_expr,
+        "check_expr": policy.check_expr,
+        "description": policy.description,
+    }
 
 
 class AsyncGrpcHandler:
@@ -792,6 +807,7 @@ class AsyncGrpcHandler:
             enable_dynamic=enable_dynamic,
             schema_timestamp=schema_timestamp,
             namespace=namespace,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -800,10 +816,11 @@ class AsyncGrpcHandler:
         collection_name: str,
         timeout: Optional[float] = None,
         context: Optional[CallContext] = None,
+        states: Optional[Sequence[SegmentState]] = None,
         **kwargs,
     ) -> List[milvus_types.PersistentSegmentInfo]:
         check_pass_param(collection_name=collection_name, timeout=timeout)
-        req = Prepare.get_persistent_segment_info_request(collection_name)
+        req = Prepare.get_persistent_segment_info_request(collection_name, states=states)
         response = await self._async_stub.GetPersistentSegmentInfo(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
@@ -831,6 +848,7 @@ class AsyncGrpcHandler:
         response = await self._async_stub.Delete(
             req, timeout=timeout, metadata=_api_level_md(context)
         )
+        check_status(response.status)
 
         m = MutationResult(response)
         ts_utils.update_collection_ts(
@@ -853,6 +871,12 @@ class AsyncGrpcHandler:
         param = kwargs.get("upsert_param")
         if param and not isinstance(param, milvus_types.UpsertRequest):
             raise ParamError(message="The value of key 'upsert_param' is invalid")
+        if param and (rls_context := Prepare._rls_context(kwargs)):
+            request = type(param)()
+            request.CopyFrom(param)
+            param = request
+            for key, value in rls_context.items():
+                setattr(param, key, value)
         if not isinstance(entities, list):
             raise ParamError(message="'entities' must be a list, please provide valid entity data.")
 
@@ -877,6 +901,7 @@ class AsyncGrpcHandler:
                 fields_info,
                 partial_update=partial_update,
                 field_ops=field_ops,
+                **Prepare._rls_context(kwargs),
             )
         )
 
@@ -940,6 +965,7 @@ class AsyncGrpcHandler:
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
             field_ops=field_ops,
+            **Prepare._rls_context(kwargs),
         )
 
     @retry_on_rpc_failure()
@@ -1089,7 +1115,7 @@ class AsyncGrpcHandler:
         self,
         collection_name: str,
         reqs: List[AnnSearchRequest],
-        rerank: Union[BaseRanker, Function],
+        rerank: Optional[Union[BaseRanker, Function]],
         limit: int,
         partition_names: Optional[List[str]] = None,
         output_fields: Optional[List[str]] = None,
@@ -1098,7 +1124,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        Prepare.check_no_hybrid_function_chains(kwargs.get("function_chains"))
+        function_chains = kwargs.pop("function_chains", None)
 
         check_pass_param(
             limit=limit,
@@ -1126,6 +1152,7 @@ class AsyncGrpcHandler:
         for req in reqs:
             data = req.data
             req_kwargs = dict(kwargs)
+            req_kwargs.pop("function_chains", None)
             # Convert EmbeddingList to flat array if present
             if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
                 data = [emb_list.to_flat_array() for emb_list in data]
@@ -1144,6 +1171,7 @@ class AsyncGrpcHandler:
                 partition_names=partition_names,
                 round_decimal=round_decimal,
                 expr_params=req.expr_params,
+                function_chains=req.function_chains,
                 use_default_consistency=use_default_consistency,
                 **req_kwargs,
             )
@@ -1158,6 +1186,7 @@ class AsyncGrpcHandler:
             output_fields,
             round_decimal,
             use_default_consistency=use_default_consistency,
+            function_chains=function_chains,
             **kwargs,
         )
         return await self._execute_hybrid_search(
@@ -1593,6 +1622,11 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        is_sub_field = "[" in field_schema.name or "]" in field_schema.name
+        if is_sub_field:
+            if any(kwargs.get(key) for key in ("index_name", "index_extra_params", "func")):
+                raise ParamError(message="Struct sub-field add cannot bind a function or index")
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -1602,12 +1636,14 @@ class AsyncGrpcHandler:
             response = await self._async_stub.AlterCollectionSchema(
                 request, timeout=timeout, metadata=_api_level_md(context)
             )
-            if is_external_collection_schema_alter_unsupported(response.alter_status):
+            if not is_sub_field and is_external_collection_schema_alter_unsupported(
+                response.alter_status
+            ):
                 fallback_to_legacy = True
             else:
                 check_status(response.alter_status)
         except grpc.RpcError as e:
-            if e.code() != grpc.StatusCode.UNIMPLEMENTED:
+            if is_sub_field or e.code() != grpc.StatusCode.UNIMPLEMENTED:
                 raise
             fallback_to_legacy = True
 
@@ -1753,6 +1789,8 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(collection_name=collection_name, timeout=timeout)
+        if field_schema is not None:
+            field_schema = Prepare.prepare_collection_field(field_schema)
         request = Prepare.alter_collection_schema_request(
             collection_name=collection_name,
             field_schema=field_schema,
@@ -2204,6 +2242,175 @@ class AsyncGrpcHandler:
         return resp.usernames
 
     @retry_on_rpc_failure()
+    async def create_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.create_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = await self._async_stub.CreateRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def update_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        policy_type: Union[str, int],
+        actions: Union[str, int, List[Union[str, int]]],
+        using_expr: str = "",
+        check_expr: str = "",
+        description: str = "",
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.update_row_policy_request(
+            db_name,
+            collection_name,
+            policy_name,
+            policy_type,
+            actions,
+            using_expr,
+            check_expr,
+            description,
+        )
+        resp = await self._async_stub.UpdateRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def drop_row_policy(
+        self,
+        db_name: str,
+        collection_name: str,
+        policy_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.drop_row_policy_request(db_name, collection_name, policy_name)
+        resp = await self._async_stub.DropRowPolicy(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def list_row_policies(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[Dict]:
+        await self.ensure_channel_ready()
+        req = Prepare.list_row_policies_request(db_name, collection_name)
+        resp = await self._async_stub.ListRowPolicies(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return [_row_policy_to_dict(policy) for policy in resp.policies]
+
+    @retry_on_rpc_failure()
+    async def set_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tags: Mapping[str, Any],
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.set_rls_principal_tags_request(db_name, collection_name, principal_name, tags)
+        resp = await self._async_stub.SetRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
+    async def get_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        await self.ensure_channel_ready()
+        req = Prepare.get_rls_principal_tags_request(db_name, collection_name, principal_name)
+        resp = await self._async_stub.GetRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return json.loads(resp.tags)
+
+    @retry_on_rpc_failure()
+    async def list_rls_principals(
+        self,
+        db_name: str,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[str]:
+        await self.ensure_channel_ready()
+        req = Prepare.list_rls_principals_request(db_name, collection_name)
+        resp = await self._async_stub.ListRLSPrincipals(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp.status)
+        return list(resp.principal_names)
+
+    @retry_on_rpc_failure()
+    async def delete_rls_principal_tags(
+        self,
+        db_name: str,
+        collection_name: str,
+        principal_name: str,
+        tag_keys: Optional[List[str]] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        await self.ensure_channel_ready()
+        req = Prepare.delete_rls_principal_tags_request(
+            db_name, collection_name, principal_name, tag_keys
+        )
+        resp = await self._async_stub.DeleteRLSPrincipalTags(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(resp)
+
+    @retry_on_rpc_failure()
     async def describe_user(
         self,
         username: str,
@@ -2613,6 +2820,39 @@ class AsyncGrpcHandler:
         return response
 
     @retry_on_rpc_failure()
+    async def get_flush_all_state(
+        self,
+        flush_all_ts: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> bool:
+        req = Prepare.get_flush_all_state_request(flush_all_ts, kwargs.get("db", ""))
+        response = await self._async_stub.GetFlushAllState(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return response.flushed
+
+    @retry_on_rpc_failure()
+    async def flush_all(
+        self,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> None:
+        req = Prepare.flush_all_request(kwargs.get("db", ""))
+        response = await self._async_stub.FlushAll(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+
+        while not await self.get_flush_all_state(
+            response.flush_all_ts, timeout=timeout, context=context, **kwargs
+        ):
+            await asyncio.sleep(5)
+
+    @retry_on_rpc_failure()
     async def compact(
         self,
         collection_name: str,
@@ -2666,6 +2906,36 @@ class AsyncGrpcHandler:
         )
 
     @retry_on_rpc_failure()
+    async def get_compaction_plans(
+        self,
+        compaction_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_state_with_plans(compaction_id)
+        response = await self._async_stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, compaction_id=compaction_id)
+
+    @retry_on_rpc_failure()
+    async def get_compaction_tasks(
+        self,
+        collection_name: str,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CompactionPlans:
+        req = Prepare.get_compaction_tasks(collection_name)
+        response = await self._async_stub.GetCompactionStateWithPlans(
+            req, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(response.status)
+        return parse_compaction_plans(response, collection_name=collection_name)
+
+    @retry_on_rpc_failure()
     async def run_analyzer(
         self,
         texts: Union[str, List[str]],
@@ -2696,6 +2966,27 @@ class AsyncGrpcHandler:
         if isinstance(texts, str):
             return AnalyzeResult(resp.results[0], with_hash, with_detail)
         return [AnalyzeResult(result, with_hash, with_detail) for result in resp.results]
+
+    @retry_on_rpc_failure()
+    async def update_replicate_configuration(
+        self,
+        clusters: Optional[List[Dict]] = None,
+        cross_cluster_topology: Optional[List[Dict]] = None,
+        force_promote: bool = False,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ):
+        request = Prepare.update_replicate_configuration_request(
+            clusters=clusters,
+            cross_cluster_topology=cross_cluster_topology,
+            force_promote=force_promote,
+        )
+        status = await self._async_stub.UpdateReplicateConfiguration(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_status(status)
+        return status
 
     @retry_on_rpc_failure()
     async def get_replicate_configuration(

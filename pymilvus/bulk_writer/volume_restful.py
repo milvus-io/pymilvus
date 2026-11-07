@@ -247,12 +247,16 @@ def _post_request(
             timeout=timeout,
             **kwargs,
         )
-        if resp.status_code != 200:
-            _throw(f"Failed to post url: {url}, status code: {resp.status_code}")
-        else:
-            return resp
     except Exception as err:
-        _throw(f"Failed to post url: {url}, error: {err}")
+        msg = f"Failed to post url: {url}, error: {err}"
+        logger.error(msg)
+        raise MilvusException(message=msg) from err
+    if resp.status_code != 200:
+        msg = f"Failed to post url: {url}, status code: {resp.status_code}"
+        logger.error(msg)
+        http_error = requests.HTTPError(msg, response=resp)
+        raise MilvusException(message=msg) from http_error
+    return resp
 
 
 def _delete_request(

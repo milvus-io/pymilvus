@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
+from pymilvus import CompactionTaskState, CompactionType, SegmentState
 from pymilvus.client.types import (
     ALWAYS_KEEP_ZERO_KEYS,
     AnalyzeResult,
@@ -262,12 +263,58 @@ class TestCompactionState:
         assert all(s in r for s in ["CompactionState", "456", "Executing", "3", "1", "5"])
 
 
+class TestLifecycleEnums:
+    @pytest.mark.parametrize(
+        "enum_type,member,proto_value",
+        [
+            (CompactionType, CompactionType.MixCompaction, common_pb2.CompactionTypeMix),
+            (
+                CompactionTaskState,
+                CompactionTaskState.Cleaned,
+                common_pb2.CompactionTaskStateCleaned,
+            ),
+            (SegmentState, SegmentState.Flushed, common_pb2.SegmentState.Flushed),
+        ],
+    )
+    def test_proto_value_and_display(self, enum_type, member, proto_value):
+        assert member.value == proto_value
+        assert str(member) == member.name
+        assert repr(member) == f"<{enum_type.__name__}: {member.name}>"
+
+    @pytest.mark.parametrize(
+        "enum_type,zero_member",
+        [
+            (CompactionType, CompactionType.UndefinedCompaction),
+            (CompactionTaskState, CompactionTaskState.Unknown),
+            (SegmentState, SegmentState.SegmentStateNone),
+        ],
+    )
+    def test_unknown_wire_value_falls_back_to_zero_member(self, enum_type, zero_member):
+        assert enum_type(99) is zero_member
+
+
 # TestPlan
 class TestPlan:
     def test_plan_init(self):
-        plan = Plan(sources=[1, 2, 3], target=100)
+        plan = Plan(
+            sources=[1, 2, 3],
+            target=100,
+            plan_id=10,
+            compaction_type=CompactionType.MixCompaction,
+            state=CompactionTaskState.Completed,
+            targets=[100, 101],
+        )
         assert plan.sources == [1, 2, 3]
         assert plan.target == 100
+        assert plan.task_id == 10
+        assert plan.compaction_type is CompactionType.MixCompaction
+        assert plan.state is CompactionTaskState.Completed
+        assert plan.targets == [100, 101]
+
+    def test_plan_defaults_are_typed(self):
+        plan = Plan(sources=[], target=-1)
+        assert plan.compaction_type is CompactionType.UndefinedCompaction
+        assert plan.state is CompactionTaskState.Unknown
 
     def test_plan_repr(self):
         r = repr(Plan(sources=[10, 20], target=200))
