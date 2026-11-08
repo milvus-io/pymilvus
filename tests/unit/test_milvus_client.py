@@ -1406,6 +1406,16 @@ class TestMilvusClientDeleteBranches:
             with pytest.raises(DataTypeNotMatchException):
                 client.delete("col", filter=123)
 
+    def test_delete_with_empty_ids_returns_zero_and_skips_rpc(self):
+        handler = _make_handler()
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            ret = client.delete("col", ids=[])
+
+            assert ret == {"delete_count": 0, "cost": 0}
+            handler._get_schema.assert_not_called()
+            handler.delete.assert_not_called()
+
 
 # ============================================================
 # Parametrized simple delegation tests
