@@ -15,6 +15,7 @@ from pymilvus.client.check import (
     is_legal_ids,
     is_legal_port,
 )
+from pymilvus.exceptions import ParamError
 from pymilvus.client.utils import (
     hybridts_to_unixtime,
     mkts_from_datetime,
@@ -137,6 +138,13 @@ class TestCheckPassParam:
         with pytest.raises(TypeError):
             a = {[i * j for i in range(20) for j in range(20)]}
             check_pass_param(search_data=a)
+
+    @pytest.mark.parametrize("invalid_dimension", [None, [], {}, object()])
+    def test_check_pass_param_invalid_dimension(self, invalid_dimension):
+        # int() raises TypeError rather than ValueError for these, which used to escape
+        # is_legal_dimension instead of being reported as an illegal parameter
+        with pytest.raises(ParamError):
+            check_pass_param(dimension=invalid_dimension)
 
 
 class TestGenTS:
