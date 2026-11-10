@@ -23,7 +23,6 @@ from pymilvus import (
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.connection_manager import AsyncConnectionManager
-from pymilvus.orm.collection import Highlighter
 from pymilvus.client.types import (
     CompactionPlans,
     LoadState,
@@ -306,6 +305,10 @@ class TestAsyncMilvusClientNewFeatures:
     @pytest.mark.asyncio
     async def test_search_passes_highlighter(self, client_and_handler):
         """Test search method accepts and forwards highlighter parameter"""
+        sig = inspect.signature(AsyncMilvusClient.search)
+        assert "highlighter" in sig.parameters
+        assert sig.parameters["highlighter"].default is None
+
         client, mock_handler = client_and_handler
         mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
         mock_highlighter = MagicMock(spec=Highlighter)
