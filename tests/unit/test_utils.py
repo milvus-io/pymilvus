@@ -255,6 +255,16 @@ class TestCheckInvalidBinaryVector:
         entities = [{"type": DataType.BINARY_VECTOR, "values": [[0, 1], [2, 3]]}]
         assert utils.check_invalid_binary_vector(entities) is False
 
+    def test_non_sized_values(self):
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [None]}]
+        assert utils.check_invalid_binary_vector(entities) is False
+
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [1, 2]}]
+        assert utils.check_invalid_binary_vector(entities) is False
+
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [b"\x00\x01", None]}]
+        assert utils.check_invalid_binary_vector(entities) is False
+
     def test_empty_values(self):
         entities = [{"type": DataType.BINARY_VECTOR, "values": []}]
         assert utils.check_invalid_binary_vector(entities) is False
