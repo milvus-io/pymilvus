@@ -860,8 +860,11 @@ class TestGrpcHandlerRunningRequests:
         handler._stub.ListRunningRequests.return_value = milvus_types.ListRunningRequestsResponse(
             status=common_pb2.Status(code=65535, reason="permission denied")
         )
-        with pytest.raises(MilvusException):
+        with pytest.raises(MilvusException) as exc_info:
             handler.list_running_requests()
+        assert exc_info.value.code == 65535
+        assert "permission denied" in exc_info.value.message
+        handler._stub.ListRunningRequests.assert_called_once()
 
     def test_cancel_requests_sorts_ids(self, handler):
         handler._stub.CancelRequests.return_value = milvus_types.CancelRequestsResponse(
@@ -895,5 +898,8 @@ class TestGrpcHandlerRunningRequests:
         handler._stub.CancelRequests.return_value = milvus_types.CancelRequestsResponse(
             status=common_pb2.Status(code=65535, reason="permission denied")
         )
-        with pytest.raises(MilvusException):
-            handler.cancel_requests([1])
+        with pytest.raises(MilvusException) as exc_info:
+            handler.cancel_requests(["25-to03zu-1"])
+        assert exc_info.value.code == 65535
+        assert "permission denied" in exc_info.value.message
+        handler._stub.CancelRequests.assert_called_once()

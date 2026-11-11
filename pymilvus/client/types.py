@@ -1,6 +1,6 @@
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import IntEnum
 from typing import Any, ClassVar, Dict, List, Optional, TypeVar, Union
 
@@ -1704,25 +1704,7 @@ class RunningRequest:
     cancellable: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
-            "request_id": self.request_id,
-            "proxy_id": self.proxy_id,
-            "type": self.type,
-            "db_name": self.db_name,
-            "collection_name": self.collection_name,
-            "user": self.user,
-            "client_addr": self.client_addr,
-            "nq": self.nq,
-            "topk": self.topk,
-            "expr": self.expr,
-            "start_time_ms": self.start_time_ms,
-            "queued_ms": self.queued_ms,
-            "elapsed_ms": self.elapsed_ms,
-            "state": self.state,
-            "task_ids": list(self.task_ids),
-            "trace_id": self.trace_id,
-            "cancellable": self.cancellable,
-        }
+        return asdict(self)
 
     def __repr__(self) -> str:
         return (
