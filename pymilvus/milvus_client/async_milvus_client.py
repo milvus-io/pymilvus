@@ -36,7 +36,7 @@ from pymilvus.exceptions import (
     PrimaryKeyException,
 )
 from pymilvus.function_chain import FunctionChain
-from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore
+from pymilvus.orm.collection import CollectionSchema, Function, FunctionScore, Highlighter
 from pymilvus.orm.schema import FieldSchema, StructFieldSchema
 from pymilvus.orm.types import DataType
 
@@ -592,10 +592,44 @@ class AsyncMilvusClient(BaseMilvusClient):
         anns_field: Optional[str] = None,
         ranker: Optional[Union[Function, FunctionScore]] = None,
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
+        highlighter: Optional[Highlighter] = None,
         ids: Optional[Union[List[int], List[str], str, int]] = None,
         search_aggregation: Optional[SearchAggregation] = None,
         **kwargs,
     ) -> List[List[dict]]:
+        """Search for a query vector/vectors asynchronously.
+
+        In order for the search to process, a collection needs to have been either provided
+        at init or data needs to have been inserted.
+
+        Args:
+            collection_name (str): The name of the collection to search.
+            data (Optional[Union[List[list], list]]): The vector/vectors/embedding
+                list to search. Defaults to None.
+            filter (str, optional): A filter expression to use for the search. Defaults to "".
+            limit (int, optional): How many results to return per search. Defaults to 10.
+            output_fields (List[str], optional): List of which field values to return. If None
+                specified, only primary fields including distances will be returned.
+            search_params (dict, optional): The search params to use for the search.
+            timeout (float, optional): Timeout to use, overrides the client level assigned at init.
+                Defaults to None.
+            partition_names (List[str], optional): Partition names to search. Defaults to None.
+            anns_field (str, optional): The name of the vector field to search. Defaults to None.
+            ranker (Function or FunctionScore, optional): The ranker to use for the search.
+            function_chains (FunctionChain or List[FunctionChain], optional): Function chain or
+                function chains to apply to ordinary search. Mutually exclusive with ranker.
+            highlighter (Highlighter, optional): Highlighter configuration for search highlighting.
+                Defaults to None.
+            ids (Optional[Union[List[int], List[str], str, int]]): The ids to use for the search.
+                Defaults to None.
+            search_aggregation (SearchAggregation, optional): Hierarchical bucket aggregation spec.
+                Mutually exclusive with group_by_field. When set, `limit` is ignored and the root
+                SearchAggregation.size controls top-level bucket count.
+
+        Returns:
+            List[List[dict]]: A nested list of dicts containing the result data. Embeddings are
+                not included in the result data.
+        """
         validate_param("collection_name", collection_name, str)
         conn = await self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
@@ -613,6 +647,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             timeout=timeout,
             ranker=ranker,
             function_chains=function_chains,
+            highlighter=highlighter,
             search_aggregation=search_aggregation,
             context=self._generate_call_context(**kwargs),
             **kwargs,
