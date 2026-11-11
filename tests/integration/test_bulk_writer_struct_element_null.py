@@ -21,6 +21,7 @@ import pyarrow.parquet as pq
 import pytest
 from pymilvus import CollectionSchema, DataType, FieldSchema, MilvusClient, StructFieldSchema
 from pymilvus.bulk_writer import BulkFileType, LocalBulkWriter, bulk_import, get_import_progress
+from pymilvus.exceptions import MilvusException
 
 URI = os.environ.get("MILVUS_BULK_IMPORT_URI")
 pytestmark = pytest.mark.skipif(not URI, reason="MILVUS_BULK_IMPORT_URI is not configured")
@@ -300,7 +301,7 @@ def test_bulk_writer_import_matches_insert(tmp_path, file_type, mode):
             client.close()
 
 
-def test_parquet_import_after_all_struct_children_replaced(tmp_path):
+def test_parquet_import_after_rejecting_last_original_child_drop(tmp_path):
     token = os.environ.get("MILVUS_TOKEN", "")
     db_name = os.environ.get("MILVUS_BULK_IMPORT_DB", "default")
     client = MilvusClient(uri=URI, token=token, db_name=db_name, timeout=30)
@@ -324,17 +325,27 @@ def test_parquet_import_after_all_struct_children_replaced(tmp_path):
             client.create_collection(name, schema=schema, consistency_level="Strong")
             owned.append(name)
             client.add_collection_field(name, "clips[added_number]", DataType.INT64, nullable=True)
-            for child in sorted(file_children):
+            # Milvus 3.0 retains an original child to reconstruct old row validity and offsets.
+            for child in sorted(file_children - {"score"}):
                 client.drop_collection_field(name, field_name=f"clips[{child}]")
+            with pytest.raises(
+                MilvusException, match="every remaining sub-field was added"
+            ) as caught:
+                client.drop_collection_field(name, field_name="clips[score]")
+            assert caught.value.code == 1100
             current = CollectionSchema.construct_from_dict(client.describe_collection(name))
             clips = next(field for field in current.struct_fields if field.name == "clips")
-            assert {field.name for field in clips.fields} == {"added_number"}
-            assert file_children.isdisjoint(field.name for field in clips.fields)
+            assert {field.name for field in clips.fields} == {"score", "added_number"}
 
         wait_for_import(names[0], file_path, {})
         expected = {
             row["id"]: (
-                None if row["clips"] is None else [{"added_number": None} for _ in row["clips"]]
+                None
+                if row["clips"] is None
+                else [
+                    {"score": element.get("score"), "added_number": None}
+                    for element in row["clips"]
+                ]
             )
             for row in rows
         }
@@ -349,7 +360,11 @@ def test_parquet_import_after_all_struct_children_replaced(tmp_path):
             client.create_index(name, index)
             client.load_collection(name)
             assert queried(client, name, ["clips"]) == expected
-            assert queried(client, name, ["clips[added_number]"]) == expected
+            expected_added = {
+                pk: None if elements is None else [{"added_number": None} for _ in elements]
+                for pk, elements in expected.items()
+            }
+            assert queried(client, name, ["clips[added_number]"]) == expected_added
     finally:
         try:
             for name in owned:
