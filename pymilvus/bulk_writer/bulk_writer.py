@@ -184,7 +184,14 @@ class BulkWriter:
             return len(x)
         return TYPE_SIZE[dtype.name]
 
-    def _verify_array(self, x: object, field: FieldSchema):
+    def _verify_array(
+        self,
+        x: object,
+        field: FieldSchema,
+        *,
+        element_nullable: bool = False,
+        field_path: Optional[str] = None,
+    ):
         max_capacity = field.params["max_capacity"]
         element_type = field.element_type
         validator = TYPE_VALIDATOR[DataType.ARRAY.name]
@@ -193,19 +200,35 @@ class BulkWriter:
                 f"Illegal array value for field '{field.name}', length exceeds capacity or type mismatch"
             )
 
-        row_size = 0
-        if element_type.name in TYPE_SIZE:
-            row_size = TYPE_SIZE[element_type.name] * len(x)
-            for ele in x:
-                self._verify_scalar(ele, element_type, field.name)
-        elif element_type == DataType.VARCHAR:
-            for ele in x:
-                row_size = row_size + self._verify_varchar(ele, field)
-        elif element_type == DataType.TEXT:
-            for ele in x:
-                row_size = row_size + self._verify_text(ele, field)
-        else:
+        if element_type.name not in TYPE_SIZE and element_type not in {
+            DataType.VARCHAR,
+            DataType.TEXT,
+        }:
             self._throw(f"Unsupported element type for array field '{field.name}'")
+
+        prefix = field_path or field.name
+        row_size = 0
+        for index, value in enumerate(x):
+            ele = value
+            if ele is None:
+                if not element_nullable:
+                    self._throw(
+                        f"The array element '{prefix}[{index}]' is not nullable, not allow None value"
+                    )
+                row_size += 1
+                continue
+            if field_path is not None and isinstance(ele, np.generic):
+                ele = ele.item()
+                x[index] = ele
+            try:
+                if element_type == DataType.VARCHAR:
+                    row_size += self._verify_varchar(ele, field)
+                elif element_type == DataType.TEXT:
+                    row_size += self._verify_text(ele, field)
+                else:
+                    row_size += self._verify_scalar(ele, element_type, prefix)
+            except MilvusException as err:
+                self._throw(f"{prefix}[{index}]: {err.message}")
 
         return row_size
 
@@ -333,49 +356,67 @@ class BulkWriter:
             )
 
         struct_size = 0
-        for sub_field in field.fields:
-            sub_dtype = DataType(sub_field.dtype)
-            for obj in x:
-                if sub_field.name not in obj:
-                    self._throw(
-                        f"Sub field '{sub_field.name}' of struct field '{field.name}' is missed"
-                    )
-                if sub_dtype in {
-                    DataType.BINARY_VECTOR,
-                    DataType.FLOAT_VECTOR,
-                    DataType.FLOAT16_VECTOR,
-                    DataType.BFLOAT16_VECTOR,
-                    DataType.INT8_VECTOR,
-                }:
-                    origin_list, byte_len = self._verify_vector(obj[sub_field.name], sub_field)
-                    obj[sub_field.name] = self._normalize_struct_vector(origin_list, sub_dtype)
-                    struct_size = struct_size + byte_len
-                elif sub_dtype == DataType.VARCHAR:
-                    struct_size = struct_size + self._verify_varchar(obj[sub_field.name], sub_field)
-                elif sub_dtype == DataType.TEXT:
-                    struct_size = struct_size + self._verify_text(obj[sub_field.name], sub_field)
-                elif sub_dtype in {
-                    DataType.BOOL,
-                    DataType.INT8,
-                    DataType.INT16,
-                    DataType.INT32,
-                    DataType.INT64,
-                    DataType.FLOAT,
-                    DataType.DOUBLE,
-                }:
-                    if isinstance(obj[sub_field.name], np.generic):
-                        obj[sub_field.name] = obj[sub_field.name].item()
+        normalized = []
+        for index, obj in enumerate(x):
+            element = {}
+            for sub_field in field.fields:
+                sub_dtype = sub_field.dtype
+                if sub_field.name not in obj and not sub_field.nullable:
+                    self._throw(f"Sub field '{field.name}[{index}].{sub_field.name}' is missed")
+                value = obj.get(sub_field.name)
+                if value is None:
+                    if not sub_field.nullable:
+                        self._throw(
+                            f"Sub field '{field.name}[{index}].{sub_field.name}' is not nullable, not allow None value"
+                        )
+                    element[sub_field.name] = None
+                    struct_size += 1
+                    continue
+                try:
+                    if sub_dtype in {
+                        DataType.BINARY_VECTOR,
+                        DataType.FLOAT_VECTOR,
+                        DataType.FLOAT16_VECTOR,
+                        DataType.BFLOAT16_VECTOR,
+                        DataType.INT8_VECTOR,
+                    }:
+                        if (
+                            sub_dtype == DataType.BINARY_VECTOR
+                            and isinstance(value, list)
+                            and any(component is None for component in value)
+                        ):
+                            self._throw("Vector components cannot be None")
+                        origin_list, byte_len = self._verify_vector(value, sub_field)
+                        value = self._normalize_struct_vector(origin_list, sub_dtype)
+                        struct_size += byte_len
+                    elif sub_dtype == DataType.ARRAY:
+                        if isinstance(value, np.ndarray):
+                            value = value.tolist()
+                        elif isinstance(value, list):
+                            value = list(value)
+                        struct_size += self._verify_array(
+                            value,
+                            sub_field,
+                            element_nullable=sub_field.element_nullable,
+                            field_path=sub_field.name,
+                        )
+                    elif sub_dtype == DataType.VARCHAR:
+                        struct_size += self._verify_varchar(value, sub_field)
+                    elif sub_dtype == DataType.TEXT:
+                        struct_size += self._verify_text(value, sub_field)
+                    elif sub_dtype.name in TYPE_SIZE:
+                        if isinstance(value, np.generic):
+                            value = value.item()
+                        struct_size += self._verify_scalar(value, sub_dtype, sub_field.name)
+                        value = NUMPY_TYPE_CREATOR[sub_dtype.name].type(value)
+                    else:
+                        self._throw(f"Unsupported field type '{sub_dtype.name}' for struct field")
+                except MilvusException as err:
+                    self._throw(f"{field.name}[{index}].{sub_field.name}: {err.message}")
+                element[sub_field.name] = value
+            normalized.append(element)
 
-                    struct_size = struct_size + self._verify_scalar(
-                        obj[sub_field.name], sub_dtype, sub_field.name
-                    )
-                    obj[sub_field.name] = NUMPY_TYPE_CREATOR[sub_dtype.name].type(
-                        obj[sub_field.name]
-                    )
-                else:
-                    self._throw(f"Unsupported field type '{sub_dtype.name}' for struct field")
-
-        return struct_size
+        return normalized, struct_size
 
     def _verify_struct_field(self, row: dict):
         structs_size = 0
@@ -386,7 +427,8 @@ class BulkWriter:
             if field.name not in row:
                 self._throw(f"The struct field '{field.name}' is missed")
 
-            structs_size = structs_size + self._verify_struct(row[field.name], field)
+            row[field.name], size = self._verify_struct(row[field.name], field)
+            structs_size += size
 
         return structs_size
 

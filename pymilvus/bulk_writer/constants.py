@@ -58,7 +58,9 @@ TYPE_VALIDATOR = {
     DataType.INT32.name: lambda x: isinstance(x, int)
     and not isinstance(x, bool)
     and -2147483648 <= x <= 2147483647,
-    DataType.INT64.name: lambda x: isinstance(x, int) and not isinstance(x, bool),
+    DataType.INT64.name: lambda x: isinstance(x, int)
+    and not isinstance(x, bool)
+    and -9223372036854775808 <= x <= 9223372036854775807,
     DataType.FLOAT.name: lambda x: isinstance(x, float),
     DataType.DOUBLE.name: lambda x: isinstance(x, float),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
