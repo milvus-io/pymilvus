@@ -116,6 +116,40 @@ class TestAsyncClientPartitionOps:
         handler.release_partitions.assert_called_once()
 
 
+class TestAsyncClientRefreshLoad:
+    """refresh_load must actually request a refresh, mirroring MilvusClient.refresh_load."""
+
+    @pytest.mark.asyncio
+    async def test_refresh_load_requests_a_refresh(self):
+        client, handler = _make_client()
+        result = await client.refresh_load("col")
+        # The public contract is "returns nothing"; the old code leaked the handler
+        # return value, so pin it here.
+        assert result is None
+        args, kwargs = handler.load_collection.call_args
+        assert args[0] == "col"
+        assert kwargs.get("_refresh") is True
+
+    @pytest.mark.asyncio
+    async def test_refresh_load_scopes_to_partitions(self):
+        client, handler = _make_client()
+        result = await client.refresh_load("col", ["part1", "part2"])
+        assert result is None
+        handler.load_collection.assert_not_called()
+        args, kwargs = handler.load_partitions.call_args
+        assert args[0] == "col"
+        # partition_names is the 2nd positional argument
+        assert args[1] == ["part1", "part2"]
+        assert kwargs.get("_refresh") is True
+
+    @pytest.mark.asyncio
+    async def test_refresh_load_partition_str_converts(self):
+        client, handler = _make_client()
+        await client.refresh_load("col", "part1")
+        args, _ = handler.load_partitions.call_args
+        assert args[1] == ["part1"]
+
+
 # Each tuple: (client_method, args, kwargs, handler_method)
 _SIMPLE_ASYNC_DELEGATION_CASES = [
     # Collection management
@@ -132,7 +166,7 @@ _SIMPLE_ASYNC_DELEGATION_CASES = [
     ("add_collection_function", ("col", MagicMock()), {}, "add_collection_function"),
     ("alter_collection_function", ("col", "fn", MagicMock()), {}, "alter_collection_function"),
     # Server ops
-    ("refresh_load", ("col",), {}, "refresh_load"),
+    ("refresh_load", ("col",), {}, "load_collection"),
     ("run_analyzer", ("hello world",), {}, "run_analyzer"),
     ("update_replicate_configuration", (), {"clusters": []}, "update_replicate_configuration"),
     ("get_replicate_configuration", (), {}, "get_replicate_configuration"),
