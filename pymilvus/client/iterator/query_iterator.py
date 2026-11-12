@@ -3,6 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
@@ -121,6 +122,7 @@ class QueryIterator:
         self._is_element_filter_iterator = self.__is_element_filter_expr(self._expr)
         self._cache_id_in_use = NO_CACHE_ID
         self._cp_file_handler = None
+        self._cp_file_untrustworthy = False
         self.__set_up_ts_cp()
         self.__seek_to_offset()
 
@@ -191,7 +193,7 @@ class QueryIterator:
         if self._cp_file_path.exists():
             mode = "r+"
         try:
-            self._cp_file_handler = self._cp_file_path.open(mode)
+            self._cp_file_handler = self._cp_file_path.open(mode, encoding="utf-8", newline="\n")
         except OSError as ose:
             raise MilvusException(
                 message=f"Failed to open cp file for iterator:{self._cp_file_path_str}"
@@ -204,29 +206,79 @@ class QueryIterator:
             "Must init cp file handler before saving session_ts",
         )
         self._cp_file_handler.writelines(str(self._session_ts) + "\n")
+        self._cp_file_handler.flush()
 
-    def __save_pk_cursor(self):
+    def __save_pk_cursor(self, previous_cursor_line: str | None = None):
+        self.__check_cp_file_trustworthy()
         if self._need_save_cp and self._next_id is not None:
-            if not self._cp_file_path.exists():
-                self._cp_file_handler.close()
-                self._cp_file_handler = self._cp_file_path.open("w")
-                self._buffer_cursor_lines_number = 0
-                self.__save_mvcc_ts()
-                log.warning(
-                    "iterator cp file is not existed any more, recreate for iteration, "
-                    "do not remove this file manually!"
-                )
-            if self._buffer_cursor_lines_number >= 100:
-                self._cp_file_handler.seek(0)
-                self._cp_file_handler.truncate()
-                log.info(
-                    "cursor lines in cp file has exceeded 100 lines, truncate the file and rewrite"
-                )
-                self._buffer_cursor_lines_number = 0
-                self.__save_mvcc_ts()
-            self._cp_file_handler.writelines(self.__dump_cursor_line() + "\n")
-            self._cp_file_handler.flush()
+            prev_offset = self._cp_file_handler.tell()
+            prev_line_count = self._buffer_cursor_lines_number
+            rollback_contents = None
+            try:
+                if not self._cp_file_path.exists():
+                    # The file was removed externally. Preserve the last
+                    # delivered cursor, not the pending batch's cursor.
+                    rollback_contents = str(self._session_ts) + "\n"
+                    prev_line_count = 0
+                    if previous_cursor_line is not None:
+                        rollback_contents += previous_cursor_line + "\n"
+                        prev_line_count = 1
+                    self._cp_file_handler.close()
+                    self._cp_file_handler = self._cp_file_path.open(
+                        "w", encoding="utf-8", newline="\n"
+                    )
+                    self._buffer_cursor_lines_number = 0
+                    self.__save_mvcc_ts()
+                    log.warning(
+                        "iterator cp file is not existed any more, recreate for iteration, "
+                        "do not remove this file manually!"
+                    )
+                elif self._buffer_cursor_lines_number >= 100:
+                    # Capture committed records before any destructive operation.
+                    rollback_contents = self._cp_file_path.read_text(encoding="utf-8")
+                    self._cp_file_handler.seek(0)
+                    self._cp_file_handler.truncate()
+                    self._buffer_cursor_lines_number = 0
+                    self.__save_mvcc_ts()
+                    log.info(
+                        "cursor lines in cp file has exceeded 100 lines, truncate the file and rewrite"
+                    )
+                self._cp_file_handler.writelines(self.__dump_cursor_line() + "\n")
+                self._cp_file_handler.flush()
+            except OSError as write_ose:
+                try:
+                    if rollback_contents is None:
+                        self._cp_file_handler.seek(prev_offset)
+                    else:
+                        self._cp_file_handler.seek(0)
+                        self._cp_file_handler.writelines(rollback_contents)
+                    self._cp_file_handler.truncate()
+                    self._cp_file_handler.flush()
+                    self._buffer_cursor_lines_number = prev_line_count
+                except (OSError, ValueError) as rollback_ose:
+                    # A closed handle can also result from failed recreation.
+                    # Refuse further calls instead of committing unknown bytes.
+                    self._cp_file_untrustworthy = True
+                    raise MilvusException(
+                        message=(
+                            f"failed to save pk cursor to cp file:{self._cp_file_path_str}, "
+                            "and the attempt to roll the file back to its prior state also "
+                            f"failed (target offset {prev_offset}); its on-disk content is "
+                            "now unknown and must not be trusted for recovery. write error: "
+                            f"{write_ose!r}, rollback error: {rollback_ose!r}"
+                        )
+                    ) from rollback_ose
+                raise
             self._buffer_cursor_lines_number += 1
+
+    def __check_cp_file_trustworthy(self):
+        if self._cp_file_untrustworthy:
+            raise MilvusException(
+                message=(
+                    "checkpoint file must not be trusted for recovery after failed rollback; "
+                    "this iterator cannot be used again"
+                )
+            )
 
     def __dump_cursor_line(self) -> str:
         if self._has_element_cursor():
@@ -243,7 +295,14 @@ class QueryIterator:
         cursor_line = line.strip()
         try:
             cursor = json.loads(cursor_line)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            if self._is_element_filter_iterator:
+                # Unterminated records were removed before decoding. A
+                # remaining non-JSON element cursor is not safe to adopt
+                # as a plain PK, since that could skip the rest of the scan.
+                raise ParamError(
+                    message=f"cannot parse cp cursor line for element-filter iterator: {cursor_line}"
+                ) from e
             self._next_id = cursor_line
             self._next_element_offset = None
             return
@@ -281,7 +340,16 @@ class QueryIterator:
 
     @staticmethod
     def __is_element_filter_expr(expr: str) -> bool:
-        return expr is not None and "element_filter" in expr.lower()
+        if expr is None:
+            return False
+        # Consume quoted literals first so function-like text inside a
+        # VARCHAR value cannot enable element-cursor checkpoint parsing.
+        tokens = re.finditer(
+            r"""'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b(element_filter)\s*\(""",
+            expr,
+            re.IGNORECASE,
+        )
+        return any(token.group(1) is not None for token in tokens)
 
     def __setup_ts_by_request(self):
         init_ts_kwargs = self._query_options.copy()
@@ -309,6 +377,31 @@ class QueryIterator:
             self._session_ts = fall_back_to_latest_session_ts()
         self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
 
+    def __init_fresh_cp(self):
+        # (re-)initialize as if the cp file had no content at all yet:
+        # set up mvccTs by a query request and persist it.
+        self.__setup_ts_by_request()
+        io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+
+    def __read_intact_cp_lines(self) -> list[str]:
+        # Repair the file before decoding: a partial record can end inside
+        # a UTF-8 character. Every record we write ends with a newline, so
+        # only bytes through the last newline are safe to read or append to.
+        try:
+            contents = self._cp_file_path.read_bytes()
+            intact_end = contents.rfind(b"\n") + 1
+            if intact_end < len(contents):
+                self._cp_file_handler.seek(0)
+                self._cp_file_handler.truncate(intact_end)
+                self._cp_file_handler.flush()
+                self._cp_file_handler.seek(0)
+            lines = self._cp_file_handler.readlines()
+        except OSError as ose:
+            raise MilvusException(
+                message=f"Failed to read cp info from file:{self._cp_file_path_str}"
+            ) from ose
+        return lines
+
     def __set_up_ts_cp(self):
         self._buffer_cursor_lines_number = 0
         self._cp_file_path_str = self._query_options.get(ITERATOR_SESSION_CP_FILE, None)
@@ -321,30 +414,38 @@ class QueryIterator:
             self._need_save_cp = True
             self._cp_file_path = Path(self._cp_file_path_str)
             if not self.__init_cp_file_handler():
-                # input cp file is empty, set up mvccTs by query request
-                self.__setup_ts_by_request()
-                io_operation(self.__save_mvcc_ts, "Failed to save mvcc ts")
+                # input cp file does not exist, set up mvccTs by query request
+                self.__init_fresh_cp()
             else:
-                try:
-                    # input cp file is not emtpy, init mvccTs by reading cp file
-                    lines = self._cp_file_handler.readlines()
-                    line_count = len(lines)
-                    if line_count < 2:
+                # input cp file exists, init mvccTs by reading cp file,
+                # ignoring any unterminated (partially written) final line
+                lines = self.__read_intact_cp_lines()
+                line_count = len(lines)
+                if line_count == 0:
+                    # Either the file was genuinely empty (run interrupted
+                    # right after creation, before the mvcc ts was
+                    # written), or its only line was an unterminated,
+                    # partially written ts -- both leave nothing intact to
+                    # resume from. Treat exactly like a brand new cp file.
+                    self.__init_fresh_cp()
+                else:
+                    try:
+                        self._session_ts = int(lines[0])
+                    except ValueError as e:
                         raise ParamError(
-                            message=f"input cp file:{self._cp_file_path_str} should contain "
-                            f"at least two lines, but only:{line_count} lines"
-                        )
-                    self._session_ts = int(lines[0])
+                            message=f"cannot parse input cp session_ts:{lines[0]}"
+                        ) from e
                     self._query_options[GUARANTEE_TIMESTAMP] = self._session_ts
                     if line_count > 1:
                         self._buffer_cursor_lines_number = line_count - 1
                         self.__restore_cursor_line(lines[self._buffer_cursor_lines_number])
-                except OSError as ose:
-                    raise MilvusException(
-                        message=f"Failed to read cp info from file:{self._cp_file_path_str}"
-                    ) from ose
-                except ValueError as e:
-                    raise ParamError(message=f"cannot parse input cp session_ts:{lines[0]}") from e
+                    # line_count == 1: either only the session_ts was ever
+                    # persisted (right after __save_mvcc_ts, before any
+                    # batch was consumed), or a later cursor line existed
+                    # but was discarded above as unterminated -- both
+                    # resume the ts with no pk cursor, and
+                    # _buffer_cursor_lines_number correctly stays at 0,
+                    # consistent with the intact lines that remain.
 
     def __maybe_cache(self, result: list):
         if len(result) < 2 * self._query_options[BATCH_SIZE]:
@@ -371,13 +472,24 @@ class QueryIterator:
         )
 
     def next(self):
+        self.__check_cp_file_trustworthy()
+        # Decide `ret` without mutating iterator_cache yet: the checkpoint
+        # write below is this batch's commit point, so any cache mutation
+        # that corresponds to it (splicing the cache-hit remainder back, or
+        # caching a fresh query's overflow) must wait until that write has
+        # actually succeeded.
         cached_res = iterator_cache.fetch_cache(self._cache_id_in_use)
-        ret = None
-        if self.__is_res_sufficient(cached_res):
+        served_from_cache = self.__is_res_sufficient(cached_res)
+        if served_from_cache:
             ret = cached_res[0 : self._query_options[BATCH_SIZE]]
-            res_to_cache = cached_res[self._query_options[BATCH_SIZE] :]
-            iterator_cache.cache(res_to_cache, self._cache_id_in_use)
+            cache_remainder = cached_res[self._query_options[BATCH_SIZE] :]
         else:
+            # This releases an *insufficient* cache remainder, if any,
+            # before the query below. That remainder is always a suffix of
+            # what the server returns for the current cursor, so releasing
+            # it here is safe even if the checkpoint write later fails:
+            # the cursor rollback makes the retry re-query, which re-fetches
+            # those same rows from the server rather than relying on cache.
             iterator_cache.release_cache(self._cache_id_in_use)
             current_expr = self.__setup_next_expr()
             log.debug(f"query_iterator_next_expr:{current_expr}")
@@ -391,12 +503,35 @@ class QueryIterator:
                 context=self._context,
                 **query_params,
             )
-            self.__maybe_cache(res)
             ret = res[0 : min(self._query_options[BATCH_SIZE], len(res))]
 
         ret = self.__check_reached_limit(ret)
+        prev_next_id = self._next_id
+        prev_next_element_offset = self._next_element_offset
+        previous_cursor_line = (
+            self.__dump_cursor_line() if self._need_save_cp and prev_next_id is not None else None
+        )
         self.__update_cursor(ret)
-        io_operation(self.__save_pk_cursor, "failed to save pk cursor")
+        try:
+            io_operation(
+                lambda: self.__save_pk_cursor(previous_cursor_line), "failed to save pk cursor"
+            )
+        except MilvusException:
+            # The checkpoint write is this batch's commit point. Roll the
+            # cursor back so a retry re-derives the identical batch: since
+            # the cache mutation below hasn't run yet either, a query-branch
+            # retry re-issues the same expression and gets the same rows
+            # back, and a cache-hit retry finds the same untouched cache and
+            # re-serves the same batch from it.
+            self._next_id = prev_next_id
+            self._next_element_offset = prev_next_element_offset
+            raise
+        # Only now that the checkpoint write has durably recorded this batch
+        # as delivered is it safe to commit the cache mutation for it.
+        if served_from_cache:
+            iterator_cache.cache(cache_remainder, self._cache_id_in_use)
+        else:
+            self.__maybe_cache(res)
         self._returned_count += len(ret)
         return ret
 
