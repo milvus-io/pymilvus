@@ -792,6 +792,8 @@ class TestGrpcHandlerRunningRequests:
         assert isinstance(result, ListRunningRequestsResult)
         assert result.requests == []
         assert result.node_results == []
+        # No per-proxy results: completeness cannot be confirmed.
+        assert not result.complete
         req = handler._stub.ListRunningRequests.call_args.args[0]
         assert req.db_name == "db1"
         assert req.collection_name == "c1"

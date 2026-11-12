@@ -1749,8 +1749,13 @@ class ListRunningRequestsResult:
 
     @property
     def complete(self) -> bool:
-        """True when every proxy answered, so ``requests`` covers the whole cluster."""
-        return all(r.answered for r in self.node_results)
+        """True when every proxy answered, so ``requests`` covers the whole cluster.
+
+        False when ``node_results`` is empty: a server sends one entry per proxy
+        on every successful call, so an empty list means the server did not
+        report per-proxy results and completeness cannot be confirmed.
+        """
+        return bool(self.node_results) and all(r.answered for r in self.node_results)
 
     def __repr__(self) -> str:
         return (
