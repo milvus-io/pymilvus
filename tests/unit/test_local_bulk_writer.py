@@ -298,6 +298,24 @@ class TestLocalBulkWriter:
             assert values[:2] == [None, None]
             assert [None if value is None else json.loads(value) for value in values] == expected
 
+    def test_nullable_json_parquet_round_trip(self, temp_dir):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("meta", DataType.JSON, nullable=True)
+        rows = [{"id": 1, "meta": {"a": 1}}, {"id": 2, "meta": None}, {"id": 3}]
+
+        with LocalBulkWriter(
+            schema=schema, local_path=temp_dir, file_type=BulkFileType.PARQUET
+        ) as writer:
+            for row in rows:
+                writer.append_row(row)
+            writer.commit()
+            table = pq.read_table(writer.batch_files[0][0])
+            meta = table.column("meta")
+            # JSON text "null" is not a Parquet null and loses nullability on import.
+            assert meta.null_count == 2
+            assert meta.to_pylist() == ['{"a": 1}', None, None]
+
     @pytest.mark.parametrize("missing", [False, True])
     def test_non_nullable_sparse_rejects_null(self, temp_dir, missing):
         schema = MilvusClient.create_schema(auto_id=False)
