@@ -78,12 +78,12 @@ class IndexParam:
 
     __repr__ = __str__
 
-    def __eq__(self, other: None):
+    def __eq__(self, other: object):
         if isinstance(other, self.__class__):
-            return dict(self) == dict(other)
+            return self.to_dict() == other.to_dict()
 
         if isinstance(other, dict):
-            return dict(self) == other
+            return self.to_dict() == other
         return False
 
 
