@@ -1,5 +1,6 @@
 import csv
 import json
+import logging
 import shutil
 import tempfile
 import threading
@@ -674,3 +675,71 @@ class TestLocalBulkWriter:
         writer._exit()
         mock_thread1.join.assert_called_once()
         mock_thread2.join.assert_called_once()
+
+    def test_append_row_warns_on_undeclared_fields_when_dynamic_field_disabled(
+        self, simple_schema, temp_dir, caplog, monkeypatch
+    ):
+        monkeypatch.setattr(logging.getLogger("pymilvus.bulk_writer"), "handlers", [caplog.handler])
+        monkeypatch.setattr(logging.getLogger("pymilvus.bulk_writer"), "propagate", True)
+        simple_schema.enable_dynamic_field = False
+        with caplog.at_level(logging.WARNING):
+            with LocalBulkWriter(
+                schema=simple_schema,
+                local_path=temp_dir,
+                file_type=BulkFileType.JSON,
+            ) as writer:
+                # First row with undeclared field "tittle"
+                writer.append_row(
+                    {
+                        "id": 1,
+                        "vector": [0.1] * 128,
+                        "text": "hello",
+                        "tittle": "typo",
+                    }
+                )
+                assert "undeclared field(s): ['tittle']" in caplog.text
+                caplog.clear()
+
+                # Second row with the same undeclared field "tittle" should NOT warn again (deduplicated)
+                writer.append_row(
+                    {
+                        "id": 2,
+                        "vector": [0.1] * 128,
+                        "text": "world",
+                        "tittle": "another typo",
+                    }
+                )
+                assert caplog.text == ""
+
+                # Third row with a new undeclared field "extra" SHOULD warn
+                writer.append_row(
+                    {
+                        "id": 3,
+                        "vector": [0.1] * 128,
+                        "text": "test",
+                        "extra": "new field",
+                    }
+                )
+                assert "undeclared field(s): ['extra']" in caplog.text
+
+    def test_append_row_no_warning_when_dynamic_field_enabled(
+        self, simple_schema, temp_dir, caplog, monkeypatch
+    ):
+        monkeypatch.setattr(logging.getLogger("pymilvus.bulk_writer"), "handlers", [caplog.handler])
+        monkeypatch.setattr(logging.getLogger("pymilvus.bulk_writer"), "propagate", True)
+        simple_schema.enable_dynamic_field = True
+        with caplog.at_level(logging.WARNING):
+            with LocalBulkWriter(
+                schema=simple_schema,
+                local_path=temp_dir,
+                file_type=BulkFileType.JSON,
+            ) as writer:
+                writer.append_row(
+                    {
+                        "id": 1,
+                        "vector": [0.1] * 128,
+                        "text": "hello",
+                        "dynamic_field": "accepted",
+                    }
+                )
+                assert caplog.text == ""
