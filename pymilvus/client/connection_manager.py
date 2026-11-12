@@ -135,6 +135,8 @@ class ConnectionConfig:
 
         # Extract host:port (default port depends on scheme)
         host = parsed.hostname or "localhost"
+        if ":" in host:
+            host = f"[{host}]"
         default_port = 443 if parsed.scheme == "https" else DEFAULT_PORT
         port = parsed.port or default_port
         address = f"{host}:{port}"
