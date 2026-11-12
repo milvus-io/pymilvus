@@ -9,6 +9,7 @@ from pymilvus import (
     Function,
     FunctionChain,
     FunctionChainStage,
+    FunctionScore,
     FunctionType,
     RRFRanker,
     WeightedRanker,
@@ -105,19 +106,29 @@ async def test_per_request_chains_are_isolated(hybrid_call, rerank_source):
 
 
 @pytest.mark.asyncio
-async def test_nested_chains_reject_typed_ranker_before_rpc(hybrid_call):
+@pytest.mark.parametrize(
+    "ranker",
+    [_function_ranker(), FunctionScore(_function_ranker())],
+    ids=["function", "function_score"],
+)
+async def test_nested_chains_reject_typed_ranker_before_rpc(hybrid_call, ranker):
     call, rpc = hybrid_call
     with pytest.raises(ParamError, match=r"function_score.*sub-search\[1\]"):
-        await call([_ann_request(), _ann_request(_l0_chain())], _function_ranker())
+        await call([_ann_request(), _ann_request(_l0_chain())], ranker)
     rpc.assert_not_called()
     rpc.future.assert_not_called()
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "ranker",
+    [_function_ranker(), FunctionScore(_function_ranker())],
+    ids=["function", "function_score"],
+)
 @pytest.mark.parametrize("chains", [None, []])
-async def test_typed_ranker_still_accepts_requests_without_chains(hybrid_call, chains):
+async def test_typed_ranker_still_accepts_requests_without_chains(hybrid_call, chains, ranker):
     call, _ = hybrid_call
-    request = await call([_ann_request(chains)], _function_ranker())
+    request = await call([_ann_request(chains)], ranker)
     assert request.HasField("function_score")
     assert not request.requests[0].function_chains
 
