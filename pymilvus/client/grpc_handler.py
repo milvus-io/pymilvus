@@ -61,6 +61,7 @@ from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
     BulkInsertState,
+    CancelRequestsResult,
     CompactionPlans,
     CompactionState,
     DatabaseInfo,
@@ -69,6 +70,7 @@ from .types import (
     Group,
     HybridExtraList,
     IndexState,
+    ListRunningRequestsResult,
     LoadState,
     PrivilegeGroupInfo,
     RefreshExternalCollectionJobInfo,
@@ -85,7 +87,10 @@ from .types import (
     Status,
     UserInfo,
     get_extra_info,
+    log_unanswered_request_nodes,
+    parse_cancel_requests_result,
     parse_compaction_plans,
+    parse_list_running_requests_result,
     parse_refresh_job_info,
 )
 from .utils import (
@@ -3360,6 +3365,46 @@ class GrpcHandler:
             metadata=_api_level_md(context),
         )
         check_status(resp)
+
+    @retry_on_rpc_failure()
+    def list_running_requests(
+        self,
+        db_name: Optional[str] = None,
+        collection_name: Optional[str] = None,
+        user: Optional[str] = None,
+        min_elapsed_ms: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> ListRunningRequestsResult:
+        req = Prepare.list_running_requests_request(
+            db_name=db_name,
+            collection_name=collection_name,
+            user=user,
+            min_elapsed_ms=min_elapsed_ms,
+        )
+        resp = self._stub.ListRunningRequests(req, timeout=timeout, metadata=_api_level_md(context))
+        check_status(resp.status)
+        result = parse_list_running_requests_result(resp)
+        log_unanswered_request_nodes(result.node_results, "list_running_requests")
+        return result
+
+    @retry_on_rpc_failure()
+    def cancel_requests(
+        self,
+        request_ids: Sequence[str],
+        reason: str = "",
+        user: Optional[str] = None,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> CancelRequestsResult:
+        req = Prepare.cancel_requests_request(request_ids, reason=reason, user=user)
+        resp = self._stub.CancelRequests(req, timeout=timeout, metadata=_api_level_md(context))
+        check_status(resp.status)
+        result = parse_cancel_requests_result(resp)
+        log_unanswered_request_nodes(result.node_results, "cancel_requests")
+        return result
 
     @retry_on_rpc_failure()
     def list_resource_groups(

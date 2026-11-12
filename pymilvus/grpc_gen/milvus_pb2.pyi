@@ -3900,7 +3900,7 @@ class RunningRequestInfo(_message.Message):
     TASK_IDS_FIELD_NUMBER: _ClassVar[int]
     TRACE_ID_FIELD_NUMBER: _ClassVar[int]
     CANCELLABLE_FIELD_NUMBER: _ClassVar[int]
-    request_id: int
+    request_id: str
     proxy_id: int
     type: str
     db_name: str
@@ -3917,7 +3917,7 @@ class RunningRequestInfo(_message.Message):
     task_ids: _containers.RepeatedScalarFieldContainer[int]
     trace_id: str
     cancellable: bool
-    def __init__(self, request_id: _Optional[int] = ..., proxy_id: _Optional[int] = ..., type: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., client_addr: _Optional[str] = ..., nq: _Optional[int] = ..., topk: _Optional[int] = ..., expr: _Optional[str] = ..., start_time_ms: _Optional[int] = ..., queued_ms: _Optional[int] = ..., elapsed_ms: _Optional[int] = ..., state: _Optional[str] = ..., task_ids: _Optional[_Iterable[int]] = ..., trace_id: _Optional[str] = ..., cancellable: bool = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., proxy_id: _Optional[int] = ..., type: _Optional[str] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., user: _Optional[str] = ..., client_addr: _Optional[str] = ..., nq: _Optional[int] = ..., topk: _Optional[int] = ..., expr: _Optional[str] = ..., start_time_ms: _Optional[int] = ..., queued_ms: _Optional[int] = ..., elapsed_ms: _Optional[int] = ..., state: _Optional[str] = ..., task_ids: _Optional[_Iterable[int]] = ..., trace_id: _Optional[str] = ..., cancellable: bool = ...) -> None: ...
 
 class RunningRequestNodeResult(_message.Message):
     __slots__ = ("node_id", "status", "unimplemented")
@@ -3960,10 +3960,10 @@ class CancelRequestsRequest(_message.Message):
     REASON_FIELD_NUMBER: _ClassVar[int]
     USER_FIELD_NUMBER: _ClassVar[int]
     base: _common_pb2.MsgBase
-    request_ids: _containers.RepeatedScalarFieldContainer[int]
+    request_ids: _containers.RepeatedScalarFieldContainer[str]
     reason: str
     user: str
-    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., request_ids: _Optional[_Iterable[int]] = ..., reason: _Optional[str] = ..., user: _Optional[str] = ...) -> None: ...
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., request_ids: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ..., user: _Optional[str] = ...) -> None: ...
 
 class CancelRequestsResponse(_message.Message):
     __slots__ = ("status", "canceled", "not_found", "node_results", "undetermined")
@@ -3974,10 +3974,10 @@ class CancelRequestsResponse(_message.Message):
     UNDETERMINED_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     canceled: _containers.RepeatedCompositeFieldContainer[RunningRequestInfo]
-    not_found: _containers.RepeatedScalarFieldContainer[int]
+    not_found: _containers.RepeatedScalarFieldContainer[str]
     node_results: _containers.RepeatedCompositeFieldContainer[RunningRequestNodeResult]
-    undetermined: _containers.RepeatedScalarFieldContainer[int]
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[int]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[int]] = ...) -> None: ...
+    undetermined: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., canceled: _Optional[_Iterable[_Union[RunningRequestInfo, _Mapping]]] = ..., not_found: _Optional[_Iterable[str]] = ..., node_results: _Optional[_Iterable[_Union[RunningRequestNodeResult, _Mapping]]] = ..., undetermined: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SnapshotSummary(_message.Message):
     __slots__ = ("name", "create_ts", "description", "create_utc_ts")
