@@ -947,6 +947,11 @@ class MilvusClient(BaseMilvusClient):
                 msg = f"wrong type of argument ids, expect list, int or str, got '{type(ids).__name__}'"
                 raise TypeError(msg)
 
+        # empty ids with no filter deletes nothing, return early to avoid
+        # building an invalid expr and sending a remote rpc, see #3894
+        if isinstance(ids, list) and len(ids) == 0 and not filter:
+            return OmitZeroDict({"delete_count": 0, "cost": 0})
+
         # validate ambiguous delete filter param before describe collection rpc
         if filter and len(pks) > 0:
             raise ParamError(message=ExceptionsMessage.AmbiguousDeleteFilterParam)
