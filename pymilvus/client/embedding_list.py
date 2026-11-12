@@ -1,6 +1,6 @@
 """EmbeddingList: A container for multiple embeddings for array-of-vector searches."""
 
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Type, Union
 
 import numpy as np
 
@@ -43,7 +43,7 @@ class EmbeddingList:
         self,
         embeddings: Optional[Union[List[np.ndarray], np.ndarray]] = None,
         dim: Optional[int] = None,
-        dtype: Optional[Union[np.dtype, str, DataType]] = None,
+        dtype: Optional[Union[np.dtype, Type[np.generic], str, DataType]] = None,
     ):
         """
         Initialize an EmbeddingList.
@@ -85,10 +85,12 @@ class EmbeddingList:
                 msg = "Embeddings must be numpy array or list"
                 raise TypeError(msg)
 
-    def _parse_dtype(self, dtype: Union[np.dtype, str, DataType]) -> np.dtype:
+    def _parse_dtype(self, dtype: Union[np.dtype, Type[np.generic], str, DataType]) -> np.dtype:
         """Parse and validate data type."""
         if isinstance(dtype, np.dtype):
             return dtype
+        if isinstance(dtype, type) and issubclass(dtype, np.generic):
+            return np.dtype(dtype)
         if isinstance(dtype, str):
             return np.dtype(dtype)
         if isinstance(dtype, DataType):
@@ -188,7 +190,7 @@ class EmbeddingList:
         cls,
         num_vectors: int,
         dim: int,
-        dtype: Optional[Union[np.dtype, str, DataType]] = None,
+        dtype: Optional[Union[np.dtype, Type[np.generic], str, DataType]] = None,
         seed: Optional[int] = None,
     ) -> "EmbeddingList":
         """
