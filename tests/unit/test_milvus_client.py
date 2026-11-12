@@ -1327,6 +1327,47 @@ class TestMilvusClientSearchOps:
         mock_v1.assert_called_once()
         assert mock_v1.call_args.kwargs["ann_field"] == "vector"
 
+    @staticmethod
+    def _search_iterator_v1_metric_type(index_descriptions):
+        schema = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "embedding", "type": DataType.FLOAT_VECTOR},
+            ]
+        }
+        handler = _make_handler()
+        handler._get_schema.return_value = (schema, 100)
+        handler.list_indexes.return_value = index_descriptions
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            with patch(
+                "pymilvus.milvus_client.milvus_client.SearchIteratorV2",
+                side_effect=ServerVersionIncompatibleException(message="fallback"),
+            ), patch("pymilvus.milvus_client.milvus_client.SearchIterator") as mock_v1:
+                client.search_iterator("col", data=[[0.1, 0.2]], anns_field="embedding")
+
+        return mock_v1.call_args.kwargs["param"]["metric_type"]
+
+    @pytest.mark.parametrize("index_name", ["embedding", "emb_hnsw_idx"])
+    def test_search_iterator_v1_metric_type_from_index_on_anns_field(self, index_name):
+        index = milvus_pb2.IndexDescription(
+            index_name=index_name,
+            field_name="embedding",
+            params=[common_pb2.KeyValuePair(key="metric_type", value="IP")],
+        )
+
+        assert self._search_iterator_v1_metric_type([index]) == "IP"
+
+    def test_search_iterator_v1_no_index_on_anns_field(self):
+        index = milvus_pb2.IndexDescription(
+            index_name="embedding",
+            field_name="other",
+            params=[common_pb2.KeyValuePair(key="metric_type", value="IP")],
+        )
+
+        with pytest.raises(ParamError, match="Cannot set up metrics type for anns_field:embedding"):
+            self._search_iterator_v1_metric_type([index])
+
 
 class TestMilvusClientSession:
     @pytest.mark.parametrize(

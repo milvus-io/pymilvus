@@ -809,15 +809,13 @@ class MilvusClient(BaseMilvusClient):
         if METRIC_TYPE not in search_params:
             indexes = conn.list_indexes(collection_name, context=context)
             for index in indexes:
-                if anns_field == index.index_name:
+                if anns_field == index.field_name:
                     params = index.params
                     for param in params:
                         if param.key == METRIC_TYPE:
                             search_params[METRIC_TYPE] = param.value
         if METRIC_TYPE not in search_params:
-            raise MilvusException(
-                ParamError, f"Cannot set up metrics type for anns_field:{anns_field}"
-            )
+            raise ParamError(message=f"Cannot set up metrics type for anns_field:{anns_field}")
 
         search_params["params"] = get_params(search_params)
 
