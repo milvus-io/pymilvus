@@ -38,6 +38,7 @@ from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchem
 from .async_interceptor import async_header_adder_interceptor
 from .cache import GlobalCache
 from .check import (
+    _raise_param_error,
     check_id_and_data,
     check_pass_param,
     is_legal_host,
@@ -2009,6 +2010,8 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(db_name=db_name, timeout=timeout)
+        if properties is not None and not isinstance(properties, dict):
+            _raise_param_error("properties", properties)
         request = Prepare.create_database_req(db_name, properties=properties)
         status = await self._async_stub.CreateDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2023,6 +2026,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.drop_database_req(db_name)
         status = await self._async_stub.DropDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2053,6 +2057,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, properties=properties, timeout=timeout)
         request = Prepare.alter_database_properties_req(db_name, properties)
         status = await self._async_stub.AlterDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2068,6 +2073,7 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = await self._async_stub.AlterDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)

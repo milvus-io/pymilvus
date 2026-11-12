@@ -55,6 +55,23 @@ class TestCreateCollectionRequest:
         )
         assert req is not None
 
+    def test_create_collection_properties(self, basic_schema):
+        """Test create_collection_request with valid properties."""
+        req = Prepare.create_collection_request(
+            "test_coll", basic_schema, properties={"collection.ttl.seconds": 1800}
+        )
+        assert len(req.properties) == 1
+        assert req.properties[0].key == "collection.ttl.seconds"
+        assert req.properties[0].value == "1800"
+
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    def test_create_collection_invalid_properties(self, basic_schema, invalid_properties):
+        """Test create_collection_request with invalid properties raises ParamError."""
+        with pytest.raises(ParamError):
+            Prepare.create_collection_request(
+                "test_coll", basic_schema, properties=invalid_properties
+            )
+
 
 class TestGetSchemaFromCollectionSchema:
     """Tests for get_schema_from_collection_schema."""

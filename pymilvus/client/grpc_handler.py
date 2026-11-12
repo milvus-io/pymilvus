@@ -49,6 +49,7 @@ from .asynch import (
 )
 from .cache import GlobalCache
 from .check import (
+    _raise_param_error,
     check_id_and_data,
     check_pass_param,
     is_legal_host,
@@ -2114,6 +2115,8 @@ class GrpcHandler:
         **kwargs,
     ):
         check_pass_param(db_name=db_name, timeout=timeout)
+        if properties is not None and not isinstance(properties, dict):
+            _raise_param_error("properties", properties)
         request = Prepare.create_database_req(db_name, properties=properties)
         status = self._stub.CreateDatabase(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -2128,6 +2131,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.drop_database_req(db_name)
         status = self._stub.DropDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
@@ -2153,6 +2157,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, properties=properties, timeout=timeout)
         request = Prepare.alter_database_properties_req(db_name, properties)
         status = self._stub.AlterDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
@@ -2166,6 +2171,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        check_pass_param(db_name=db_name, timeout=timeout)
         request = Prepare.drop_database_properties_req(db_name, property_keys)
         status = self._stub.AlterDatabase(request, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
