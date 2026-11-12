@@ -32,7 +32,7 @@ If you are interested in existing problems, you can:
   - Submit a PR to tackle the problem.
 
 If you want to request more features for PyMilvus, you can:
-- [File an issue](https://github.com/milvus-io/pymilvus/issues/new/choose) to to describe the new features and explain why;
+- [File an issue](https://github.com/milvus-io/pymilvus/issues/new/choose) to describe the new features and explain why;
 - Provide implementation design and test design (optional);
 - Submit a PR to implement the feature (optional).
 
@@ -45,7 +45,7 @@ Note: the problems, features, and questions mentioned here are not limited to Py
 ## PyMilvus Code Structure
 `docs/`: Contains PyMilvus design and planning documents, such as `docs/plans`.
 
-`examples/`: Contains Python scripts, which can be run directly, for introducing the usage of PyMiluvs API through examples.
+`examples/`: Contains Python scripts, which can be run directly, for introducing the usage of PyMilvus API through examples.
 
 `pymilvus/`: Contains PyMilvus source codes.
 
@@ -84,4 +84,4 @@ If the bot fails due to conflicts, please backport manually.
 
 ## Congratulations! You are now the contributor to the Milvus community!
 
-Apart from dealing with codes and machines, you are always welcome to communicate with any member from the Milvus community. New faces join us every day, and they may as well encounter the same challenges as you faced beore. Feel free to help them. You can pass on the collaborative spirit from the assistance you acquired when you first joined the community. Let us build a collaborative, open-source, exuberant, and tolerant community together!
+Apart from dealing with codes and machines, you are always welcome to communicate with any member from the Milvus community. New faces join us every day, and they may as well encounter the same challenges as you faced before. Feel free to help them. You can pass on the collaborative spirit from the assistance you acquired when you first joined the community. Let us build a collaborative, open-source, exuberant, and tolerant community together!
