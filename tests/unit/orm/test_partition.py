@@ -49,7 +49,8 @@ def partition(mock_grpc_connect, mock_grpc_close, _schema):
         },
     ):
         part = Partition(coll, "test_part", description="test desc")
-    yield part
+    with mock.patch(f"{GRPC_PREFIX}.describe_collection", return_value=_schema.to_dict()):
+        yield part
     connections.disconnect("default")
 
 
