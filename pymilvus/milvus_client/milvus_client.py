@@ -587,7 +587,8 @@ class MilvusClient(BaseMilvusClient):
             filter (str): The filter to use for the query.
             output_fields (List[str], optional): List of which field values to return. If None
                 specified, all fields excluding vector field will be returned.
-            partitions (List[str], optional): Which partitions to perform query. Defaults to None.
+            partition_names (List[str], optional): Which partitions to perform query.
+                Defaults to None.
             timeout (float, optional): Timeout to use, overides the client level assigned at init.
                 Defaults to None.
 
@@ -1312,8 +1313,8 @@ class MilvusClient(BaseMilvusClient):
 
         Args:
             collection_name(``string``): The name of collection.
-            name (str): The name of the field.
-            dtype (DataType): The data type of the field.
+            field_name (str): The name of the field.
+            data_type (DataType): The data type of the field.
             desc (str): The description of the field.
             timeout (``float``, optional): A duration of time in seconds to allow for the RPC.
                 If timeout is set to None, the client keeps waiting until the server
@@ -2876,11 +2877,24 @@ class MilvusClient(BaseMilvusClient):
     ):
         """Run analyzer. Return result tokens of analysis.
         Args:
-            text(``str``,``List[str]``): The input text (string or string list).
+            texts(``str``,``List[str]``): The input text (string or string list).
             analyzer_params(``str``,``Dict``,``None``): The parameters of analyzer.
+            with_hash(``bool``): Whether to include the hash of each token. Defaults to False.
+            with_detail(``bool``): Whether to include the start offset, end offset, position
+                and position length of each token. Defaults to False.
+            collection_name(``str``,``None``): The name of the collection that contains
+                ``field_name``. Set it with ``field_name`` to run the analyzer of that field;
+                ``analyzer_params`` must not be set together with it.
+            field_name(``str``,``None``): The name of the field whose analyzer is run.
+            analyzer_names(``str``,``List[str]``,``None``): The analyzer name(s) to use for a
+                field with multiple analyzers. A single name applies to every text;
+                otherwise give one name per text. If None, the default analyzer is used.
             timeout(``float``, optional): The timeout value in seconds. Defaults to None.
         Returns:
-                (``List[str]``,``List[List[str]]``): The result tokens of analysis.
+                (``AnalyzeResult``,``List[AnalyzeResult]``): The analysis result of a ``str``
+                input, or one result per text of a ``List[str]`` input. Its ``tokens`` are
+                ``str`` values, or ``AnalyzeToken`` objects if ``with_hash`` or
+                ``with_detail`` is set.
         """
 
         return self._get_connection().run_analyzer(
