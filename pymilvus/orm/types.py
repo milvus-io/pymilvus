@@ -80,6 +80,14 @@ def infer_dtype_by_scalar_data(data: Any, dtype: DataType = None):
         return DataType.DOUBLE
     if isinstance(data, bool):
         return DataType.BOOL
+    if isinstance(data, (int, np.integer)) and dtype in (
+        DataType.INT8,
+        DataType.INT16,
+        DataType.INT32,
+        DataType.FLOAT,
+        DataType.DOUBLE,
+    ):
+        return dtype
     if isinstance(data, (int, np.int64)):
         return DataType.INT64
     if isinstance(data, np.int32):
