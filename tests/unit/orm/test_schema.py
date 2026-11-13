@@ -1863,6 +1863,21 @@ class TestInferDefaultValueByData:
         result = infer_default_value_bydata(3.14, DataType.FLOAT)
         assert abs(result.float_data - 3.14) < 0.001
 
+    @pytest.mark.parametrize(
+        "dtype,attr",
+        [
+            pytest.param(DataType.INT8, "int_data", id="int8"),
+            pytest.param(DataType.INT16, "int_data", id="int16"),
+            pytest.param(DataType.INT32, "int_data", id="int32"),
+            pytest.param(DataType.FLOAT, "float_data", id="float"),
+            pytest.param(DataType.DOUBLE, "double_data", id="double"),
+        ],
+    )
+    def test_infer_python_int_follows_field_dtype(self, dtype, attr):
+        result = FieldSchema("f", dtype, default_value=7).default_value
+        assert result.WhichOneof("data") == attr
+        assert getattr(result, attr) == 7
+
     def test_infer_unsupported_type(self):
         """Test unsupported type raises error."""
         with pytest.raises(ParamError, match=r"[Uu]nsupported"):
