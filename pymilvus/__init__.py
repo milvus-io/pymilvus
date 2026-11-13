@@ -20,6 +20,12 @@ from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.bloom_filter import BloomFilterBuilder, build_bloom_filter
+from .client.compaction_target import (
+    CompactionTargetInfo,
+    CompactionTargetState,
+    CreateCompactionTargetResult,
+    OptimizeTargetSize,
+)
 from .client.field_ops import FieldOp, FieldOpType
 from .client.prepare import Prepare
 from .client.roaring_filter import RoaringBitmapBuilder, build_roaring_bitmap
@@ -113,9 +119,12 @@ __all__ = [
     "CancelRequestsResult",
     "Collection",
     "CollectionSchema",
+    "CompactionTargetInfo",
+    "CompactionTargetState",
     "CompactionTaskState",
     "CompactionType",
     "Connections",
+    "CreateCompactionTargetResult",
     "DataType",
     "DefaultConfig",
     "ExceptionsMessage",
@@ -138,6 +147,7 @@ __all__ = [
     "MilvusException",
     "MilvusUnavailableException",
     "MutationFuture",
+    "OptimizeTargetSize",
     "Partition",
     "Prepare",
     "PyMilvusDeprecationWarning",
