@@ -36,6 +36,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_PORT = 19530
 
 
+def requires_connection_recovery(error: Exception) -> bool:
+    if isinstance(error, grpc.RpcError):
+        return error.code() == grpc.StatusCode.UNAVAILABLE
+    return isinstance(error, MilvusException) and (
+        "STREAMING_CODE_REPLICATE_VIOLATION" in str(error.message)
+    )
+
+
 @dataclass
 class ConnectionConfig:
     """Configuration for a Milvus connection.
@@ -509,7 +517,13 @@ class ConnectionManager:
         to ConnectionManager.handle_error() which returns True if the error
         was handled and the caller should retry.
         """
-        handler._on_rpc_error = lambda error: self.handle_error(handler, error)
+
+        def _on_rpc_error(error: Exception, *, timeout: Optional[float] = None) -> bool:
+            if timeout is None:
+                return self.handle_error(handler, error)
+            return self.handle_error(handler, error, timeout=timeout)
+
+        handler._on_rpc_error = _on_rpc_error
 
     def _create_shared(
         self,
@@ -657,7 +671,7 @@ class ConnectionManager:
         else:
             return True
 
-    def _recover(self, managed: ManagedConnection) -> None:
+    def _recover(self, managed: ManagedConnection, *, timeout: Optional[float] = None) -> None:
         """Recover a connection by resetting the channel in-place.
 
         Reuses the existing handler object (closing and recreating its gRPC
@@ -669,17 +683,42 @@ class ConnectionManager:
         """
         try:
             new_address = managed.strategy.get_recovery_address(managed)
-            managed.handler.reconnect(address=new_address, timeout=managed.connect_timeout)
+            connect_timeout = managed.connect_timeout
+            if timeout is not None:
+                connect_timeout = min(timeout, 10 if connect_timeout is None else connect_timeout)
+            managed.handler.reconnect(address=new_address, timeout=connect_timeout)
             managed.recovery_gen += 1
             managed.touch()
         except Exception:
             logger.warning("Connection recovery failed", exc_info=True)
             raise
 
+    def _recover_regular_before(self, handler: "GrpcHandler", timeout: float) -> bool:
+        # Global topology refresh uses blocking HTTP calls with their own
+        # timeout and cannot honor the caller's shorter read budget.
+        deadline = time.monotonic() + timeout
+        if not self._lock.acquire(timeout=min(timeout, threading.TIMEOUT_MAX)):
+            return False
+        try:
+            managed = self._get_managed(handler)
+            remaining = deadline - time.monotonic()
+            if (
+                managed is None
+                or not isinstance(managed.strategy, RegularStrategy)
+                or remaining <= 0
+            ):
+                return False
+            self._recover(managed, timeout=remaining)
+            return True
+        finally:
+            self._lock.release()
+
     def handle_error(
         self,
         handler: "GrpcHandler",
         error: Exception,
+        *,
+        timeout: Optional[float] = None,
     ) -> bool:
         """Handle an error from a connection.
 
@@ -699,14 +738,10 @@ class ConnectionManager:
         Returns:
             True if the error was handled and the caller should retry.
         """
-        if isinstance(error, grpc.RpcError):
-            if error.code() != grpc.StatusCode.UNAVAILABLE:
-                return False
-        elif isinstance(error, MilvusException):
-            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
-                return False
-        else:
+        if not requires_connection_recovery(error):
             return False
+        if timeout is not None:
+            return self._recover_regular_before(handler, timeout)
 
         with self._lock:
             managed = self._get_managed(handler)
@@ -947,8 +982,12 @@ class AsyncConnectionManager:
         in ``handle_error()``.
         """
 
-        async def _on_rpc_error(error: Exception) -> bool:
-            return await self.handle_error(handler, error)
+        async def _on_rpc_error(error: Exception, *, timeout: Optional[float] = None) -> bool:
+            if timeout is None:
+                return await self.handle_error(handler, error)
+            return await asyncio.wait_for(
+                self.handle_error(handler, error, regular_only=True), timeout=timeout
+            )
 
         handler._on_rpc_error = _on_rpc_error
 
@@ -1070,6 +1109,8 @@ class AsyncConnectionManager:
         self,
         handler: "AsyncGrpcHandler",
         error: Exception,
+        *,
+        regular_only: bool = False,
     ) -> bool:
         """Handle an error from an async connection.
 
@@ -1088,18 +1129,16 @@ class AsyncConnectionManager:
         Returns:
             True if the error was handled and the caller should retry.
         """
-        if isinstance(error, grpc.RpcError):
-            if error.code() != grpc.StatusCode.UNAVAILABLE:
-                return False
-        elif isinstance(error, MilvusException):
-            if "STREAMING_CODE_REPLICATE_VIOLATION" not in str(error.message):
-                return False
-        else:
+        if not requires_connection_recovery(error):
             return False
 
         async with self._get_lock():
             managed = self._get_managed(handler)
             if managed is None:
+                return False
+            # A cancelled wait cannot stop a global HTTP refresh running in
+            # the executor; it could publish topology without swapping channels.
+            if regular_only and not isinstance(managed.strategy, AsyncRegularStrategy):
                 return False
 
             # Run sync on_unavailable in executor to avoid blocking the

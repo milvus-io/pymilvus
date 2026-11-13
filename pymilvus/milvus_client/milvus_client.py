@@ -5,6 +5,17 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Union
 
 from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
+from pymilvus.client.compaction_target import (
+    CompactionTargetInfo,
+    CompactionTargetState,
+    CreateCompactionTargetResult,
+    compaction_target_deadline,
+    compaction_target_time_left,
+    create_target_request,
+    list_targets_request,
+    positive_int64,
+    require_retry_configurable_channel,
+)
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.embedding_list import EmbeddingList
@@ -2385,6 +2396,132 @@ class MilvusClient(BaseMilvusClient):
             timeout=timeout,
             context=self._generate_call_context(**kwargs),
             **kwargs,
+        )
+
+    def create_compaction_target(
+        self,
+        collection_name: str,
+        *,
+        db_name: Optional[str] = None,
+        segment_ids: Optional[Sequence[int]] = None,
+        input_target_size_bytes: Optional[int] = None,
+        timeout: Optional[float] = None,
+        client_request_id: str = "",
+    ) -> CreateCompactionTargetResult:
+        """Create a compaction target in the current database or an explicit database.
+
+        Create a REWRITE target for the collection, optionally limited to the
+        lineage of the supplied segment IDs. Supply input_target_size_bytes
+        alone to create an OPTIMIZE target with the given size in bytes.
+
+        A lost response raises MilvusException with code
+        COMPACTION_TARGET_CREATE_OUTCOME_UNKNOWN. Each explicit call is a new
+        creation attempt. Use a URI-configured client for this operation.
+        """
+        require_retry_configurable_channel(
+            self._config.get_handler_kwargs().get("channel") is not None
+        )
+        context = self._generate_call_context(client_request_id=client_request_id)
+        database = context.get_db_name() if db_name is None else db_name
+        request = create_target_request(
+            collection_name, database, segment_ids, input_target_size_bytes
+        )
+        return self._get_connection().create_compaction_target(
+            request, timeout=timeout, context=context
+        )
+
+    def describe_compaction_target(
+        self,
+        target_id: int,
+        *,
+        timeout: Optional[float] = None,
+        client_request_id: str = "",
+    ) -> CompactionTargetInfo:
+        """Describe a target by its Target ID.
+
+        Row counts may be absent. remaining_rows is the latest complete
+        observation and may exceed the initial total_rows. A finite timeout
+        permits reconnecting to a direct endpoint, while a global endpoint
+        uses the current connection for the duration of the read.
+        """
+        positive_int64(target_id, "target_id")
+        connection = self._get_connection()
+        return connection.describe_compaction_target(
+            target_id,
+            timeout=timeout,
+            context=self._generate_call_context(client_request_id=client_request_id),
+        )
+
+    def list_compaction_targets(
+        self,
+        *,
+        db_name: str = "",
+        collection_name: Optional[str] = None,
+        collection_id: Optional[int] = None,
+        states: Sequence[CompactionTargetState] = (),
+        include_system: bool = False,
+        timeout: Optional[float] = None,
+        client_request_id: str = "",
+    ) -> List[CompactionTargetInfo]:
+        """List authorized targets, newest first, without progress observations.
+
+        An empty db_name includes all databases. Use "default" to filter to
+        the default database. Filter by either collection name or ID, and
+        optionally by the states "active" and "inactive".
+        """
+        request = list_targets_request(
+            db_name, collection_name, collection_id, states, include_system
+        )
+        connection = self._get_connection()
+        return connection.list_compaction_targets(
+            request,
+            timeout=timeout,
+            context=self._generate_call_context(client_request_id=client_request_id),
+        )
+
+    def wait_for_compaction_target(
+        self,
+        target_id: int,
+        *,
+        timeout: Optional[float] = None,
+        poll_interval: float = 0.5,
+        client_request_id: str = "",
+    ) -> CompactionTargetInfo:
+        """Poll until the target is inactive and return its persisted stop reason.
+
+        The result's satisfied property is true only for a satisfied target.
+        timeout is the total wait budget in seconds. A finite timeout permits
+        reconnecting to a direct endpoint, while a global endpoint uses the
+        current connection for the duration of the wait.
+        """
+        positive_int64(target_id, "target_id")
+        deadline = compaction_target_deadline(timeout, poll_interval)
+        connection = self._get_connection()
+        context = self._generate_call_context(client_request_id=client_request_id)
+        while True:
+            remaining = compaction_target_time_left(deadline, target_id)
+            result = connection.describe_compaction_target(
+                target_id, timeout=remaining, context=context
+            )
+            remaining = compaction_target_time_left(deadline, target_id)
+            if result.state == "inactive":
+                return result
+            time.sleep(poll_interval if remaining is None else min(poll_interval, remaining))
+
+    def drop_compaction_target(
+        self,
+        target_id: int,
+        *,
+        timeout: Optional[float] = None,
+        client_request_id: str = "",
+    ) -> None:
+        """Stop a target. Work already in flight may still finish."""
+        positive_int64(target_id, "target_id")
+        connection = self._get_connection()
+        connection.drop_compaction_target(
+            target_id,
+            timeout=timeout,
+            context=self._generate_call_context(client_request_id=client_request_id),
         )
 
     def compact(

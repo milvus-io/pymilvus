@@ -2240,7 +2240,7 @@ class TestHandlerReconnect:
         old_channel = handler._channel
 
         def wait_for_new_channel(**kwargs):
-            return kwargs["final_channel"], kwargs["stub"]
+            return None, kwargs["final_channel"], kwargs["stub"]
 
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel") as mock_ch, patch.object(
             handler, "_wait_for_channel_ready", side_effect=wait_for_new_channel
@@ -2260,7 +2260,7 @@ class TestHandlerReconnect:
         old_channel.close = Mock(side_effect=RuntimeError("broken"))
 
         def wait_for_new_channel(**kwargs):
-            return kwargs["final_channel"], kwargs["stub"]
+            return None, kwargs["final_channel"], kwargs["stub"]
 
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel") as mock_ch, patch.object(
             handler, "_wait_for_channel_ready", side_effect=wait_for_new_channel
@@ -2279,7 +2279,7 @@ class TestHandlerReconnect:
         with patch(
             "pymilvus.client.grpc_handler.grpc.insecure_channel", return_value=Mock()
         ), patch.object(handler, "_wait_for_channel_ready") as mock_wait:
-            mock_wait.side_effect = lambda **kwargs: (kwargs["final_channel"], kwargs["stub"])
+            mock_wait.side_effect = lambda **kwargs: (None, kwargs["final_channel"], kwargs["stub"])
             handler.reconnect(timeout=30)
 
         assert mock_wait.call_args.kwargs["timeout"] == 30

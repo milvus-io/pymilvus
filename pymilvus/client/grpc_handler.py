@@ -13,7 +13,9 @@ import orjson
 from grpc._cython import cygrpc
 
 from pymilvus.client.call_context import CallContext, _api_level_md
+from pymilvus.client.connection_manager import requires_connection_recovery
 from pymilvus.decorators import (
+    error_handler,
     ignore_unimplemented,
     retry_on_rpc_failure,
     retry_on_schema_mismatch,
@@ -53,6 +55,18 @@ from .check import (
     check_pass_param,
     is_legal_host,
     is_legal_port,
+)
+from .compaction_target import (
+    CompactionTargetInfo,
+    CreateCompactionTargetResult,
+    TargetReadRetry,
+    check_target_response,
+    create_outcome_unknown,
+    create_transport_outcome_unknown,
+    parse_create_target_result,
+    parse_describe_target_result,
+    parse_target_info,
+    require_retry_configurable_channel,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
@@ -181,7 +195,9 @@ class GrpcHandler:
     ) -> None:
         self._stub = None
         self._channel = channel
+        self._uses_caller_channel = channel is not None
         self._channel_swap_lock = threading.Lock()
+        self._identifier_interceptor = None
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -250,7 +266,7 @@ class GrpcHandler:
         final_channel: Optional[grpc.Channel] = None,
         stub: Optional[milvus_pb2_grpc.MilvusServiceStub] = None,
         address: Optional[str] = None,
-    ) -> Tuple[grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
+    ) -> Tuple[grpc.UnaryUnaryClientInterceptor, grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
         update_self = channel is None
         target_channel = channel if channel is not None else self._channel
         target_final_channel = final_channel if final_channel is not None else self._final_channel
@@ -272,9 +288,7 @@ class GrpcHandler:
             setup_kwargs.update(final_channel=target_final_channel, stub=target_stub)
 
         try:
-            target_final_channel, target_stub = self._setup_identifier_interceptor(
-                self._user, **setup_kwargs
-            )
+            return self._setup_identifier_interceptor(self._user, **setup_kwargs)
         except grpc.RpcError as e:
             if update_self:
                 self.close()
@@ -287,8 +301,6 @@ class GrpcHandler:
             if update_self:
                 self.close()
             raise
-        else:
-            return target_final_channel, target_stub
 
     def close(self):
         with self._channel_swap_lock:
@@ -333,7 +345,7 @@ class GrpcHandler:
         new_channel = self._create_grpc_channel(target_address)
         try:
             new_final_channel, new_stub = self._setup_grpc_channel(channel=new_channel)
-            new_final_channel, new_stub = self._wait_for_channel_ready(
+            identifier_interceptor, new_final_channel, new_stub = self._wait_for_channel_ready(
                 timeout=timeout,
                 channel=new_channel,
                 final_channel=new_final_channel,
@@ -349,6 +361,7 @@ class GrpcHandler:
             self._channel = new_channel
             self._final_channel = new_final_channel
             self._stub = new_stub
+            self._identifier_interceptor = identifier_interceptor
             self._address = target_address
             self._move_state_change_callbacks(old_channel, new_channel)
 
@@ -373,7 +386,7 @@ class GrpcHandler:
         if len(keys) > 0 and len(values) > 0:
             self._authorization_interceptor = interceptor.header_adder_interceptor(keys, values)
 
-    def _create_grpc_channel(self, address: Optional[str] = None):
+    def _create_grpc_channel(self, address: Optional[str] = None, *, retry: bool = True):
         """Create a ddl grpc channel"""
         default_opts = {
             cygrpc.ChannelArgKey.max_send_message_length: -1,
@@ -385,6 +398,8 @@ class GrpcHandler:
         }
         # Merge user-provided options (user options override defaults)
         default_opts.update(self._grpc_options)
+        if not retry:
+            default_opts["grpc.enable_retries"] = 0
         opts = list(default_opts.items())
         target_address = address or self._address
 
@@ -457,7 +472,7 @@ class GrpcHandler:
         timeout: int = 10,
         final_channel: Optional[grpc.Channel] = None,
         stub: Optional[milvus_pb2_grpc.MilvusServiceStub] = None,
-    ) -> Tuple[grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
+    ) -> Tuple[grpc.UnaryUnaryClientInterceptor, grpc.Channel, milvus_pb2_grpc.MilvusServiceStub]:
         update_self = final_channel is None and stub is None
         target_final_channel = final_channel if final_channel is not None else self._final_channel
         target_stub = stub if stub is not None else self._stub
@@ -477,7 +492,7 @@ class GrpcHandler:
             self._identifier_interceptor = identifier_interceptor
             self._final_channel = target_final_channel
             self._stub = target_stub
-        return target_final_channel, target_stub
+        return identifier_interceptor, target_final_channel, target_stub
 
     @property
     def server_address(self):
@@ -2480,6 +2495,96 @@ class GrpcHandler:
         )
         status = self._stub.LoadBalance(req, timeout=timeout, metadata=_api_level_md(context))
         check_status(status)
+
+    @error_handler(func_name="create_compaction_target")
+    def create_compaction_target(
+        self,
+        request: milvus_types.CreateCompactionTargetRequest,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> CreateCompactionTargetResult:
+        require_retry_configurable_channel(self._uses_caller_channel)
+        with self._channel_swap_lock:
+            address = self._address
+            interceptors = [
+                item
+                for item in (self._authorization_interceptor, self._identifier_interceptor)
+                if item is not None
+            ]
+
+        # A service config can retry a single stub call. Create must use a
+        # channel that also disables retries in the gRPC transport.
+        with self._create_grpc_channel(address, retry=False) as channel:
+            stub = milvus_pb2_grpc.MilvusServiceStub(grpc.intercept_channel(channel, *interceptors))
+            try:
+                response = stub.CreateCompactionTarget(
+                    request, timeout=timeout, metadata=_api_level_md(context)
+                )
+            except grpc.RpcError as error:
+                if create_transport_outcome_unknown(error):
+                    raise create_outcome_unknown(details=error.details()) from error
+                raise
+        return parse_create_target_result(request, response)
+
+    @error_handler(func_name="describe_compaction_target")
+    def describe_compaction_target(
+        self,
+        target_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> CompactionTargetInfo:
+        request = milvus_types.DescribeCompactionTargetRequest(target_id=target_id)
+        retries = TargetReadRetry(timeout)
+        remaining = retries.remaining()
+        while True:
+            try:
+                response = self._stub.DescribeCompactionTarget(
+                    request, timeout=remaining, metadata=_api_level_md(context)
+                )
+                return parse_describe_target_result(target_id, response)
+            except (grpc.RpcError, MilvusException) as error:
+                if not retries.can_retry():
+                    raise
+                recovered = False
+                if requires_connection_recovery(error) and hasattr(self, "_on_rpc_error"):
+                    remaining = retries.remaining()
+                    if remaining is None:
+                        recovered = self._on_rpc_error(error)
+                    else:
+                        recovered = self._on_rpc_error(error, timeout=remaining)
+                delay = retries.delay_after(error, recovered=recovered)
+                if delay is None:
+                    raise
+                time.sleep(delay)
+                remaining = retries.remaining()
+                if remaining == 0:
+                    raise
+
+    @retry_on_rpc_failure()
+    def list_compaction_targets(
+        self,
+        request: milvus_types.ListCompactionTargetsRequest,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> List[CompactionTargetInfo]:
+        response = self._stub.ListCompactionTargets(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_target_response(response)
+        return [parse_target_info(target) for target in response.targets]
+
+    @retry_on_rpc_failure()
+    def drop_compaction_target(
+        self,
+        target_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> None:
+        request = milvus_types.DropCompactionTargetRequest(target_id=target_id)
+        response = self._stub.DropCompactionTarget(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_target_response(response)
 
     @retry_on_rpc_failure()
     def compact(

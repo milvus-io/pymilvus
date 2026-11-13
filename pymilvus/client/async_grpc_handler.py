@@ -13,8 +13,10 @@ import orjson
 from grpc._cython import cygrpc
 
 from pymilvus.client.call_context import CallContext, _api_level_md
+from pymilvus.client.connection_manager import requires_connection_recovery
 from pymilvus.client.types import GrantInfo, ResourceGroupConfig
 from pymilvus.decorators import (
+    error_handler,
     ignore_unimplemented,
     retry_on_rpc_failure,
     retry_on_schema_mismatch,
@@ -42,6 +44,18 @@ from .check import (
     check_pass_param,
     is_legal_host,
     is_legal_port,
+)
+from .compaction_target import (
+    CompactionTargetInfo,
+    CreateCompactionTargetResult,
+    TargetReadRetry,
+    check_target_response,
+    create_outcome_unknown,
+    create_transport_outcome_unknown,
+    parse_create_target_result,
+    parse_describe_target_result,
+    parse_target_info,
+    require_retry_configurable_channel,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
 from .embedding_list import EmbeddingList
@@ -109,6 +123,8 @@ class AsyncGrpcHandler:
     ) -> None:
         self._async_stub = None
         self._async_channel = channel
+        self._uses_caller_channel = channel is not None
+        self._async_identifier_interceptor = None
 
         addr = kwargs.get("address")
         self._address = addr if addr is not None else self.__get_address(uri, host, port)
@@ -175,8 +191,8 @@ class AsyncGrpcHandler:
         target_address = address or self._address
         effective_timeout = timeout if timeout is not None else 10
         new_channel = self._create_channel(target_address)
-        new_final_channel, new_stub = self._build_stub(new_channel)
         try:
+            new_final_channel, new_stub = self._build_stub(new_channel)
             (
                 new_identifier_interceptor,
                 new_final_channel,
@@ -187,24 +203,23 @@ class AsyncGrpcHandler:
                 self._user,
                 timeout=effective_timeout,
             )
+            async with self._reconnect_lock:
+                old_channel = self._async_channel
+                self._address = target_address
+                self._async_channel = new_channel
+                self._final_channel = new_final_channel
+                self._async_stub = new_stub
+                self._async_identifier_interceptor = new_identifier_interceptor
+                self._is_channel_ready = True
         except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
             await new_channel.close()
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {target_address}, illegal connection params or server unavailable",
             ) from e
-        except Exception:
+        except (Exception, asyncio.CancelledError):
             await new_channel.close()
             raise
-
-        async with self._reconnect_lock:
-            old_channel = self._async_channel
-            self._address = target_address
-            self._async_channel = new_channel
-            self._final_channel = new_final_channel
-            self._async_stub = new_stub
-            self._async_identifier_interceptor = new_identifier_interceptor
-            self._is_channel_ready = True
 
         if old_channel:
             retire_task = asyncio.create_task(
@@ -240,7 +255,7 @@ class AsyncGrpcHandler:
             self._async_authorization_interceptor = authorization_interceptor
             self._final_channel._unary_unary_interceptors.append(authorization_interceptor)
 
-    def _create_channel(self, address: str):
+    def _create_channel(self, address: str, *, retry: bool = True):
         default_opts = {
             cygrpc.ChannelArgKey.max_send_message_length: -1,
             cygrpc.ChannelArgKey.max_receive_message_length: -1,
@@ -250,6 +265,8 @@ class AsyncGrpcHandler:
             "grpc.keepalive_permit_without_calls": True,
         }
         default_opts.update(self._grpc_options)
+        if not retry:
+            default_opts["grpc.enable_retries"] = 0
         opts = list(default_opts.items())
         if not self._secure:
             return grpc.aio.insecure_channel(
@@ -2900,6 +2917,97 @@ class AsyncGrpcHandler:
             response.flush_all_ts, timeout=timeout, context=context, **kwargs
         ):
             await asyncio.sleep(5)
+
+    @error_handler(func_name="create_compaction_target")
+    async def create_compaction_target(
+        self,
+        request: milvus_types.CreateCompactionTargetRequest,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> CreateCompactionTargetResult:
+        require_retry_configurable_channel(self._uses_caller_channel)
+        async with self._create_channel(self._address, retry=False) as channel:
+            for header_interceptor in (
+                self._async_authorization_interceptor,
+                self._async_identifier_interceptor,
+            ):
+                if header_interceptor is not None:
+                    channel._unary_unary_interceptors.append(header_interceptor)
+            stub = milvus_pb2_grpc.MilvusServiceStub(channel)
+            try:
+                response = await stub.CreateCompactionTarget(
+                    request, timeout=timeout, metadata=_api_level_md(context)
+                )
+            except asyncio.CancelledError as error:
+                raise create_outcome_unknown(details="cancelled after dispatch") from error
+            except grpc.RpcError as error:
+                if create_transport_outcome_unknown(error):
+                    raise create_outcome_unknown(details=error.details()) from error
+                raise
+        return parse_create_target_result(request, response)
+
+    @error_handler(func_name="describe_compaction_target")
+    async def describe_compaction_target(
+        self,
+        target_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> CompactionTargetInfo:
+        request = milvus_types.DescribeCompactionTargetRequest(target_id=target_id)
+        retries = TargetReadRetry(timeout)
+        remaining = retries.remaining()
+        while True:
+            try:
+                response = await self._async_stub.DescribeCompactionTarget(
+                    request, timeout=remaining, metadata=_api_level_md(context)
+                )
+                return parse_describe_target_result(target_id, response)
+            except (grpc.RpcError, MilvusException) as error:
+                if not retries.can_retry():
+                    raise
+                recovered = False
+                if requires_connection_recovery(error) and hasattr(self, "_on_rpc_error"):
+                    try:
+                        remaining = retries.remaining()
+                        if remaining is None:
+                            recovered = await self._on_rpc_error(error)
+                        else:
+                            recovered = await self._on_rpc_error(error, timeout=remaining)
+                    except asyncio.TimeoutError:
+                        raise error from None
+                delay = retries.delay_after(error, recovered=recovered)
+                if delay is None:
+                    raise
+                await asyncio.sleep(delay)
+                remaining = retries.remaining()
+                if remaining == 0:
+                    raise
+
+    @retry_on_rpc_failure()
+    async def list_compaction_targets(
+        self,
+        request: milvus_types.ListCompactionTargetsRequest,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> List[CompactionTargetInfo]:
+        response = await self._async_stub.ListCompactionTargets(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_target_response(response)
+        return [parse_target_info(target) for target in response.targets]
+
+    @retry_on_rpc_failure()
+    async def drop_compaction_target(
+        self,
+        target_id: int,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+    ) -> None:
+        request = milvus_types.DropCompactionTargetRequest(target_id=target_id)
+        response = await self._async_stub.DropCompactionTarget(
+            request, timeout=timeout, metadata=_api_level_md(context)
+        )
+        check_target_response(response)
 
     @retry_on_rpc_failure()
     async def compact(
