@@ -322,26 +322,42 @@ class AsyncGrpcHandler:
         return get_server_type(self.server_address.split(":")[0])
 
     async def ensure_channel_ready(self, timeout: Optional[float] = None):
-        try:
-            if not self._is_channel_ready:
-                wait_timeout = timeout if timeout is not None else 10
-                (
-                    self._async_identifier_interceptor,
-                    self._final_channel,
-                    self._async_stub,
-                ) = await self._setup_identifier_interceptor_for_channel(
-                    self._final_channel,
-                    self._async_stub,
-                    self._user,
-                    timeout=wait_timeout,
-                )
+        # Fast path: avoid the lock once a real request has already set this,
+        # which is the common case for every call after the first.
+        if self._is_channel_ready:
+            return
 
-                self._is_channel_ready = True
+        # Concurrent callers can all get here while _is_channel_ready is
+        # still False. Each one appending its own identifier interceptor to
+        # the shared channel stacks the interceptor chain until a later RPC
+        # hits Python's recursion limit, so the commit below is serialized
+        # with _reconnect_lock (the lock close() and reconnect() use).
+        # The Connect() call happens before taking the lock so the lock never
+        # spans network I/O.
+        stub = self._async_stub
+        final_channel = self._final_channel
+        wait_timeout = timeout if timeout is not None else 10
+        try:
+            identifier = await self._register_identifier(stub, self._user, timeout=wait_timeout)
         except (grpc.FutureTimeoutError, asyncio.TimeoutError, grpc.RpcError) as e:
             raise MilvusException(
                 code=Status.CONNECT_FAILED,
                 message=f"Fail connecting to server on {self._address}, illegal connection params or server unavailable",
             ) from e
+
+        async with self._reconnect_lock:
+            if self._is_channel_ready:
+                return
+            # close() or reconnect() swapped the channel while Connect() was
+            # in flight; don't attach to a channel this handler no longer uses.
+            if self._async_stub is not stub or self._final_channel is not final_channel:
+                return
+            (
+                self._async_identifier_interceptor,
+                self._final_channel,
+                self._async_stub,
+            ) = self._apply_identifier_interceptor(final_channel, identifier)
+            self._is_channel_ready = True
 
     async def _register_identifier(self, stub: Any, user: str, timeout: float = 10) -> int:
         host = socket.gethostname()
@@ -357,6 +373,11 @@ class AsyncGrpcHandler:
         self, final_channel: Any, stub: Any, user: str, timeout: float = 10
     ) -> Tuple[Any, Any, Any]:
         identifier = await self._register_identifier(stub, user, timeout=timeout)
+        return self._apply_identifier_interceptor(final_channel, identifier)
+
+    def _apply_identifier_interceptor(
+        self, final_channel: Any, identifier: int
+    ) -> Tuple[Any, Any, Any]:
         async_identifier_interceptor = async_header_adder_interceptor(
             ["identifier"], [str(identifier)]
         )
