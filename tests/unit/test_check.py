@@ -106,6 +106,8 @@ class TestIsLegalIds:
         [
             ["abc", "def"],
             ["-123", "456"],
+            [str(2**63), str(-(2**63) - 1)],
+            ["0009223372036854775808", "9" * 100],
         ],
     )
     def test_valid_str_ids(self, ids):
@@ -119,6 +121,9 @@ class TestIsLegalIds:
             [True, False],
             [2**63],  # exceeds int64 max
             [-(2**63) - 1],  # exceeds int64 min
+            [""],
+            ["9" * 65536],
+            ["123", 456],
         ],
     )
     def test_invalid_ids(self, ids):
