@@ -3765,14 +3765,17 @@ class GrpcHandler:
         **kwargs,
     ):
         """
-        Get the replication checkpoint that this (typically secondary) cluster
-        has recorded for a given source cluster and source pchannel.
+        Get the replication checkpoint that this (typically receiving) cluster
+        has recorded for a given source cluster on a target PChannel.
 
         Args:
             source_cluster_id: ID of the source cluster.
-            target_pchannel: NOTE this is the SOURCE cluster's pchannel name.
-                The proto field naming is historical and misleading; the value
-                expected here is the pchannel belonging to source_cluster_id.
+            target_pchannel: The receiving cluster's local PChannel whose
+                replication checkpoint is queried. Match it to the source PChannel
+                by position in the replication topology
+                (source.pchannels[i] -> target.pchannels[i]).
+                The proto field naming is historical; this is not the source
+                PChannel name.
             timeout: Optional RPC timeout in seconds.
 
         Returns:
