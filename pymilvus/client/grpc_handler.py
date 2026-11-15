@@ -1386,7 +1386,7 @@ class GrpcHandler:
                     metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
-                return SearchFuture(future, func)
+                return SearchFuture(future, func, round_decimal=kwargs.get("round_decimal", -1))
 
             response = self._stub.Search(request, timeout=timeout, metadata=_api_level_md(context))
             if response is None:
@@ -1419,7 +1419,7 @@ class GrpcHandler:
                     metadata=_api_level_md(context),
                 )
                 func = kwargs.get("_callback")
-                return SearchFuture(future, func)
+                return SearchFuture(future, func, round_decimal=kwargs.get("round_decimal", -1))
 
             response = self._stub.HybridSearch(
                 request, timeout=timeout, metadata=_api_level_md(context)
