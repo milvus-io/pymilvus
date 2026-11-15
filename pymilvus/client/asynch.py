@@ -123,7 +123,9 @@ class Future(AbstractFuture):
         self._callback_called = True
 
     def result(self, **kwargs):
-        self.exception()
+        # exception() also waits for the RPC, but does not apply the result timeout.
+        if self._exception:
+            raise self._exception
         with self._condition:
             # future not finished. wait callback being called.
             to = kwargs.get("timeout")
@@ -133,6 +135,8 @@ class Future(AbstractFuture):
             if self._future and self._results is None:
                 try:
                     self._response = self._future.result(timeout=to)
+                except grpc.FutureCancelledError:
+                    raise
                 except Exception as e:
                     raise MilvusException(message=str(e)) from e
                 if self._response is None:

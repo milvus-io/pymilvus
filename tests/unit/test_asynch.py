@@ -1,3 +1,5 @@
+import threading
+from concurrent.futures import Future as ConcurrentFuture
 from unittest.mock import MagicMock, patch
 
 import grpc
@@ -144,6 +146,13 @@ class TestFutureResult:
         with pytest.raises(MilvusException):
             f.result()
 
+    def test_result_preserves_grpc_cancellation(self, mock_future):
+        mock_future.exception.side_effect = grpc.FutureCancelledError()
+        mock_future.result.side_effect = grpc.FutureCancelledError()
+        f = SimpleFuture(mock_future)
+        with pytest.raises(grpc.FutureCancelledError):
+            f.result()
+
     def test_result_returns_cached_results(self, mock_future):
         f = SimpleFuture(mock_future)
         f._results = "cached"
@@ -155,6 +164,48 @@ class TestFutureResult:
         f = SimpleFuture(mock_future, timeout=5.0)
         result = f.result(timeout=5.0)
         assert result == "mock_response"
+
+    @pytest.mark.parametrize(
+        "init_kwargs, result_kwargs",
+        [
+            ({}, {"timeout": 0}),
+            ({}, {"timeout": 0.01}),
+            ({"timeout": 0}, {}),
+            ({"timeout": 60}, {"timeout": 0}),
+        ],
+    )
+    def test_pending_result_respects_timeout(self, init_kwargs, result_kwargs):
+        pending = ConcurrentFuture()
+        callback = MagicMock()
+        f = SimpleFuture(pending, callback, **init_kwargs)
+        returned = threading.Event()
+        errors = []
+
+        def wait_for_result():
+            try:
+                f.result(**result_kwargs)
+            except Exception as exc:
+                errors.append(exc)
+            finally:
+                returned.set()
+
+        waiter = threading.Thread(target=wait_for_result)
+        waiter.start()
+        try:
+            assert returned.wait(1), "result() blocked beyond its timeout"
+            assert len(errors) == 1
+            assert isinstance(errors[0], MilvusException)
+            assert isinstance(errors[0].__cause__, TimeoutError)
+            assert not pending.done()
+            assert not f.is_done()
+            callback.assert_not_called()
+        finally:
+            pending.set_result("response")
+            waiter.join(timeout=1)
+
+        assert f.result() == "response"
+        assert f.result() == "response"
+        callback.assert_called_once_with("response")
 
     def test_result_returns_raw_response(self, mock_future):
         mock_future.result.return_value = "raw_response"
