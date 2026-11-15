@@ -2495,13 +2495,15 @@ class AsyncMilvusClient(BaseMilvusClient):
         **kwargs,
     ):
         """
-        Get replication checkpoint state for a source cluster + source pchannel.
+        Get the replication checkpoint of a source cluster from the receiving cluster.
 
         Args:
             source_cluster_id (str): ID of the source cluster.
-            target_pchannel (str): The SOURCE cluster's pchannel name. The proto
-                field naming is historical and misleading; the value expected here
-                is the pchannel belonging to source_cluster_id.
+            target_pchannel (str): The receiving cluster's local PChannel whose
+                replication checkpoint is queried. Match it to the source PChannel
+                by position in the replication topology (source.pchannels[i] ->
+                target.pchannels[i]). The proto field name is historical: this is
+                not the source PChannel name.
             timeout (float, optional): RPC timeout in seconds.
 
         Returns:
@@ -2512,16 +2514,22 @@ class AsyncMilvusClient(BaseMilvusClient):
             }
             Each non-None checkpoint dict has keys: cluster_id (str), pchannel (str),
             message_id ({"id": str, "wal_name": str} or None), time_tick (int).
+            The checkpoint identifies the source cluster and PChannel; it does not
+            echo the target PChannel passed in the request. The salvage checkpoint
+            is matched by source_cluster_id.
 
         Raises:
             ParamError: If source_cluster_id or target_pchannel is empty.
             MilvusException: If the RPC fails.
 
         Note:
-            This is the async coroutine version; callers must `await` it.
+            This is the async coroutine version; callers must `await` it. Connect to
+            the receiving cluster before calling this method. A zero or null position
+            on an idle channel is valid and does not indicate a routing failure.
 
         Examples:
-            await client.get_replicate_info(
+            receiver = AsyncMilvusClient(uri="http://receiver:19530")
+            await receiver.get_replicate_info(
                 source_cluster_id="primary",
                 target_pchannel="by-dev-rootcoord-dml_0",
             )
