@@ -81,6 +81,19 @@ class TestGrpcHandlerDataOps:
 class TestGrpcHandlerSearchOps:
     """Tests for search operations."""
 
+    @pytest.mark.parametrize("as_list", [False, True])
+    def test_search_with_numeric_varchar_ids(self, mock_grpc_handler, as_list):
+        pk = "0009223372036854775808"
+        ids = [pk, "-9223372036854775809"] if as_list else pk
+
+        mock_grpc_handler.search("coll", "vec", {"metric_type": "L2"}, 10, ids=ids)
+
+        mock_grpc_handler._stub.Search.assert_called_once()
+        request = mock_grpc_handler._stub.Search.call_args.args[0]
+        assert request.ids.WhichOneof("id_field") == "str_id"
+        assert list(request.ids.str_id.data) == (ids if as_list else [pk])
+        assert request.nq == (len(ids) if as_list else 1)
+
     def test_search_sync(self, handler):
         mock_resp = MagicMock()
         mock_resp.status.code = 0

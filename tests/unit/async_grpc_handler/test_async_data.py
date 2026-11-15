@@ -12,7 +12,7 @@ from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import MilvusException
-from pymilvus.grpc_gen import schema_pb2
+from pymilvus.grpc_gen import milvus_pb2, schema_pb2
 
 
 class TestAsyncGrpcHandlerDataOps:
@@ -319,6 +319,25 @@ class TestAsyncGrpcHandlerQuery:
 
 class TestAsyncGrpcHandlerSearch:
     """Tests for search operations."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("as_list", [False, True])
+    async def test_search_with_numeric_varchar_ids(self, as_list):
+        channel = MagicMock()
+        channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=channel)
+        handler._is_channel_ready = True
+        handler._async_stub.Search = AsyncMock(return_value=milvus_pb2.SearchResults())
+        pk = "0009223372036854775808"
+        ids = [pk, "-9223372036854775809"] if as_list else pk
+
+        await handler.search("coll", "vec", {"metric_type": "L2"}, 10, ids=ids)
+
+        handler._async_stub.Search.assert_awaited_once()
+        request = handler._async_stub.Search.call_args.args[0]
+        assert request.ids.WhichOneof("id_field") == "str_id"
+        assert list(request.ids.str_id.data) == (ids if as_list else [pk])
+        assert request.nq == (len(ids) if as_list else 1)
 
     @pytest.mark.asyncio
     async def test_search_with_embedding_list(self) -> None:
