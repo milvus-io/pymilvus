@@ -192,7 +192,9 @@ class SearchFuture(Future):
         if response is None:
             raise MilvusException(message="Received None response from server during search")
         check_status(response.status)
-        return SearchResult(response.results, status=response.status)
+        return SearchResult(
+            response.results, self._kwargs.get("round_decimal", -1), status=response.status
+        )
 
 
 class MutationFuture(Future):

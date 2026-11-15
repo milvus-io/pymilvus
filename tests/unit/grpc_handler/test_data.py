@@ -12,7 +12,7 @@ from pymilvus.exceptions import (
     ParamError,
     SchemaMismatchRetryableException,
 )
-from pymilvus.grpc_gen import common_pb2
+from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 
 from .conftest import make_mutation_response
 
@@ -149,6 +149,51 @@ class TestGrpcHandlerSearchOps:
         ):
             result = handler.hybrid_search("coll", [req], RRFRanker(), 10, _async=True)
             assert result is not None
+
+    @pytest.mark.parametrize("hybrid", [False, True])
+    @pytest.mark.parametrize("round_decimal", [None, -1, 2, 6])
+    def test_async_search_distance_precision(self, handler, hybrid, round_decimal):
+        response = milvus_pb2.SearchResults(
+            results=schema_pb2.SearchResultData(
+                num_queries=1,
+                top_k=2,
+                topks=[2],
+                ids=schema_pb2.IDs(int_id=schema_pb2.LongArray(data=[1, 2])),
+                scores=[1.23, 0.456789],
+            )
+        )
+        rpc = handler._stub.HybridSearch if hybrid else handler._stub.Search
+        rpc.return_value = response
+        rpc.future.return_value.result.return_value = response
+        callback = MagicMock()
+        kwargs = {} if round_decimal is None else {"round_decimal": round_decimal}
+
+        def search(**options):
+            if hybrid:
+                req = AnnSearchRequest(
+                    data=[[0.1, 0.2]], anns_field="vec", param={"metric_type": "L2"}, limit=2
+                )
+                return handler.hybrid_search("coll", [req], RRFRanker(), 2, **options)
+            return handler.search(
+                "coll", "vec", {"metric_type": "L2"}, 2, data=[[0.1, 0.2]], **options
+            )
+
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            sync_result = search(**kwargs)
+            future = search(_async=True, _callback=callback, **kwargs)
+
+        result = future.result()
+        expected = (
+            [round(score, round_decimal) for score in response.results.scores]
+            if round_decimal is not None and round_decimal > 0
+            else list(response.results.scores)
+        )
+        assert sync_result[0].distances == expected
+        assert result[0].distances == expected
+        assert [hit.distance for hit in result[0]] == expected
+        callback.assert_called_once_with(result)
 
     def test_search_stub_returns_none_raises_milvus_exception(self, handler):
         handler._stub.Search.return_value = None
