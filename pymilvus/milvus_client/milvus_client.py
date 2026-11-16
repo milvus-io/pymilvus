@@ -56,6 +56,18 @@ from .optimize_task import OptimizeResult, OptimizeTask, ProgressStage, parse_ta
 logger = logging.getLogger(__name__)
 
 
+def _filter_params_to_expr_params(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Map the public ``filter_params`` kwarg to the ``expr_params`` name the handler expects.
+
+    ``search``, ``query`` and ``delete`` do this inline; the iterators pass ``kwargs`` on as
+    RPC options, so without it the template values never reach the server.
+    """
+    if "filter_params" in kwargs:
+        kwargs = dict(kwargs)
+        kwargs["expr_params"] = kwargs.pop("filter_params")
+    return kwargs
+
+
 class MilvusClient(BaseMilvusClient):
     """The Milvus Client"""
 
@@ -661,7 +673,7 @@ class MilvusClient(BaseMilvusClient):
             **kwargs,
         )
 
-        kwargs = self._with_cluster_id(kwargs)
+        kwargs = self._with_cluster_id(_filter_params_to_expr_params(kwargs))
         return QueryIterator(
             handler=conn,
             context=context,
@@ -739,7 +751,7 @@ class MilvusClient(BaseMilvusClient):
         """
 
         conn = self._get_connection()
-        kwargs = self._with_cluster_id(kwargs)
+        kwargs = self._with_cluster_id(_filter_params_to_expr_params(kwargs))
         context = self._generate_call_context(**kwargs)
 
         # compatibility logic, change this when support get version from server
