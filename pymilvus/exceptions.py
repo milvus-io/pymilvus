@@ -18,10 +18,23 @@ from .grpc_gen import common_pb2
 class ErrorCode(IntEnum):
     SUCCESS = 0
     UNEXPECTED_ERROR = 1
+    SERVICE_INTERNAL = 5
     RATE_LIMIT = 8
     FORCE_DENY = 9
     COLLECTION_NOT_FOUND = 100
+    PARTIAL_UPDATE_CONFLICT = 111
+    CONDITIONAL_UPSERT_EXECUTION = 112
     INDEX_NOT_FOUND = 700
+
+
+# Diagnostic causes must not override these public terminal classifications.
+_NON_REPLAYABLE_ERROR_CODES = frozenset(
+    {
+        ErrorCode.SERVICE_INTERNAL,
+        ErrorCode.PARTIAL_UPDATE_CONFLICT,
+        ErrorCode.CONDITIONAL_UPSERT_EXECUTION,
+    }
+)
 
 
 class MilvusException(Exception):
@@ -193,8 +206,7 @@ class ExceptionsMessage:
     HostType = "Type of 'host' must be str."
     PortType = "Type of 'port' must be str or int."
     ConnDiffConf = (
-        "Alias of %r already creating connections, "
-        "but the configure is not the same as passed in."
+        "Alias of %r already creating connections, but the configure is not the same as passed in."
     )
     AliasType = "Alias should be string, but %r is given."
     ConnLackConf = "You need to pass in the configuration of the connection named %r ."
@@ -210,8 +222,7 @@ class ExceptionsMessage:
     AutoIDType = "Param auto_id must be bool type."
     NumPartitionsType = "Param num_partitions must be int type."
     AutoIDInconsistent = (
-        "The auto_id of the collection is inconsistent "
-        "with the auto_id of the primary key field."
+        "The auto_id of the collection is inconsistent with the auto_id of the primary key field."
     )
     AutoIDIllegalRanges = "The auto-generated id ranges should be pairs."
     ConsistencyLevelInconsistent = (
