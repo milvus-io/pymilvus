@@ -1327,54 +1327,62 @@ class TestMilvusClientSearchOps:
         mock_v1.assert_called_once()
         assert mock_v1.call_args.kwargs["ann_field"] == "vector"
 
-    def test_query_iterator_maps_filter_params_to_expr_params(self):
-        schema = {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]}
-        handler = _make_handler()
-        handler._get_schema.return_value = (schema, 100)
-        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
-            client = MilvusClient()
-            with patch("pymilvus.milvus_client.milvus_client.QueryIterator") as mock_qi:
-                client.query_iterator("col", filter="id < {n}", filter_params={"n": 10})
+    @pytest.mark.parametrize(
+        "method,iterator,schema,call_kwargs",
+        [
+            pytest.param(
+                "query_iterator",
+                "QueryIterator",
+                {"fields": [{"name": "id", "is_primary": True, "type": DataType.INT64}]},
+                {},
+                id="query_iterator",
+            ),
+            pytest.param(
+                "search_iterator",
+                "SearchIteratorV2",
+                None,
+                {"data": [[0.1, 0.2]]},
+                id="search_iterator_v2",
+            ),
+        ],
+    )
+    def test_iterator_maps_filter_params_to_expr_params(
+        self, mc, method, iterator, schema, call_kwargs
+    ):
+        client, handler = mc
+        if schema is not None:
+            handler._get_schema.return_value = (schema, 100)
+        with patch(f"pymilvus.milvus_client.milvus_client.{iterator}") as mock_iter:
+            getattr(client, method)(
+                "col", filter="id < {n}", filter_params={"n": 10}, **call_kwargs
+            )
 
-        rpc_options = mock_qi.call_args.kwargs["rpc_options"]
+        rpc_options = mock_iter.call_args.kwargs["rpc_options"]
         assert rpc_options["expr_params"] == {"n": 10}
         assert "filter_params" not in rpc_options
 
-    def test_search_iterator_v2_maps_filter_params_to_expr_params(self):
-        handler = _make_handler()
-        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
-            client = MilvusClient()
-            with patch("pymilvus.milvus_client.milvus_client.SearchIteratorV2") as mock_v2:
-                client.search_iterator(
-                    "col", data=[[0.1, 0.2]], filter="id < {n}", filter_params={"n": 10}
-                )
-
-        rpc_options = mock_v2.call_args.kwargs["rpc_options"]
-        assert rpc_options["expr_params"] == {"n": 10}
-        assert "filter_params" not in rpc_options
-
-    def test_search_iterator_v1_maps_filter_params_to_expr_params(self):
-        schema = {
-            "fields": [
-                {"name": "id", "type": DataType.INT64},
-                {"name": "vector", "type": DataType.FLOAT_VECTOR},
-            ]
-        }
-        handler = _make_handler()
-        handler._get_schema.return_value = (schema, 100)
-        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
-            client = MilvusClient()
-            with patch(
-                "pymilvus.milvus_client.milvus_client.SearchIteratorV2",
-                side_effect=ServerVersionIncompatibleException(message="fallback"),
-            ), patch("pymilvus.milvus_client.milvus_client.SearchIterator") as mock_v1:
-                client.search_iterator(
-                    "col",
-                    data=[[0.1, 0.2]],
-                    filter="id < {n}",
-                    filter_params={"n": 10},
-                    search_params={"metric_type": "L2"},
-                )
+    def test_search_iterator_v1_maps_filter_params_to_expr_params(self, mc):
+        client, handler = mc
+        handler._get_schema.return_value = (
+            {
+                "fields": [
+                    {"name": "id", "type": DataType.INT64},
+                    {"name": "vector", "type": DataType.FLOAT_VECTOR},
+                ]
+            },
+            100,
+        )
+        with patch(
+            "pymilvus.milvus_client.milvus_client.SearchIteratorV2",
+            side_effect=ServerVersionIncompatibleException(message="fallback"),
+        ), patch("pymilvus.milvus_client.milvus_client.SearchIterator") as mock_v1:
+            client.search_iterator(
+                "col",
+                data=[[0.1, 0.2]],
+                filter="id < {n}",
+                filter_params={"n": 10},
+                search_params={"metric_type": "L2"},
+            )
 
         rpc_options = mock_v1.call_args.kwargs["rpc_options"]
         assert rpc_options["expr_params"] == {"n": 10}
