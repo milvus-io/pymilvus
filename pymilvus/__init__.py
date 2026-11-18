@@ -55,7 +55,7 @@ from .exceptions import (
     MilvusUnavailableException,
 )
 from .function_chain import FunctionChain, FunctionChainStage
-from .milvus_client import AsyncMilvusClient, MilvusClient
+from .milvus_client import AsyncMilvusClient, IndexParams, MilvusClient
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
@@ -131,6 +131,7 @@ __all__ = [
     "Hit",
     "Hits",
     "Index",
+    "IndexParams",
     "IndexType",
     "LexicalHighlighter",
     "ListRunningRequestsResult",
