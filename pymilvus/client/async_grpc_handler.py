@@ -1068,7 +1068,7 @@ class AsyncGrpcHandler:
             limit=limit,
             round_decimal=round_decimal,
             anns_field=anns_field,
-            partition_name_array=partition_names,
+            partition_names=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp"),
             timeout=timeout,
@@ -1134,7 +1134,7 @@ class AsyncGrpcHandler:
         check_pass_param(
             limit=limit,
             round_decimal=round_decimal,
-            partition_name_array=partition_names,
+            partition_names=partition_names,
             output_fields=output_fields,
             guarantee_timestamp=kwargs.get("guarantee_timestamp"),
             timeout=timeout,
@@ -1424,7 +1424,7 @@ class AsyncGrpcHandler:
         **kwargs,
     ):
         check_pass_param(
-            collection_name=collection_name, partition_name_array=partition_names, timeout=timeout
+            collection_name=collection_name, partition_names=partition_names, timeout=timeout
         )
         request = Prepare.release_partitions("", collection_name, partition_names)
         response = await self._async_stub.ReleasePartitions(

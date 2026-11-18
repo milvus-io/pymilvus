@@ -704,7 +704,7 @@ class Prepare:
         partition_names: Optional[List[str]] = None,
         type_in_memory: bool = False,
     ):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(collection_name=collection_name, partition_names=partition_names)
         req = milvus_types.ShowPartitionsRequest(collection_name=collection_name)
         if partition_names:
             if not isinstance(partition_names, (list,)):
@@ -723,7 +723,7 @@ class Prepare:
     def get_loading_progress(
         cls, collection_name: str, partition_names: Optional[List[str]] = None
     ):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(collection_name=collection_name, partition_names=partition_names)
         req = milvus_types.GetLoadingProgressRequest(collection_name=collection_name)
         if partition_names:
             req.partition_names.extend(partition_names)
@@ -731,7 +731,7 @@ class Prepare:
 
     @classmethod
     def get_load_state(cls, collection_name: str, partition_names: Optional[List[str]] = None):
-        check_pass_param(collection_name=collection_name, partition_name_array=partition_names)
+        check_pass_param(collection_name=collection_name, partition_names=partition_names)
         req = milvus_types.GetLoadStateRequest(collection_name=collection_name)
         if partition_names:
             req.partition_names.extend(partition_names)
@@ -2466,7 +2466,7 @@ class Prepare:
         )
 
         if partition_names:
-            check_pass_param(partition_name_array=partition_names)
+            check_pass_param(partition_names=partition_names)
             req.partition_names.extend(partition_names)
 
         if replica_number:
