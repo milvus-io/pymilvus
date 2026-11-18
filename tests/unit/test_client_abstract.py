@@ -1032,6 +1032,24 @@ class TestLoopBase:
         with pytest.raises(NotImplementedError):
             base.get__item(0)
 
+    def test_loop_base_getitem_slice_stop_zero(self):
+        """Regression test for issue #3543.
+
+        page[0:0] must return an empty list, not all elements.
+        Previously, `if item.stop` treated stop=0 as falsy and fell back to
+        the full length, returning all items instead of none.
+        The fix uses `if item.stop is not None` to correctly distinguish
+        a legitimate stop=0 from an absent stop (None).
+        """
+        loop = self.ConcreteLoop([1, 2, 3])
+
+        assert loop[0:0] == [], "page[0:0] should be empty"
+        assert loop[1:1] == [], "page[1:1] should be empty"
+        assert loop[2:0] == [], "page[2:0] (start > stop) should be empty"
+        # Normal slices must still work correctly after the fix
+        assert loop[0:2] == [1, 2]
+        assert loop[0:3] == [1, 2, 3]
+
 
 class TestExternalCollectionFields:
     """Tests for external collection field parsing in abstract.py."""
