@@ -524,12 +524,37 @@ class TestGlobalStrategy:
             ("http://[::1]:19530", "[::1]:19530"),
             ("https://host.example.com", "host.example.com:443"),
             ("https://host.example.com:19530", "host.example.com:19530"),
+            ("host.example.com:19530", "host.example.com:19530"),
+            ("[2001:db8::5]:19530", "[2001:db8::5]:19530"),
         ],
     )
     def test_primary_host_port_normalizes_ipv6(self, endpoint, expected):
         """parsed.hostname strips IPv6 brackets; the normalized form puts them back."""
         topology = _make_topology(1, "c1", endpoint, capability=0b11)
         assert GlobalStrategy._primary_host_port(topology) == expected
+
+    @pytest.mark.parametrize(
+        "strategy_cls,handler_path",
+        [
+            (GlobalStrategy, "pymilvus.client.grpc_handler.GrpcHandler"),
+            (AsyncGlobalStrategy, "pymilvus.client.async_grpc_handler.AsyncGrpcHandler"),
+        ],
+    )
+    def test_create_handler_stops_refresher_on_error(self, strategy_cls, handler_path):
+        """If primary selection or handler creation fails, stop the started refresher."""
+        config = ConnectionConfig.from_uri("https://global-cluster.example.com:19530", token="t")
+        no_primary = _make_topology(1, "c1", "https://replica:19530", capability=0b01)
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=no_primary
+        ), patch(handler_path), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            with pytest.raises(ValueError, match="No primary cluster"):
+                strategy_cls().create_handler(config)
+
+        mock_refresher.stop.assert_called_once()
 
     @patch("pymilvus.client.connection_manager.TopologyRefresher")
     @patch("pymilvus.client.grpc_handler.GrpcHandler")
@@ -897,6 +922,185 @@ class TestConnectionManager:
 
             mock_fetch.assert_called_once()
             assert mock_handler_cls.call_args.kwargs["uri"] == "https://primary:19530"
+
+    @pytest.mark.parametrize("dedicated", [False, True])
+    def test_global_initial_connect_retries_when_primary_changes_during_readiness(self, dedicated):
+        """If readiness on a stale first-answer primary fails after the watcher installs
+        a newer primary, initial connect makes one bounded reconnect attempt and succeeds."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.example.com", token="test"
+        )
+        stale_topology = _make_topology(8, "c1", "https://stale-primary.example.com:19530")
+        fresh_topology = _make_topology(9, "c2", "https://fresh-primary.example.com:19530")
+        captured_cb = {}
+
+        def fake_fetch(uri, token, on_topology_change=None, **kwargs):
+            captured_cb["fn"] = on_topology_change
+            return stale_topology
+
+        handler = _make_sync_handler(server_address="stale-primary.example.com:19530")
+
+        def fail_first_and_advance_topology(timeout=None):
+            captured_cb["fn"](fresh_topology)
+            raise MilvusException(code=2, message="Fail connecting to stale primary")
+
+        handler._wait_for_channel_ready.side_effect = fail_first_and_advance_topology
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", side_effect=fake_fetch
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            result = mgr.get_or_create(config, dedicated=dedicated, timeout=7.5)
+
+        assert result is handler
+        handler.reconnect.assert_called_once_with(
+            address="fresh-primary.example.com:19530", timeout=7.5
+        )
+        mock_refresher.stop.assert_not_called()
+
+    @pytest.mark.parametrize("dedicated", [False, True])
+    def test_global_initial_connect_stops_refresher_when_readiness_fails(self, dedicated):
+        """A failed initial connect stops the refresher and closes the handler."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.example.com", token="test"
+        )
+        topology = _make_topology(8, "c1", "https://primary.example.com:19530")
+        handler = _make_sync_handler(server_address="primary.example.com:19530")
+        handler._wait_for_channel_ready.side_effect = MilvusException(
+            code=2, message="Fail connecting"
+        )
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=topology
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            with pytest.raises(MilvusException, match="Fail connecting"):
+                mgr.get_or_create(config, dedicated=dedicated, timeout=5.0)
+
+        handler.reconnect.assert_not_called()
+        mock_refresher.stop.assert_called_once()
+        handler.close.assert_called_once()
+        assert mgr.get_stats()["total_connections"] == 0
+
+    def test_global_initial_connect_retry_is_bounded_and_cleans_up_on_second_failure(self):
+        """Only one reconnect attempt is made if the updated primary also fails."""
+        mgr = ConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.example.com", token="test"
+        )
+        stale_topology = _make_topology(8, "c1", "https://stale-primary.example.com:19530")
+        fresh_topology = _make_topology(9, "c2", "https://fresh-primary.example.com:19530")
+        captured_cb = {}
+
+        def fake_fetch(uri, token, on_topology_change=None, **kwargs):
+            captured_cb["fn"] = on_topology_change
+            return stale_topology
+
+        handler = _make_sync_handler(server_address="stale-primary.example.com:19530")
+
+        def fail_first_and_advance_topology(timeout=None):
+            captured_cb["fn"](fresh_topology)
+            raise MilvusException(code=2, message="stale unreachable")
+
+        handler._wait_for_channel_ready.side_effect = fail_first_and_advance_topology
+        handler.reconnect.side_effect = MilvusException(code=2, message="fresh unreachable")
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", side_effect=fake_fetch
+        ), patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            with pytest.raises(MilvusException, match="fresh unreachable"):
+                mgr.get_or_create(config, timeout=5.0)
+
+        handler.reconnect.assert_called_once_with(
+            address="fresh-primary.example.com:19530", timeout=5.0
+        )
+        mock_refresher.stop.assert_called_once()
+        handler.close.assert_called_once()
+        assert mgr.get_stats()["total_connections"] == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("dedicated", [False, True])
+    async def test_async_global_initial_connect_retries_when_primary_changes_during_readiness(
+        self, dedicated
+    ):
+        """Async initial connect retries once against a newer primary installed during readiness."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.example.com", token="test"
+        )
+        stale_topology = _make_topology(8, "c1", "https://stale-primary.example.com:19530")
+        fresh_topology = _make_topology(9, "c2", "https://fresh-primary.example.com:19530")
+        captured_cb = {}
+
+        def fake_fetch(uri, token, on_topology_change=None, **kwargs):
+            captured_cb["fn"] = on_topology_change
+            return stale_topology
+
+        handler = _make_async_handler(server_address="stale-primary.example.com:19530")
+
+        async def fail_first_and_advance_topology(timeout=None):
+            captured_cb["fn"](fresh_topology)
+            raise MilvusException(code=2, message="stale unreachable")
+
+        handler.ensure_channel_ready.side_effect = fail_first_and_advance_topology
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", side_effect=fake_fetch
+        ), patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=handler
+        ), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            result = await mgr.get_or_create(config, dedicated=dedicated, timeout=6.0)
+
+        assert result is handler
+        handler.reconnect.assert_awaited_once_with(
+            address="fresh-primary.example.com:19530", timeout=6.0
+        )
+        mock_refresher.stop.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("dedicated", [False, True])
+    async def test_async_global_initial_connect_stops_refresher_when_readiness_fails(
+        self, dedicated
+    ):
+        """Failed async initial connect stops the refresher and closes the handler."""
+        mgr = AsyncConnectionManager.get_instance()
+        config = ConnectionConfig.from_uri(
+            "https://glo-xxx.global-cluster.vectordb.example.com", token="test"
+        )
+        topology = _make_topology(8, "c1", "https://primary.example.com:19530")
+        handler = _make_async_handler(server_address="primary.example.com:19530")
+        handler.ensure_channel_ready.side_effect = MilvusException(
+            code=2, message="Fail connecting"
+        )
+        mock_refresher = Mock()
+
+        with patch(
+            "pymilvus.client.connection_manager.fetch_topology", return_value=topology
+        ), patch(
+            "pymilvus.client.async_grpc_handler.AsyncGrpcHandler", return_value=handler
+        ), patch(
+            "pymilvus.client.connection_manager.TopologyRefresher", return_value=mock_refresher
+        ):
+            with pytest.raises(MilvusException, match="Fail connecting"):
+                await mgr.get_or_create(config, dedicated=dedicated, timeout=5.0)
+
+        handler.reconnect.assert_not_awaited()
+        mock_refresher.stop.assert_called_once()
+        handler.close.assert_awaited_once()
+        assert len(mgr._registry) == 0
+        assert len(mgr._dedicated) == 0
 
     def test_stats_include_dedicated_connections(self):
         """Test that get_stats includes details for dedicated connections."""

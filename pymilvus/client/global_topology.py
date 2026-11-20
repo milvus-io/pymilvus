@@ -129,12 +129,54 @@ def _endpoint_hostname(global_endpoint: str) -> str:
     return hostname
 
 
+class SrvTargetValidationError(MilvusException):
+    """Resolved SRV target(s) fell outside the endpoint's authorized domain.
+
+    DNS SRV responses are unauthenticated, so the SDK verifies that every seed
+    hostname belongs to the same delegated domain as the configured global
+    endpoint before sending the bearer token over HTTPS.
+    """
+
+
+def _allowed_srv_domain(hostname: str) -> str:
+    """Return the authorized DNS suffix for SRV seed targets of ``hostname``.
+
+    Anchors at the ``global-cluster`` delegated subzone label when present
+    (with at least one parent label after it), so both SaaS
+    (``glo-x.global-cluster.<base>``) and BYOC
+    (``glo-x.byoc.global-cluster.<base>``) endpoints accept their shared
+    ``ha-mgr-<region>.global-cluster.<base>`` seeds while preserving the
+    non-public ``global-cluster`` prefix across multi-label public suffixes
+    such as ``.com.cn``. For hostnames without a standalone ``global-cluster``
+    label, falls back to dropping the first label when at least three labels
+    are present, or keeps the full hostname otherwise.
+    """
+    labels = hostname.rstrip(".").lower().split(".")
+    if GLOBAL_CLUSTER_IDENTIFIER in labels:
+        idx = labels.index(GLOBAL_CLUSTER_IDENTIFIER)
+        if idx < len(labels) - 1:
+            return ".".join(labels[idx:])
+    if len(labels) >= 3:
+        return ".".join(labels[1:])
+    return ".".join(labels)
+
+
+def _is_allowed_srv_target(target: str, allowed_domain: str) -> bool:
+    """Check whether an SRV target sits within ``allowed_domain`` on a label boundary."""
+    normalized = target.rstrip(".").lower()
+    if not normalized or "" in normalized.split("."):
+        return False
+    return normalized == allowed_domain or normalized.endswith(f".{allowed_domain}")
+
+
 def _resolve_srv(hostname: str) -> List[SrvTarget]:
     """Resolve the ``_grpc._tcp.<hostname>`` SRV record set.
 
     Returns an empty list when the name resolves but carries no SRV records
     (NXDOMAIN / empty answer) so the caller can raise a clear "not provisioned"
-    error. Transient DNS failures (timeout, no reachable nameserver) are raised.
+    error. Targets outside the endpoint's authorized domain are rejected before
+    any HTTP request carrying credentials is sent. Transient DNS failures
+    (timeout, no reachable nameserver) are raised as ``MilvusException``.
     """
     srv_name = f"{SRV_SERVICE_PREFIX}{hostname}"
     try:
@@ -144,7 +186,9 @@ def _resolve_srv(hostname: str) -> List[SrvTarget]:
     except dns.exception.DNSException as e:
         raise MilvusException(message=f"SRV resolution failed for {srv_name}: {e}") from e
 
+    allowed_domain = _allowed_srv_domain(hostname)
     targets = []
+    rejected = []
     for rr in answers:
         target = str(rr.target).rstrip(".")
         # RFC 2782: a target of "." means "service decidedly not available".
@@ -152,8 +196,22 @@ def _resolve_srv(hostname: str) -> List[SrvTarget]:
         # result take the "not provisioned" path like NXDOMAIN / NoAnswer.
         if not target:
             continue
+        if not _is_allowed_srv_target(target, allowed_domain):
+            logger.warning(
+                f"Rejected untrusted SRV target '{target}' for '{hostname}' "
+                f"(must be within '{allowed_domain}')"
+            )
+            rejected.append(target)
+            continue
         targets.append(
             SrvTarget(priority=rr.priority, weight=rr.weight, port=rr.port, target=target)
+        )
+    if not targets and rejected:
+        raise SrvTargetValidationError(
+            message=(
+                f"All SRV targets for '{hostname}' failed domain verification "
+                f"(allowed domain: '{allowed_domain}', rejected: {', '.join(rejected)})"
+            )
         )
     # Nearest first: lower priority wins; higher weight breaks ties.
     targets.sort(key=lambda t: (t.priority, -t.weight))
@@ -404,6 +462,9 @@ def fetch_topology(
         # state) fail fast below.
         try:
             targets = _resolve_srv(hostname)
+        except SrvTargetValidationError:
+            # Untrusted SRV targets are a deterministic security rejection: do not retry.
+            raise
         except MilvusException as e:
             if attempt == MAX_RETRIES - 1:
                 raise

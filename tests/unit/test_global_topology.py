@@ -12,8 +12,11 @@ from pymilvus.client.global_topology import (
     GlobalTopology,
     SeedAuthError,
     SrvTarget,
+    SrvTargetValidationError,
     TopologyRefresher,
+    _allowed_srv_domain,
     _endpoint_hostname,
+    _is_allowed_srv_target,
     _pick_candidates,
     _resolve_srv,
     _weighted_choice,
@@ -173,18 +176,121 @@ class TestEndpointHostname:
 class TestResolveSrv:
     def test_returns_targets_sorted_by_priority_then_weight(self):
         with _patch_srv(
-            _FakeSrvRecord("t-us.example.com", priority=20, weight=50),
-            _FakeSrvRecord("t-ap-low.example.com", priority=10, weight=10),
-            _FakeSrvRecord("t-ap-high.example.com", priority=10, weight=90),
+            _FakeSrvRecord("t-us.global-cluster.vectordb.example.com", priority=20, weight=50),
+            _FakeSrvRecord("t-ap-low.global-cluster.vectordb.example.com", priority=10, weight=10),
+            _FakeSrvRecord("t-ap-high.global-cluster.vectordb.example.com", priority=10, weight=90),
         ):
             targets = _resolve_srv(_GLOBAL_HOST)
         # priority ascending, then weight descending; trailing dot stripped
         assert [t.target for t in targets] == [
-            "t-ap-high.example.com",
-            "t-ap-low.example.com",
-            "t-us.example.com",
+            "t-ap-high.global-cluster.vectordb.example.com",
+            "t-ap-low.global-cluster.vectordb.example.com",
+            "t-us.global-cluster.vectordb.example.com",
         ]
         assert targets[0].port == 443
+
+    @pytest.mark.parametrize(
+        ("hostname", "expected_domain"),
+        [
+            (
+                "glo-xxx.global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+            ),
+            (
+                "glo-xxx.byoc.global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+            ),
+            (
+                "glo-xxx.global-cluster.vectordb.zilliz.com.cn",
+                "global-cluster.vectordb.zilliz.com.cn",
+            ),
+            (
+                "glo-xxx.byoc.global-cluster.vectordb.zilliz.com.cn",
+                "global-cluster.vectordb.zilliz.com.cn",
+            ),
+            (
+                "GLO-XXX.GLOBAL-CLUSTER.VECTORDB.EXAMPLE.COM.",
+                "global-cluster.vectordb.example.com",
+            ),
+            ("global-cluster.example.com", "global-cluster.example.com"),
+            ("cluster1.mycorp.example.com", "mycorp.example.com"),
+            ("glo-xxx.global-cluster", "glo-xxx.global-cluster"),
+            ("localhost", "localhost"),
+        ],
+    )
+    def test_allowed_srv_domain(self, hostname, expected_domain):
+        assert _allowed_srv_domain(hostname) == expected_domain
+
+    @pytest.mark.parametrize(
+        ("target", "allowed_domain", "expected"),
+        [
+            (
+                "ha-mgr-aws-us-west-2.global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+                True,
+            ),
+            (
+                "HA-MGR-AP1.GLOBAL-CLUSTER.VECTORDB.ZILLIZCLOUD.COM.",
+                "global-cluster.vectordb.zillizcloud.com",
+                True,
+            ),
+            (
+                "global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+                True,
+            ),
+            (
+                "evil.attacker.com",
+                "global-cluster.vectordb.zillizcloud.com",
+                False,
+            ),
+            (
+                "evil-global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+                False,
+            ),
+            (
+                "evil.com.cn",
+                "global-cluster.vectordb.zilliz.com.cn",
+                False,
+            ),
+            (
+                "..global-cluster.vectordb.zillizcloud.com",
+                "global-cluster.vectordb.zillizcloud.com",
+                False,
+            ),
+            (
+                "",
+                "global-cluster.vectordb.zillizcloud.com",
+                False,
+            ),
+        ],
+    )
+    def test_is_allowed_srv_target(self, target, allowed_domain, expected):
+        assert _is_allowed_srv_target(target, allowed_domain) is expected
+
+    def test_accepts_byoc_shared_srv_target(self):
+        byoc_host = "glo-xxx.byoc.global-cluster.vectordb.zillizcloud.com"
+        seed = "ha-mgr-aws-us-west-2.global-cluster.vectordb.zillizcloud.com"
+        with _patch_srv(_FakeSrvRecord(seed)):
+            targets = _resolve_srv(byoc_host)
+        assert [t.target for t in targets] == [seed]
+
+    def test_drops_untrusted_srv_target_when_trusted_seed_present(self):
+        trusted = "ha-mgr-ap1.global-cluster.vectordb.example.com"
+        with _patch_srv(
+            _FakeSrvRecord("evil.attacker.com", priority=1),
+            _FakeSrvRecord(trusted, priority=10),
+        ), patch("pymilvus.client.global_topology.logger.warning") as mock_warn:
+            targets = _resolve_srv(_GLOBAL_HOST)
+        assert [t.target for t in targets] == [trusted]
+        mock_warn.assert_called_once()
+        assert "evil.attacker.com" in mock_warn.call_args[0][0]
+
+    def test_raises_when_all_srv_targets_untrusted(self):
+        with _patch_srv(_FakeSrvRecord("evil.attacker.com")):
+            with pytest.raises(SrvTargetValidationError, match="failed domain verification"):
+                _resolve_srv(_GLOBAL_HOST)
 
     def test_nxdomain_returns_empty(self):
         with patch(
@@ -203,7 +309,7 @@ class TestResolveSrv:
     def test_dot_target_is_filtered(self):
         # RFC 2782: a target of "." means "service decidedly not available";
         # it strips to an empty hostname, so treat it as no record at all.
-        rec = _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")
+        rec = _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")
         rec.target = "."
         with _patch_srv(rec):
             assert _resolve_srv(_GLOBAL_HOST) == []
@@ -282,12 +388,39 @@ class TestFetchTopology:
     def test_dot_srv_target_takes_no_records_path(self):
         # The RFC 2782 "service decidedly not available" target fails fast
         # like NXDOMAIN instead of producing InvalidURL probes and retries.
-        rec = _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")
+        rec = _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")
         rec.target = "."
         with _patch_srv(rec), patch("pymilvus.client.global_topology.requests.get") as mock_get:
             with pytest.raises(MilvusException, match="No SRV records"):
                 fetch_topology(_GLOBAL_URL, _TOKEN)
             mock_get.assert_not_called()
+
+    def test_untrusted_srv_target_fails_fast_without_sending_token(self):
+        # A forged SRV target pointing outside the global endpoint's delegated
+        # domain must be rejected immediately without retrying or sending the
+        # bearer token over HTTPS.
+        with _patch_srv(_FakeSrvRecord("evil.attacker.com")) as mock_resolve, patch(
+            "pymilvus.client.global_topology.requests.get"
+        ) as mock_get, patch("pymilvus.client.global_topology.time.sleep") as mock_sleep:
+            with pytest.raises(SrvTargetValidationError, match=r"evil\.attacker\.com"):
+                fetch_topology(_GLOBAL_URL, _TOKEN)
+            assert mock_resolve.call_count == 1
+            mock_get.assert_not_called()
+            mock_sleep.assert_not_called()
+
+    def test_mixed_srv_targets_only_probes_authorized_seed(self):
+        trusted = "ha-mgr-ap1.global-cluster.vectordb.example.com"
+        with _patch_srv(
+            _FakeSrvRecord("evil.attacker.com", priority=1),
+            _FakeSrvRecord(trusted, priority=10),
+        ), patch(
+            "pymilvus.client.global_topology.requests.get",
+            return_value=_mock_response(version="7"),
+        ) as mock_get:
+            topology = fetch_topology(_GLOBAL_URL, _TOKEN)
+        assert topology.version == 7
+        mock_get.assert_called_once()
+        assert trusted in mock_get.call_args[0][0]
 
     @pytest.mark.parametrize(
         ("weights", "expected_names"),
@@ -298,7 +431,7 @@ class TestFetchTopology:
         ids=["zero_weights", "weighted"],
     )
     def test_first_fetch_selects_second_seed_randomly(self, weights, expected_names):
-        hosts = [f"ha-mgr-{name}.global-cluster.example.com" for name in "abc"]
+        hosts = [f"ha-mgr-{name}.global-cluster.vectordb.example.com" for name in "abc"]
         probed = set()
         probed_lock = threading.Lock()
         all_probed = threading.Event()
@@ -329,14 +462,16 @@ class TestFetchTopology:
             assert topology.version == 5
             assert all_probed.wait(timeout=2.0)
 
-        expected_hosts = {f"ha-mgr-{name}.global-cluster.example.com" for name in expected_names}
+        expected_hosts = {
+            f"ha-mgr-{name}.global-cluster.vectordb.example.com" for name in expected_names
+        }
         assert probed == expected_hosts
 
     def test_selects_highest_version_across_seeds(self):
         # A version is cached locally: every seed is polled, highest wins.
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=[_mock_response(version="5"), _mock_response(version="9")],
@@ -348,11 +483,11 @@ class TestFetchTopology:
         # Partial replication: only some seeds have the newest version, so
         # with a cached version every seed is polled and the highest wins.
         hosts = [
-            "ha-mgr-ap1.global-cluster.example.com",
-            "ha-mgr-ap2.global-cluster.example.com",
-            "ha-mgr-us1.global-cluster.example.com",
-            "ha-mgr-us2.global-cluster.example.com",
-            "ha-mgr-eu1.global-cluster.example.com",
+            "ha-mgr-ap1.global-cluster.vectordb.example.com",
+            "ha-mgr-ap2.global-cluster.vectordb.example.com",
+            "ha-mgr-us1.global-cluster.vectordb.example.com",
+            "ha-mgr-us2.global-cluster.vectordb.example.com",
+            "ha-mgr-eu1.global-cluster.vectordb.example.com",
         ]
         probed = []
         probed_lock = threading.Lock()
@@ -397,8 +532,8 @@ class TestFetchTopology:
                 fetch_finished.set()
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -438,8 +573,8 @@ class TestFetchTopology:
             return _mock_response(version="9")
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -501,9 +636,9 @@ class TestFetchTopology:
             return _mock_response(version="9")
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
-            _FakeSrvRecord("ha-mgr-eu1.global-cluster.example.com", priority=30),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-eu1.global-cluster.vectordb.example.com", priority=30),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -548,8 +683,8 @@ class TestFetchTopology:
             return _mock_response(version="5")
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -583,8 +718,8 @@ class TestFetchTopology:
             return _mock_response(version="5")
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -614,8 +749,8 @@ class TestFetchTopology:
             return _mock_response(version="5")
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=fake_get,
@@ -629,7 +764,7 @@ class TestFetchTopology:
             assert counting_warning.count == 1
 
     def test_retries_when_all_seeds_unreachable_then_succeeds(self):
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=[requests.exceptions.ConnectionError("boom"), _mock_response(version="7")],
         ), patch("pymilvus.client.global_topology.time.sleep"):
@@ -637,7 +772,7 @@ class TestFetchTopology:
             assert topology.version == 7
 
     def test_raises_after_all_retries_fail(self):
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=requests.exceptions.ConnectionError("down"),
         ), patch("pymilvus.client.global_topology.time.sleep"):
@@ -645,7 +780,7 @@ class TestFetchTopology:
                 fetch_topology(_GLOBAL_URL, _TOKEN)
 
     def test_final_error_keeps_last_seed_error(self):
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=requests.exceptions.ConnectionError("boom"),
         ), patch("pymilvus.client.global_topology.time.sleep"):
@@ -662,7 +797,7 @@ class TestFetchTopology:
             if "retrying" in str(msg):
                 events.append("log")
 
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=requests.exceptions.ConnectionError("down"),
         ), patch("pymilvus.client.global_topology.time.sleep", side_effect=fake_sleep), patch(
@@ -676,7 +811,7 @@ class TestFetchTopology:
 
     def test_raises_api_error_without_retry(self):
         mock_response = _mock_response(code=1, message="Invalid token")
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get, patch("pymilvus.client.global_topology.time.sleep") as mock_sleep:
             with pytest.raises(MilvusException, match="Invalid token"):
@@ -689,7 +824,7 @@ class TestFetchTopology:
         mock_response = _mock_response()
         mock_response.status_code = status
         mock_response.text = "Invalid token"
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get", return_value=mock_response
         ) as mock_get, patch("pymilvus.client.global_topology.time.sleep") as mock_sleep:
             with pytest.raises(MilvusException, match=f"status {status}"):
@@ -720,8 +855,8 @@ class TestFetchTopology:
 
         try:
             with _patch_srv(
-                _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-                _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+                _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+                _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
             ), patch("pymilvus.client.global_topology.requests.get", side_effect=fake_get):
                 with pytest.raises(SeedAuthError, match=f"status {status}"):
                     fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=8)
@@ -743,8 +878,8 @@ class TestFetchTopology:
             return resp
 
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch("pymilvus.client.global_topology.requests.get", side_effect=fake_get):
             topology = fetch_topology(_GLOBAL_URL, _TOKEN, cached_version=8)
             assert topology is not None and topology.version == 9
@@ -764,7 +899,7 @@ class TestFetchTopology:
             "pymilvus.client.global_topology.dns.resolver.resolve",
             side_effect=[
                 dns.exception.Timeout,
-                [_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")],
+                [_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")],
             ],
         ), patch(
             "pymilvus.client.global_topology.requests.get",
@@ -779,8 +914,8 @@ class TestFetchTopology:
         # Every seed is at or behind the cached version: no update available,
         # and an answered round is not retried.
         with _patch_srv(
-            _FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com", priority=10),
-            _FakeSrvRecord("ha-mgr-us1.global-cluster.example.com", priority=20),
+            _FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com", priority=10),
+            _FakeSrvRecord("ha-mgr-us1.global-cluster.vectordb.example.com", priority=20),
         ), patch(
             "pymilvus.client.global_topology.requests.get",
             side_effect=[_mock_response(version="5"), _mock_response(version="9")],
@@ -790,7 +925,7 @@ class TestFetchTopology:
 
     def test_returns_none_when_seed_matches_cached_version(self):
         # Strictly-higher semantics: an equal version is not an update.
-        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.example.com")), patch(
+        with _patch_srv(_FakeSrvRecord("ha-mgr-ap1.global-cluster.vectordb.example.com")), patch(
             "pymilvus.client.global_topology.requests.get",
             return_value=_mock_response(version="9"),
         ):
