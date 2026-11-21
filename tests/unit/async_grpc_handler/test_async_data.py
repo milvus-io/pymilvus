@@ -10,8 +10,9 @@ from pymilvus import FieldOp
 from pymilvus.client.abstract import AnnSearchRequest
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.grpc_handler import GrpcHandler
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import MilvusException
+from pymilvus.exceptions import ErrorCode, MilvusException
 from pymilvus.grpc_gen import schema_pb2
 
 
@@ -78,6 +79,46 @@ class TestAsyncGrpcHandlerDataOps:
             mock_prepare.delete_request.return_value = MagicMock()
             result = await handler.delete("test_coll", "id in [1]")
             assert result is not None
+
+    @pytest.mark.asyncio
+    async def test_delete_retries_on_rate_limit(self) -> None:
+        """delete retries rate-limited requests like the sync handler does"""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_response = MagicMock()
+        mock_response.timestamp = 123456
+        mock_response.delete_count = 1
+        mock_stub = AsyncMock()
+        mock_stub.Delete = AsyncMock(return_value=mock_response)
+        handler._async_stub = mock_stub
+
+        rate_limited = MilvusException(code=ErrorCode.RATE_LIMIT, message="rate limit")
+        with patch("pymilvus.client.async_grpc_handler.Prepare"), patch(
+            "pymilvus.client.async_grpc_handler.check_pass_param"
+        ), patch(
+            "pymilvus.client.async_grpc_handler.check_status", side_effect=[rate_limited, None]
+        ), patch("pymilvus.client.async_grpc_handler.ts_utils.update_collection_ts"):
+            result = await handler.delete("test_coll", "id in [1]")
+
+        assert result is not None
+        assert mock_stub.Delete.await_count == 2
+
+    def test_async_handler_retries_every_rpc_the_sync_handler_retries(self) -> None:
+        """Every method the sync handler wraps in retry_on_rpc_failure is wrapped here too"""
+
+        def retried(cls: type) -> set:
+            return {
+                name
+                for name, fn in vars(cls).items()
+                if callable(fn) and getattr(fn, "__wrapped__", None) is not None
+            }
+
+        shared = retried(GrpcHandler) & set(vars(AsyncGrpcHandler))
+        assert not shared - retried(AsyncGrpcHandler)
 
     @pytest.mark.asyncio
     async def test_upsert(self) -> None:
