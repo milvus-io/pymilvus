@@ -172,6 +172,23 @@ class TestEndpointHostname:
     def test_strips_credentials(self):
         assert _endpoint_hostname(f"https://user:pass@{_GLOBAL_HOST}") == _GLOBAL_HOST
 
+    @pytest.mark.parametrize(
+        "endpoint",
+        [
+            f"HTTPS://{_GLOBAL_HOST}",
+            f"HTTP://{_GLOBAL_HOST}:19530",
+            f"tcp://{_GLOBAL_HOST}:19530",
+            f"{_GLOBAL_HOST}:443",
+        ],
+    )
+    def test_handles_case_insensitive_and_non_http_schemes(self, endpoint):
+        assert _endpoint_hostname(endpoint) == _GLOBAL_HOST
+
+    @pytest.mark.parametrize("invalid", ["", "   ", "https://"])
+    def test_rejects_invalid_endpoint(self, invalid):
+        with pytest.raises(MilvusException, match="Invalid global cluster endpoint"):
+            _endpoint_hostname(invalid)
+
 
 class TestResolveSrv:
     def test_returns_targets_sorted_by_priority_then_weight(self):

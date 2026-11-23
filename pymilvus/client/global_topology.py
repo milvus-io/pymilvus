@@ -121,7 +121,7 @@ def _endpoint_hostname(global_endpoint: str) -> str:
     derive the SRV query name and as the verbatim ``?endpoint=`` value.
     """
     endpoint = global_endpoint.strip()
-    if not endpoint.startswith(("http://", "https://")):
+    if "://" not in endpoint:
         endpoint = f"https://{endpoint}"
     hostname = urlparse(endpoint).hostname
     if not hostname:
