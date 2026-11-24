@@ -1213,6 +1213,16 @@ class TestMilvusClientSearchOps:
             client.search("col", data=[[0.1, 0.2]])
             handler.search.assert_called_once()
 
+    def test_execute_dql_delegates(self):
+        handler = _make_handler()
+        handler.execute_dql.return_value = []
+        with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+            client = MilvusClient()
+            client.execute_dql([], max_concurrency=2, timeout=1.5)
+            handler.execute_dql.assert_called_once()
+            assert handler.execute_dql.call_args.kwargs["max_concurrency"] == 2
+            assert handler.execute_dql.call_args.kwargs["timeout"] == 1.5
+
     def test_cluster_id_not_forwarded_to_handler_on_create(self):
         handler = _make_handler()
         with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler) as mock_cls:
@@ -1333,6 +1343,7 @@ class TestMilvusClientSession:
         "method_name,args,kwargs",
         [
             ("search", ("col",), {"data": [[0.1, 0.2]]}),
+            ("execute_dql", ([],), {"max_concurrency": 2, "timeout": 1.5}),
             ("hybrid_search", ("col", [], MagicMock()), {"limit": 10}),
             ("query", ("col",), {"filter": "id > 0"}),
             ("query_iterator", ("col",), {"filter": "id > 0", "batch_size": 10}),

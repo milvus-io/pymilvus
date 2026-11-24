@@ -38,12 +38,21 @@ from .abstract import AnnSearchRequest, BaseRanker, CollectionSchema, FieldSchem
 from .async_interceptor import async_header_adder_interceptor
 from .cache import GlobalCache
 from .check import (
-    check_id_and_data,
     check_pass_param,
     is_legal_host,
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
+from .dql import (
+    DQLRequest,
+    DQLResult,
+    build_execute_dql_request,
+    build_search_request,
+    finalize_execute_dql_response,
+    prepare_execute_dql_batch,
+    prepare_search_input,
+    raise_execute_dql_rpc_error,
+)
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
 from .search_result import SearchResult
@@ -1036,6 +1045,69 @@ class AsyncGrpcHandler:
         return SearchResult(response.results, round_decimal, status=response.status)
 
     @retry_on_rpc_failure()
+    async def _execute_dql(
+        self,
+        request: milvus_types.ExecuteDQLRequest,
+        round_decimals: Sequence[int],
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        try:
+            response = await self._async_stub.ExecuteDQL(
+                request,
+                metadata=_api_level_md(context),
+            )
+        except grpc.RpcError as e:
+            raise_execute_dql_rpc_error(e)
+        return finalize_execute_dql_response(response, len(request.requests), round_decimals)
+
+    async def execute_dql(
+        self,
+        reqs: Sequence[DQLRequest],
+        *,
+        max_concurrency: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        normalized_max_concurrency, rpc_kwargs, prepared_items = prepare_execute_dql_batch(
+            reqs,
+            max_concurrency=max_concurrency,
+            timeout=timeout,
+            server_address=self.server_address,
+            context=context,
+            batch_kwargs=kwargs,
+            check_pass_param_fn=check_pass_param,
+            construct_guarantee_ts_fn=ts_utils.construct_guarantee_ts,
+        )
+
+        local_schemas: Dict[Tuple[str, str], dict] = {}
+        for item in prepared_items:
+            if item.needs_schema:
+                schema_key = (item.effective_db, item.collection_name)
+                if schema_key not in local_schemas:
+                    local_schemas[schema_key], _ = await self._get_schema(
+                        item.collection_name,
+                        timeout=None,
+                        context=item.context,
+                        **rpc_kwargs,
+                    )
+
+        execute_dql_request = build_execute_dql_request(
+            prepared_items,
+            local_schemas,
+            max_concurrency=normalized_max_concurrency,
+            timeout=timeout,
+            prepare_cls=Prepare,
+        )
+        return await self._execute_dql(
+            execute_dql_request,
+            round_decimals=[item.round_decimal for item in prepared_items],
+            context=context,
+            **rpc_kwargs,
+        )
+
+    @retry_on_rpc_failure()
     async def search(
         self,
         collection_name: str,
@@ -1055,64 +1127,35 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        if isinstance(ids, (int, str)):
-            ids = [ids]
-        check_id_and_data(ids, data)
-        if kwargs.get("search_aggregation") is not None:
-            logger.warning(
-                "search_aggregation is set; search limit=%s is ignored and bucket count comes from SearchAggregation.size",
-                limit,
-            )
-
-        check_pass_param(
-            limit=limit,
-            round_decimal=round_decimal,
-            anns_field=anns_field,
-            partition_name_array=partition_names,
-            output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp"),
-            timeout=timeout,
-        )
-
-        # Convert EmbeddingList to flat array if present
-        if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
-            data = [emb_list.to_flat_array() for emb_list in data]
-            kwargs["is_embedding_list"] = True
-
-        use_default_consistency = ts_utils.construct_guarantee_ts(
-            collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
-        )
-
-        if (
-            not kwargs.get("schema")
-            and data is not None
-            and len(data) > 0
-            and isinstance(data[0], bytes)
-        ):
-            schema_dict, _ = await self._get_schema(
-                collection_name, timeout=timeout, context=context, **kwargs
-            )
-            kwargs["schema"] = schema_dict
-
-        request = Prepare.search_requests_with_expr(
+        prepared = prepare_search_input(
             collection_name=collection_name,
-            data=data,
-            ids=ids,
             anns_field=anns_field,
             param=param,
             limit=limit,
-            expr=expression,
+            data=data,
+            ids=ids,
+            expression=expression,
             partition_names=partition_names,
             output_fields=output_fields,
             round_decimal=round_decimal,
+            timeout=timeout,
             ranker=ranker,
             function_chains=function_chains,
             highlighter=highlighter,
-            use_default_consistency=use_default_consistency,
-            **kwargs,
+            server_address=self.server_address,
+            context=context,
+            extra_kwargs=kwargs,
+            check_pass_param_fn=check_pass_param,
+            construct_guarantee_ts_fn=ts_utils.construct_guarantee_ts,
         )
+        schema_dict = None
+        if prepared.needs_schema:
+            schema_dict, _ = await self._get_schema(
+                collection_name, timeout=timeout, context=prepared.context, **kwargs
+            )
+        request = build_search_request(prepared, schema=schema_dict, prepare_cls=Prepare)
         return await self._execute_search(
-            request, timeout, context=context, round_decimal=round_decimal, **kwargs
+            request, timeout, context=context, round_decimal=prepared.round_decimal, **kwargs
         )
 
     @retry_on_rpc_failure()

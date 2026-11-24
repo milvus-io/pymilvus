@@ -56,6 +56,7 @@ from .exceptions import (
 )
 from .function_chain import FunctionChain, FunctionChainStage
 from .milvus_client import AsyncMilvusClient, MilvusClient
+from .milvus_client.dql import DQL, DQLRequest, DQLResult
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections
@@ -104,6 +105,7 @@ from .orm.utility import (
 from .settings import Config as DefaultConfig
 
 __all__ = [
+    "DQL",
     "AggregationBucket",
     "AggregationHit",
     "AnnSearchRequest",
@@ -116,6 +118,8 @@ __all__ = [
     "CompactionTaskState",
     "CompactionType",
     "Connections",
+    "DQLRequest",
+    "DQLResult",
     "DataType",
     "DefaultConfig",
     "ExceptionsMessage",

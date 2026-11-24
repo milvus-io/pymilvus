@@ -7,6 +7,7 @@ from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
+from pymilvus.client.dql import DQLRequest, DQLResult, check_no_batch_db_name
 from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
@@ -360,6 +361,51 @@ class MilvusClient(BaseMilvusClient):
                 # upsert on autoid=ture will return new ids for user
                 "ids": res.primary_keys,
             }
+        )
+
+    def execute_dql(
+        self,
+        reqs: Sequence[DQLRequest],
+        *,
+        max_concurrency: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        """Execute an ordered batch of independent read-only DQL requests in a single RPC.
+
+        Args:
+            reqs (Sequence[DQLRequest]): Non-empty ordered list of DQL requests constructed
+                via ``DQL.search(...)``. Each item may target a different database (via item
+                ``db_name``) and collection.
+            max_concurrency (int, optional): Maximum concurrent sub-requests executed on the
+                server. ``0`` uses the server default. Defaults to ``0``.
+            timeout (float, optional): Server-side shared execution budget in seconds
+                (converted to non-negative whole milliseconds for ``ExecuteDQLRequest.timeout_ms``).
+                ``None`` omits the budget. This budget is NOT applied as a gRPC transport deadline
+                so completed items and per-item timeout statuses can still be delivered when the
+                budget expires.
+            **kwargs: Optional RPC control parameters (e.g., ``client_request_id``,
+                ``retry_times``, ``retry_on_rate_limit``) and batch context parameters
+                (e.g., ``cluster_id``, RLS parameters). Batch-level ``db_name`` is not accepted.
+
+        Returns:
+            List[DQLResult]: Ordered list with the same length as ``reqs``.
+                Each item exposes ``ok``, ``result``, ``error``, and ``unwrap()``.
+
+        Raises:
+            ParamError: If ``reqs`` is empty/invalid, batch-level ``db_name`` is passed,
+                or batch/item parameters are invalid.
+            MilvusException: If preparation fails or the outer ExecuteDQL call fails.
+        """
+        check_no_batch_db_name(kwargs)
+        conn = self._get_connection()
+        kwargs = self._with_cluster_id(kwargs)
+        return conn.execute_dql(
+            reqs,
+            max_concurrency=max_concurrency,
+            timeout=timeout,
+            context=self._generate_call_context(**kwargs),
+            **kwargs,
         )
 
     def hybrid_search(
@@ -4011,6 +4057,22 @@ class MilvusClientSession:
     def search(self, *args, **kwargs):
         self._ensure_open()
         return self._parent.search(*args, **self._with_cluster_id(kwargs))
+
+    def execute_dql(
+        self,
+        reqs: Sequence[DQLRequest],
+        *,
+        max_concurrency: int = 0,
+        timeout: Optional[float] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        self._ensure_open()
+        return self._parent.execute_dql(
+            reqs,
+            max_concurrency=max_concurrency,
+            timeout=timeout,
+            **self._with_cluster_id(kwargs),
+        )
 
     def hybrid_search(self, *args, **kwargs):
         self._ensure_open()

@@ -1,6 +1,7 @@
 import base64
 import datetime
 import json
+import math
 import re
 import warnings
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
@@ -84,6 +85,10 @@ _JSON_TYPE_MAP = {
 
 
 _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
+_UINT32_MAX = 2**32 - 1
+# Maximum non-negative execution budget in milliseconds supported by Go time.Duration
+# (math.MaxInt64 / time.Millisecond).
+_MAX_EXECUTE_DQL_TIMEOUT_MS = 9_223_372_036_854
 
 
 class Prepare:
@@ -1919,6 +1924,7 @@ class Prepare:
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         use_default_consistency: bool = True,
+        db_name: Optional[str] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         param = dict(param)
@@ -2102,6 +2108,8 @@ class Prepare:
             ),
             "namespace": kwargs.get("namespace"),
         }
+        if db_name:
+            request_kwargs["db_name"] = db_name
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
 
@@ -2147,6 +2155,71 @@ class Prepare:
             request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
 
         return request
+
+    @staticmethod
+    def parse_execute_dql_max_concurrency(max_concurrency: int) -> int:
+        if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
+            raise ParamError(
+                message=(
+                    f"max_concurrency must be a non-negative int, "
+                    f"got {type(max_concurrency).__name__}"
+                )
+            )
+        if max_concurrency < 0 or max_concurrency > _UINT32_MAX:
+            raise ParamError(
+                message=f"max_concurrency must be in [0, {_UINT32_MAX}], got {max_concurrency}"
+            )
+        return max_concurrency
+
+    @staticmethod
+    def parse_execute_dql_timeout_ms(timeout: Optional[float]) -> Optional[int]:
+        if timeout is None:
+            return None
+        if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+            raise ParamError(
+                message=f"timeout must be a non-negative number or None, got {type(timeout).__name__}"
+            )
+        if math.isnan(timeout) or math.isinf(timeout):
+            raise ParamError(message=f"timeout must be a finite number, got {timeout}")
+        if timeout < 0:
+            raise ParamError(message=f"timeout must be non-negative, got {timeout}")
+        if timeout == 0:
+            return 0
+        timeout_ms = max(1, round(timeout * 1000))
+        if timeout_ms > _MAX_EXECUTE_DQL_TIMEOUT_MS:
+            raise ParamError(
+                message=(
+                    f"timeout exceeds maximum supported execution budget "
+                    f"({_MAX_EXECUTE_DQL_TIMEOUT_MS} ms): {timeout}"
+                )
+            )
+        return timeout_ms
+
+    @classmethod
+    def execute_dql_request(
+        cls,
+        requests: Sequence[milvus_types.DQLRequest],
+        max_concurrency: int = 0,
+        timeout: Optional[float] = None,
+    ) -> milvus_types.ExecuteDQLRequest:
+        if not isinstance(requests, Sequence) or isinstance(requests, (str, bytes, bytearray)):
+            raise ParamError(
+                message=(
+                    f"requests must be a non-empty sequence of DQLRequest proto, "
+                    f"got {type(requests).__name__}"
+                )
+            )
+        if len(requests) == 0:
+            raise ParamError(message="reqs must not be empty")
+        normalized_concurrency = cls.parse_execute_dql_max_concurrency(max_concurrency)
+        timeout_ms = cls.parse_execute_dql_timeout_ms(timeout)
+        req_kwargs: Dict[str, Any] = {
+            "requests": list(requests),
+            "max_concurrency": normalized_concurrency,
+        }
+        if timeout_ms is not None:
+            req_kwargs["timeout_ms"] = timeout_ms
+        return milvus_types.ExecuteDQLRequest(**req_kwargs)
 
     @staticmethod
     def _build_ids_proto(ids: List[Union[int, np.integer, str]]) -> schema_types.IDs:
