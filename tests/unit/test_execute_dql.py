@@ -19,7 +19,7 @@ from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.dql import (
-    prepare_dql_item,
+    prepare_execute_dql_batch,
     unpack_execute_dql_response,
     validate_execute_dql_params,
 )
@@ -280,23 +280,29 @@ class TestValidateAndPrepareExecuteDQL:
             validate_execute_dql_params([req], timeout=bad_timeout)
 
     def test_prepare_execute_dql_request_timeout_semantics(self):
+        req = DQL.search("c1", data=[[0.1, 0.2]])
+        assert validate_execute_dql_params([req], max_concurrency=0, timeout=None) == (0, None)
+        assert validate_execute_dql_params([req], max_concurrency=4, timeout=0) == (4, 0)
+        assert validate_execute_dql_params([req], max_concurrency=2, timeout=0.0001) == (2, 1)
+        assert validate_execute_dql_params([req], max_concurrency=2, timeout=2.5) == (2, 2500)
+
         sr = milvus_pb2.DQLRequest(search=milvus_pb2.SearchRequest(collection_name="c1"))
 
-        req_none = Prepare.execute_dql_request([sr], max_concurrency=0, timeout=None)
+        req_none = Prepare.execute_dql_request([sr], max_concurrency=0, timeout_ms=None)
         assert req_none.max_concurrency == 0
         assert not req_none.HasField("timeout_ms")
         assert len(req_none.requests) == 1
 
-        req_zero = Prepare.execute_dql_request([sr], max_concurrency=4, timeout=0)
+        req_zero = Prepare.execute_dql_request([sr], max_concurrency=4, timeout_ms=0)
         assert req_zero.max_concurrency == 4
         assert req_zero.HasField("timeout_ms")
         assert req_zero.timeout_ms == 0
 
-        req_small = Prepare.execute_dql_request([sr], max_concurrency=2, timeout=0.0001)
+        req_small = Prepare.execute_dql_request([sr], max_concurrency=2, timeout_ms=1)
         assert req_small.HasField("timeout_ms")
         assert req_small.timeout_ms == 1
 
-        req_sec = Prepare.execute_dql_request([sr], max_concurrency=2, timeout=2.5)
+        req_sec = Prepare.execute_dql_request([sr], max_concurrency=2, timeout_ms=2500)
         assert req_sec.timeout_ms == 2500
 
     def test_prepare_execute_dql_request_rejects_invalid_list(self):
@@ -510,12 +516,15 @@ class TestClientAndSessionSignatures:
         assert md["client-request-id"] == "cid-async-42"
 
     def test_batch_cluster_id_and_rls_override_item_values(self):
-        prepared = prepare_dql_item(
-            DQL.search("papers", data=[[0.1, 0.2]], cluster_id="item-cls", rls_principal="bob"),
+        batch = prepare_execute_dql_batch(
+            [DQL.search("papers", data=[[0.1, 0.2]], cluster_id="item-cls", rls_principal="bob")],
+            max_concurrency=0,
+            timeout=None,
             server_address="localhost:19530",
             context=None,
             batch_kwargs={"cluster_id": "session-cls", "rls_principal": "alice", "skip_rls": False},
         )
+        prepared = batch.items[0]
         assert prepared.extra_kwargs["cluster_id"] == "session-cls"
         assert prepared.extra_kwargs["rls_principal"] == "alice"
         assert prepared.extra_kwargs["skip_rls"] is False
@@ -540,18 +549,6 @@ class TestClientAndSessionSignatures:
 
 class TestSharedPrepareAndLocalValidation:
     """Shared search preparation between single search() and execute_dql()."""
-
-    def test_prepare_dql_item_defensive_validation(self):
-        class _UnsupportedRequest(DQLRequest):
-            op = "query"
-
-        with pytest.raises(ParamError, match="Unsupported DQL operation"):
-            prepare_dql_item(
-                _UnsupportedRequest(),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
 
     def test_single_search_and_execute_dql_produce_matching_search_request(self):
         """Regression: single GrpcHandler.search and execute_dql share identical preparation."""

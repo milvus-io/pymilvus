@@ -8,7 +8,6 @@ from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import ConnectionConfig, ConnectionManager
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
 from pymilvus.client.dql import DQLRequest, DQLResult, check_no_batch_db_name
-from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.iterator import QueryIterator, SearchIterator, SearchIteratorV2
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import Hit, Hits
@@ -528,11 +527,6 @@ class MilvusClient(BaseMilvusClient):
                 not included in the result data.
         """
         validate_param("collection_name", collection_name, str)
-        # Convert EmbeddingList objects to flat arrays if present
-        if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
-            data = [emb_list.to_flat_array() for emb_list in data]
-            kwargs["is_embedding_list"] = True
-
         conn = self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
         return conn.search(

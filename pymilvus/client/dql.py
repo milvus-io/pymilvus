@@ -1,6 +1,7 @@
 """ExecuteDQL request/result models, ``DQL`` constructors, and shared search preparation."""
 
 import logging
+import math
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, Union
@@ -31,6 +32,10 @@ logger = logging.getLogger(__name__)
 SUPPORTED_DQL_OPS = frozenset({"search"})
 _BATCH_CONTEXT_KEYS = (CLUSTER_ID, "rls_principal", "skip_rls")
 _EXECUTE_DQL_RPC_KWARG_KEYS = ("retry_times", "retry_on_rate_limit", "log_level", "log-level")
+_UINT32_MAX = 2**32 - 1
+# Maximum non-negative execution budget in milliseconds supported by Go time.Duration
+# (math.MaxInt64 / time.Millisecond).
+_MAX_EXECUTE_DQL_TIMEOUT_MS = 9_223_372_036_854
 
 
 @dataclass(frozen=True)
@@ -192,10 +197,43 @@ def check_no_batch_db_name(batch_kwargs: Optional[Mapping[str, Any]]) -> None:
         )
 
 
-def extract_execute_dql_rpc_kwargs(batch_kwargs: Mapping[str, Any]) -> Dict[str, Any]:
-    """Extract RPC control kwargs for ExecuteDQL (never forwarding execution budget ``timeout``)."""
-    check_no_batch_db_name(batch_kwargs)
-    return {k: batch_kwargs[k] for k in _EXECUTE_DQL_RPC_KWARG_KEYS if k in batch_kwargs}
+def _parse_max_concurrency(max_concurrency: int) -> int:
+    if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
+        raise ParamError(
+            message=(
+                f"max_concurrency must be a non-negative int, "
+                f"got {type(max_concurrency).__name__}"
+            )
+        )
+    if max_concurrency < 0 or max_concurrency > _UINT32_MAX:
+        raise ParamError(
+            message=f"max_concurrency must be in [0, {_UINT32_MAX}], got {max_concurrency}"
+        )
+    return max_concurrency
+
+
+def _parse_timeout_ms(timeout: Optional[float]) -> Optional[int]:
+    if timeout is None:
+        return None
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
+        raise ParamError(
+            message=f"timeout must be a non-negative number or None, got {type(timeout).__name__}"
+        )
+    if math.isnan(timeout) or math.isinf(timeout):
+        raise ParamError(message=f"timeout must be a finite number, got {timeout}")
+    if timeout < 0:
+        raise ParamError(message=f"timeout must be non-negative, got {timeout}")
+    if timeout == 0:
+        return 0
+    timeout_ms = max(1, round(timeout * 1000))
+    if timeout_ms > _MAX_EXECUTE_DQL_TIMEOUT_MS:
+        raise ParamError(
+            message=(
+                f"timeout exceeds maximum supported execution budget "
+                f"({_MAX_EXECUTE_DQL_TIMEOUT_MS} ms): {timeout}"
+            )
+        )
+    return timeout_ms
 
 
 def validate_execute_dql_params(
@@ -217,7 +255,7 @@ def validate_execute_dql_params(
             raise ParamError(
                 message=f"reqs[{idx}] must be a DQLRequest instance, got {type(req).__name__}"
             )
-        if req.op not in SUPPORTED_DQL_OPS:
+        if not isinstance(req, _SearchRequest):
             supported = ", ".join(sorted(SUPPORTED_DQL_OPS))
             raise ParamError(
                 message=(
@@ -225,9 +263,7 @@ def validate_execute_dql_params(
                     f"Supported operations: {supported}"
                 )
             )
-    normalized_concurrency = Prepare.parse_execute_dql_max_concurrency(max_concurrency)
-    timeout_ms = Prepare.parse_execute_dql_timeout_ms(timeout)
-    return normalized_concurrency, timeout_ms
+    return _parse_max_concurrency(max_concurrency), _parse_timeout_ms(timeout)
 
 
 def normalize_search_inputs(
@@ -265,7 +301,7 @@ def normalize_search_inputs(
 
 def resolve_search_db_context(
     context: Optional[CallContext],
-    db_name: Optional[str],
+    db_name: Optional[str] = None,
 ) -> Tuple[str, Optional[CallContext]]:
     """Resolve effective DB name and per-item ``CallContext`` without mutating parent context."""
     explicit_db = db_name if db_name else None
@@ -298,20 +334,29 @@ class _PreparedSearchItem:
         return self.req.collection_name
 
 
-def prepare_dql_item(
-    req: DQLRequest,
+@dataclass(frozen=True)
+class _PreparedBatch:
+    """Validated and normalized ExecuteDQL batch ready for schema fetch and proto assembly."""
+
+    items: Tuple[_PreparedSearchItem, ...]
+    schema_targets: Tuple[Tuple[Tuple[str, str], Optional[CallContext]], ...]
+    max_concurrency: int
+    timeout_ms: Optional[int]
+    rpc_kwargs: Mapping[str, Any]
+
+    @property
+    def round_decimals(self) -> List[int]:
+        return [item.round_decimal for item in self.items]
+
+
+def _prepare_search_item(
+    req: _SearchRequest,
     *,
     server_address: str,
     context: Optional[CallContext],
     batch_kwargs: Mapping[str, Any],
 ) -> _PreparedSearchItem:
-    """Validate and prepare a ``DQLRequest`` item using the shared search preparation helpers."""
-    if not isinstance(req, _SearchRequest):
-        supported = ", ".join(sorted(SUPPORTED_DQL_OPS))
-        raise ParamError(
-            message=f"Unsupported DQL operation: {req.op!r}. Supported operations: {supported}"
-        )
-
+    """Validate and prepare a search sub-request using the shared search preparation helpers."""
     item_kwargs = dict(req.extra_kwargs)
 
     expr_params = item_kwargs.pop("filter_params", item_kwargs.pop("expr_params", {}))
@@ -362,37 +407,49 @@ def prepare_execute_dql_batch(
     server_address: str,
     context: Optional[CallContext],
     batch_kwargs: Mapping[str, Any],
-) -> Tuple[int, Dict[str, Any], List[_PreparedSearchItem]]:
+) -> _PreparedBatch:
     """Run Pass 1 batch/item validation and normalization before any network RPCs."""
-    normalized_max_concurrency, _ = validate_execute_dql_params(
+    normalized_max_concurrency, timeout_ms = validate_execute_dql_params(
         reqs, max_concurrency=max_concurrency, timeout=timeout, batch_kwargs=batch_kwargs
     )
-    rpc_kwargs = extract_execute_dql_rpc_kwargs(batch_kwargs)
-    prepared_items = [
-        prepare_dql_item(
-            req,
+    rpc_kwargs = {k: batch_kwargs[k] for k in _EXECUTE_DQL_RPC_KWARG_KEYS if k in batch_kwargs}
+    prepared_items = tuple(
+        _prepare_search_item(
+            req,  # type: ignore[arg-type]
             server_address=server_address,
             context=context,
             batch_kwargs=batch_kwargs,
         )
         for req in reqs
-    ]
-    return normalized_max_concurrency, rpc_kwargs, prepared_items
+    )
+
+    schema_targets: List[Tuple[Tuple[str, str], Optional[CallContext]]] = []
+    seen_keys = set()
+    for item in prepared_items:
+        if item.needs_schema:
+            schema_key = (item.effective_db, item.collection_name)
+            if schema_key not in seen_keys:
+                seen_keys.add(schema_key)
+                schema_targets.append((schema_key, item.context))
+
+    return _PreparedBatch(
+        items=prepared_items,
+        schema_targets=tuple(schema_targets),
+        max_concurrency=normalized_max_concurrency,
+        timeout_ms=timeout_ms,
+        rpc_kwargs=MappingProxyType(rpc_kwargs),
+    )
 
 
 def build_execute_dql_request(
-    prepared_items: Sequence[_PreparedSearchItem],
+    batch: _PreparedBatch,
     local_schemas: Mapping[Tuple[str, str], dict],
-    *,
-    max_concurrency: int,
-    timeout: Optional[float],
 ) -> milvus_types.ExecuteDQLRequest:
-    """Assemble ``ExecuteDQLRequest`` from prepared items and DB-isolated schemas."""
+    """Assemble ``ExecuteDQLRequest`` from a prepared batch and DB-isolated schemas."""
     dql_requests: List[milvus_types.DQLRequest] = []
-    for item in prepared_items:
+    for item in batch.items:
         req = item.req
         req_kwargs = dict(item.extra_kwargs)
-        req_kwargs.pop("db_name", None)
         if item.needs_schema:
             schema = local_schemas.get((item.effective_db, req.collection_name))
             if schema is not None:
@@ -419,8 +476,8 @@ def build_execute_dql_request(
 
     return Prepare.execute_dql_request(
         dql_requests,
-        max_concurrency=max_concurrency,
-        timeout=timeout,
+        max_concurrency=batch.max_concurrency,
+        timeout_ms=batch.timeout_ms,
     )
 
 
@@ -438,27 +495,19 @@ def raise_execute_dql_rpc_error(exc: grpc.RpcError) -> None:
     raise exc
 
 
-def finalize_execute_dql_response(
+def unpack_execute_dql_response(
     response: Optional[milvus_types.ExecuteDQLResponse],
     expected_count: int,
     round_decimals: Sequence[int],
 ) -> List[DQLResult]:
-    """Validate outer ``ExecuteDQLResponse`` status and unpack ordered per-item results."""
-    if response is None:
-        raise MilvusException(message="Received None response from server during execute_dql")
-    check_status(response.status)
-    return unpack_execute_dql_response(response, expected_count, round_decimals)
-
-
-def unpack_execute_dql_response(
-    response: milvus_types.ExecuteDQLResponse,
-    expected_count: int,
-    round_decimals: Sequence[int],
-) -> List[DQLResult]:
-    """Unpack an outer-success ``ExecuteDQLResponse`` in exact positional order.
+    """Validate outer ``ExecuteDQLResponse`` status and unpack ordered per-item results.
 
     ``DQLResult.status`` is authoritative for each item.
     """
+    if response is None:
+        raise MilvusException(message="Received None response from server during execute_dql")
+    check_status(response.status)
+
     if len(response.results) != expected_count:
         raise MilvusException(
             message=(

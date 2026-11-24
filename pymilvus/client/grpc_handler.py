@@ -58,11 +58,11 @@ from .dql import (
     DQLRequest,
     DQLResult,
     build_execute_dql_request,
-    finalize_execute_dql_response,
     normalize_search_inputs,
     prepare_execute_dql_batch,
     raise_execute_dql_rpc_error,
     resolve_search_db_context,
+    unpack_execute_dql_response,
 )
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
@@ -1459,7 +1459,7 @@ class GrpcHandler:
             )
         except grpc.RpcError as e:
             raise_execute_dql_rpc_error(e)
-        return finalize_execute_dql_response(response, len(request.requests), round_decimals)
+        return unpack_execute_dql_response(response, len(request.requests), round_decimals)
 
     def execute_dql(
         self,
@@ -1470,7 +1470,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ) -> List[DQLResult]:
-        normalized_max_concurrency, rpc_kwargs, prepared_items = prepare_execute_dql_batch(
+        batch = prepare_execute_dql_batch(
             reqs,
             max_concurrency=max_concurrency,
             timeout=timeout,
@@ -1480,28 +1480,20 @@ class GrpcHandler:
         )
 
         local_schemas: Dict[Tuple[str, str], dict] = {}
-        for item in prepared_items:
-            if item.needs_schema:
-                schema_key = (item.effective_db, item.collection_name)
-                if schema_key not in local_schemas:
-                    local_schemas[schema_key], _ = self._get_schema(
-                        item.collection_name,
-                        timeout=None,
-                        context=item.context,
-                        **rpc_kwargs,
-                    )
+        for schema_key, item_context in batch.schema_targets:
+            local_schemas[schema_key], _ = self._get_schema(
+                schema_key[1],
+                timeout=None,
+                context=item_context,
+                **batch.rpc_kwargs,
+            )
 
-        execute_dql_request = build_execute_dql_request(
-            prepared_items,
-            local_schemas,
-            max_concurrency=normalized_max_concurrency,
-            timeout=timeout,
-        )
+        execute_dql_request = build_execute_dql_request(batch, local_schemas)
         return self._execute_dql(
             execute_dql_request,
-            round_decimals=[item.round_decimal for item in prepared_items],
+            round_decimals=batch.round_decimals,
             context=context,
-            **rpc_kwargs,
+            **batch.rpc_kwargs,
         )
 
     @retry_on_rpc_failure()
@@ -1537,7 +1529,7 @@ class GrpcHandler:
             guarantee_timestamp=item_kwargs.get("guarantee_timestamp"),
             timeout=timeout,
         )
-        effective_db, item_context = resolve_search_db_context(context, None)
+        effective_db, item_context = resolve_search_db_context(context)
         use_default_consistency = ts_utils.construct_guarantee_ts(
             collection_name, item_kwargs, self.server_address, effective_db
         )
