@@ -47,11 +47,11 @@ from .dql import (
     DQLRequest,
     DQLResult,
     build_execute_dql_request,
-    build_search_request,
     finalize_execute_dql_response,
+    normalize_search_inputs,
     prepare_execute_dql_batch,
-    prepare_search_input,
     raise_execute_dql_rpc_error,
+    resolve_search_db_context,
 )
 from .embedding_list import EmbeddingList
 from .prepare import Prepare
@@ -1077,8 +1077,6 @@ class AsyncGrpcHandler:
             server_address=self.server_address,
             context=context,
             batch_kwargs=kwargs,
-            check_pass_param_fn=check_pass_param,
-            construct_guarantee_ts_fn=ts_utils.construct_guarantee_ts,
         )
 
         local_schemas: Dict[Tuple[str, str], dict] = {}
@@ -1098,7 +1096,6 @@ class AsyncGrpcHandler:
             local_schemas,
             max_concurrency=normalized_max_concurrency,
             timeout=timeout,
-            prepare_cls=Prepare,
         )
         return await self._execute_dql(
             execute_dql_request,
@@ -1127,35 +1124,48 @@ class AsyncGrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        prepared = prepare_search_input(
+        item_kwargs = dict(kwargs)
+        data, ids, needs_schema = normalize_search_inputs(
+            data, ids, limit=limit, extra_kwargs=item_kwargs
+        )
+        check_pass_param(
+            limit=limit,
+            round_decimal=round_decimal,
+            anns_field=anns_field,
+            partition_name_array=partition_names,
+            output_fields=output_fields,
+            guarantee_timestamp=item_kwargs.get("guarantee_timestamp"),
+            timeout=timeout,
+        )
+        effective_db, item_context = resolve_search_db_context(context, None)
+        use_default_consistency = ts_utils.construct_guarantee_ts(
+            collection_name, item_kwargs, self.server_address, effective_db
+        )
+        if needs_schema:
+            schema_dict, _ = await self._get_schema(
+                collection_name, timeout=timeout, context=item_context, **kwargs
+            )
+            item_kwargs["schema"] = schema_dict
+
+        request = Prepare.search_requests_with_expr(
             collection_name=collection_name,
             anns_field=anns_field,
             param=param,
             limit=limit,
             data=data,
             ids=ids,
-            expression=expression,
+            expr=expression,
             partition_names=partition_names,
             output_fields=output_fields,
             round_decimal=round_decimal,
-            timeout=timeout,
             ranker=ranker,
             function_chains=function_chains,
             highlighter=highlighter,
-            server_address=self.server_address,
-            context=context,
-            extra_kwargs=kwargs,
-            check_pass_param_fn=check_pass_param,
-            construct_guarantee_ts_fn=ts_utils.construct_guarantee_ts,
+            use_default_consistency=use_default_consistency,
+            **item_kwargs,
         )
-        schema_dict = None
-        if prepared.needs_schema:
-            schema_dict, _ = await self._get_schema(
-                collection_name, timeout=timeout, context=prepared.context, **kwargs
-            )
-        request = build_search_request(prepared, schema=schema_dict, prepare_cls=Prepare)
         return await self._execute_search(
-            request, timeout, context=context, round_decimal=prepared.round_decimal, **kwargs
+            request, timeout, context=context, round_decimal=round_decimal, **kwargs
         )
 
     @retry_on_rpc_failure()

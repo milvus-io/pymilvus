@@ -20,6 +20,7 @@ from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.bloom_filter import BloomFilterBuilder, build_bloom_filter
+from .client.dql import DQL, DQLRequest, DQLResult
 from .client.field_ops import FieldOp, FieldOpType
 from .client.prepare import Prepare
 from .client.roaring_filter import RoaringBitmapBuilder, build_roaring_bitmap
@@ -56,7 +57,6 @@ from .exceptions import (
 )
 from .function_chain import FunctionChain, FunctionChainStage
 from .milvus_client import AsyncMilvusClient, MilvusClient
-from .milvus_client.dql import DQL, DQLRequest, DQLResult
 from .orm import db, utility
 from .orm.collection import Collection
 from .orm.connections import Connections, connections

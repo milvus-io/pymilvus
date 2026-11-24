@@ -13,14 +13,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import grpc
 import pymilvus
 import pymilvus.client.dql as client_dql_mod
-import pymilvus.milvus_client.dql as mc_dql_mod
 import pytest
 from pymilvus import DQL, AsyncMilvusClient, DQLRequest, DQLResult, MilvusClient, MilvusException
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.dql import (
-    _bind_dql_op,
     prepare_dql_item,
     unpack_execute_dql_response,
     validate_execute_dql_params,
@@ -94,29 +92,19 @@ class TestPublicExports:
 
     def test_dql_module_imports_without_typing_extensions_or_310_only_symbols(self):
         """Ensure Python 3.9 compatibility: runtime import never requires ParamSpec/Concatenate."""
-        for mod in (client_dql_mod, mc_dql_mod):
-            tree = ast.parse(Path(mod.__file__).read_text(encoding="utf-8"))
-            # Check top-level statements outside `if TYPE_CHECKING:`
-            for node in tree.body:
-                if (
-                    isinstance(node, ast.If)
-                    and isinstance(node.test, ast.Name)
-                    and node.test.id == "TYPE_CHECKING"
-                ):
-                    continue
-                for child in ast.walk(node):
-                    if isinstance(child, ast.ImportFrom):
-                        assert child.module != "typing_extensions"
-                        imported = {alias.name for alias in child.names}
-                        assert not (imported & {"ParamSpec", "Concatenate"})
+        tree = ast.parse(Path(client_dql_mod.__file__).read_text(encoding="utf-8"))
+        for child in ast.walk(tree):
+            if isinstance(child, ast.ImportFrom):
+                assert child.module != "typing_extensions"
+                imported = {alias.name for alias in child.names}
+                assert not (imported & {"ParamSpec", "Concatenate"})
 
         code = (
             "import sys, grpc\n"
             "sys.modules['typing_extensions'] = None\n"
-            "import pymilvus.client.dql as dql_client\n"
-            "import pymilvus.milvus_client.dql as dql_ns\n"
-            "req = dql_ns.DQL.search('col', data=[[0.1, 0.2]])\n"
-            "assert isinstance(req, dql_client.DQLRequest)\n"
+            "import pymilvus.client.dql as dql_mod\n"
+            "req = dql_mod.DQL.search('col', data=[[0.1, 0.2]])\n"
+            "assert isinstance(req, dql_mod.DQLRequest)\n"
         )
         proc = subprocess.run(
             [sys.executable, "-c", code],
@@ -126,18 +114,42 @@ class TestPublicExports:
         )
         assert proc.returncode == 0, f"stdout={proc.stdout}\nstderr={proc.stderr}"
 
+    def test_execute_dql_example_parses_cleanly(self):
+        example_path = (
+            Path(client_dql_mod.__file__).resolve().parents[2] / "examples" / "execute_dql.py"
+        )
+        assert example_path.is_file()
+        ast.parse(example_path.read_text(encoding="utf-8"))
+
 
 class TestDQLSearchBuilder:
-    """DQL.search inherits MilvusClient.search signature and returns immutable DQLRequest."""
+    """DQL.search exposes explicit keyword-only signature aligned with MilvusClient.search."""
 
-    def test_signature_inherits_milvus_client_search_without_self(self):
-        client_params = list(inspect.signature(MilvusClient.search).parameters.values())[1:]
+    def test_signature_stays_aligned_with_milvus_client_search(self):
+        """Drift guard: DQL.search matches MilvusClient.search minus self/timeout plus db_name."""
+        client_params = inspect.signature(MilvusClient.search).parameters
         dql_sig = inspect.signature(DQL.search)
-        dql_params = list(dql_sig.parameters.values())
-        assert [(p.name, p.default, p.kind) for p in dql_params] == [
-            (p.name, p.default, p.kind) for p in client_params
-        ]
+        dql_params = dql_sig.parameters
+
+        expected_names = (set(client_params) - {"self", "timeout"}) | {"db_name"}
+        assert set(dql_params) == expected_names
+        assert "timeout" not in dql_params
+        assert "db_name" in dql_params
+        assert dql_params["collection_name"].kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
+        assert dql_params["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+
+        for name, param in dql_params.items():
+            if name in ("collection_name", "kwargs"):
+                continue
+            assert param.kind == inspect.Parameter.KEYWORD_ONLY
+            if name in client_params:
+                assert param.default == client_params[name].default
+        assert dql_params["db_name"].default is None
         assert dql_sig.return_annotation is DQLRequest
+
+    def test_positional_args_after_collection_name_rejected(self):
+        with pytest.raises(TypeError):
+            DQL.search("papers", [[0.1, 0.2]])  # type: ignore[misc]
 
     def test_defaults_and_kwargs_bound_into_immutable_request(self):
         req = DQL.search(
@@ -153,28 +165,27 @@ class TestDQLSearchBuilder:
         )
         assert isinstance(req, DQLRequest)
         assert req.op == "search"
-        assert req.params["collection_name"] == "papers"
-        assert req.params["data"] == [[0.1, 0.2]]
-        assert req.params["anns_field"] == "emb"
-        assert req.params["filter"] == "year >= 2020"
-        assert req.params["limit"] == 5
-        assert req.params["output_fields"] == ["title"]
-        assert req.params["timeout"] is None
-        assert req.kwargs["db_name"] == "archive"
-        assert req.kwargs["filter_params"] == {"min_year": 2020}
-        assert req.kwargs["round_decimal"] == 3
+        assert req.spec.collection_name == "papers"
+        assert req.spec.data == [[0.1, 0.2]]
+        assert req.spec.anns_field == "emb"
+        assert req.spec.filter == "year >= 2020"
+        assert req.spec.limit == 5
+        assert req.spec.output_fields == ["title"]
+        assert req.spec.db_name == "archive"
+        assert req.spec.extra_kwargs["filter_params"] == {"min_year": 2020}
+        assert req.spec.extra_kwargs["round_decimal"] == 3
 
-        # Immutable dataclass and read-only mappings
+        # Immutable dataclass and read-only extra_kwargs mapping
         with pytest.raises(AttributeError):
             req.op = "other"  # type: ignore[misc]
+        with pytest.raises(AttributeError):
+            req.spec.limit = 99  # type: ignore[misc]
         with pytest.raises(TypeError):
-            req.params["limit"] = 99  # type: ignore[index]
-        with pytest.raises(TypeError):
-            req.kwargs["db_name"] = "mutated"  # type: ignore[index]
+            req.spec.extra_kwargs["round_decimal"] = 1  # type: ignore[index]
 
     def test_dql_instance_call_does_not_bind_self(self):
         req = DQL().search("papers", data=[[0.1, 0.2]])
-        assert req.params["collection_name"] == "papers"
+        assert req.spec.collection_name == "papers"
 
     def test_missing_required_collection_name_raises_type_error(self):
         with pytest.raises(TypeError):
@@ -187,19 +198,23 @@ class TestDQLSearchBuilder:
 
     def test_explicit_none_timeout_allowed(self):
         req = DQL.search("papers", data=[[0.1, 0.2]], timeout=None)
-        assert req.params["timeout"] is None
+        assert "timeout" not in req.spec.extra_kwargs
 
-    def test_invalid_db_name_type_rejected(self):
+    def test_invalid_db_name_or_collection_name_or_conflicting_kwargs_rejected(self):
         with pytest.raises(ParamError, match="db_name"):
-            DQL.search("papers", data=[[0.1, 0.2]], db_name=123)
+            DQL.search("papers", data=[[0.1, 0.2]], db_name=123)  # type: ignore[arg-type]
+        with pytest.raises(ParamError, match="collection_name"):
+            DQL.search("", data=[[0.1, 0.2]])
+        with pytest.raises(ParamError, match="search_params"):
+            DQL.search("papers", data=[[0.1, 0.2]], param={"metric_type": "L2"})
+        with pytest.raises(ParamError, match="use_default_consistency"):
+            DQL.search("papers", data=[[0.1, 0.2]], use_default_consistency=False)
+        with pytest.raises(ParamError, match="filter_params"):
+            DQL.search("papers", data=[[0.1, 0.2]], filter_params={"a": 1}, expr_params={"a": 1})
 
     def test_dql_request_validation_for_direct_construction(self):
         with pytest.raises(ParamError):
-            DQLRequest(op="", params={})
-        with pytest.raises(ParamError):
-            DQLRequest(op="search", params="not-a-mapping")  # type: ignore[arg-type]
-        with pytest.raises(ParamError):
-            DQLRequest(op="search", params={}, kwargs="not-a-mapping")  # type: ignore[arg-type]
+            DQLRequest(op="", spec=None)
 
 
 class TestDQLResult:
@@ -238,7 +253,7 @@ class TestValidateAndPrepareExecuteDQL:
         with pytest.raises(ParamError, match="DQLRequest"):
             validate_execute_dql_params([object()])
         with pytest.raises(ParamError, match="Unsupported DQL operation"):
-            validate_execute_dql_params([DQLRequest(op="query", params={})])
+            validate_execute_dql_params([DQLRequest(op="query", spec=None)])
 
     def test_validate_rejects_batch_db_name(self):
         req = DQL.search("papers", data=[[0.1, 0.2]])
@@ -524,63 +539,17 @@ class TestClientAndSessionSignatures:
 class TestSharedPrepareAndLocalValidation:
     """Shared search preparation between single search() and execute_dql()."""
 
-    def test_bind_dql_op_requires_leading_self(self):
-        def standalone(collection_name: str):
-            return collection_name
-
-        with pytest.raises(ValueError, match="self"):
-            _bind_dql_op("search", standalone)
-
     def test_prepare_dql_item_defensive_validation(self):
         with pytest.raises(ParamError, match="Unsupported DQL operation"):
             prepare_dql_item(
-                DQLRequest(op="query", params={"collection_name": "c"}),
+                DQLRequest(op="query", spec=None),
                 server_address="localhost:19530",
                 context=None,
                 batch_kwargs={},
             )
-        with pytest.raises(ParamError, match="timeout"):
+        with pytest.raises(ParamError, match="search spec"):
             prepare_dql_item(
-                DQLRequest(op="search", params={"collection_name": "c", "timeout": 1.0}),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="search_params"):
-            prepare_dql_item(
-                DQL.search("c", data=[[0.1, 0.2]], param={"metric_type": "L2"}),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="use_default_consistency"):
-            prepare_dql_item(
-                DQL.search("c", data=[[0.1, 0.2]], use_default_consistency=False),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="collection_name"):
-            prepare_dql_item(
-                DQL.search("", data=[[0.1, 0.2]]),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="filter_params"):
-            prepare_dql_item(
-                DQL.search("c", data=[[0.1, 0.2]], filter_params={"a": 1}, expr_params={"a": 1}),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="db_name"):
-            prepare_dql_item(
-                DQLRequest(
-                    op="search",
-                    params={"collection_name": "c", "data": [[0.1, 0.2]]},
-                    kwargs={"db_name": 42},
-                ),
+                DQLRequest(op="search", spec=object()),
                 server_address="localhost:19530",
                 context=None,
                 batch_kwargs={},
