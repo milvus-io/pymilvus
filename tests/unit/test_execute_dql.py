@@ -165,27 +165,25 @@ class TestDQLSearchBuilder:
         )
         assert isinstance(req, DQLRequest)
         assert req.op == "search"
-        assert req.spec.collection_name == "papers"
-        assert req.spec.data == [[0.1, 0.2]]
-        assert req.spec.anns_field == "emb"
-        assert req.spec.filter == "year >= 2020"
-        assert req.spec.limit == 5
-        assert req.spec.output_fields == ["title"]
-        assert req.spec.db_name == "archive"
-        assert req.spec.extra_kwargs["filter_params"] == {"min_year": 2020}
-        assert req.spec.extra_kwargs["round_decimal"] == 3
+        assert req.collection_name == "papers"
+        assert req.data == [[0.1, 0.2]]
+        assert req.anns_field == "emb"
+        assert req.filter == "year >= 2020"
+        assert req.limit == 5
+        assert req.output_fields == ["title"]
+        assert req.db_name == "archive"
+        assert req.extra_kwargs["filter_params"] == {"min_year": 2020}
+        assert req.extra_kwargs["round_decimal"] == 3
 
         # Immutable dataclass and read-only extra_kwargs mapping
         with pytest.raises(AttributeError):
-            req.op = "other"  # type: ignore[misc]
-        with pytest.raises(AttributeError):
-            req.spec.limit = 99  # type: ignore[misc]
+            req.limit = 99  # type: ignore[misc]
         with pytest.raises(TypeError):
-            req.spec.extra_kwargs["round_decimal"] = 1  # type: ignore[index]
+            req.extra_kwargs["round_decimal"] = 1  # type: ignore[index]
 
     def test_dql_instance_call_does_not_bind_self(self):
         req = DQL().search("papers", data=[[0.1, 0.2]])
-        assert req.spec.collection_name == "papers"
+        assert req.collection_name == "papers"
 
     def test_missing_required_collection_name_raises_type_error(self):
         with pytest.raises(TypeError):
@@ -198,7 +196,7 @@ class TestDQLSearchBuilder:
 
     def test_explicit_none_timeout_allowed(self):
         req = DQL.search("papers", data=[[0.1, 0.2]], timeout=None)
-        assert "timeout" not in req.spec.extra_kwargs
+        assert "timeout" not in req.extra_kwargs
 
     def test_invalid_db_name_or_collection_name_or_conflicting_kwargs_rejected(self):
         with pytest.raises(ParamError, match="db_name"):
@@ -212,9 +210,9 @@ class TestDQLSearchBuilder:
         with pytest.raises(ParamError, match="filter_params"):
             DQL.search("papers", data=[[0.1, 0.2]], filter_params={"a": 1}, expr_params={"a": 1})
 
-    def test_dql_request_validation_for_direct_construction(self):
-        with pytest.raises(ParamError):
-            DQLRequest(op="", spec=None)
+    def test_bare_dql_request_rejected_as_unsupported_op(self):
+        with pytest.raises(ParamError, match="Unsupported DQL operation"):
+            validate_execute_dql_params([DQLRequest()])
 
 
 class TestDQLResult:
@@ -252,8 +250,12 @@ class TestValidateAndPrepareExecuteDQL:
             validate_execute_dql_params("not-a-seq")
         with pytest.raises(ParamError, match="DQLRequest"):
             validate_execute_dql_params([object()])
+
+        class _UnsupportedRequest(DQLRequest):
+            op = "query"
+
         with pytest.raises(ParamError, match="Unsupported DQL operation"):
-            validate_execute_dql_params([DQLRequest(op="query", spec=None)])
+            validate_execute_dql_params([_UnsupportedRequest()])
 
     def test_validate_rejects_batch_db_name(self):
         req = DQL.search("papers", data=[[0.1, 0.2]])
@@ -540,16 +542,12 @@ class TestSharedPrepareAndLocalValidation:
     """Shared search preparation between single search() and execute_dql()."""
 
     def test_prepare_dql_item_defensive_validation(self):
+        class _UnsupportedRequest(DQLRequest):
+            op = "query"
+
         with pytest.raises(ParamError, match="Unsupported DQL operation"):
             prepare_dql_item(
-                DQLRequest(op="query", spec=None),
-                server_address="localhost:19530",
-                context=None,
-                batch_kwargs={},
-            )
-        with pytest.raises(ParamError, match="search spec"):
-            prepare_dql_item(
-                DQLRequest(op="search", spec=object()),
+                _UnsupportedRequest(),
                 server_address="localhost:19530",
                 context=None,
                 batch_kwargs={},

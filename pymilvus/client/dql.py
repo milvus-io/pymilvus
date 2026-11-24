@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import grpc
 
@@ -34,8 +34,17 @@ _EXECUTE_DQL_RPC_KWARG_KEYS = ("retry_times", "retry_on_rate_limit", "log_level"
 
 
 @dataclass(frozen=True)
-class _SearchSpec:
-    """Immutable structured payload for a ``DQL.search`` sub-request."""
+class DQLRequest:
+    """Base class for immutable read-only DQL sub-requests created by ``DQL.*`` constructors."""
+
+    op: ClassVar[str] = ""
+
+
+@dataclass(frozen=True)
+class _SearchRequest(DQLRequest):
+    """Immutable search sub-request returned by ``DQL.search``."""
+
+    op: ClassVar[str] = "search"
 
     collection_name: str
     data: Any = None
@@ -55,18 +64,6 @@ class _SearchSpec:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "extra_kwargs", MappingProxyType(dict(self.extra_kwargs)))
-
-
-@dataclass(frozen=True)
-class DQLRequest:
-    """Immutable read-only DQL sub-request created by ``DQL.*`` constructors."""
-
-    op: str
-    spec: Any
-
-    def __post_init__(self) -> None:
-        if not isinstance(self.op, str) or not self.op:
-            raise ParamError(message="DQLRequest.op must be a non-empty string")
 
 
 @dataclass(frozen=True)
@@ -165,25 +162,22 @@ class DQL:
         if "filter_params" in extra_kwargs and "expr_params" in extra_kwargs:
             raise ParamError(message="Provide either 'filter_params' or 'expr_params', not both.")
 
-        return DQLRequest(
-            op="search",
-            spec=_SearchSpec(
-                collection_name=collection_name,
-                data=data,
-                filter=filter,
-                limit=limit,
-                output_fields=output_fields,
-                search_params=search_params,
-                partition_names=partition_names,
-                anns_field=anns_field,
-                ranker=ranker,
-                function_chains=function_chains,
-                highlighter=highlighter,
-                ids=ids,
-                search_aggregation=search_aggregation,
-                db_name=db_name,
-                extra_kwargs=extra_kwargs,
-            ),
+        return _SearchRequest(
+            collection_name=collection_name,
+            data=data,
+            filter=filter,
+            limit=limit,
+            output_fields=output_fields,
+            search_params=search_params,
+            partition_names=partition_names,
+            anns_field=anns_field,
+            ranker=ranker,
+            function_chains=function_chains,
+            highlighter=highlighter,
+            ids=ids,
+            search_aggregation=search_aggregation,
+            db_name=db_name,
+            extra_kwargs=extra_kwargs,
         )
 
 
@@ -289,7 +283,7 @@ def resolve_search_db_context(
 class _PreparedSearchItem:
     """Normalized, locally validated search sub-request ready for schema fetch and proto build."""
 
-    spec: _SearchSpec
+    req: _SearchRequest
     data: Any
     ids: Any
     round_decimal: int
@@ -301,7 +295,7 @@ class _PreparedSearchItem:
 
     @property
     def collection_name(self) -> str:
-        return self.spec.collection_name
+        return self.req.collection_name
 
 
 def prepare_dql_item(
@@ -312,18 +306,13 @@ def prepare_dql_item(
     batch_kwargs: Mapping[str, Any],
 ) -> _PreparedSearchItem:
     """Validate and prepare a ``DQLRequest`` item using the shared search preparation helpers."""
-    if req.op != "search":
+    if not isinstance(req, _SearchRequest):
         supported = ", ".join(sorted(SUPPORTED_DQL_OPS))
         raise ParamError(
             message=f"Unsupported DQL operation: {req.op!r}. Supported operations: {supported}"
         )
-    if not isinstance(req.spec, _SearchSpec):
-        raise ParamError(
-            message=f"DQLRequest for 'search' requires a search spec, got {type(req.spec).__name__}"
-        )
 
-    spec = req.spec
-    item_kwargs = dict(spec.extra_kwargs)
+    item_kwargs = dict(req.extra_kwargs)
 
     expr_params = item_kwargs.pop("filter_params", item_kwargs.pop("expr_params", {}))
     item_kwargs["expr_params"] = {} if expr_params is None else expr_params
@@ -332,28 +321,28 @@ def prepare_dql_item(
         if batch_key in batch_kwargs:
             item_kwargs[batch_key] = batch_kwargs[batch_key]
 
-    if spec.search_aggregation is not None:
-        item_kwargs["search_aggregation"] = spec.search_aggregation
+    if req.search_aggregation is not None:
+        item_kwargs["search_aggregation"] = req.search_aggregation
 
     round_decimal = item_kwargs.pop("round_decimal", -1)
     data, ids, needs_schema = normalize_search_inputs(
-        spec.data, spec.ids, limit=spec.limit, extra_kwargs=item_kwargs
+        req.data, req.ids, limit=req.limit, extra_kwargs=item_kwargs
     )
     check_pass_param(
-        limit=spec.limit,
+        limit=req.limit,
         round_decimal=round_decimal,
-        anns_field=spec.anns_field or "",
-        partition_name_array=spec.partition_names,
-        output_fields=spec.output_fields,
+        anns_field=req.anns_field or "",
+        partition_name_array=req.partition_names,
+        output_fields=req.output_fields,
         guarantee_timestamp=item_kwargs.get("guarantee_timestamp"),
     )
-    effective_db, item_context = resolve_search_db_context(context, spec.db_name)
+    effective_db, item_context = resolve_search_db_context(context, req.db_name)
     use_default_consistency = ts_utils.construct_guarantee_ts(
-        spec.collection_name, item_kwargs, server_address, effective_db
+        req.collection_name, item_kwargs, server_address, effective_db
     )
 
     return _PreparedSearchItem(
-        spec=spec,
+        req=req,
         data=data,
         ids=ids,
         round_decimal=round_decimal,
@@ -401,29 +390,29 @@ def build_execute_dql_request(
     """Assemble ``ExecuteDQLRequest`` from prepared items and DB-isolated schemas."""
     dql_requests: List[milvus_types.DQLRequest] = []
     for item in prepared_items:
-        spec = item.spec
+        req = item.req
         req_kwargs = dict(item.extra_kwargs)
         req_kwargs.pop("db_name", None)
         if item.needs_schema:
-            schema = local_schemas.get((item.effective_db, spec.collection_name))
+            schema = local_schemas.get((item.effective_db, req.collection_name))
             if schema is not None:
                 req_kwargs["schema"] = schema
         search_req = Prepare.search_requests_with_expr(
-            collection_name=spec.collection_name,
-            anns_field=spec.anns_field or "",
-            param=spec.search_params or {},
-            limit=spec.limit,
+            collection_name=req.collection_name,
+            anns_field=req.anns_field or "",
+            param=req.search_params or {},
+            limit=req.limit,
             data=item.data,
             ids=item.ids,
-            expr=spec.filter,
-            partition_names=spec.partition_names,
-            output_fields=spec.output_fields,
+            expr=req.filter,
+            partition_names=req.partition_names,
+            output_fields=req.output_fields,
             round_decimal=item.round_decimal,
-            ranker=spec.ranker,
-            function_chains=spec.function_chains,
-            highlighter=spec.highlighter,
+            ranker=req.ranker,
+            function_chains=req.function_chains,
+            highlighter=req.highlighter,
             use_default_consistency=item.use_default_consistency,
-            db_name=spec.db_name or None,
+            db_name=req.db_name or None,
             **req_kwargs,
         )
         dql_requests.append(milvus_types.DQLRequest(search=search_req))
