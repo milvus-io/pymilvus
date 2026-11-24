@@ -19,6 +19,7 @@ resolution-markers = [
     "python_full_version <= '3.9'",
 ]
 
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -1105,6 +1106,43 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c3/1a/416cc55d567f94b1249a0e007951115e2f7d296eabc345276c3859af76c9/cython-3.2.4-cp39-cp39-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b84d4e3c875915545f77c88dba65ad3741afd2431e5cdee6c9a20cefe6905647", size = 3544002, upload-time = "2026-01-04T14:16:00.915Z" },
     { url = "https://files.pythonhosted.org/packages/b7/1f/d24ee88f58f6c97001ec919cebec9e3aabcbe5489be045ceaf49e983522d/cython-3.2.4-cp39-cp39-win_amd64.whl", hash = "sha256:fdfdd753ad7e18e5092b413e9f542e8d28b8a08203126090e1c15f7783b7fe57", size = 2772062, upload-time = "2026-01-04T14:16:02.81Z" },
     { url = "https://files.pythonhosted.org/packages/ff/fa/d3c15189f7c52aaefbaea76fb012119b04b9013f4bf446cb4eb4c26c4e6b/cython-3.2.4-py3-none-any.whl", hash = "sha256:732fc93bc33ae4b14f6afaca663b916c2fdd5dcbfad7114e17fb2434eeaea45c", size = 1257078, upload-time = "2026-01-04T14:14:12.373Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.7.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version > '3.9' and python_full_version < '3.10'",
+    "python_full_version <= '3.9'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b5/4a/263763cb2ba3816dd94b08ad3a33d5fdae34ecb856678773cc40a3605829/dnspython-2.7.0.tar.gz", hash = "sha256:ce9c432eda0dc91cf618a5cedf1a4e142651196bbcd2c80e89ed5a907e5cfaf1", size = 345197, upload-time = "2024-10-05T20:14:59.362Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/1b/e0a87d256e40e8c888847551b20a017a6b98139178505dc7ffb96f04e954/dnspython-2.7.0-py3-none-any.whl", hash = "sha256:b4c34b7d10b51bcc3a5071e7b8dee77939f1e878477eeecc965e9835f63c6c86", size = 313632, upload-time = "2024-10-05T20:14:57.687Z" },
+]
+
+[[package]]
+name = "dnspython"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.14' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and sys_platform == 'emscripten'",
+    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.13.*' and sys_platform == 'win32'",
+    "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'win32'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and sys_platform == 'emscripten'",
+    "python_full_version == '3.11.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.10.*'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
 ]
 
 [[package]]
@@ -3470,6 +3508,8 @@ source = { editable = "." }
 dependencies = [
     { name = "cachetools", version = "6.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "cachetools", version = "7.1.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "dnspython", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "dnspython", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "grpcio", version = "1.66.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "grpcio", version = "1.80.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "orjson", version = "3.11.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
@@ -3554,6 +3594,7 @@ release = [
 requires-dist = [
     { name = "azure-storage-blob", marker = "extra == 'bulk-writer'" },
     { name = "cachetools", specifier = ">=5.0.0" },
+    { name = "dnspython", specifier = ">=2.0.0" },
     { name = "grpcio", marker = "python_full_version < '3.14'", specifier = ">=1.66.2,!=1.68.0,!=1.68.1,!=1.69.0,!=1.70.0,!=1.70.1,!=1.71.0,!=1.72.1,!=1.73.0" },
     { name = "grpcio", marker = "python_full_version >= '3.14'", specifier = ">=1.75.1" },
     { name = "milvus-lite", marker = "sys_platform != 'win32' and extra == 'milvus-lite'", specifier = ">=2.4.0" },
