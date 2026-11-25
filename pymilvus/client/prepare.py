@@ -38,6 +38,7 @@ from .constants import (
     HINTS,
     IS_EMBEDDING_LIST,
     ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_CURSOR_KEY,
     ITER_SEARCH_ID_KEY,
     ITER_SEARCH_LAST_BOUND_KEY,
     ITER_SEARCH_V2_KEY,
@@ -1986,6 +1987,10 @@ class Prepare:
         search_iter_id = kwargs.get(ITER_SEARCH_ID_KEY)
         if search_iter_id is not None:
             search_params[ITER_SEARCH_ID_KEY] = search_iter_id
+
+        search_iter_cursor = kwargs.get(ITER_SEARCH_CURSOR_KEY)
+        if search_iter_cursor is not None:
+            search_params[ITER_SEARCH_CURSOR_KEY] = search_iter_cursor
 
         search_aggregation = kwargs.get(SEARCH_AGGREGATION)
         if search_aggregation is not None and not isinstance(search_aggregation, SearchAggregation):

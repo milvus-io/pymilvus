@@ -45,6 +45,7 @@ ITER_SEARCH_V2_KEY = "search_iter_v2"
 ITER_SEARCH_BATCH_SIZE_KEY = "search_iter_batch_size"
 ITER_SEARCH_LAST_BOUND_KEY = "search_iter_last_bound"
 ITER_SEARCH_ID_KEY = "search_iter_id"
+ITER_SEARCH_CURSOR_KEY = "search_iter_cursor"
 PAGE_RETAIN_ORDER_FIELD = "page_retain_order"
 HINTS = "hints"
 

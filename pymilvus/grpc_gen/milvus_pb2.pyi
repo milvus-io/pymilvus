@@ -65,6 +65,7 @@ class RowPolicyAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     QueryIterator: _ClassVar[RowPolicyAction]
     SearchIterator: _ClassVar[RowPolicyAction]
     HybridSearch: _ClassVar[RowPolicyAction]
+    Update: _ClassVar[RowPolicyAction]
 
 class RowPolicyType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -124,6 +125,7 @@ Upsert: RowPolicyAction
 QueryIterator: RowPolicyAction
 SearchIterator: RowPolicyAction
 HybridSearch: RowPolicyAction
+Update: RowPolicyAction
 RowPolicyTypeUnknown: RowPolicyType
 RowPolicyTypePermissive: RowPolicyType
 RowPolicyTypeRestrictive: RowPolicyType
@@ -1182,7 +1184,7 @@ class UpsertRequest(_message.Message):
     def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., fields_data: _Optional[_Iterable[_Union[_schema_pb2.FieldData, _Mapping]]] = ..., hash_keys: _Optional[_Iterable[int]] = ..., num_rows: _Optional[int] = ..., schema_timestamp: _Optional[int] = ..., partial_update: bool = ..., namespace: _Optional[str] = ..., field_ops: _Optional[_Iterable[_Union[_schema_pb2.FieldPartialUpdateOp, _Mapping]]] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ..., write_condition: _Optional[_Union[WriteCondition, _Mapping]] = ...) -> None: ...
 
 class MutationResult(_message.Message):
-    __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp")
+    __slots__ = ("status", "IDs", "succ_index", "err_index", "acknowledged", "insert_cnt", "delete_cnt", "upsert_cnt", "timestamp", "update_cnt")
     STATUS_FIELD_NUMBER: _ClassVar[int]
     IDS_FIELD_NUMBER: _ClassVar[int]
     SUCC_INDEX_FIELD_NUMBER: _ClassVar[int]
@@ -1192,6 +1194,7 @@ class MutationResult(_message.Message):
     DELETE_CNT_FIELD_NUMBER: _ClassVar[int]
     UPSERT_CNT_FIELD_NUMBER: _ClassVar[int]
     TIMESTAMP_FIELD_NUMBER: _ClassVar[int]
+    UPDATE_CNT_FIELD_NUMBER: _ClassVar[int]
     status: _common_pb2.Status
     IDs: _schema_pb2.IDs
     succ_index: _containers.RepeatedScalarFieldContainer[int]
@@ -1201,7 +1204,8 @@ class MutationResult(_message.Message):
     delete_cnt: int
     upsert_cnt: int
     timestamp: int
-    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., IDs: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., succ_index: _Optional[_Iterable[int]] = ..., err_index: _Optional[_Iterable[int]] = ..., acknowledged: bool = ..., insert_cnt: _Optional[int] = ..., delete_cnt: _Optional[int] = ..., upsert_cnt: _Optional[int] = ..., timestamp: _Optional[int] = ...) -> None: ...
+    update_cnt: int
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., IDs: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., succ_index: _Optional[_Iterable[int]] = ..., err_index: _Optional[_Iterable[int]] = ..., acknowledged: bool = ..., insert_cnt: _Optional[int] = ..., delete_cnt: _Optional[int] = ..., upsert_cnt: _Optional[int] = ..., timestamp: _Optional[int] = ..., update_cnt: _Optional[int] = ...) -> None: ...
 
 class DeleteRequest(_message.Message):
     __slots__ = ("base", "db_name", "collection_name", "partition_name", "expr", "hash_keys", "consistency_level", "expr_template_values", "namespace", "rls_principal", "skip_rls")
@@ -4016,3 +4020,65 @@ class WriteCondition(_message.Message):
     op: WriteCondition.Op
     on_missing: WriteCondition.MissingRowPolicy
     def __init__(self, field: _Optional[str] = ..., op: _Optional[_Union[WriteCondition.Op, str]] = ..., on_missing: _Optional[_Union[WriteCondition.MissingRowPolicy, str]] = ...) -> None: ...
+
+class ExecuteDQLRequest(_message.Message):
+    __slots__ = ("base", "requests", "max_concurrency", "timeout_ms")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    requests: _containers.RepeatedCompositeFieldContainer[DQLRequest]
+    max_concurrency: int
+    timeout_ms: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., requests: _Optional[_Iterable[_Union[DQLRequest, _Mapping]]] = ..., max_concurrency: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class DQLRequest(_message.Message):
+    __slots__ = ("search",)
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    search: SearchRequest
+    def __init__(self, search: _Optional[_Union[SearchRequest, _Mapping]] = ...) -> None: ...
+
+class ExecuteDQLResponse(_message.Message):
+    __slots__ = ("status", "results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    results: _containers.RepeatedCompositeFieldContainer[DQLResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Iterable[_Union[DQLResult, _Mapping]]] = ...) -> None: ...
+
+class DQLResult(_message.Message):
+    __slots__ = ("status", "search")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    search: SearchResults
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., search: _Optional[_Union[SearchResults, _Mapping]] = ...) -> None: ...
+
+class UpdateAssignment(_message.Message):
+    __slots__ = ("field_name", "literal")
+    FIELD_NAME_FIELD_NUMBER: _ClassVar[int]
+    LITERAL_FIELD_NUMBER: _ClassVar[int]
+    field_name: str
+    literal: _schema_pb2.UpdateLiteral
+    def __init__(self, field_name: _Optional[str] = ..., literal: _Optional[_Union[_schema_pb2.UpdateLiteral, _Mapping]] = ...) -> None: ...
+
+class UpdateRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "partition_name", "primary_keys", "assignments", "rls_principal", "skip_rls")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PARTITION_NAME_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_KEYS_FIELD_NUMBER: _ClassVar[int]
+    ASSIGNMENTS_FIELD_NUMBER: _ClassVar[int]
+    RLS_PRINCIPAL_FIELD_NUMBER: _ClassVar[int]
+    SKIP_RLS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    partition_name: str
+    primary_keys: _schema_pb2.IDs
+    assignments: _containers.RepeatedCompositeFieldContainer[UpdateAssignment]
+    rls_principal: str
+    skip_rls: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., partition_name: _Optional[str] = ..., primary_keys: _Optional[_Union[_schema_pb2.IDs, _Mapping]] = ..., assignments: _Optional[_Iterable[_Union[UpdateAssignment, _Mapping]]] = ..., rls_principal: _Optional[str] = ..., skip_rls: bool = ...) -> None: ...

@@ -5,6 +5,7 @@ import pytest
 from pymilvus.client.call_context import CallContext
 from pymilvus.client.constants import (
     GUARANTEE_TIMESTAMP,
+    ITER_SEARCH_CURSOR_KEY,
     ITER_SEARCH_ID_KEY,
 )
 from pymilvus.client.iterator import SearchPage
@@ -187,6 +188,37 @@ class TestSearchIteratorV2:
         iterator.next()
 
         assert mock_connection.search.call_args_list[2].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
+
+    def test_cursor_updates_per_page_while_token_stays_fixed(self, mock_connection, search_data):
+        probe_result = self.create_mock_search_result(num_results=1)
+        first_page = self.create_mock_search_result(num_results=1)
+        second_page = self.create_mock_search_result(num_results=1)
+        third_page = self.create_mock_search_result(num_results=1)
+        probe_result._search_iterator_v2_results.token = "probe-token"
+        first_page._search_iterator_v2_results.token = "page-token"
+        first_page._search_iterator_v2_results.cursor = "c1:page1"
+        second_page._search_iterator_v2_results.token = "ignored-token"
+        second_page._search_iterator_v2_results.cursor = "c1:page2"
+        third_page._search_iterator_v2_results.cursor = ""
+        mock_connection.search.side_effect = [probe_result, first_page, second_page, third_page]
+
+        iterator = SearchIteratorV2(
+            handler=mock_connection,
+            context=None,
+            collection_name="test_collection",
+            data=search_data,
+            batch_size=1,
+        )
+
+        iterator.next()
+        iterator.next()
+        iterator.next()
+
+        assert ITER_SEARCH_CURSOR_KEY not in mock_connection.search.call_args_list[1].kwargs
+        assert mock_connection.search.call_args_list[2].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
+        assert mock_connection.search.call_args_list[2].kwargs[ITER_SEARCH_CURSOR_KEY] == "c1:page1"
+        assert mock_connection.search.call_args_list[3].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
+        assert mock_connection.search.call_args_list[3].kwargs[ITER_SEARCH_CURSOR_KEY] == "c1:page2"
 
     def test_external_filter_surplus_is_cached_for_next_page(self, mock_connection, search_data):
         mock_connection.search.side_effect = [
