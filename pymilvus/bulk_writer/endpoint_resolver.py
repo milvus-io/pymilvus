@@ -1,4 +1,4 @@
-import http
+import http.client
 import logging
 
 from pymilvus.bulk_writer.constants import ConnectType
@@ -47,6 +47,7 @@ class EndpointResolver:
 
     @staticmethod
     def _check_endpoint_reachable(endpoint: str, raise_error: bool) -> bool:
+        conn = None
         try:
             conn = http.client.HTTPSConnection(endpoint, timeout=5)
             conn.request("HEAD", "/")
@@ -59,5 +60,19 @@ class EndpointResolver:
                 raise RuntimeError(str(e)) from e
             logger.warning("Endpoint %s not reachable, will fallback if needed", endpoint)
             return False
-        else:
-            return 200 <= code < 400
+        finally:
+            if conn is not None:
+                conn.close()
+
+        if 200 <= code < 400:
+            return True
+        if raise_error:
+            msg = f"Endpoint {endpoint} not reachable, response code={code}"
+            logger.error(msg)
+            raise RuntimeError(msg)
+        logger.warning(
+            "Endpoint %s returned non-2xx/3xx status code=%s, will fallback if needed",
+            endpoint,
+            code,
+        )
+        return False
