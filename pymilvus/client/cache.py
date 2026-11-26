@@ -45,6 +45,18 @@ class CacheRegion:
         with self._lock:
             self._cache.pop(key, None)
 
+    def invalidate_prefix(self, prefix: Tuple[Any, ...]) -> None:
+        """Remove every entry whose tuple key starts with ``prefix``.
+
+        Used to drop a whole database or endpoint at once, so an unbounded
+        region still shrinks when the objects it describes are gone.
+        """
+        size = len(prefix)
+        with self._lock:
+            stale = [k for k in self._cache if isinstance(k, tuple) and k[:size] == prefix]
+            for key in stale:
+                self._cache.pop(key, None)
+
     def clear(self) -> None:
         """Clear all entries from cache."""
         with self._lock:
@@ -81,11 +93,11 @@ class SchemaCache(CacheRegion):
 
     def invalidate_db(self, endpoint: str, db_name: str) -> None:
         """Invalidate all schemas for a database."""
-        prefix = (endpoint, db_name or "default")
-        with self._lock:
-            keys_to_remove = [k for k in self._cache if k[:2] == prefix]
-            for key in keys_to_remove:
-                self._cache.pop(key, None)
+        self.invalidate_prefix((endpoint, db_name or "default"))
+
+    def invalidate_endpoint(self, endpoint: str) -> None:
+        """Invalidate all schemas cached for an endpoint."""
+        self.invalidate_prefix((endpoint,))
 
     @staticmethod
     def _make_key(endpoint: str, db_name: str, collection_name: str) -> Tuple[str, str, str]:
@@ -129,6 +141,14 @@ class CollectionTsCache(CacheRegion):
         """Invalidate timestamp for a specific collection."""
         key = self._make_key(endpoint, db_name, collection_name)
         super().invalidate(key)
+
+    def invalidate_db(self, endpoint: str, db_name: str) -> None:
+        """Invalidate all timestamps for a database."""
+        self.invalidate_prefix((endpoint, db_name or "default"))
+
+    def invalidate_endpoint(self, endpoint: str) -> None:
+        """Invalidate all timestamps cached for an endpoint."""
+        self.invalidate_prefix((endpoint,))
 
     @staticmethod
     def _make_key(endpoint: str, db_name: str, collection_name: str) -> Tuple[str, str, str]:

@@ -68,6 +68,36 @@ class TestAsyncGrpcHandlerCollection:
             mock_stub.DropCollection.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_drop_collection_evicts_the_guarantee_timestamp(self) -> None:
+        """A dropped collection must not leave its timestamp behind."""
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+
+        mock_stub = AsyncMock()
+        mock_status = MagicMock()
+        mock_status.code = 0
+        mock_stub.DropCollection = AsyncMock(return_value=mock_status)
+        handler._async_stub = mock_stub
+
+        GlobalCache._reset_for_testing()
+        try:
+            GlobalCache.collection_ts.set(handler.server_address, "", "test_coll", 5000)
+            GlobalCache.collection_ts.set(handler.server_address, "", "other", 6000)
+
+            with patch("pymilvus.client.async_grpc_handler.Prepare"), patch(
+                "pymilvus.client.async_grpc_handler.check_pass_param"
+            ), patch("pymilvus.client.async_grpc_handler.check_status"):
+                await handler.drop_collection("test_coll")
+
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "test_coll") == 0
+            assert GlobalCache.collection_ts.get(handler.server_address, "", "other") == 6000
+        finally:
+            GlobalCache._reset_for_testing()
+
+    @pytest.mark.asyncio
     async def test_truncate_collection(self) -> None:
         """Test truncate_collection async API"""
         mock_channel = MagicMock()
