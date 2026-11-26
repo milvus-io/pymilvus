@@ -169,6 +169,7 @@ class StructArrayFieldSchema:
         self.field_id = raw.fieldID
         self.description = raw.description
         self.nullable = raw.nullable
+        self.external_field = raw.external_field
         self.fields = [FieldSchema(f) for f in raw.fields]
         for field in self.fields:
             field.name = _strip_struct_sub_field_name(self.name, field.name)
@@ -190,6 +191,8 @@ class StructArrayFieldSchema:
             "type": DataType._ARRAY_OF_STRUCT,
             "fields": [f.dict() for f in self.fields],
         }
+        if self.external_field:
+            result["external_field"] = self.external_field
         if self.nullable:
             result["nullable"] = self.nullable
         if self.params:

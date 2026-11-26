@@ -1124,7 +1124,11 @@ class AsyncMilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        """Add a new nullable struct field to the collection."""
+        """Add a new nullable struct field to the collection.
+
+        ``external_field`` in kwargs overrides the template's source Struct
+        column mapping. Child fields are matched by name within that column.
+        """
         if not isinstance(struct_schema, StructFieldSchema):
             raise ParamError(message="struct_schema must be StructFieldSchema")
         if not kwargs.get("nullable", True):
@@ -1135,6 +1139,8 @@ class AsyncMilvusClient(BaseMilvusClient):
         struct_field_schema = copy.deepcopy(struct_schema)
         struct_field_schema.name = field_name
         struct_field_schema.max_capacity = max_capacity
+        if "external_field" in kwargs:
+            struct_field_schema.external_field = kwargs["external_field"]
         if desc is not None:
             struct_field_schema._description = desc
         struct_field_schema._nullable = True

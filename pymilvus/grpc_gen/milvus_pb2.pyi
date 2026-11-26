@@ -4016,3 +4016,37 @@ class WriteCondition(_message.Message):
     op: WriteCondition.Op
     on_missing: WriteCondition.MissingRowPolicy
     def __init__(self, field: _Optional[str] = ..., op: _Optional[_Union[WriteCondition.Op, str]] = ..., on_missing: _Optional[_Union[WriteCondition.MissingRowPolicy, str]] = ...) -> None: ...
+
+class ExecuteDQLRequest(_message.Message):
+    __slots__ = ("base", "requests", "max_concurrency", "timeout_ms")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    REQUESTS_FIELD_NUMBER: _ClassVar[int]
+    MAX_CONCURRENCY_FIELD_NUMBER: _ClassVar[int]
+    TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    requests: _containers.RepeatedCompositeFieldContainer[DQLRequest]
+    max_concurrency: int
+    timeout_ms: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., requests: _Optional[_Iterable[_Union[DQLRequest, _Mapping]]] = ..., max_concurrency: _Optional[int] = ..., timeout_ms: _Optional[int] = ...) -> None: ...
+
+class DQLRequest(_message.Message):
+    __slots__ = ("search",)
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    search: SearchRequest
+    def __init__(self, search: _Optional[_Union[SearchRequest, _Mapping]] = ...) -> None: ...
+
+class ExecuteDQLResponse(_message.Message):
+    __slots__ = ("status", "results")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    results: _containers.RepeatedCompositeFieldContainer[DQLResult]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., results: _Optional[_Iterable[_Union[DQLResult, _Mapping]]] = ...) -> None: ...
+
+class DQLResult(_message.Message):
+    __slots__ = ("status", "search")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    SEARCH_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    search: SearchResults
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., search: _Optional[_Union[SearchResults, _Mapping]] = ...) -> None: ...
