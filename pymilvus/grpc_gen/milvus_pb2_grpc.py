@@ -271,6 +271,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.UpsertRequest.SerializeToString,
                 response_deserializer=milvus__pb2.MutationResult.FromString,
                 _registered_method=True)
+        self.Update = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/Update',
+                request_serializer=milvus__pb2.UpdateRequest.SerializeToString,
+                response_deserializer=milvus__pb2.MutationResult.FromString,
+                _registered_method=True)
         self.Search = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Search',
                 request_serializer=milvus__pb2.SearchRequest.SerializeToString,
@@ -791,6 +796,11 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.CancelRequestsRequest.SerializeToString,
                 response_deserializer=milvus__pb2.CancelRequestsResponse.FromString,
                 _registered_method=True)
+        self.ExecuteDQL = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ExecuteDQL',
+                request_serializer=milvus__pb2.ExecuteDQLRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ExecuteDQLResponse.FromString,
+                _registered_method=True)
 
 
 class MilvusServiceServicer(object):
@@ -1075,6 +1085,12 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def Upsert(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def Update(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -1748,6 +1764,13 @@ class MilvusServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def ExecuteDQL(self, request, context):
+        """Execute one or more read-only DQL operations in a single RPC.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_MilvusServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -1984,6 +2007,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
             'Upsert': grpc.unary_unary_rpc_method_handler(
                     servicer.Upsert,
                     request_deserializer=milvus__pb2.UpsertRequest.FromString,
+                    response_serializer=milvus__pb2.MutationResult.SerializeToString,
+            ),
+            'Update': grpc.unary_unary_rpc_method_handler(
+                    servicer.Update,
+                    request_deserializer=milvus__pb2.UpdateRequest.FromString,
                     response_serializer=milvus__pb2.MutationResult.SerializeToString,
             ),
             'Search': grpc.unary_unary_rpc_method_handler(
@@ -2505,6 +2533,11 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.CancelRequests,
                     request_deserializer=milvus__pb2.CancelRequestsRequest.FromString,
                     response_serializer=milvus__pb2.CancelRequestsResponse.SerializeToString,
+            ),
+            'ExecuteDQL': grpc.unary_unary_rpc_method_handler(
+                    servicer.ExecuteDQL,
+                    request_deserializer=milvus__pb2.ExecuteDQLRequest.FromString,
+                    response_serializer=milvus__pb2.ExecuteDQLResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -3775,6 +3808,33 @@ class MilvusService(object):
             target,
             '/milvus.proto.milvus.MilvusService/Upsert',
             milvus__pb2.UpsertRequest.SerializeToString,
+            milvus__pb2.MutationResult.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def Update(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/Update',
+            milvus__pb2.UpdateRequest.SerializeToString,
             milvus__pb2.MutationResult.FromString,
             options,
             channel_credentials,
@@ -6584,6 +6644,33 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/CancelRequests',
             milvus__pb2.CancelRequestsRequest.SerializeToString,
             milvus__pb2.CancelRequestsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ExecuteDQL(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ExecuteDQL',
+            milvus__pb2.ExecuteDQLRequest.SerializeToString,
+            milvus__pb2.ExecuteDQLResponse.FromString,
             options,
             channel_credentials,
             insecure,

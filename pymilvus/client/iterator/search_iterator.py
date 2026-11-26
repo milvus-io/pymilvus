@@ -22,6 +22,7 @@ from pymilvus.client.constants import (
     GUARANTEE_TIMESTAMP,
     IS_PRIMARY,
     ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_CURSOR_KEY,
     ITER_SEARCH_ID_KEY,
     ITER_SEARCH_LAST_BOUND_KEY,
     ITER_SEARCH_V2_KEY,
@@ -594,6 +595,11 @@ class SearchIteratorV2:
         if ITER_SEARCH_ID_KEY not in self._params:
             # the token should not change during the lifetime of the iterator
             self._params[ITER_SEARCH_ID_KEY] = iter_info.token
+        cursor = getattr(iter_info, "cursor", "")
+        if cursor:
+            self._params[ITER_SEARCH_CURSOR_KEY] = cursor
+        else:
+            self._params.pop(ITER_SEARCH_CURSOR_KEY, None)
         if self._params[GUARANTEE_TIMESTAMP] <= 0:
             if res.get_session_ts() > 0:
                 self._params[GUARANTEE_TIMESTAMP] = res.get_session_ts()

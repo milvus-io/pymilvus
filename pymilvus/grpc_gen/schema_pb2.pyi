@@ -333,20 +333,22 @@ class CollectionSchema(_message.Message):
     def __init__(self, name: _Optional[str] = ..., description: _Optional[str] = ..., autoID: bool = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., enable_dynamic_field: bool = ..., properties: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., functions: _Optional[_Iterable[_Union[FunctionSchema, _Mapping]]] = ..., dbName: _Optional[str] = ..., struct_array_fields: _Optional[_Iterable[_Union[StructArrayFieldSchema, _Mapping]]] = ..., version: _Optional[int] = ..., external_source: _Optional[str] = ..., external_spec: _Optional[str] = ..., do_physical_backfill: bool = ..., file_resource_ids: _Optional[_Iterable[int]] = ..., enable_namespace: bool = ...) -> None: ...
 
 class StructArrayFieldSchema(_message.Message):
-    __slots__ = ("fieldID", "name", "description", "fields", "type_params", "nullable")
+    __slots__ = ("fieldID", "name", "description", "fields", "type_params", "nullable", "external_field")
     FIELDID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     FIELDS_FIELD_NUMBER: _ClassVar[int]
     TYPE_PARAMS_FIELD_NUMBER: _ClassVar[int]
     NULLABLE_FIELD_NUMBER: _ClassVar[int]
+    EXTERNAL_FIELD_FIELD_NUMBER: _ClassVar[int]
     fieldID: int
     name: str
     description: str
     fields: _containers.RepeatedCompositeFieldContainer[FieldSchema]
     type_params: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
     nullable: bool
-    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nullable: bool = ...) -> None: ...
+    external_field: str
+    def __init__(self, fieldID: _Optional[int] = ..., name: _Optional[str] = ..., description: _Optional[str] = ..., fields: _Optional[_Iterable[_Union[FieldSchema, _Mapping]]] = ..., type_params: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ..., nullable: bool = ..., external_field: _Optional[str] = ...) -> None: ...
 
 class BoolArray(_message.Message):
     __slots__ = ("data",)
@@ -611,12 +613,14 @@ class IDs(_message.Message):
     def __init__(self, int_id: _Optional[_Union[LongArray, _Mapping]] = ..., str_id: _Optional[_Union[StringArray, _Mapping]] = ..., uuid_id: _Optional[_Union[UUIDArray, _Mapping]] = ...) -> None: ...
 
 class SearchIteratorV2Results(_message.Message):
-    __slots__ = ("token", "last_bound")
+    __slots__ = ("token", "last_bound", "cursor")
     TOKEN_FIELD_NUMBER: _ClassVar[int]
     LAST_BOUND_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
     token: str
     last_bound: float
-    def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ...) -> None: ...
+    cursor: str
+    def __init__(self, token: _Optional[str] = ..., last_bound: _Optional[float] = ..., cursor: _Optional[str] = ...) -> None: ...
 
 class SearchResultData(_message.Message):
     __slots__ = ("num_queries", "top_k", "fields_data", "scores", "ids", "topks", "output_fields", "group_by_field_value", "all_search_count", "distances", "search_iterator_v2_results", "recalls", "primary_field_name", "highlight_results", "element_indices", "group_by_field_values", "agg_buckets", "agg_topks")
@@ -826,3 +830,13 @@ class HashRouting(_message.Message):
     BUCKETS_FIELD_NUMBER: _ClassVar[int]
     buckets: _containers.RepeatedScalarFieldContainer[int]
     def __init__(self, buckets: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class UpdateLiteral(_message.Message):
+    __slots__ = ("scalar_value", "array_value", "set_null")
+    SCALAR_VALUE_FIELD_NUMBER: _ClassVar[int]
+    ARRAY_VALUE_FIELD_NUMBER: _ClassVar[int]
+    SET_NULL_FIELD_NUMBER: _ClassVar[int]
+    scalar_value: ValueField
+    array_value: ScalarField
+    set_null: bool
+    def __init__(self, scalar_value: _Optional[_Union[ValueField, _Mapping]] = ..., array_value: _Optional[_Union[ScalarField, _Mapping]] = ..., set_null: bool = ...) -> None: ...
