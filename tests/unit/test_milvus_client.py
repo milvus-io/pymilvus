@@ -365,7 +365,15 @@ class TestMilvusClient:
                     max_capacity=16,
                 )
 
-    def test_add_collection_struct_field(self):
+    @pytest.mark.parametrize(
+        "mapping_kwargs, expected_mapping",
+        [
+            ({}, "template_source"),
+            ({"external_field": "source_metadata"}, "source_metadata"),
+            ({"external_field": ""}, ""),
+        ],
+    )
+    def test_add_collection_struct_field(self, mapping_kwargs, expected_mapping):
         """Test adding nullable struct field calls connection handler."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
@@ -376,7 +384,9 @@ class TestMilvusClient:
             "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
         ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
             client = MilvusClient()
-            struct_schema = StructFieldSchema(description="schema desc")
+            struct_schema = client.create_struct_field_schema(
+                description="schema desc", external_field="template_source"
+            )
             struct_schema.add_field("score", DataType.FLOAT)
             client.add_collection_struct_field(
                 "test_collection",
@@ -386,6 +396,7 @@ class TestMilvusClient:
                 desc="field desc",
                 mmap_enabled=True,
                 warmup={"policy": "async"},
+                **mapping_kwargs,
             )
 
             mock_conn.add_collection_struct_field.assert_called_once()
@@ -396,6 +407,9 @@ class TestMilvusClient:
             assert added_schema.description == "field desc"
             assert added_schema.params["mmap_enabled"] is True
             assert added_schema.params["warmup"] == {"policy": "async"}
+
+            assert added_schema.external_field == expected_mapping
+            assert struct_schema.external_field == "template_source"
 
 
 class TestMilvusClientSnapshot:

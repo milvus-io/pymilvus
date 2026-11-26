@@ -6,11 +6,19 @@ from unittest.mock import AsyncMock, MagicMock
 import grpc
 import numpy as np
 import pytest
-from pymilvus import CollectionSchema, DataType, FieldOp, FieldSchema
+from pymilvus import (
+    AsyncMilvusClient,
+    CollectionSchema,
+    DataType,
+    FieldOp,
+    FieldSchema,
+    MilvusClient,
+)
 from pymilvus.client.abstract import StructArrayFieldSchema
 from pymilvus.client.async_grpc_handler import AsyncGrpcHandler
 from pymilvus.client.cache import GlobalCache
 from pymilvus.client.call_context import CallContext
+from pymilvus.client.connection_manager import ConnectionConfig
 from pymilvus.client.entity_helper import (
     convert_to_array,
     convert_to_array_of_vector,
@@ -1036,3 +1044,127 @@ async def test_path_replace_refreshes_stale_schema_before_sending_child(asynchro
                 stub.Upsert.assert_awaited_once()
     finally:
         GlobalCache._reset_for_testing()
+
+
+@pytest.fixture(params=[False, True], ids=["sync", "async"])
+def external_mapping_client(request):
+    asynchronous = request.param
+    client_type = AsyncMilvusClient if asynchronous else MilvusClient
+    client = client_type.__new__(client_type)
+    client._config = ConnectionConfig(uri="http://unit-test:1", address="unit-test:1")
+    client._closed = False
+    handler, stub = bare_handler(asynchronous)
+    client._handler = handler
+    if asynchronous:
+        stub.CreateCollection = AsyncMock(return_value=common_pb2.Status())
+    else:
+        stub.CreateCollection.future.return_value.result.return_value = common_pb2.Status()
+    return client, stub, asynchronous
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("parent_mapping", ["", "clips"])
+@pytest.mark.parametrize("explicit_child_mapping", [False, True])
+async def test_struct_external_mapping_create_request(
+    external_mapping_client, parent_mapping, explicit_child_mapping
+):
+    client, stub, asynchronous = external_mapping_client
+    children = client.create_struct_field_schema()
+    children.add_field(
+        "score",
+        DataType.INT64,
+        external_field="clips[score]" if explicit_child_mapping else "",
+    )
+    children.add_field("title", DataType.VARCHAR, max_length=256)
+    children.add_field("embedding", DataType.FLOAT_VECTOR, dim=128)
+    schema = client.create_schema(enable_dynamic_field=False)
+    schema.add_field("id", DataType.INT64, is_primary=True)
+    schema.add_field(
+        "items",
+        DataType.ARRAY,
+        element_type=DataType.STRUCT,
+        struct_schema=children,
+        max_capacity=8,
+        external_field=parent_mapping,
+    )
+    raw = schema.to_dict()
+    assert raw["struct_fields"][0].get("external_field", "") == parent_mapping
+    assert children.to_dict().get("external_field", "") == ""
+    if asynchronous:
+        await client.create_collection("videos", schema=schema)
+        request = stub.CreateCollection.call_args.args[0]
+    else:
+        client.create_collection("videos", schema=schema)
+        request = stub.CreateCollection.future.call_args.args[0]
+    wire = schema_pb2.CollectionSchema.FromString(request.schema)
+    parent = wire.struct_array_fields[0]
+    assert parent.external_field == parent_mapping
+    assert [f.name for f in parent.fields] == ["score", "title", "embedding"]
+    assert parent.fields[0].external_field == ("clips[score]" if explicit_child_mapping else "")
+    restored = CollectionSchema.construct_from_dict(raw)
+    assert Prepare.get_schema_from_collection_schema("videos", restored) == wire
+    request = Prepare.add_collection_struct_field_request("videos", schema.struct_fields[0])
+    assert request.struct_array_field_schema == parent
+
+
+@pytest.mark.asyncio
+async def test_struct_external_mapping_client_describe_roundtrip(external_mapping_client):
+    client, stub, asynchronous = external_mapping_client
+    wire = Prepare.get_schema_from_collection_schema("videos", make_schema())
+    parent = wire.struct_array_fields[0]
+    parent.external_field = "source_clips"
+    for child in parent.fields:
+        child.external_field = f"source_clips[{child.name}]"
+        child.name = f"clips[{child.name}]"
+    response = milvus_pb2.DescribeCollectionResponse(schema=wire, status=common_pb2.Status())
+    stub.DescribeCollection = (AsyncMock if asynchronous else MagicMock)(return_value=response)
+    if asynchronous:
+        result = await client.describe_collection("videos")
+    else:
+        result = client.describe_collection("videos")
+    assert "struct_array_fields" not in result
+    described_parent = result["fields"][-1]
+    assert described_parent["external_field"] == "source_clips"
+    assert [f["external_field"] for f in described_parent["struct_fields"]] == [
+        "source_clips[embedding]",
+        "source_clips[score]",
+        "source_clips[tags]",
+    ]
+    restored = CollectionSchema.construct_from_dict(result)
+    rebuilt = Prepare.get_schema_from_collection_schema("videos", restored)
+    assert rebuilt.struct_array_fields[0].external_field == "source_clips"
+    assert [f.external_field for f in rebuilt.struct_array_fields[0].fields] == [
+        f.external_field for f in parent.fields
+    ]
+
+
+def test_struct_external_mapping_template_override():
+    children = MilvusClient.create_struct_field_schema(external_field="original")
+    children.add_field("score", DataType.INT64)
+    schema = MilvusClient.create_schema(enable_dynamic_field=False)
+    schema.add_field("id", DataType.INT64, is_primary=True)
+    schema.add_field(
+        "inherited",
+        DataType.ARRAY,
+        element_type=DataType.STRUCT,
+        struct_schema=children,
+        max_capacity=8,
+    )
+    schema.add_field(
+        "overridden",
+        DataType.ARRAY,
+        element_type=DataType.STRUCT,
+        struct_schema=children,
+        max_capacity=8,
+        external_field="clips",
+    )
+    schema.add_field(
+        "cleared",
+        DataType.ARRAY,
+        element_type=DataType.STRUCT,
+        struct_schema=children,
+        max_capacity=8,
+        external_field="",
+    )
+    assert [s.external_field for s in schema.struct_fields] == ["original", "clips", ""]
+    assert children.external_field == "original"

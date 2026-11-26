@@ -794,11 +794,23 @@ class TestAsyncMilvusClientNewFeatures:
             )
 
     @pytest.mark.asyncio
-    async def test_add_collection_struct_field(self, client_and_handler):
+    @pytest.mark.parametrize(
+        "mapping_kwargs, expected_mapping",
+        [
+            ({}, "template_source"),
+            ({"external_field": "source_metadata"}, "source_metadata"),
+            ({"external_field": ""}, ""),
+        ],
+    )
+    async def test_add_collection_struct_field(
+        self, client_and_handler, mapping_kwargs, expected_mapping
+    ):
         """Test adding nullable struct field calls connection handler."""
         client, mock_handler = client_and_handler
         mock_handler.add_collection_struct_field = AsyncMock()
-        struct_schema = StructFieldSchema(description="schema desc")
+        struct_schema = client.create_struct_field_schema(
+            description="schema desc", external_field="template_source"
+        )
         struct_schema.add_field("score", DataType.FLOAT)
 
         await client.add_collection_struct_field(
@@ -809,6 +821,7 @@ class TestAsyncMilvusClientNewFeatures:
             desc="field desc",
             mmap_enabled=True,
             warmup={"policy": "async"},
+            **mapping_kwargs,
         )
 
         mock_handler.add_collection_struct_field.assert_awaited_once()
@@ -819,6 +832,9 @@ class TestAsyncMilvusClientNewFeatures:
         assert added_schema.description == "field desc"
         assert added_schema.params["mmap_enabled"] is True
         assert added_schema.params["warmup"] == {"policy": "async"}
+
+        assert added_schema.external_field == expected_mapping
+        assert struct_schema.external_field == "template_source"
 
     @pytest.mark.parametrize(
         "uri, db_name, expected_db_name",

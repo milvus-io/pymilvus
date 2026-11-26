@@ -241,6 +241,7 @@ class Prepare:
             fields=[],
             description=struct.description,
             nullable=struct.nullable,
+            external_field=struct.external_field,
         )
 
         if struct.params:
