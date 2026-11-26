@@ -527,6 +527,8 @@ class CollectionSchema:
             if "max_capacity" not in kwargs:
                 raise ParamError(message="Param max_capacity is required when datatype is STRUCT")
             struct_schema.max_capacity = kwargs["max_capacity"]
+            if "external_field" in kwargs:
+                struct_schema.external_field = kwargs["external_field"]
 
             if "description" in kwargs:
                 struct_schema._description = kwargs["description"]
@@ -780,14 +782,18 @@ class StructFieldSchema:
     A sub-field's ``nullable`` controls that element's value. For Array
     sub-fields, ``element_nullable`` controls scalar leaves and ``max_capacity``
     controls the inner array. Struct row nullability is set on the parent field.
+    For MilvusClient and AsyncMilvusClient, ``external_field`` maps the parent
+    to a source Struct column. Child names are matched within that column by
+    the server. This mapping is not supported by the ORM Collection API.
     """
 
-    def __init__(self, nullable: bool = False, description: str = ""):
+    def __init__(self, nullable: bool = False, description: str = "", external_field: str = ""):
         if not isinstance(nullable, bool):
             raise ParamError(message="nullable must be boolean")
         if not isinstance(description, str):
             raise ParamError(message="description must be string")
         self.name = ""
+        self.external_field = external_field
         self._kwargs = {}
         self._fields = []
         self._description = description
@@ -892,6 +898,8 @@ class StructFieldSchema:
             "description": self._description,
             "fields": [field.to_dict() for field in self._fields],
         }
+        if self.external_field:
+            struct_dict["external_field"] = self.external_field
         if self.nullable:
             struct_dict["nullable"] = self.nullable
         # Include max_capacity if it's set
@@ -915,6 +923,7 @@ class StructFieldSchema:
 
         # Set name and description
         instance.name = raw.get("name", "")
+        instance.external_field = raw.get("external_field", "")
         instance._description = raw.get("description", "")
         instance._nullable = raw.get("nullable", False)
 

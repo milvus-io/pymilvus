@@ -365,7 +365,15 @@ class TestMilvusClient:
                     max_capacity=16,
                 )
 
-    def test_add_collection_struct_field(self):
+    @pytest.mark.parametrize(
+        "mapping_kwargs, expected_mapping",
+        [
+            ({}, "template_source"),
+            ({"external_field": "source_metadata"}, "source_metadata"),
+            ({"external_field": ""}, ""),
+        ],
+    )
+    def test_add_collection_struct_field(self, mapping_kwargs, expected_mapping):
         """Test adding nullable struct field calls connection handler."""
         mock_handler = MagicMock()
         mock_handler.get_server_type.return_value = "milvus"
@@ -376,7 +384,9 @@ class TestMilvusClient:
             "pymilvus.client.grpc_handler.GrpcHandler", return_value=mock_handler
         ), patch.object(MilvusClient, "_get_connection", return_value=mock_conn):
             client = MilvusClient()
-            struct_schema = StructFieldSchema(description="schema desc")
+            struct_schema = client.create_struct_field_schema(
+                description="schema desc", external_field="template_source"
+            )
             struct_schema.add_field("score", DataType.FLOAT)
             client.add_collection_struct_field(
                 "test_collection",
@@ -386,6 +396,7 @@ class TestMilvusClient:
                 desc="field desc",
                 mmap_enabled=True,
                 warmup={"policy": "async"},
+                **mapping_kwargs,
             )
 
             mock_conn.add_collection_struct_field.assert_called_once()
@@ -396,6 +407,9 @@ class TestMilvusClient:
             assert added_schema.description == "field desc"
             assert added_schema.params["mmap_enabled"] is True
             assert added_schema.params["warmup"] == {"policy": "async"}
+
+            assert added_schema.external_field == expected_mapping
+            assert struct_schema.external_field == "template_source"
 
 
 class TestMilvusClientSnapshot:
@@ -2589,3 +2603,19 @@ class TestGrpcHandlerDumpMessages:
         gen = h.dump_messages(pchannel="ch0", start_message_id=self._START)
         with pytest.raises(MilvusException, match="oneof"):
             next(gen)
+
+
+@pytest.mark.parametrize("condition", [None, {"field": "version", "op": "gt"}])
+def test_milvus_client_conditional_result_indexes(condition):
+    result = MagicMock(upsert_count=2, primary_keys=[42, 44], succ_index=[0, 2], cost=0)
+    handler = _make_handler(upsert_rows=MagicMock(return_value=result))
+    with patch("pymilvus.client.grpc_handler.GrpcHandler", return_value=handler):
+        client = MilvusClient()
+        response = client.upsert(
+            "col", data=[{"id": 42}, {"id": 43}, {"id": 44}], write_condition=condition
+        )
+        assert response["ids"] == [42, 44]
+        if condition is not None:
+            assert response["succ_index"] == [0, 2]
+        else:
+            assert "succ_index" not in response

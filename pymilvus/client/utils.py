@@ -461,6 +461,8 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
             "element_type": DataType.STRUCT,
             "params": {},
         }
+        if struct_field_info.get("external_field"):
+            user_struct_field["external_field"] = struct_field_info["external_field"]
         if struct_field_info.get("nullable", False):
             user_struct_field["nullable"] = True
 
@@ -497,6 +499,8 @@ def convert_struct_fields_to_user_format(struct_array_fields: List[Dict]) -> Lis
                     "description": f.get("description", ""),
                 }
 
+                if f.get("external_field"):
+                    struct_sub_field["external_field"] = f["external_field"]
                 if f.get("element_nullable", False):
                     struct_sub_field["nullable"] = True
 

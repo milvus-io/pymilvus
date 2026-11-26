@@ -309,6 +309,13 @@ class MilvusClient(BaseMilvusClient):
                 * *partial_update* (bool, optional): Whether this is a partial update operation.
                     If True, only the specified fields will be updated while others remain unchanged
                     Default is False.
+                * *write_condition* (dict, optional): Integer version comparison with
+                    ``field``, explicit ``op`` (gt/gte), and ``on_missing`` (insert/skip/error).
+                    Implies partial update. Only written rows appear in ids/succ_index.
+                    Missing rows default to insert, which can recreate deleted or expired rows;
+                    use on_missing="skip" or logical deletion to avoid this. GTE requires
+                    REPLACE operations. Batches can partially commit. AutoID inserts are not
+                    deduplicated across separate RPCs.
                 * *field_ops* (Dict[str, Any], optional): Per-field partial-update operators that
                     describe how to merge the provided values against the existing rows. Each
                     value may be a :class:`~pymilvus.FieldOp` factory result (e.g.
@@ -339,7 +346,11 @@ class MilvusClient(BaseMilvusClient):
             raise TypeError(msg)
 
         if len(data) == 0:
-            return {"upsert_count": 0, "ids": []}
+            return {
+                "upsert_count": 0,
+                "ids": [],
+                **({"succ_index": []} if kwargs.get("write_condition") is not None else {}),
+            }
 
         conn = self._get_connection()
         # Upsert into the collection.
@@ -359,6 +370,11 @@ class MilvusClient(BaseMilvusClient):
                 # milvus server supports upsert on autoid=ture from v2.4.15
                 # upsert on autoid=ture will return new ids for user
                 "ids": res.primary_keys,
+                **(
+                    {"succ_index": res.succ_index}
+                    if kwargs.get("write_condition") is not None
+                    else {}
+                ),
             }
         )
 
@@ -1394,7 +1410,11 @@ class MilvusClient(BaseMilvusClient):
         timeout: Optional[float] = None,
         **kwargs,
     ):
-        """Add a new nullable struct field to the collection."""
+        """Add a new nullable struct field to the collection.
+
+        ``external_field`` in kwargs overrides the template's source Struct
+        column mapping. Child fields are matched by name within that column.
+        """
         if not isinstance(struct_schema, StructFieldSchema):
             raise ParamError(message="struct_schema must be StructFieldSchema")
         if not kwargs.get("nullable", True):
@@ -1405,6 +1425,8 @@ class MilvusClient(BaseMilvusClient):
         struct_field_schema = copy.deepcopy(struct_schema)
         struct_field_schema.name = field_name
         struct_field_schema.max_capacity = max_capacity
+        if "external_field" in kwargs:
+            struct_field_schema.external_field = kwargs["external_field"]
         if desc is not None:
             struct_field_schema._description = desc
         struct_field_schema._nullable = True
