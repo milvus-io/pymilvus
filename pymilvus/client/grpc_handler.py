@@ -2233,29 +2233,42 @@ class GrpcHandler:
         check_status(response.status)
         return response.infos
 
+    @staticmethod
+    def _remaining_budget(deadline: Optional[float], message: str) -> Optional[float]:
+        """Return the time left until ``deadline``, or ``None`` when unbounded.
+
+        Raises ``MilvusException`` with ``message`` if the deadline has already
+        passed, so a single ``timeout`` is enforced as one end-to-end budget
+        across the initial RPC and every subsequent state-poll RPC.
+        """
+        if deadline is None:
+            return None
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            raise MilvusException(message=message)
+        return remaining
+
     def _wait_for_flushed(
         self,
         segment_ids: List[int],
         collection_name: str,
         flush_ts: int,
-        timeout: Optional[float] = None,
+        deadline: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        flush_ret = False
-        start = time.time()
-        while not flush_ret:
-            flush_ret = self.get_flush_state(
-                segment_ids, collection_name, flush_ts, timeout, context=context, **kwargs
-            )
-            end = time.time()
-            if timeout is not None and end - start > timeout:
-                raise MilvusException(
-                    message=f"wait for flush timeout, collection: {collection_name}, flusht_ts: {flush_ts}"
-                )
+        message = f"wait for flush timeout, collection: {collection_name}, flusht_ts: {flush_ts}"
+        while True:
+            remaining = self._remaining_budget(deadline, message)
+            if self.get_flush_state(
+                segment_ids, collection_name, flush_ts, remaining, context=context, **kwargs
+            ):
+                return
 
-            if not flush_ret:
-                time.sleep(0.5)
+            sleep_for = 0.5
+            if deadline is not None:
+                sleep_for = min(sleep_for, max(0.0, deadline - time.time()))
+            time.sleep(sleep_for)
 
     @retry_on_rpc_failure(initial_back_off=1)
     def flush(
@@ -2272,6 +2285,8 @@ class GrpcHandler:
         for name in collection_names:
             check_pass_param(collection_name=name)
 
+        deadline = time.time() + timeout if timeout is not None else None
+
         request = Prepare.flush_param(collection_names)
         future = self._stub.Flush.future(request, timeout=timeout, metadata=_api_level_md(context))
         response = future.result()
@@ -2282,7 +2297,7 @@ class GrpcHandler:
                 segment_ids = future.result().coll_segIDs[collection_name].data
                 flush_ts = future.result().coll_flush_ts[collection_name]
                 self._wait_for_flushed(
-                    segment_ids, collection_name, flush_ts, timeout=timeout, context=context
+                    segment_ids, collection_name, flush_ts, deadline=deadline, context=context
                 )
 
         if kwargs.get("_async", False):
@@ -3208,22 +3223,20 @@ class GrpcHandler:
     def _wait_for_flush_all(
         self,
         flush_all_ts: int,
-        timeout: Optional[float] = None,
+        deadline: Optional[float] = None,
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        flush_ret = False
-        start = time.time()
-        while not flush_ret:
-            flush_ret = self.get_flush_all_state(flush_all_ts, timeout, context=context, **kwargs)
-            end = time.time()
-            if timeout is not None and end - start > timeout:
-                raise MilvusException(
-                    message=f"wait for flush all timeout, flush_all_ts: {flush_all_ts}"
-                )
+        message = f"wait for flush all timeout, flush_all_ts: {flush_all_ts}"
+        while True:
+            remaining = self._remaining_budget(deadline, message)
+            if self.get_flush_all_state(flush_all_ts, remaining, context=context, **kwargs):
+                return
 
-            if not flush_ret:
-                time.sleep(5)
+            sleep_for = 5
+            if deadline is not None:
+                sleep_for = min(sleep_for, max(0.0, deadline - time.time()))
+            time.sleep(sleep_for)
 
     @retry_on_rpc_failure()
     def flush_all(
@@ -3232,6 +3245,8 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
+        deadline = time.time() + timeout if timeout is not None else None
+
         request = Prepare.flush_all_request(kwargs.get("db", ""))
         future = self._stub.FlushAll.future(
             request, timeout=timeout, metadata=_api_level_md(context)
@@ -3240,7 +3255,9 @@ class GrpcHandler:
         check_status(response.status)
 
         def _check():
-            self._wait_for_flush_all(response.flush_all_ts, timeout, context=context, **kwargs)
+            self._wait_for_flush_all(
+                response.flush_all_ts, deadline=deadline, context=context, **kwargs
+            )
 
         if kwargs.get("_async", False):
             flush_future = FlushFuture(future)
