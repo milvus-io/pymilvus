@@ -612,6 +612,66 @@ class TestAsyncGrpcHandlerCompaction:
         assert req.partial_update is True
 
     @pytest.mark.asyncio
+    async def test_upsert_rows_forwards_write_condition(self) -> None:
+        mock_channel = MagicMock()
+        mock_channel._unary_unary_interceptors = []
+        handler = AsyncGrpcHandler(channel=mock_channel)
+        handler._is_channel_ready = True
+        handler.ensure_channel_ready = AsyncMock()
+        handler._get_schema = AsyncMock(
+            return_value=(
+                {
+                    "fields": [
+                        {
+                            "name": "id",
+                            "type": DataType.INT64,
+                            "is_primary": True,
+                            "auto_id": False,
+                        },
+                        {"name": "version", "type": DataType.INT64},
+                    ],
+                    "struct_array_fields": [],
+                    "enable_dynamic_field": False,
+                },
+                0,
+            )
+        )
+
+        captured = []
+
+        async def capture(req, **_):
+            captured.append(req)
+            resp = MagicMock()
+            resp.status.code = 0
+            resp.IDs.int_id.data = [1]
+            resp.IDs.str_id.data = []
+            resp.timestamp = 1
+            resp.upsert_count = 1
+            resp.succ_index = [0]
+            resp.err_index = []
+            return resp
+
+        mock_stub = AsyncMock()
+        mock_stub.Upsert = AsyncMock(side_effect=capture)
+        handler._async_stub = mock_stub
+
+        with patch("pymilvus.client.async_grpc_handler.check_status"), patch(
+            "pymilvus.client.async_grpc_handler.ts_utils.update_collection_ts"
+        ):
+            await handler.upsert_rows(
+                "coll",
+                [{"id": 1, "version": 2}],
+                write_condition={"field": "version", "op": "gt", "on_missing": "skip"},
+            )
+
+        assert len(captured) == 1
+        req = captured[0]
+        assert req.partial_update is True
+        assert req.write_condition.field == "version"
+        assert req.write_condition.op == 1
+        assert req.write_condition.on_missing == 1
+
+    @pytest.mark.asyncio
     async def test_run_analyzer(self) -> None:
         """Test run_analyzer async API"""
         mock_channel = MagicMock()
