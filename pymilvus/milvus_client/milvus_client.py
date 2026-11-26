@@ -69,6 +69,8 @@ class MilvusClient(BaseMilvusClient):
         db_name: str = "",
         token: str = "",
         timeout: Optional[float] = None,
+        *,
+        grpc_compression: Optional[str] = None,
         **kwargs,
     ) -> None:
         """A client for the common Milvus use case.
@@ -86,6 +88,8 @@ class MilvusClient(BaseMilvusClient):
                 exist; its parent directory must already exist. Install the
                 optional dependency with `pip install 'pymilvus[milvus_lite]'`.
                 Milvus Lite is not supported on Windows.
+            grpc_compression (str, optional): Set to "gzip" to compress outgoing gRPC messages.
+                Defaults to None.
             timeout (float, optional): What timeout to use for function calls. Defaults
                 to None.
                 Unit: second
@@ -102,6 +106,7 @@ class MilvusClient(BaseMilvusClient):
             uri,
             token=final_token,
             db_name=db_name,
+            grpc_compression=grpc_compression,
             **kwargs,
         )
         self._manager = ConnectionManager.get_instance()
