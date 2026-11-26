@@ -1,6 +1,6 @@
 import logging
 import threading
-from typing import Any, ClassVar, Optional, Tuple
+from typing import Any, ClassVar, MutableMapping, Optional, Tuple
 
 from cachetools import LRUCache
 
@@ -9,15 +9,25 @@ logger = logging.getLogger(__name__)
 
 class CacheRegion:
     """
-    Thread-safe LRU cache base class.
+    Thread-safe cache base class, LRU-bounded by default.
 
     Subclasses should define specific key types and value types.
     """
 
     DEFAULT_CAPACITY = 4096
 
-    def __init__(self, capacity: int = DEFAULT_CAPACITY):
-        self._cache: LRUCache = LRUCache(maxsize=capacity)
+    def __init__(self, capacity: Optional[int] = DEFAULT_CAPACITY):
+        """Create a cache region.
+
+        Args:
+            capacity: maximum number of entries. ``None`` makes the region
+                unbounded, so entries are only dropped by ``invalidate`` or
+                ``clear``. Use it for regions where an evicted entry changes
+                behaviour rather than just costing a round trip.
+        """
+        self._cache: MutableMapping[Any, Any] = (
+            {} if capacity is None else LRUCache(maxsize=capacity)
+        )
         self._lock = threading.Lock()
 
     def get(self, key: Any) -> Optional[Any]:
@@ -26,7 +36,7 @@ class CacheRegion:
             return self._cache.get(key)
 
     def set(self, key: Any, value: Any) -> None:
-        """Set value in cache. Evicts LRU entry if over capacity."""
+        """Set value in cache. Bounded regions evict the LRU entry when over capacity."""
         with self._lock:
             self._cache[key] = value
 
@@ -90,7 +100,16 @@ class CollectionTsCache(CacheRegion):
 
     Key: (endpoint, db_name, collection_name)
     Value: timestamp (int)
+
+    Unbounded on purpose. A missing entry makes ``get`` return 0, and
+    ``construct_guarantee_ts`` then falls back to ``EVENTUALLY_TS``, so an
+    evicted collection silently downgrades a Session-consistency read to the
+    weakest guarantee with nothing logged. An entry is one small int, and
+    stale ones are dropped by ``invalidate``.
     """
+
+    def __init__(self, capacity: Optional[int] = None):
+        super().__init__(capacity)
 
     def get(self, endpoint: str, db_name: str, collection_name: str) -> int:
         """Get timestamp from cache."""

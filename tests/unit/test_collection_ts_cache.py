@@ -1,7 +1,7 @@
 import unittest
 
 from pymilvus.client import ts_utils
-from pymilvus.client.cache import CollectionTsCache, GlobalCache
+from pymilvus.client.cache import CacheRegion, CollectionTsCache, GlobalCache
 
 
 class TestCollectionTsCache(unittest.TestCase):
@@ -79,6 +79,30 @@ class TestCollectionTsCache(unittest.TestCase):
         # So it returns 0.
         # 0 or 1 -> 1.
         self.assertEqual(kwargs.get("guarantee_timestamp"), 1)
+
+    def test_cache_is_not_bounded_by_the_default_capacity(self):
+        # An evicted timestamp is indistinguishable from "never written", which
+        # turns a Session read into an eventually-consistent one, silently.
+        cache = GlobalCache.collection_ts
+        total = CacheRegion.DEFAULT_CAPACITY + 10
+        for i in range(total):
+            cache.set("ep1", "db1", f"coll{i}", 1000 + i)
+
+        self.assertEqual(len(cache), total)
+        # The first collection written is still remembered.
+        self.assertEqual(cache.get("ep1", "db1", "coll0"), 1000)
+
+        kwargs = {}
+        ts_utils.construct_guarantee_ts("coll0", kwargs, "ep1", "db1")
+        self.assertEqual(kwargs.get("guarantee_timestamp"), 1000)
+
+    def test_invalidate_still_drops_an_entry(self):
+        cache = CollectionTsCache()
+
+        cache.set("ep1", "db1", "coll1", 100)
+        cache.invalidate("ep1", "db1", "coll1")
+        self.assertEqual(cache.get("ep1", "db1", "coll1"), 0)
+        self.assertEqual(len(cache), 0)
 
 
 if __name__ == "__main__":
