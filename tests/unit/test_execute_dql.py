@@ -29,7 +29,7 @@ from pymilvus.client.prepare import Prepare
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.search_result import SearchResult
 from pymilvus.client.types import DataType
-from pymilvus.exceptions import ErrorCode, ParamError, ServerVersionIncompatibleException
+from pymilvus.exceptions import ErrorCode, ParamError
 from pymilvus.grpc_gen import common_pb2, milvus_pb2, schema_pb2
 from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession
 from pymilvus.milvus_client.milvus_client import MilvusClientSession
@@ -175,11 +175,10 @@ class TestDQLSearchBuilder:
         assert req.extra_kwargs["filter_params"] == {"min_year": 2020}
         assert req.extra_kwargs["round_decimal"] == 3
 
-        # Immutable dataclass and read-only extra_kwargs mapping
+        # Immutable dataclass with shallow-copied extra_kwargs
         with pytest.raises(AttributeError):
             req.limit = 99  # type: ignore[misc]
-        with pytest.raises(TypeError):
-            req.extra_kwargs["round_decimal"] = 1  # type: ignore[index]
+        assert isinstance(req.extra_kwargs, dict)
 
     def test_dql_instance_call_does_not_bind_self(self):
         req = DQL().search("papers", data=[[0.1, 0.2]])
@@ -198,17 +197,15 @@ class TestDQLSearchBuilder:
         req = DQL.search("papers", data=[[0.1, 0.2]], timeout=None)
         assert "timeout" not in req.extra_kwargs
 
-    def test_invalid_db_name_or_collection_name_or_conflicting_kwargs_rejected(self):
+    def test_collection_name_and_db_name_validation_aligns_with_search(self):
         with pytest.raises(ParamError, match="db_name"):
             DQL.search("papers", data=[[0.1, 0.2]], db_name=123)  # type: ignore[arg-type]
         with pytest.raises(ParamError, match="collection_name"):
-            DQL.search("", data=[[0.1, 0.2]])
-        with pytest.raises(ParamError, match="search_params"):
-            DQL.search("papers", data=[[0.1, 0.2]], param={"metric_type": "L2"})
-        with pytest.raises(ParamError, match="use_default_consistency"):
-            DQL.search("papers", data=[[0.1, 0.2]], use_default_consistency=False)
-        with pytest.raises(ParamError, match="filter_params"):
-            DQL.search("papers", data=[[0.1, 0.2]], filter_params={"a": 1}, expr_params={"a": 1})
+            DQL.search(None, data=[[0.1, 0.2]])  # type: ignore[arg-type]
+        with pytest.raises(ParamError, match="collection_name"):
+            DQL.search(123, data=[[0.1, 0.2]])  # type: ignore[arg-type]
+        req = DQL.search("papers", data=[[0.1, 0.2]], db_name=None)
+        assert req.db_name is None
 
     def test_bare_dql_request_rejected_as_unsupported_op(self):
         with pytest.raises(ParamError, match="Unsupported DQL operation"):
@@ -304,12 +301,6 @@ class TestValidateAndPrepareExecuteDQL:
 
         req_sec = Prepare.execute_dql_request([sr], max_concurrency=2, timeout_ms=2500)
         assert req_sec.timeout_ms == 2500
-
-    def test_prepare_execute_dql_request_rejects_invalid_list(self):
-        with pytest.raises(ParamError):
-            Prepare.execute_dql_request([])
-        with pytest.raises(ParamError):
-            Prepare.execute_dql_request("bad")  # type: ignore[arg-type]
 
 
 class TestUnpackExecuteDQLResponse:
@@ -442,31 +433,30 @@ class TestClientAndSessionSignatures:
         client = MilvusClient.__new__(MilvusClient)
         client._config = MagicMock(db_name="app")
         client._cluster_id = ""
-        mock_conn = MagicMock()
-        client._get_connection = MagicMock(return_value=mock_conn)
+        handler = _make_sync_handler()
+        client._get_connection = MagicMock(return_value=handler)
 
         req = DQL.search("papers", data=[[0.1, 0.2]])
         with pytest.raises(TypeError):
             client.execute_dql([req], 4)  # type: ignore[misc]
         with pytest.raises(ParamError, match="db_name"):
             client.execute_dql([req], db_name="archive")
-        mock_conn.execute_dql.assert_not_called()
+        handler._stub.ExecuteDQL.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_async_client_rejects_positional_and_batch_db_name(self):
         client = AsyncMilvusClient.__new__(AsyncMilvusClient)
         client._config = MagicMock(db_name="app")
         client._cluster_id = ""
-        mock_conn = MagicMock()
-        mock_conn.execute_dql = AsyncMock()
-        client._get_connection = AsyncMock(return_value=mock_conn)
+        handler = _make_async_handler()
+        client._get_connection = AsyncMock(return_value=handler)
 
         req = DQL.search("papers", data=[[0.1, 0.2]])
         with pytest.raises(TypeError):
             await client.execute_dql([req], 4)  # type: ignore[misc]
         with pytest.raises(ParamError, match="db_name"):
             await client.execute_dql([req], db_name="archive")
-        mock_conn.execute_dql.assert_not_awaited()
+        handler._async_stub.ExecuteDQL.assert_not_awaited()
 
     def test_sync_session_forwards_cluster_id_and_enforces_open(self):
         parent = MagicMock()
@@ -768,14 +758,79 @@ class TestSyncExecuteDQLHandler:
         assert exc_info.value.code == code
         assert handler._stub.ExecuteDQL.call_count == 1
 
-    def test_unimplemented_raises_incompatible_without_retry(self):
+    def test_unimplemented_propagates_rpc_error_without_retry(self):
         handler = _make_sync_handler()
         handler._stub.ExecuteDQL.side_effect = _FakeRpcError(
             grpc.StatusCode.UNIMPLEMENTED, "unknown service method ExecuteDQL"
         )
-        with pytest.raises(ServerVersionIncompatibleException, match="ExecuteDQL"):
+        with pytest.raises(grpc.RpcError) as exc_info:
             handler.execute_dql([DQL.search("c1", data=[[0.1, 0.2]])], retry_times=3)
+        assert exc_info.value.code() == grpc.StatusCode.UNIMPLEMENTED
         assert handler._stub.ExecuteDQL.call_count == 1
+
+    def test_bytes_vector_without_anns_field_skips_schema_fetch(self):
+        handler = _make_sync_handler()
+        sr = milvus_pb2.SearchResults(
+            status=_ok_status(), results=_make_search_result_data([1], [0.1])
+        )
+        handler._stub.ExecuteDQL.return_value = milvus_pb2.ExecuteDQLResponse(
+            status=_ok_status(),
+            results=[milvus_pb2.DQLResult(status=_ok_status(), search=sr)],
+        )
+        handler._stub.Search.return_value = sr
+
+        handler.execute_dql([DQL.search("c1", data=[b"\x01\x02\x03\x04"])])
+        handler._get_schema.assert_not_called()
+
+        handler.search(
+            collection_name="c1",
+            anns_field="",
+            param={"metric_type": "L2"},
+            limit=5,
+            data=[b"\x01\x02\x03\x04"],
+        )
+        handler._get_schema.assert_not_called()
+
+    def test_batch_kwargs_passthrough_and_error_handler_wrapping(self):
+        handler = _make_sync_handler()
+        schema = {
+            "fields": [
+                {"name": "id", "type": DataType.INT64},
+                {"name": "vec", "type": DataType.FLOAT16_VECTOR},
+            ]
+        }
+        handler._get_schema.return_value = (schema, 0)
+        sr = milvus_pb2.SearchResults(
+            status=_ok_status(), results=_make_search_result_data([1], [0.1])
+        )
+        handler._stub.ExecuteDQL.return_value = milvus_pb2.ExecuteDQLResponse(
+            status=_ok_status(),
+            results=[milvus_pb2.DQLResult(status=_ok_status(), search=sr)],
+        )
+
+        handler.execute_dql(
+            [DQL.search("c1", data=[b"\x01\x02\x03\x04"], anns_field="vec")],
+            timeout=2.0,
+            retry_times=2,
+            log_level="info",
+            custom_decorator_opt="passthrough",
+        )
+        schema_kwargs = handler._get_schema.call_args.kwargs
+        assert schema_kwargs["timeout"] is None
+        assert schema_kwargs["retry_times"] == 2
+        assert schema_kwargs["log_level"] == "info"
+        assert schema_kwargs["custom_decorator_opt"] == "passthrough"
+
+        # Invalid RLS batch kwargs fail locally via Prepare._rls_context before RPC
+        handler._stub.ExecuteDQL.reset_mock()
+        with pytest.raises(ParamError, match="rls_principal"):
+            handler.execute_dql([DQL.search("c1", data=[[0.1, 0.2]])], rls_principal=123)
+        handler._stub.ExecuteDQL.assert_not_called()
+
+        # Unexpected exception wrapped by @error_handler(func_name="execute_dql")
+        handler._get_schema.side_effect = RuntimeError("unexpected boom")
+        with pytest.raises(MilvusException, match="unexpected boom"):
+            handler.execute_dql([DQL.search("c1", data=[b"\x01\x02\x03\x04"], anns_field="vec")])
 
     def test_partial_or_all_item_failures_never_resend_batch(self):
         handler = _make_sync_handler()
@@ -959,14 +1014,39 @@ class TestAsyncExecuteDQLHandler:
         assert handler._async_stub.ExecuteDQL.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_async_unimplemented_raises_incompatible_without_retry(self):
+    async def test_async_unimplemented_propagates_rpc_error_without_retry(self):
         handler = _make_async_handler()
         handler._async_stub.ExecuteDQL = AsyncMock(
             side_effect=_FakeRpcError(grpc.StatusCode.UNIMPLEMENTED, "unimplemented")
         )
-        with pytest.raises(ServerVersionIncompatibleException, match="ExecuteDQL"):
+        with pytest.raises(grpc.RpcError) as exc_info:
             await handler.execute_dql([DQL.search("c1", data=[[0.1, 0.2]])], retry_times=3)
+        assert exc_info.value.code() == grpc.StatusCode.UNIMPLEMENTED
         assert handler._async_stub.ExecuteDQL.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_async_bytes_vector_without_anns_field_skips_schema_fetch(self):
+        handler = _make_async_handler()
+        sr = milvus_pb2.SearchResults(
+            status=_ok_status(), results=_make_search_result_data([1], [0.1])
+        )
+        handler._async_stub.ExecuteDQL = AsyncMock(
+            return_value=milvus_pb2.ExecuteDQLResponse(
+                status=_ok_status(),
+                results=[milvus_pb2.DQLResult(status=_ok_status(), search=sr)],
+            )
+        )
+        await handler.execute_dql([DQL.search("c1", data=[b"\x01\x02\x03\x04"])])
+        handler._get_schema.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_async_error_handler_wraps_unexpected_exception(self):
+        handler = _make_async_handler()
+        handler._get_schema = AsyncMock(side_effect=RuntimeError("async boom"))
+        with pytest.raises(MilvusException, match="async boom"):
+            await handler.execute_dql(
+                [DQL.search("c1", data=[b"\x01\x02\x03\x04"], anns_field="vec")]
+            )
 
     @pytest.mark.asyncio
     async def test_async_partial_failures_never_resend_batch(self):

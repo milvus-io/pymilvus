@@ -1,46 +1,31 @@
-"""ExecuteDQL request/result models, ``DQL`` constructors, and shared search preparation."""
+"""ExecuteDQL request/result models, ``DQL`` constructors, and batch helpers."""
 
-import logging
 import math
 from dataclasses import dataclass, field
-from types import MappingProxyType
 from typing import Any, ClassVar, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
-import grpc
-
-from pymilvus.exceptions import (
-    MilvusException,
-    ParamError,
-    ServerVersionIncompatibleException,
-)
+from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.function_chain import FunctionChain
 from pymilvus.grpc_gen import milvus_pb2 as milvus_types
 from pymilvus.orm.schema import Function, FunctionScore, Highlighter
 
-from . import entity_helper, ts_utils
 from .call_context import CallContext
-from .check import check_id_and_data, check_pass_param
+from .check import validate_noneable_param, validate_param
 from .constants import CLUSTER_ID
-from .embedding_list import EmbeddingList
-from .prepare import Prepare
+from .prepare import Prepare, PreparedSearch, prepare_search
 from .search_aggregation import SearchAggregation
 from .search_result import SearchResult
 from .utils import check_status, is_successful
 
-logger = logging.getLogger(__name__)
-
-SUPPORTED_DQL_OPS = frozenset({"search"})
-_BATCH_CONTEXT_KEYS = (CLUSTER_ID, "rls_principal", "skip_rls")
-_EXECUTE_DQL_RPC_KWARG_KEYS = ("retry_times", "retry_on_rate_limit", "log_level", "log-level")
-_UINT32_MAX = 2**32 - 1
-# Maximum non-negative execution budget in milliseconds supported by Go time.Duration
-# (math.MaxInt64 / time.Millisecond).
-_MAX_EXECUTE_DQL_TIMEOUT_MS = 9_223_372_036_854
-
 
 @dataclass(frozen=True)
 class DQLRequest:
-    """Base class for immutable read-only DQL sub-requests created by ``DQL.*`` constructors."""
+    """Base descriptor for immutable read-only DQL sub-requests.
+
+    Do not instantiate ``DQLRequest`` directly. Construct concrete sub-requests using
+    the factory methods on :class:`DQL` (for example, ``DQL.search(...)``) and pass
+    them to ``MilvusClient.execute_dql()`` or ``AsyncMilvusClient.execute_dql()``.
+    """
 
     op: ClassVar[str] = ""
 
@@ -65,31 +50,80 @@ class _SearchRequest(DQLRequest):
     ids: Optional[Union[List[int], List[str], str, int]] = None
     search_aggregation: Optional[SearchAggregation] = None
     db_name: Optional[str] = None
-    extra_kwargs: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "extra_kwargs", MappingProxyType(dict(self.extra_kwargs)))
+    extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class DQLResult:
-    """Per-item outcome returned by ``execute_dql``."""
+    """Per-item outcome returned by ``execute_dql()``.
+
+    Each element in the list returned by ``execute_dql(reqs, ...)`` corresponds
+    positionally to the sub-request at the same index in ``reqs``. For every item,
+    either ``result`` is populated (when ``ok`` is ``True`` and ``error`` is ``None``)
+    or ``error`` holds a :class:`~pymilvus.MilvusException` (when ``ok`` is ``False``
+    and ``result`` is ``None``).
+
+    Attributes:
+        result (Optional[Any]): The sub-request's result payload on success (for
+            ``DQL.search``, a :class:`~pymilvus.client.search_result.SearchResult`),
+            or ``None`` when the item failed.
+        error (Optional[MilvusException]): The per-item error reported by the server,
+            or ``None`` when the item succeeded.
+
+    Examples:
+        Fault-tolerant iteration using ``ok``::
+
+            results = client.execute_dql([
+                DQL.search("col_a", data=[[0.1, 0.2]], limit=5),
+                DQL.search("col_b", data=[[0.3, 0.4]], limit=5),
+            ])
+            for idx, item in enumerate(results):
+                if item.ok:
+                    print(idx, item.result)
+                else:
+                    print(idx, "failed:", item.error)
+
+        Strict unpacking using ``unwrap()``::
+
+            hits_a, hits_b = [item.unwrap() for item in results]
+    """
 
     result: Optional[Any] = None
     error: Optional[MilvusException] = None
 
     @property
     def ok(self) -> bool:
+        """Whether this sub-request succeeded (``True`` iff ``error is None``)."""
         return self.error is None
 
     def unwrap(self) -> Any:
+        """Return ``result`` if the item succeeded, otherwise raise ``error``.
+
+        Returns:
+            Any: The item's result payload (e.g. ``SearchResult`` for ``DQL.search``).
+
+        Raises:
+            MilvusException: The per-item error stored in ``self.error``.
+        """
         if self.error is not None:
             raise self.error
         return self.result
 
 
 class DQL:
-    """Namespace of read-only DQL sub-request constructors for ``execute_dql``."""
+    """Namespace of read-only DQL sub-request builders for ``execute_dql()``.
+
+    Use the static factory methods on ``DQL`` to build immutable :class:`DQLRequest`
+    objects and execute them as an ordered batch via ``MilvusClient.execute_dql()``
+    or ``AsyncMilvusClient.execute_dql()``.
+
+    Examples:
+        >>> reqs = [
+        ...     DQL.search("articles", data=[[0.1, 0.2]], limit=5),
+        ...     DQL.search("archive", data=[[0.3, 0.4]], limit=5, db_name="analytics"),
+        ... ]
+        >>> results = client.execute_dql(reqs, max_concurrency=4, timeout=5.0)
+    """
 
     @staticmethod
     def search(
@@ -110,12 +144,18 @@ class DQL:
         db_name: Optional[str] = None,
         **kwargs,
     ) -> DQLRequest:
-        """Build a search sub-request for ``execute_dql``.
+        """Build a search sub-request for ``execute_dql()``.
 
         Parameters mirror ``MilvusClient.search`` (as keyword-only arguments after
         ``collection_name``), with an explicit per-request ``db_name`` and without
         per-request ``timeout`` (execution budget is configured at the ``execute_dql``
         batch level).
+
+        Note:
+            Only raw ``bytes`` vectors with ``anns_field`` specified and no explicit
+            ``schema`` trigger ``DescribeCollection`` before ``ExecuteDQL``. For large
+            multi-collection batches, prefer passing ``np.ndarray`` vectors or an
+            explicit ``schema`` to avoid extra schema lookups.
 
         Args:
             collection_name (str): Target collection name.
@@ -136,16 +176,14 @@ class DQL:
                 falls back to the client's current database and then the server default.
             **kwargs: Additional search options accepted by ``MilvusClient.search``, such as
                 ``filter_params``, ``round_decimal``, ``consistency_level``, ``group_by_field``,
-                ``offset``, or ``namespace``. Passing a non-``None`` ``timeout`` raises
-                ``ParamError``.
+                ``offset``, ``schema``, or ``namespace``. Passing a non-``None`` ``timeout``
+                raises ``ParamError``.
 
         Returns:
             DQLRequest: Immutable sub-request to pass in ``client.execute_dql([...])``.
         """
-        if not isinstance(collection_name, str) or not collection_name:
-            raise ParamError(message="collection_name must be a non-empty string")
-        if db_name is not None and not isinstance(db_name, str):
-            raise ParamError(message=f"db_name must be a str or None, got {type(db_name).__name__}")
+        validate_param("collection_name", collection_name, str)
+        validate_noneable_param("db_name", db_name, str)
 
         extra_kwargs = dict(kwargs)
         timeout = extra_kwargs.pop("timeout", None)
@@ -156,16 +194,6 @@ class DQL:
                     "pass 'timeout' to execute_dql() instead."
                 )
             )
-        if "param" in extra_kwargs:
-            raise ParamError(message="Use 'search_params' instead of 'param' in DQL.search().")
-        if "use_default_consistency" in extra_kwargs:
-            raise ParamError(
-                message=(
-                    "'use_default_consistency' is managed automatically based on consistency_level."
-                )
-            )
-        if "filter_params" in extra_kwargs and "expr_params" in extra_kwargs:
-            raise ParamError(message="Provide either 'filter_params' or 'expr_params', not both.")
 
         return _SearchRequest(
             collection_name=collection_name,
@@ -186,18 +214,8 @@ class DQL:
         )
 
 
-def check_no_batch_db_name(batch_kwargs: Optional[Mapping[str, Any]]) -> None:
-    """Reject batch-level ``db_name`` in ``execute_dql`` kwargs."""
-    if batch_kwargs and "db_name" in batch_kwargs:
-        raise ParamError(
-            message=(
-                "Batch-level 'db_name' is not supported in execute_dql(); "
-                "specify 'db_name' on individual DQL requests instead."
-            )
-        )
-
-
 def _parse_max_concurrency(max_concurrency: int) -> int:
+    uint32_max = 2**32 - 1
     if isinstance(max_concurrency, bool) or not isinstance(max_concurrency, int):
         raise ParamError(
             message=(
@@ -205,14 +223,17 @@ def _parse_max_concurrency(max_concurrency: int) -> int:
                 f"got {type(max_concurrency).__name__}"
             )
         )
-    if max_concurrency < 0 or max_concurrency > _UINT32_MAX:
+    if max_concurrency < 0 or max_concurrency > uint32_max:
         raise ParamError(
-            message=f"max_concurrency must be in [0, {_UINT32_MAX}], got {max_concurrency}"
+            message=f"max_concurrency must be in [0, {uint32_max}], got {max_concurrency}"
         )
     return max_concurrency
 
 
 def _parse_timeout_ms(timeout: Optional[float]) -> Optional[int]:
+    # Maximum non-negative execution budget in milliseconds supported by Go time.Duration
+    # (math.MaxInt64 / time.Millisecond).
+    max_timeout_ms = 9_223_372_036_854
     if timeout is None:
         return None
     if isinstance(timeout, bool) or not isinstance(timeout, (int, float)):
@@ -226,11 +247,11 @@ def _parse_timeout_ms(timeout: Optional[float]) -> Optional[int]:
     if timeout == 0:
         return 0
     timeout_ms = max(1, round(timeout * 1000))
-    if timeout_ms > _MAX_EXECUTE_DQL_TIMEOUT_MS:
+    if timeout_ms > max_timeout_ms:
         raise ParamError(
             message=(
                 f"timeout exceeds maximum supported execution budget "
-                f"({_MAX_EXECUTE_DQL_TIMEOUT_MS} ms): {timeout}"
+                f"({max_timeout_ms} ms): {timeout}"
             )
         )
     return timeout_ms
@@ -243,7 +264,13 @@ def validate_execute_dql_params(
     batch_kwargs: Optional[Mapping[str, Any]] = None,
 ) -> Tuple[int, Optional[int]]:
     """Validate batch-level ``execute_dql`` inputs locally before issuing any RPCs."""
-    check_no_batch_db_name(batch_kwargs)
+    if batch_kwargs and "db_name" in batch_kwargs:
+        raise ParamError(
+            message=(
+                "Batch-level 'db_name' is not supported in execute_dql(); "
+                "specify 'db_name' on individual DQL requests instead."
+            )
+        )
     if not isinstance(reqs, Sequence) or isinstance(reqs, (str, bytes, bytearray)):
         raise ParamError(
             message=f"reqs must be a non-empty sequence of DQLRequest, got {type(reqs).__name__}"
@@ -256,93 +283,23 @@ def validate_execute_dql_params(
                 message=f"reqs[{idx}] must be a DQLRequest instance, got {type(req).__name__}"
             )
         if not isinstance(req, _SearchRequest):
-            supported = ", ".join(sorted(SUPPORTED_DQL_OPS))
             raise ParamError(
                 message=(
                     f"Unsupported DQL operation at reqs[{idx}]: {req.op!r}. "
-                    f"Supported operations: {supported}"
+                    f"Supported operations: search"
                 )
             )
     return _parse_max_concurrency(max_concurrency), _parse_timeout_ms(timeout)
-
-
-def normalize_search_inputs(
-    data: Any,
-    ids: Any,
-    *,
-    limit: int,
-    extra_kwargs: Dict[str, Any],
-) -> Tuple[Any, Any, bool]:
-    """Normalize search ``data``/``ids``, log aggregation warning, and detect schema need."""
-    if isinstance(ids, (int, str)):
-        ids = [ids]
-    check_id_and_data(ids, data)
-
-    if extra_kwargs.get("search_aggregation") is not None:
-        logger.warning(
-            "search_aggregation is set; search limit=%s is ignored and bucket count comes from SearchAggregation.size",
-            limit,
-        )
-
-    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
-        data = [emb_list.to_flat_array() for emb_list in data]
-        extra_kwargs["is_embedding_list"] = True
-
-    needs_schema = (
-        not extra_kwargs.get("schema")
-        and data is not None
-        and not entity_helper.entity_is_sparse_matrix(data)
-        and isinstance(data, (list, tuple))
-        and len(data) > 0
-        and isinstance(data[0], bytes)
-    )
-    return data, ids, needs_schema
-
-
-def resolve_search_db_context(
-    context: Optional[CallContext],
-    db_name: Optional[str] = None,
-) -> Tuple[str, Optional[CallContext]]:
-    """Resolve effective DB name and per-item ``CallContext`` without mutating parent context."""
-    explicit_db = db_name if db_name else None
-    if explicit_db:
-        item_context = (
-            context.with_db_name(explicit_db)
-            if context is not None
-            else CallContext(db_name=explicit_db)
-        )
-        return explicit_db, item_context
-    return (context.get_db_name() if context else ""), context
-
-
-@dataclass
-class _PreparedSearchItem:
-    """Normalized, locally validated search sub-request ready for schema fetch and proto build."""
-
-    req: _SearchRequest
-    data: Any
-    ids: Any
-    round_decimal: int
-    use_default_consistency: bool
-    effective_db: str
-    context: Optional[CallContext]
-    needs_schema: bool
-    extra_kwargs: Dict[str, Any]
-
-    @property
-    def collection_name(self) -> str:
-        return self.req.collection_name
 
 
 @dataclass(frozen=True)
 class _PreparedBatch:
     """Validated and normalized ExecuteDQL batch ready for schema fetch and proto assembly."""
 
-    items: Tuple[_PreparedSearchItem, ...]
+    items: Tuple[PreparedSearch, ...]
     schema_targets: Tuple[Tuple[Tuple[str, str], Optional[CallContext]], ...]
     max_concurrency: int
     timeout_ms: Optional[int]
-    rpc_kwargs: Mapping[str, Any]
 
     @property
     def round_decimals(self) -> List[int]:
@@ -355,46 +312,38 @@ def _prepare_search_item(
     server_address: str,
     context: Optional[CallContext],
     batch_kwargs: Mapping[str, Any],
-) -> _PreparedSearchItem:
-    """Validate and prepare a search sub-request using the shared search preparation helpers."""
+) -> PreparedSearch:
+    """Prepare a search sub-request via the shared ``prepare_search()`` helper."""
     item_kwargs = dict(req.extra_kwargs)
 
-    expr_params = item_kwargs.pop("filter_params", item_kwargs.pop("expr_params", {}))
+    expr_params = item_kwargs.pop("filter_params", item_kwargs.get("expr_params", {}))
     item_kwargs["expr_params"] = {} if expr_params is None else expr_params
 
-    for batch_key in _BATCH_CONTEXT_KEYS:
-        if batch_key in batch_kwargs:
-            item_kwargs[batch_key] = batch_kwargs[batch_key]
+    if CLUSTER_ID in batch_kwargs:
+        item_kwargs[CLUSTER_ID] = batch_kwargs[CLUSTER_ID]
+    item_kwargs.update(Prepare._rls_context(batch_kwargs))
 
     if req.search_aggregation is not None:
         item_kwargs["search_aggregation"] = req.search_aggregation
 
     round_decimal = item_kwargs.pop("round_decimal", -1)
-    data, ids, needs_schema = normalize_search_inputs(
-        req.data, req.ids, limit=req.limit, extra_kwargs=item_kwargs
-    )
-    check_pass_param(
-        limit=req.limit,
-        round_decimal=round_decimal,
+    return prepare_search(
+        collection_name=req.collection_name,
         anns_field=req.anns_field or "",
-        partition_name_array=req.partition_names,
+        param=req.search_params or {},
+        limit=req.limit,
+        data=req.data,
+        ids=req.ids,
+        expr=req.filter,
+        partition_names=req.partition_names,
         output_fields=req.output_fields,
-        guarantee_timestamp=item_kwargs.get("guarantee_timestamp"),
-    )
-    effective_db, item_context = resolve_search_db_context(context, req.db_name)
-    use_default_consistency = ts_utils.construct_guarantee_ts(
-        req.collection_name, item_kwargs, server_address, effective_db
-    )
-
-    return _PreparedSearchItem(
-        req=req,
-        data=data,
-        ids=ids,
         round_decimal=round_decimal,
-        use_default_consistency=use_default_consistency,
-        effective_db=effective_db,
-        context=item_context,
-        needs_schema=needs_schema,
+        ranker=req.ranker,
+        function_chains=req.function_chains,
+        highlighter=req.highlighter,
+        db_name=req.db_name or None,
+        server_address=server_address,
+        context=context,
         extra_kwargs=item_kwargs,
     )
 
@@ -412,7 +361,6 @@ def prepare_execute_dql_batch(
     normalized_max_concurrency, timeout_ms = validate_execute_dql_params(
         reqs, max_concurrency=max_concurrency, timeout=timeout, batch_kwargs=batch_kwargs
     )
-    rpc_kwargs = {k: batch_kwargs[k] for k in _EXECUTE_DQL_RPC_KWARG_KEYS if k in batch_kwargs}
     prepared_items = tuple(
         _prepare_search_item(
             req,  # type: ignore[arg-type]
@@ -437,7 +385,6 @@ def prepare_execute_dql_batch(
         schema_targets=tuple(schema_targets),
         max_concurrency=normalized_max_concurrency,
         timeout_ms=timeout_ms,
-        rpc_kwargs=MappingProxyType(rpc_kwargs),
     )
 
 
@@ -446,53 +393,23 @@ def build_execute_dql_request(
     local_schemas: Mapping[Tuple[str, str], dict],
 ) -> milvus_types.ExecuteDQLRequest:
     """Assemble ``ExecuteDQLRequest`` from a prepared batch and DB-isolated schemas."""
-    dql_requests: List[milvus_types.DQLRequest] = []
-    for item in batch.items:
-        req = item.req
-        req_kwargs = dict(item.extra_kwargs)
-        if item.needs_schema:
-            schema = local_schemas.get((item.effective_db, req.collection_name))
-            if schema is not None:
-                req_kwargs["schema"] = schema
-        search_req = Prepare.search_requests_with_expr(
-            collection_name=req.collection_name,
-            anns_field=req.anns_field or "",
-            param=req.search_params or {},
-            limit=req.limit,
-            data=item.data,
-            ids=item.ids,
-            expr=req.filter,
-            partition_names=req.partition_names,
-            output_fields=req.output_fields,
-            round_decimal=item.round_decimal,
-            ranker=req.ranker,
-            function_chains=req.function_chains,
-            highlighter=req.highlighter,
-            use_default_consistency=item.use_default_consistency,
-            db_name=req.db_name or None,
-            **req_kwargs,
+    dql_requests = [
+        milvus_types.DQLRequest(
+            search=item.to_request(
+                schema=(
+                    local_schemas.get((item.effective_db, item.collection_name))
+                    if item.needs_schema
+                    else None
+                )
+            )
         )
-        dql_requests.append(milvus_types.DQLRequest(search=search_req))
-
+        for item in batch.items
+    ]
     return Prepare.execute_dql_request(
         dql_requests,
         max_concurrency=batch.max_concurrency,
         timeout_ms=batch.timeout_ms,
     )
-
-
-def raise_execute_dql_rpc_error(exc: grpc.RpcError) -> None:
-    """Translate ``UNIMPLEMENTED`` to ``ServerVersionIncompatibleException``; re-raise others."""
-    if exc.code() == grpc.StatusCode.UNIMPLEMENTED:
-        raise ServerVersionIncompatibleException(
-            code=exc.code(),
-            message=(
-                "ExecuteDQL is not supported by this Milvus server "
-                "(received gRPC UNIMPLEMENTED). Please upgrade Milvus server to a version "
-                "that supports ExecuteDQL."
-            ),
-        ) from exc
-    raise exc
 
 
 def unpack_execute_dql_response(

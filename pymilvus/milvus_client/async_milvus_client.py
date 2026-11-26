@@ -8,7 +8,7 @@ from pymilvus.client import type_info
 from pymilvus.client.abstract import AnnSearchRequest, BaseRanker
 from pymilvus.client.connection_manager import AsyncConnectionManager, ConnectionConfig
 from pymilvus.client.constants import CLUSTER_ID, DEFAULT_CONSISTENCY_LEVEL
-from pymilvus.client.dql import DQLRequest, DQLResult, check_no_batch_db_name
+from pymilvus.client.dql import DQLRequest, DQLResult
 from pymilvus.client.search_aggregation import SearchAggregation
 from pymilvus.client.types import (
     _DEFAULT_RETAINED_SEGMENT_STATES,
@@ -580,8 +580,13 @@ class AsyncMilvusClient(BaseMilvusClient):
             ParamError: If ``reqs`` is empty/invalid, batch-level ``db_name`` is passed,
                 or batch/item parameters are invalid.
             MilvusException: If preparation fails or the outer ExecuteDQL call fails.
+
+        Note:
+            Only raw ``bytes`` vectors with ``anns_field`` specified and no explicit
+            ``schema`` trigger ``DescribeCollection`` before ``ExecuteDQL``. For large
+            multi-collection batches, prefer passing ``np.ndarray`` vectors or an
+            explicit ``schema`` per request.
         """
-        check_no_batch_db_name(kwargs)
         conn = await self._get_connection()
         kwargs = self._with_cluster_id(kwargs)
         return await conn.execute_dql(
