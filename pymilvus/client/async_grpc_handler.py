@@ -965,6 +965,7 @@ class AsyncGrpcHandler:
             partial_update=partial_update,
             schema_timestamp=schema_timestamp,
             field_ops=field_ops,
+            write_condition=kwargs.get("write_condition"),
             **Prepare._rls_context(kwargs),
         )
 

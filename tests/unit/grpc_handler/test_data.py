@@ -796,3 +796,36 @@ class TestGrpcHandlerUpsertFieldOps:
         # ARRAY_REMOVE enum value is 2 per schema.proto FieldPartialUpdateOp.
         assert req.field_ops[0].op == 2
         assert req.partial_update is True
+
+    def test_upsert_rows_forwards_write_condition(self, handler):
+        schema = (
+            {
+                "fields": [
+                    {"name": "id", "type": DataType.INT64, "is_primary": True, "auto_id": False},
+                    {"name": "version", "type": DataType.INT64},
+                ],
+                "struct_array_fields": [],
+                "enable_dynamic_field": False,
+            },
+            0,
+        )
+        captured = []
+
+        def capture(req, **_):
+            captured.append(req)
+            return make_mutation_response(insert_cnt=1, ids=[1], upsert_cnt=1)
+
+        handler._stub.Upsert.side_effect = capture
+
+        with patch.object(handler, "_get_schema", return_value=schema):
+            handler.upsert_rows(
+                "coll",
+                [{"id": 1, "version": 2}],
+                write_condition={"field": "version", "op": "gt", "on_missing": "skip"},
+            )
+
+        req = captured[0]
+        assert req.partial_update is True
+        assert req.write_condition.field == "version"
+        assert req.write_condition.op == 1
+        assert req.write_condition.on_missing == 1

@@ -1335,6 +1335,7 @@ class GrpcHandler:
             schema_timestamp=schema_timestamp,
             partial_update=partial_update,
             field_ops=field_ops,
+            write_condition=kwargs.get("write_condition"),
             **Prepare._rls_context(kwargs),
         )
 
