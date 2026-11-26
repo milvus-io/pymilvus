@@ -214,9 +214,25 @@ class AsyncGrpcHandler:
             return async_header_adder_interceptor(keys, values)
         return None
 
+    def _uninstall_authorization_interceptor(self):
+        """Detach the installed authorization interceptor from the live channel.
+
+        Interceptors are appended to the channel's list and never replaced, so the
+        header adder for a superseded credential would keep running -- and, being
+        first, keep winning -- alongside a newly appended one.
+        """
+        if self._async_authorization_interceptor is None:
+            return
+        for channel in (self._async_channel, self._final_channel):
+            interceptors = getattr(channel, "_unary_unary_interceptors", None)
+            while interceptors and self._async_authorization_interceptor in interceptors:
+                interceptors.remove(self._async_authorization_interceptor)
+        self._async_authorization_interceptor = None
+
     def _setup_authorization_interceptor(self, user: str, password: str, token: str):
         authorization_interceptor = self._create_authorization_interceptor(user, password, token)
         if authorization_interceptor:
+            self._uninstall_authorization_interceptor()
             self._async_authorization_interceptor = authorization_interceptor
             self._final_channel._unary_unary_interceptors.append(authorization_interceptor)
 
@@ -269,7 +285,10 @@ class AsyncGrpcHandler:
         final_channel = channel
 
         if self._async_authorization_interceptor:
-            final_channel._unary_unary_interceptors.append(self._async_authorization_interceptor)
+            if self._async_authorization_interceptor not in final_channel._unary_unary_interceptors:
+                final_channel._unary_unary_interceptors.append(
+                    self._async_authorization_interceptor
+                )
         else:
             authorization_interceptor = self._create_authorization_interceptor(
                 kwargs.get("user"),
