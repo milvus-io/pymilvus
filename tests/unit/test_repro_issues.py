@@ -134,7 +134,7 @@ def test_issue_3541_sync_reconnect_swaps_without_waiting_for_paused_rpc():
 
     def wait_for_new_channel(timeout=10, **kwargs):
         assert timeout == 30
-        return kwargs["final_channel"], new_stub
+        return None, kwargs["final_channel"], new_stub
 
     def run_reconnect():
         try:
@@ -190,7 +190,7 @@ def test_issue_3541_sync_retired_channel_released_after_in_flight_rpc_drains():
     assert old_rpc_started.wait(timeout=1)
 
     def wait_for_new_channel(**kwargs):
-        return kwargs["final_channel"], new_stub
+        return None, kwargs["final_channel"], new_stub
 
     try:
         with patch("pymilvus.client.grpc_handler.grpc.insecure_channel", return_value=new_channel):
@@ -225,7 +225,7 @@ def test_issue_3541_sync_repeated_reconnects_do_not_leak_retired_channels_or_res
         return _Issue3541FakeChannel(f"replacement-{len(retired_refs)}")
 
     def wait_for_new_channel(**kwargs):
-        return kwargs["final_channel"], kwargs["stub"]
+        return None, kwargs["final_channel"], kwargs["stub"]
 
     with patch(
         "pymilvus.client.grpc_handler.grpc.insecure_channel", side_effect=create_channel

@@ -180,10 +180,11 @@ class TestGrpcHandlerConnectionMgmt:
         handler = GrpcHandler(channel=MagicMock())
         final_channel = MagicMock()
         stub = MagicMock()
+        ready = (MagicMock(), final_channel, stub)
         with patch.object(
-            handler, "_setup_identifier_interceptor", return_value=(final_channel, stub)
+            handler, "_setup_identifier_interceptor", return_value=ready
         ) as mock_setup:
-            assert handler._wait_for_channel_ready(timeout=None) == (final_channel, stub)
+            assert handler._wait_for_channel_ready(timeout=None) == ready
             mock_setup.assert_called_once_with(
                 handler._user,
                 timeout=10,
@@ -196,17 +197,21 @@ class TestGrpcHandlerConnectionMgmt:
         replacement_stub = MagicMock()
         ready_final_channel = MagicMock()
         ready_stub = MagicMock()
+        ready = (MagicMock(), ready_final_channel, ready_stub)
 
         with patch.object(
-            handler, "_setup_identifier_interceptor", return_value=(ready_final_channel, ready_stub)
+            handler, "_setup_identifier_interceptor", return_value=ready
         ) as mock_setup:
-            assert handler._wait_for_channel_ready(
-                timeout=2,
-                channel=replacement_channel,
-                final_channel=replacement_final_channel,
-                stub=replacement_stub,
-                address="newhost:19530",
-            ) == (ready_final_channel, ready_stub)
+            assert (
+                handler._wait_for_channel_ready(
+                    timeout=2,
+                    channel=replacement_channel,
+                    final_channel=replacement_final_channel,
+                    stub=replacement_stub,
+                    address="newhost:19530",
+                )
+                == ready
+            )
 
         mock_setup.assert_called_once_with(
             handler._user,
@@ -357,6 +362,7 @@ class TestGrpcHandlerConnectionMgmt:
                     return_value=stub,
                 ):
                     assert handler._setup_identifier_interceptor("user", timeout=3) == (
+                        identifier_interceptor,
                         final_channel,
                         stub,
                     )
@@ -384,12 +390,14 @@ class TestGrpcHandlerConnectionMgmt:
                 return_value=ready_stub,
             ):
                 mock_intercept.return_value = ready_final_channel
-                assert handler._setup_identifier_interceptor(
+                identifier, channel, stub = handler._setup_identifier_interceptor(
                     "user",
                     timeout=4,
                     final_channel=replacement_final_channel,
                     stub=replacement_stub,
-                ) == (ready_final_channel, ready_stub)
+                )
+                mock_intercept.assert_called_once_with(replacement_final_channel, identifier)
+                assert (channel, stub) == (ready_final_channel, ready_stub)
 
         replacement_stub.Connect.assert_called_once()
         assert replacement_stub.Connect.call_args.kwargs["timeout"] == 4

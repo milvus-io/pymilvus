@@ -94,6 +94,11 @@ class ExportSnapshotState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ExportSnapshotExecuting: _ClassVar[ExportSnapshotState]
     ExportSnapshotCompleted: _ClassVar[ExportSnapshotState]
     ExportSnapshotFailed: _ClassVar[ExportSnapshotState]
+
+class CompactionTargetState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    COMPACTION_TARGET_STATE_ACTIVE: _ClassVar[CompactionTargetState]
+    COMPACTION_TARGET_STATE_INACTIVE: _ClassVar[CompactionTargetState]
 All: ShowType
 InMemory: ShowType
 PrewarmTaskStateUnknown: PrewarmTaskState
@@ -141,6 +146,8 @@ ExportSnapshotPending: ExportSnapshotState
 ExportSnapshotExecuting: ExportSnapshotState
 ExportSnapshotCompleted: ExportSnapshotState
 ExportSnapshotFailed: ExportSnapshotState
+COMPACTION_TARGET_STATE_ACTIVE: CompactionTargetState
+COMPACTION_TARGET_STATE_INACTIVE: CompactionTargetState
 MILVUS_EXT_OBJ_FIELD_NUMBER: _ClassVar[int]
 milvus_ext_obj: _descriptor.FieldDescriptor
 
@@ -4016,3 +4023,157 @@ class WriteCondition(_message.Message):
     op: WriteCondition.Op
     on_missing: WriteCondition.MissingRowPolicy
     def __init__(self, field: _Optional[str] = ..., op: _Optional[_Union[WriteCondition.Op, str]] = ..., on_missing: _Optional[_Union[WriteCondition.MissingRowPolicy, str]] = ...) -> None: ...
+
+class CreateCompactionTargetRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "rewrite", "optimize")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    REWRITE_FIELD_NUMBER: _ClassVar[int]
+    OPTIMIZE_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    rewrite: RewriteTargetSpec
+    optimize: OptimizeTargetSpec
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., rewrite: _Optional[_Union[RewriteTargetSpec, _Mapping]] = ..., optimize: _Optional[_Union[OptimizeTargetSpec, _Mapping]] = ...) -> None: ...
+
+class RewriteTargetSpec(_message.Message):
+    __slots__ = ("segment_ids",)
+    SEGMENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    segment_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, segment_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class OptimizeTargetSpec(_message.Message):
+    __slots__ = ("input_target_size_bytes",)
+    INPUT_TARGET_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    input_target_size_bytes: int
+    def __init__(self, input_target_size_bytes: _Optional[int] = ...) -> None: ...
+
+class CreateCompactionTargetResponse(_message.Message):
+    __slots__ = ("status", "target_id", "total_rows", "optimize")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_ROWS_FIELD_NUMBER: _ClassVar[int]
+    OPTIMIZE_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    target_id: int
+    total_rows: int
+    optimize: OptimizeTargetCreateResult
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., target_id: _Optional[int] = ..., total_rows: _Optional[int] = ..., optimize: _Optional[_Union[OptimizeTargetCreateResult, _Mapping]] = ...) -> None: ...
+
+class OptimizeTargetCreateResult(_message.Message):
+    __slots__ = ("input_target_size_bytes", "actual_target_size_bytes")
+    INPUT_TARGET_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_TARGET_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    input_target_size_bytes: int
+    actual_target_size_bytes: int
+    def __init__(self, input_target_size_bytes: _Optional[int] = ..., actual_target_size_bytes: _Optional[int] = ...) -> None: ...
+
+class OptimizeTargetInfo(_message.Message):
+    __slots__ = ("input_target_size_bytes", "actual_target_size_bytes")
+    INPUT_TARGET_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    ACTUAL_TARGET_SIZE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    input_target_size_bytes: int
+    actual_target_size_bytes: int
+    def __init__(self, input_target_size_bytes: _Optional[int] = ..., actual_target_size_bytes: _Optional[int] = ...) -> None: ...
+
+class CompactionTargetInfo(_message.Message):
+    __slots__ = ("target_id", "db_id", "collection_id", "db_name", "collection_name", "rewrite", "optimize", "other", "state", "created_at", "stopped_at", "stop_reason", "total_rows", "remaining_rows", "checked_at", "message")
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    DB_ID_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    REWRITE_FIELD_NUMBER: _ClassVar[int]
+    OPTIMIZE_FIELD_NUMBER: _ClassVar[int]
+    OTHER_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    STOPPED_AT_FIELD_NUMBER: _ClassVar[int]
+    STOP_REASON_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_ROWS_FIELD_NUMBER: _ClassVar[int]
+    REMAINING_ROWS_FIELD_NUMBER: _ClassVar[int]
+    CHECKED_AT_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    target_id: int
+    db_id: int
+    collection_id: int
+    db_name: str
+    collection_name: str
+    rewrite: RewriteTargetSpec
+    optimize: OptimizeTargetInfo
+    other: OtherTargetSpec
+    state: CompactionTargetState
+    created_at: int
+    stopped_at: int
+    stop_reason: str
+    total_rows: int
+    remaining_rows: int
+    checked_at: int
+    message: str
+    def __init__(self, target_id: _Optional[int] = ..., db_id: _Optional[int] = ..., collection_id: _Optional[int] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., rewrite: _Optional[_Union[RewriteTargetSpec, _Mapping]] = ..., optimize: _Optional[_Union[OptimizeTargetInfo, _Mapping]] = ..., other: _Optional[_Union[OtherTargetSpec, _Mapping]] = ..., state: _Optional[_Union[CompactionTargetState, str]] = ..., created_at: _Optional[int] = ..., stopped_at: _Optional[int] = ..., stop_reason: _Optional[str] = ..., total_rows: _Optional[int] = ..., remaining_rows: _Optional[int] = ..., checked_at: _Optional[int] = ..., message: _Optional[str] = ...) -> None: ...
+
+class OtherTargetSpec(_message.Message):
+    __slots__ = ("condition", "cluster_wide", "parameters")
+    CONDITION_FIELD_NUMBER: _ClassVar[int]
+    CLUSTER_WIDE_FIELD_NUMBER: _ClassVar[int]
+    PARAMETERS_FIELD_NUMBER: _ClassVar[int]
+    condition: str
+    cluster_wide: bool
+    parameters: _containers.RepeatedCompositeFieldContainer[_common_pb2.KeyValuePair]
+    def __init__(self, condition: _Optional[str] = ..., cluster_wide: bool = ..., parameters: _Optional[_Iterable[_Union[_common_pb2.KeyValuePair, _Mapping]]] = ...) -> None: ...
+
+class DescribeCompactionTargetRequest(_message.Message):
+    __slots__ = ("base", "target_id")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    target_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., target_id: _Optional[int] = ...) -> None: ...
+
+class DescribeCompactionTargetResponse(_message.Message):
+    __slots__ = ("status", "target")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGET_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    target: CompactionTargetInfo
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., target: _Optional[_Union[CompactionTargetInfo, _Mapping]] = ...) -> None: ...
+
+class ListCompactionTargetsRequest(_message.Message):
+    __slots__ = ("base", "db_name", "collection_name", "collection_id", "states", "include_system")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    DB_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_NAME_FIELD_NUMBER: _ClassVar[int]
+    COLLECTION_ID_FIELD_NUMBER: _ClassVar[int]
+    STATES_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_SYSTEM_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    db_name: str
+    collection_name: str
+    collection_id: int
+    states: _containers.RepeatedScalarFieldContainer[CompactionTargetState]
+    include_system: bool
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., db_name: _Optional[str] = ..., collection_name: _Optional[str] = ..., collection_id: _Optional[int] = ..., states: _Optional[_Iterable[_Union[CompactionTargetState, str]]] = ..., include_system: bool = ...) -> None: ...
+
+class ListCompactionTargetsResponse(_message.Message):
+    __slots__ = ("status", "targets")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TARGETS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    targets: _containers.RepeatedCompositeFieldContainer[CompactionTargetInfo]
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ..., targets: _Optional[_Iterable[_Union[CompactionTargetInfo, _Mapping]]] = ...) -> None: ...
+
+class DropCompactionTargetRequest(_message.Message):
+    __slots__ = ("base", "target_id")
+    BASE_FIELD_NUMBER: _ClassVar[int]
+    TARGET_ID_FIELD_NUMBER: _ClassVar[int]
+    base: _common_pb2.MsgBase
+    target_id: int
+    def __init__(self, base: _Optional[_Union[_common_pb2.MsgBase, _Mapping]] = ..., target_id: _Optional[int] = ...) -> None: ...
+
+class DropCompactionTargetResponse(_message.Message):
+    __slots__ = ("status",)
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    status: _common_pb2.Status
+    def __init__(self, status: _Optional[_Union[_common_pb2.Status, _Mapping]] = ...) -> None: ...

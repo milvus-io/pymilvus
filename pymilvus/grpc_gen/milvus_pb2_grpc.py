@@ -376,6 +376,26 @@ class MilvusServiceStub(object):
                 request_serializer=milvus__pb2.GetCompactionPlansRequest.SerializeToString,
                 response_deserializer=milvus__pb2.GetCompactionPlansResponse.FromString,
                 _registered_method=True)
+        self.CreateCompactionTarget = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/CreateCompactionTarget',
+                request_serializer=milvus__pb2.CreateCompactionTargetRequest.SerializeToString,
+                response_deserializer=milvus__pb2.CreateCompactionTargetResponse.FromString,
+                _registered_method=True)
+        self.DescribeCompactionTarget = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DescribeCompactionTarget',
+                request_serializer=milvus__pb2.DescribeCompactionTargetRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DescribeCompactionTargetResponse.FromString,
+                _registered_method=True)
+        self.ListCompactionTargets = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/ListCompactionTargets',
+                request_serializer=milvus__pb2.ListCompactionTargetsRequest.SerializeToString,
+                response_deserializer=milvus__pb2.ListCompactionTargetsResponse.FromString,
+                _registered_method=True)
+        self.DropCompactionTarget = channel.unary_unary(
+                '/milvus.proto.milvus.MilvusService/DropCompactionTarget',
+                request_serializer=milvus__pb2.DropCompactionTargetRequest.SerializeToString,
+                response_deserializer=milvus__pb2.DropCompactionTargetResponse.FromString,
+                _registered_method=True)
         self.Import = channel.unary_unary(
                 '/milvus.proto.milvus.MilvusService/Import',
                 request_serializer=milvus__pb2.ImportRequest.SerializeToString,
@@ -1203,6 +1223,30 @@ class MilvusServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetCompactionStateWithPlans(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateCompactionTarget(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DescribeCompactionTarget(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListCompactionTargets(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def DropCompactionTarget(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -2090,6 +2134,26 @@ def add_MilvusServiceServicer_to_server(servicer, server):
                     servicer.GetCompactionStateWithPlans,
                     request_deserializer=milvus__pb2.GetCompactionPlansRequest.FromString,
                     response_serializer=milvus__pb2.GetCompactionPlansResponse.SerializeToString,
+            ),
+            'CreateCompactionTarget': grpc.unary_unary_rpc_method_handler(
+                    servicer.CreateCompactionTarget,
+                    request_deserializer=milvus__pb2.CreateCompactionTargetRequest.FromString,
+                    response_serializer=milvus__pb2.CreateCompactionTargetResponse.SerializeToString,
+            ),
+            'DescribeCompactionTarget': grpc.unary_unary_rpc_method_handler(
+                    servicer.DescribeCompactionTarget,
+                    request_deserializer=milvus__pb2.DescribeCompactionTargetRequest.FromString,
+                    response_serializer=milvus__pb2.DescribeCompactionTargetResponse.SerializeToString,
+            ),
+            'ListCompactionTargets': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListCompactionTargets,
+                    request_deserializer=milvus__pb2.ListCompactionTargetsRequest.FromString,
+                    response_serializer=milvus__pb2.ListCompactionTargetsResponse.SerializeToString,
+            ),
+            'DropCompactionTarget': grpc.unary_unary_rpc_method_handler(
+                    servicer.DropCompactionTarget,
+                    request_deserializer=milvus__pb2.DropCompactionTargetRequest.FromString,
+                    response_serializer=milvus__pb2.DropCompactionTargetResponse.SerializeToString,
             ),
             'Import': grpc.unary_unary_rpc_method_handler(
                     servicer.Import,
@@ -4343,6 +4407,114 @@ class MilvusService(object):
             '/milvus.proto.milvus.MilvusService/GetCompactionStateWithPlans',
             milvus__pb2.GetCompactionPlansRequest.SerializeToString,
             milvus__pb2.GetCompactionPlansResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CreateCompactionTarget(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/CreateCompactionTarget',
+            milvus__pb2.CreateCompactionTargetRequest.SerializeToString,
+            milvus__pb2.CreateCompactionTargetResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DescribeCompactionTarget(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DescribeCompactionTarget',
+            milvus__pb2.DescribeCompactionTargetRequest.SerializeToString,
+            milvus__pb2.DescribeCompactionTargetResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListCompactionTargets(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/ListCompactionTargets',
+            milvus__pb2.ListCompactionTargetsRequest.SerializeToString,
+            milvus__pb2.ListCompactionTargetsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DropCompactionTarget(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/milvus.proto.milvus.MilvusService/DropCompactionTarget',
+            milvus__pb2.DropCompactionTargetRequest.SerializeToString,
+            milvus__pb2.DropCompactionTargetResponse.FromString,
             options,
             channel_credentials,
             insecure,
