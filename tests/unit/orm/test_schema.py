@@ -7,6 +7,7 @@ Merged and refactored from:
 """
 
 import copy
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -353,6 +354,40 @@ class TestFieldSchemaDeepCopy:
         field = FieldSchema("vec", DataType.FLOAT_VECTOR, dim=128)
         field_copy = field.__deepcopy__(None)
         assert field == field_copy
+
+
+class TestFieldSchemaCopyPickle:
+    """Tests for FieldSchema shallow copy and pickle."""
+
+    def test_copy(self):
+        """Test shallow copy does not recurse and keeps type params."""
+        field = FieldSchema("t", DataType.VARCHAR, max_length=10)
+        field_copy = copy.copy(field)
+        assert field == field_copy
+        assert field_copy.max_length == 10
+
+    def test_pickle_round_trip(self):
+        """Test FieldSchema survives a pickle round trip."""
+        field = FieldSchema("t", DataType.VARCHAR, max_length=10)
+        field_copy = pickle.loads(pickle.dumps(field))  # noqa: S301
+        assert field == field_copy
+        assert field_copy.max_length == 10
+
+    def test_collection_schema_pickle_round_trip(self):
+        """Test CollectionSchema survives a pickle round trip."""
+        schema = CollectionSchema(
+            [
+                FieldSchema("id", DataType.INT64, is_primary=True),
+                FieldSchema("vec", DataType.FLOAT_VECTOR, dim=4),
+            ]
+        )
+        assert pickle.loads(pickle.dumps(schema)) == schema  # noqa: S301
+
+    def test_missing_attribute(self):
+        """Test private names raise AttributeError and public names return None."""
+        field = FieldSchema("t", DataType.VARCHAR, max_length=10)
+        assert not hasattr(field, "_nope")
+        assert field.nonexistent is None
 
 
 class TestFieldSchemaTypeParams:
