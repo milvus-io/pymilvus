@@ -255,6 +255,20 @@ class TestCheckInvalidBinaryVector:
         entities = [{"type": DataType.BINARY_VECTOR, "values": [[0, 1], [2, 3]]}]
         assert utils.check_invalid_binary_vector(entities) is False
 
+    def test_non_sized_values(self):
+        """Values without __len__ must be rejected, not raise TypeError.
+
+        ``test_non_bytes_values`` only covers nested lists, which still support
+        ``len()``, so it passes both before and after the fix. Only a value that
+        is not sized at all -- ``None`` here -- reaches the ``len()`` call on the
+        unchecked path.
+        """
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [b"\x00\x01", None]}]
+        assert utils.check_invalid_binary_vector(entities) is False
+        # None first also exercises the dim-probe on values[0].
+        entities = [{"type": DataType.BINARY_VECTOR, "values": [None, b"\x00\x01"]}]
+        assert utils.check_invalid_binary_vector(entities) is False
+
     def test_empty_values(self):
         entities = [{"type": DataType.BINARY_VECTOR, "values": []}]
         assert utils.check_invalid_binary_vector(entities) is False
