@@ -61,8 +61,9 @@ TYPE_VALIDATOR = {
     DataType.INT64.name: lambda x: isinstance(x, int)
     and not isinstance(x, bool)
     and -9223372036854775808 <= x <= 9223372036854775807,
-    DataType.FLOAT.name: lambda x: isinstance(x, float),
-    DataType.DOUBLE.name: lambda x: isinstance(x, float),
+    # ints are valid floats here, as in insert() and the import parsers; bool is not
+    DataType.FLOAT.name: lambda x: isinstance(x, (int, float)) and not isinstance(x, bool),
+    DataType.DOUBLE.name: lambda x: isinstance(x, (int, float)) and not isinstance(x, bool),
     DataType.VARCHAR.name: lambda x, max_len: isinstance(x, str) and len(x) <= max_len,
     DataType.TEXT.name: lambda x: isinstance(x, str),  # TEXT has no max_length limit
     DataType.JSON.name: lambda x: isinstance(x, (str, list, dict)),

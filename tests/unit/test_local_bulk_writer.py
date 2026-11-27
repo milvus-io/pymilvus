@@ -594,6 +594,36 @@ class TestLocalBulkWriter:
         with pytest.raises(MilvusException, match="Illegal text value"):
             writer.append_row({"id": 1, "body": 1})
 
+    def test_append_row_accepts_int_for_float_fields(self, temp_dir):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("price", DataType.FLOAT)
+        schema.add_field("total", DataType.DOUBLE)
+        schema.add_field("scores", DataType.ARRAY, element_type=DataType.FLOAT, max_capacity=4)
+
+        with LocalBulkWriter(
+            schema=schema, local_path=temp_dir, file_type=BulkFileType.PARQUET
+        ) as writer:
+            writer.append_row({"id": 1, "price": 10, "total": np.int64(3), "scores": [1, 2.5]})
+            writer.commit()
+            table = pq.read_table(writer.batch_files[0][0])
+
+        assert table.column("price").to_pylist() == [10.0]
+        assert table.column("total").to_pylist() == [3.0]
+        assert table.column("scores").to_pylist() == [[1.0, 2.5]]
+
+    @pytest.mark.parametrize("field", ["price", "total"])
+    def test_append_row_rejects_bool_for_float_fields(self, temp_dir, field):
+        schema = MilvusClient.create_schema(auto_id=False)
+        schema.add_field("id", DataType.INT64, is_primary=True)
+        schema.add_field("price", DataType.FLOAT)
+        schema.add_field("total", DataType.DOUBLE)
+        writer = LocalBulkWriter(schema=schema, local_path=temp_dir, file_type=BulkFileType.JSON)
+
+        row = {"id": 1, "price": 1.0, "total": 1.0, field: True}
+        with pytest.raises(MilvusException, match="Illegal scalar value"):
+            writer.append_row(row)
+
     def test_commit_with_callback(self, writer):
         callback_mock = Mock()
         with self._mock_row_count(writer, 1):
