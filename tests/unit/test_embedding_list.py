@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
-from pymilvus.client.embedding_list import EmbeddingList
+from pymilvus.client.embedding_list import EmbeddingList, flatten_embedding_lists
 from pymilvus.client.prepare import Prepare
 from pymilvus.client.types import DataType, PlaceholderType
 from pymilvus.exceptions import ParamError
@@ -549,3 +549,19 @@ class TestEmbeddingListProperties:
         s = str(el)
         assert "1 embeddings" in s
         assert "dimension 2" in s
+
+
+class TestFlattenEmbeddingLists:
+    def test_flattens_embedding_lists_and_sets_flag(self):
+        el = EmbeddingList([[0.1, 0.2], [0.3, 0.4]])
+        kwargs = {}
+        data = flatten_embedding_lists([el], kwargs)
+        assert len(data) == 1
+        np.testing.assert_array_equal(data[0], el.to_flat_array())
+        assert kwargs == {"is_embedding_list": True}
+
+    @pytest.mark.parametrize("data", [[], [[0.1, 0.2]], None])
+    def test_leaves_other_data_unchanged(self, data):
+        kwargs = {}
+        assert flatten_embedding_lists(data, kwargs) is data
+        assert kwargs == {}

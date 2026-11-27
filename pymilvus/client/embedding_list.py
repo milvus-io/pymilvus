@@ -1,9 +1,10 @@
 """EmbeddingList: A container for multiple embeddings for array-of-vector searches."""
 
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 
+from pymilvus.client.constants import IS_EMBEDDING_LIST
 from pymilvus.client.type_info import (
     get_numpy_fallback_dtype,
     is_dense_vector_type,
@@ -323,3 +324,16 @@ class EmbeddingList:
             return "EmbeddingList(empty)"
         dtype_str = f" ({self.dtype})" if self.dtype else ""
         return f"EmbeddingList with {len(self)} embeddings of dimension {self.dim}{dtype_str}"
+
+
+def flatten_embedding_lists(data: Any, kwargs: Dict[str, Any]) -> Any:
+    """Convert a list of EmbeddingList objects in search data to flat arrays.
+
+    When ``data`` is a non-empty list whose first item is an EmbeddingList, returns
+    the flat array of each item and sets ``kwargs["is_embedding_list"]`` to True.
+    Otherwise, returns ``data`` unchanged.
+    """
+    if isinstance(data, list) and data and isinstance(data[0], EmbeddingList):
+        kwargs[IS_EMBEDDING_LIST] = True
+        return [emb_list.to_flat_array() for emb_list in data]
+    return data

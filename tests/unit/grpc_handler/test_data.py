@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pymilvus import AnnSearchRequest, FieldOp, RRFRanker
 from pymilvus.client.call_context import CallContext
+from pymilvus.client.embedding_list import EmbeddingList
 from pymilvus.client.types import DataType
 from pymilvus.exceptions import (
     DataNotMatchException,
@@ -197,6 +198,23 @@ class TestGrpcHandlerSearchOps:
         ):
             handler.search("coll", "vec", {"metric_type": "L2"}, 10, ids=123)
             handler._stub.Search.assert_called_once()
+
+    def test_search_with_embedding_list(self, handler):
+        handler._stub.Search.future.return_value = MagicMock()
+        emb_list = EmbeddingList([[0.1, 0.2, 0.3, 0.4], [0.5, 0.6, 0.7, 0.8]])
+
+        with patch(
+            "pymilvus.client.grpc_handler.ts_utils.construct_guarantee_ts", return_value=True
+        ):
+            handler.search(
+                "coll", "vec", {"metric_type": "MAX_SIM"}, 10, data=[emb_list], _async=True
+            )
+
+        request = handler._stub.Search.future.call_args[0][0]
+        placeholder_group = common_pb2.PlaceholderGroup.FromString(request.placeholder_group)
+        placeholder = placeholder_group.placeholders[0]
+        assert placeholder.type == common_pb2.PlaceholderType.EmbListFloatVector
+        assert len(placeholder.values) == 1
 
 
 class TestGrpcHandlerQueryOps:
