@@ -1,8 +1,10 @@
 import base64
 import datetime
 import json
+import logging
 import re
 import warnings
+from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 
 import numpy as np
@@ -25,9 +27,15 @@ from pymilvus.orm.schema import (
 from pymilvus.orm.types import infer_dtype_by_scalar_data
 from pymilvus.settings import Config
 
-from . import __version__, blob, check, entity_helper, utils
+from . import __version__, blob, check, entity_helper, ts_utils, utils
 from .abstract import BaseRanker
-from .check import check_pass_param, is_legal_collection_properties, validate_str
+from .call_context import CallContext
+from .check import (
+    check_id_and_data,
+    check_pass_param,
+    is_legal_collection_properties,
+    validate_str,
+)
 from .constants import (
     CLUSTER_ID,
     COLLECTION_ID,
@@ -55,6 +63,7 @@ from .constants import (
     STRICT_CAST,
     STRICT_GROUP_SIZE,
 )
+from .embedding_list import EmbeddingList
 from .entity_helper import convert_to_array, convert_to_array_of_vector
 from .field_ops import FieldOpsInput, normalize_field_ops
 from .search_aggregation import SearchAggregation
@@ -84,6 +93,159 @@ _JSON_TYPE_MAP = {
 
 
 _STRUCT_FIELD_RE = re.compile(r"^(.+)\[(.+)\]$")
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PreparedSearch:
+    """Normalized, locally validated search parameters ready for schema fetch and proto build."""
+
+    collection_name: str
+    anns_field: str
+    param: Dict[str, Any]
+    limit: int
+    data: Any
+    ids: Any
+    expr: Optional[str]
+    partition_names: Optional[List[str]]
+    output_fields: Optional[List[str]]
+    round_decimal: int
+    ranker: Optional[Union[Function, FunctionScore]]
+    function_chains: Optional[Union[FunctionChain, List[FunctionChain]]]
+    highlighter: Optional[Highlighter]
+    use_default_consistency: bool
+    db_name: Optional[str]
+    effective_db: str
+    context: Optional[CallContext]
+    needs_schema: bool
+    extra_kwargs: Dict[str, Any]
+
+    def to_request(
+        self,
+        schema: Optional[dict] = None,
+        *,
+        prepare_cls: Any = None,
+    ) -> milvus_types.SearchRequest:
+        req_kwargs = dict(self.extra_kwargs)
+        if schema is not None:
+            req_kwargs["schema"] = schema
+        if self.db_name:
+            req_kwargs["db_name"] = self.db_name
+        builder = Prepare if prepare_cls is None else prepare_cls
+        return builder.search_requests_with_expr(
+            collection_name=self.collection_name,
+            anns_field=self.anns_field,
+            param=self.param,
+            limit=self.limit,
+            data=self.data,
+            ids=self.ids,
+            expr=self.expr,
+            partition_names=self.partition_names,
+            output_fields=self.output_fields,
+            round_decimal=self.round_decimal,
+            ranker=self.ranker,
+            function_chains=self.function_chains,
+            highlighter=self.highlighter,
+            use_default_consistency=self.use_default_consistency,
+            **req_kwargs,
+        )
+
+
+def prepare_search(
+    *,
+    collection_name: str,
+    anns_field: str,
+    param: Dict[str, Any],
+    limit: int,
+    data: Any = None,
+    ids: Any = None,
+    expr: Optional[str] = None,
+    partition_names: Optional[List[str]] = None,
+    output_fields: Optional[List[str]] = None,
+    round_decimal: int = -1,
+    timeout: Optional[float] = None,
+    ranker: Optional[Union[Function, FunctionScore]] = None,
+    function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
+    highlighter: Optional[Highlighter] = None,
+    db_name: Optional[str] = None,
+    server_address: str = "",
+    context: Optional[CallContext] = None,
+    extra_kwargs: Optional[Mapping[str, Any]] = None,
+) -> PreparedSearch:
+    """Validate and normalize search inputs shared by ``search()`` and ``execute_dql()``."""
+    item_kwargs = dict(extra_kwargs) if extra_kwargs else {}
+
+    if isinstance(ids, (int, str)):
+        ids = [ids]
+    check_id_and_data(ids, data)
+
+    if item_kwargs.get("search_aggregation") is not None:
+        logger.warning(
+            "search_aggregation is set; search limit=%s is ignored and bucket count comes from SearchAggregation.size",
+            limit,
+        )
+
+    if isinstance(data, list) and len(data) > 0 and isinstance(data[0], EmbeddingList):
+        data = [emb_list.to_flat_array() for emb_list in data]
+        item_kwargs[IS_EMBEDDING_LIST] = True
+
+    needs_schema = (
+        bool(anns_field)
+        and not item_kwargs.get("schema")
+        and data is not None
+        and not entity_helper.entity_is_sparse_matrix(data)
+        and isinstance(data, (list, tuple))
+        and len(data) > 0
+        and isinstance(data[0], bytes)
+    )
+
+    check_pass_param(
+        limit=limit,
+        round_decimal=round_decimal,
+        anns_field=anns_field,
+        partition_name_array=partition_names,
+        output_fields=output_fields,
+        guarantee_timestamp=item_kwargs.get("guarantee_timestamp"),
+        timeout=timeout,
+    )
+
+    explicit_db = db_name or None
+    if explicit_db:
+        item_context = (
+            context.with_db_name(explicit_db)
+            if context is not None
+            else CallContext(db_name=explicit_db)
+        )
+        effective_db = explicit_db
+    else:
+        effective_db = context.get_db_name() if context else ""
+        item_context = context
+
+    use_default_consistency = ts_utils.construct_guarantee_ts(
+        collection_name, item_kwargs, server_address, effective_db
+    )
+
+    return PreparedSearch(
+        collection_name=collection_name,
+        anns_field=anns_field,
+        param=param,
+        limit=limit,
+        data=data,
+        ids=ids,
+        expr=expr,
+        partition_names=partition_names,
+        output_fields=output_fields,
+        round_decimal=round_decimal,
+        ranker=ranker,
+        function_chains=function_chains,
+        highlighter=highlighter,
+        use_default_consistency=use_default_consistency,
+        db_name=explicit_db,
+        effective_db=effective_db,
+        context=item_context,
+        needs_schema=needs_schema,
+        extra_kwargs=item_kwargs,
+    )
 
 
 class Prepare:
@@ -1968,6 +2130,7 @@ class Prepare:
         function_chains: Optional[Union[FunctionChain, List[FunctionChain]]] = None,
         highlighter: Optional[Highlighter] = None,
         use_default_consistency: bool = True,
+        db_name: Optional[str] = None,
         **kwargs,
     ) -> milvus_types.SearchRequest:
         param = dict(param)
@@ -2151,6 +2314,8 @@ class Prepare:
             ),
             "namespace": kwargs.get("namespace"),
         }
+        if db_name:
+            request_kwargs["db_name"] = db_name
 
         is_embedding_list = kwargs.get(IS_EMBEDDING_LIST, False)
 
@@ -2196,6 +2361,20 @@ class Prepare:
             request.highlighter.CopyFrom(Prepare.highlighter_schema(highlighter))
 
         return request
+
+    @staticmethod
+    def execute_dql_request(
+        requests: Sequence[milvus_types.DQLRequest],
+        max_concurrency: int = 0,
+        timeout_ms: Optional[int] = None,
+    ) -> milvus_types.ExecuteDQLRequest:
+        req_kwargs: Dict[str, Any] = {
+            "requests": list(requests),
+            "max_concurrency": max_concurrency,
+        }
+        if timeout_ms is not None:
+            req_kwargs["timeout_ms"] = timeout_ms
+        return milvus_types.ExecuteDQLRequest(**req_kwargs)
 
     @staticmethod
     def _build_ids_proto(ids: List[Union[int, np.integer, str]]) -> schema_types.IDs:

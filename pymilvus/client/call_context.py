@@ -23,3 +23,6 @@ class CallContext:
 
     def get_db_name(self):
         return self._db_name
+
+    def with_db_name(self, db_name: str) -> "CallContext":
+        return CallContext(db_name=db_name, client_request_id=self._client_request_id)

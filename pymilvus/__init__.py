@@ -20,6 +20,7 @@ from .client import __version__
 from .client.abstract import AnnSearchRequest, RRFRanker, WeightedRanker
 from .client.asynch import SearchFuture
 from .client.bloom_filter import BloomFilterBuilder, build_bloom_filter
+from .client.dql import DQL, DQLRequest, DQLResult
 from .client.field_ops import FieldOp, FieldOpType
 from .client.prepare import Prepare
 from .client.roaring_filter import RoaringBitmapBuilder, build_roaring_bitmap
@@ -104,6 +105,7 @@ from .orm.utility import (
 from .settings import Config as DefaultConfig
 
 __all__ = [
+    "DQL",
     "AggregationBucket",
     "AggregationHit",
     "AnnSearchRequest",
@@ -116,6 +118,8 @@ __all__ = [
     "CompactionTaskState",
     "CompactionType",
     "Connections",
+    "DQLRequest",
+    "DQLResult",
     "DataType",
     "DefaultConfig",
     "ExceptionsMessage",

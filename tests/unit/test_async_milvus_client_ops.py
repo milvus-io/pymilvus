@@ -533,3 +533,13 @@ class TestAsyncClientOptimize:
             mock_fn.return_value = MagicMock()
             task = await client.optimize("col", wait=False)
             assert isinstance(task, AsyncOptimizeTask)
+
+    @pytest.mark.asyncio
+    async def test_execute_dql_delegates(self):
+        client, handler = _make_client()
+        handler.execute_dql.return_value = []
+        result = await client.execute_dql([], max_concurrency=3, timeout=2.0)
+        assert result == []
+        handler.execute_dql.assert_awaited_once()
+        assert handler.execute_dql.call_args.kwargs["max_concurrency"] == 3
+        assert handler.execute_dql.call_args.kwargs["timeout"] == 2.0

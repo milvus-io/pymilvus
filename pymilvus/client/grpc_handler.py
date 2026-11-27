@@ -14,6 +14,7 @@ from grpc._cython import cygrpc
 
 from pymilvus.client.call_context import CallContext, _api_level_md
 from pymilvus.decorators import (
+    error_handler,
     ignore_unimplemented,
     retry_on_rpc_failure,
     retry_on_schema_mismatch,
@@ -49,14 +50,20 @@ from .asynch import (
 )
 from .cache import GlobalCache
 from .check import (
-    check_id_and_data,
     check_pass_param,
     is_legal_host,
     is_legal_port,
 )
 from .constants import ITERATOR_SESSION_TS_FIELD
+from .dql import (
+    DQLRequest,
+    DQLResult,
+    build_execute_dql_request,
+    prepare_execute_dql_batch,
+    unpack_execute_dql_response,
+)
 from .embedding_list import EmbeddingList
-from .prepare import Prepare
+from .prepare import Prepare, prepare_search
 from .search_result import SearchResult
 from .types import (
     AnalyzeResult,
@@ -1437,6 +1444,56 @@ class GrpcHandler:
             raise
 
     @retry_on_rpc_failure()
+    def _execute_dql(
+        self,
+        request: milvus_types.ExecuteDQLRequest,
+        round_decimals: Sequence[int],
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        response = self._stub.ExecuteDQL(
+            request,
+            metadata=_api_level_md(context),
+        )
+        return unpack_execute_dql_response(response, len(request.requests), round_decimals)
+
+    @error_handler(func_name="execute_dql")
+    def execute_dql(
+        self,
+        reqs: Sequence[DQLRequest],
+        *,
+        max_concurrency: int = 0,
+        timeout: Optional[float] = None,
+        context: Optional[CallContext] = None,
+        **kwargs,
+    ) -> List[DQLResult]:
+        batch = prepare_execute_dql_batch(
+            reqs,
+            max_concurrency=max_concurrency,
+            timeout=timeout,
+            server_address=self.server_address,
+            context=context,
+            batch_kwargs=kwargs,
+        )
+
+        local_schemas: Dict[Tuple[str, str], dict] = {}
+        for schema_key, item_context in batch.schema_targets:
+            local_schemas[schema_key], _ = self._get_schema(
+                schema_key[1],
+                timeout=None,
+                context=item_context,
+                **kwargs,
+            )
+
+        execute_dql_request = build_execute_dql_request(batch, local_schemas)
+        return self._execute_dql(
+            execute_dql_request,
+            round_decimals=batch.round_decimals,
+            context=context,
+            **kwargs,
+        )
+
+    @retry_on_rpc_failure()
     def search(
         self,
         collection_name: str,
@@ -1456,41 +1513,7 @@ class GrpcHandler:
         context: Optional[CallContext] = None,
         **kwargs,
     ):
-        if isinstance(ids, (int, str)):
-            ids = [ids]
-        check_id_and_data(ids, data)
-        if kwargs.get("search_aggregation") is not None:
-            logger.warning(
-                "search_aggregation is set; search limit=%s is ignored and bucket count comes from SearchAggregation.size",
-                limit,
-            )
-
-        check_pass_param(
-            limit=limit,
-            round_decimal=round_decimal,
-            anns_field=anns_field,
-            partition_name_array=partition_names,
-            output_fields=output_fields,
-            guarantee_timestamp=kwargs.get("guarantee_timestamp"),
-            timeout=timeout,
-        )
-
-        use_default_consistency = ts_utils.construct_guarantee_ts(
-            collection_name, kwargs, self.server_address, (context.get_db_name() if context else "")
-        )
-
-        if (
-            not kwargs.get("schema")
-            and data is not None
-            and len(data) > 0
-            and isinstance(data[0], bytes)
-        ):
-            schema_dict, _ = self._get_schema(
-                collection_name, timeout=timeout, context=context, **kwargs
-            )
-            kwargs["schema"] = schema_dict
-
-        request = Prepare.search_requests_with_expr(
+        prepared = prepare_search(
             collection_name=collection_name,
             anns_field=anns_field,
             param=param,
@@ -1501,12 +1524,21 @@ class GrpcHandler:
             partition_names=partition_names,
             output_fields=output_fields,
             round_decimal=round_decimal,
+            timeout=timeout,
             ranker=ranker,
             function_chains=function_chains,
             highlighter=highlighter,
-            use_default_consistency=use_default_consistency,
-            **kwargs,
+            server_address=self.server_address,
+            context=context,
+            extra_kwargs=kwargs,
         )
+        schema_dict = None
+        if prepared.needs_schema:
+            schema_dict, _ = self._get_schema(
+                collection_name, timeout=timeout, context=prepared.context, **kwargs
+            )
+
+        request = prepared.to_request(schema=schema_dict, prepare_cls=Prepare)
         return self._execute_search(
             request, timeout, round_decimal=round_decimal, context=context, **kwargs
         )
