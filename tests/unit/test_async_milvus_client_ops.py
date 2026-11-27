@@ -424,16 +424,33 @@ class TestAsyncClientQueryBranches:
         handler.query.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_delete_filter_non_str_raises(self):
+    @pytest.mark.parametrize("invalid_filter", [123, 0, False, [], {}])
+    async def test_delete_filter_non_str_raises(self, invalid_filter):
         client, _ = _make_client()
         with pytest.raises(DataTypeNotMatchException):
-            await client.delete("col", filter=123)
+            await client.delete("col", filter=invalid_filter)
 
     @pytest.mark.asyncio
     async def test_delete_pks_kwarg_invalid_raises(self):
         client, _ = _make_client()
         with pytest.raises(TypeError):
             await client.delete("col", pks=3.14)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {},
+            {"ids": []},
+            {"pks": []},
+            {"filter": ""},
+            {"filter": "   "},
+        ],
+    )
+    async def test_delete_empty_filter_or_ids_raises_param_error(self, kwargs):
+        client, _ = _make_client()
+        with pytest.raises(ParamError, match="filter or ids cannot be empty"):
+            await client.delete("col", **kwargs)
 
     @pytest.mark.asyncio
     async def test_upsert_exception_propagates(self):
