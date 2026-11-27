@@ -138,14 +138,9 @@ def is_legal_ids(ids: Any) -> bool:
         return True
 
     if isinstance(first, str):
+        # String IDs are VARCHAR keys, even when they contain only digits.
         for i in ids:
             if not isinstance(i, str) or not i or len(i) > Config.MaxVarCharLength:
-                return False
-            try:
-                value = int(i)
-            except (TypeError, ValueError, OverflowError):
-                continue
-            if not (_INT64_MIN <= value <= _INT64_MAX):
                 return False
         return True
 
