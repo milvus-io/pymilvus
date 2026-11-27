@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -444,6 +445,97 @@ class TestAsyncClientQueryBranches:
 
 
 class TestAsyncClientOptimize:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("timeout", [0, 0.001])
+    async def test_wait_true_timeout_cleans_up_owned_task(self, timeout):
+        client, _ = _make_client()
+        tasks = []
+        start = AsyncOptimizeTask.start
+
+        def record_start(task):
+            tasks.append(task)
+            start(task)
+
+        async def execute(**kwargs):
+            await asyncio.Event().wait()
+
+        with patch.object(AsyncOptimizeTask, "start", record_start), patch.object(
+            client, "_execute_optimize", execute
+        ):
+            try:
+                with pytest.raises(MilvusException, match="Timeout waiting"):
+                    await client.optimize("col", wait=True, timeout=timeout)
+                assert len(tasks) == 1
+                assert tasks[0].done()
+                assert tasks[0].cancelled()
+            finally:
+                for task in tasks:
+                    task.cancel()
+                    await asyncio.gather(task._task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("timeout", [None, 10])
+    async def test_wait_true_caller_cancellation_cleans_up_owned_task(self, timeout):
+        client, _ = _make_client()
+        started = asyncio.Event()
+        tasks = []
+
+        async def execute(task, **kwargs):
+            tasks.append(task)
+            started.set()
+            await asyncio.Event().wait()
+
+        with patch.object(client, "_execute_optimize", execute):
+            waiter = asyncio.create_task(client.optimize("col", wait=True, timeout=timeout))
+            await started.wait()
+            try:
+                waiter.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await waiter
+                assert tasks[0].done()
+                assert tasks[0].cancelled()
+            finally:
+                tasks[0].cancel()
+                await asyncio.gather(waiter, tasks[0]._task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_wait_timeout_preserves_optimization_and_other_waiter(self):
+        client, handler = _make_client()
+        compacting = asyncio.Event()
+        finish_compaction = asyncio.Event()
+
+        async def compaction_state(*args, **kwargs):
+            compacting.set()
+            await finish_compaction.wait()
+            return MagicMock(state=2)
+
+        handler.compact.return_value = 99
+        handler.get_compaction_state.side_effect = compaction_state
+        handler.get_load_state.return_value = LoadState.Loaded
+        handler._get_schema.return_value = ({"fields": []}, 0)
+        handler.list_indexes.return_value = []
+
+        with patch.object(client, "refresh_load", new_callable=AsyncMock) as refresh_load:
+            task = await client.optimize("col", wait=False)
+            await compacting.wait()
+            other_waiter = asyncio.create_task(task.result())
+            await asyncio.sleep(0)
+            try:
+                with pytest.raises(MilvusException, match="Timeout waiting"):
+                    await task.result(timeout=0)
+                assert not task.done()
+                assert not other_waiter.done()
+                finish_compaction.set()
+                result = await other_waiter
+                assert result.status == "success"
+                assert result.compaction_id == 99
+                assert await task.result() is result
+                handler.compact.assert_awaited_once()
+                refresh_load.assert_awaited_once_with("col", timeout=None)
+            finally:
+                finish_compaction.set()
+                await asyncio.gather(task._task, other_waiter, return_exceptions=True)
+
     @pytest.mark.asyncio
     async def test_is_collection_loaded_true(self):
         client, handler = _make_client()
