@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 from pymilvus.bulk_writer.buffer import Buffer
 from pymilvus.bulk_writer.constants import DYNAMIC_FIELD_NAME, BulkFileType
@@ -764,6 +765,27 @@ class TestBufferExtended:
         assert len(files) == 1
         schema_arg = mock_to_parquet.call_args.kwargs["schema"]
         assert schema_arg.field("float16_vector").type == pa.list_(pa.float32())
+
+    def test_persist_parquet_preserves_nullable_int64(self):
+        """Nullable INT64 values above 2**53 are not rounded by pandas inference"""
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=2),
+            FieldSchema(name="nullable_field", dtype=DataType.INT64, nullable=True),
+        ]
+        schema = CollectionSchema(fields=fields)
+        buffer = Buffer(schema, BulkFileType.PARQUET)
+        big = 2**62 + 1
+        buffer.append_row({"id": 1, "vector": [1.0, 2.0], "nullable_field": big})
+        buffer.append_row({"id": 2, "vector": [3.0, 4.0], "nullable_field": None})
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            files = buffer.persist(temp_dir)
+
+        assert len(files) == 1
+        table = pq.read_table(files[0])
+        assert table.schema.field("nullable_field").type == pa.int64()
+        assert table.column("nullable_field").to_pylist() == [big, None]
 
     def test_persist_csv_nullable_vectors_use_default_nullkey(self):
         """Test CSV persist keeps nullable vectors empty by default"""
