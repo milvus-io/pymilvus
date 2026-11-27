@@ -87,6 +87,21 @@ class TestMktsFromHybridts:
         expected = (physical_ms + 300) << LOGICAL_BITS
         assert result == expected
 
+    def test_with_timedelta_of_seconds_and_days(self):
+        physical_ms = 1000
+        hybridts = physical_ms << LOGICAL_BITS
+        delta = timedelta(days=1, seconds=5, milliseconds=250)
+        result = utils.mkts_from_hybridts(hybridts, delta=delta)
+        expected = (physical_ms + 86_405_250) << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_negative_timedelta(self):
+        physical_ms = 1000
+        hybridts = physical_ms << LOGICAL_BITS
+        result = utils.mkts_from_hybridts(hybridts, delta=timedelta(milliseconds=-1))
+        expected = (physical_ms - 1) << LOGICAL_BITS
+        assert result == expected
+
     def test_preserves_logical_part(self):
         physical_ms = 1000
         logical = 42
@@ -142,6 +157,18 @@ class TestMktsFromUnixtime:
         expected = 1300 << LOGICAL_BITS
         assert result == expected
 
+    def test_with_timedelta_of_seconds(self):
+        epoch = 1.0
+        result = utils.mkts_from_unixtime(epoch, delta=timedelta(seconds=5))
+        expected = 6000 << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_negative_timedelta(self):
+        epoch = 1.0
+        result = utils.mkts_from_unixtime(epoch, delta=timedelta(milliseconds=-1))
+        expected = 999 << LOGICAL_BITS
+        assert result == expected
+
     def test_zero_epoch(self):
         result = utils.mkts_from_unixtime(0)
         assert result == 0
@@ -190,6 +217,13 @@ class TestMktsFromDatetime:
         delta = timedelta(microseconds=500000)  # 500ms
         result = utils.mkts_from_datetime(dt, delta=delta)
         expected_epoch = dt.timestamp() + 0.5
+        expected = int(expected_epoch * 1000) << LOGICAL_BITS
+        assert result == expected
+
+    def test_with_timedelta_of_minutes(self):
+        dt = datetime.datetime(2023, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+        result = utils.mkts_from_datetime(dt, delta=timedelta(minutes=1))
+        expected_epoch = dt.timestamp() + 60
         expected = int(expected_epoch * 1000) << LOGICAL_BITS
         assert result == expected
 
