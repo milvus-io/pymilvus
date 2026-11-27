@@ -228,6 +228,38 @@ class TestBuffer:
             assert rows[1]["text"] == "second"
             assert rows[1]["vector"] == [2.0] * 128
 
+    @pytest.mark.parametrize("file_type", [BulkFileType.JSON, BulkFileType.JSONL])
+    @pytest.mark.parametrize("vector_type", [DataType.FLOAT16_VECTOR, DataType.BFLOAT16_VECTOR])
+    @pytest.mark.parametrize("input_format", ["all_null", "list", "bytes"])
+    def test_persist_json_nullable_half_precision_vectors(
+        self, tmp_path, file_type, vector_type, input_format
+    ):
+        """Preserve null rows alongside list or byte half-precision vectors in JSON output."""
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True),
+            FieldSchema(name="vector", dtype=vector_type, dim=2, nullable=True),
+        ]
+        buffer = Buffer(CollectionSchema(fields=fields), file_type)
+        value = None if input_format == "all_null" else [1.0, -2.0]
+        if input_format == "bytes":
+            dtype = "float16" if vector_type == DataType.FLOAT16_VECTOR else "bfloat16"
+            value = np.array(value, dtype=dtype).tobytes()
+        for row_id, vector in enumerate([None, value, None]):
+            buffer.append_row({"id": row_id, "vector": vector})
+
+        files = buffer.persist(str(tmp_path / "batch"))
+        content = Path(files[0]).read_text()
+        rows = (
+            json.loads(content)["rows"]
+            if file_type == BulkFileType.JSON
+            else [json.loads(line) for line in content.splitlines()]
+        )
+        assert rows == [
+            {"id": 0, "vector": None},
+            {"id": 1, "vector": None if input_format == "all_null" else [1.0, -2.0]},
+            {"id": 2, "vector": None},
+        ]
+
     @patch("pandas.DataFrame.to_parquet")
     def test_persist_parquet(self, mock_to_parquet, simple_schema):
         buffer = Buffer(simple_schema, BulkFileType.PARQUET)
