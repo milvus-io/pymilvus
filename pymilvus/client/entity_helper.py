@@ -427,6 +427,18 @@ def _pack_fp32_vector_value(field_value: Any, field_data: schema_types.FieldData
     field_data.vectors.float_vector.data.extend(f_value)
 
 
+def _half_precision_vector_bytes(field_value: np.ndarray) -> bytes:
+    """Raw bytes of a float16 or bfloat16 vector, in element order.
+
+    ``ndarray.view(np.uint8)`` changes the item size, so NumPy requires the last
+    axis to be contiguous. A slice or reversed view is a valid vector and is not
+    contiguous; copying only in that case keeps the bytes of an already
+    contiguous vector identical.
+    """
+
+    return np.ascontiguousarray(field_value).view(np.uint8).tobytes()
+
+
 def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     """Convert a single vector value to bytes for byte-based vector types."""
     if isinstance(field_value, bytes):
@@ -435,7 +447,7 @@ def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     if element_type == DataType.FLOAT16_VECTOR:
         if isinstance(field_value, np.ndarray):
             if field_value.dtype == "float16":
-                return field_value.view(np.uint8).tobytes()
+                return _half_precision_vector_bytes(field_value)
             raise ParamError(
                 message="invalid input for float16 vector. Expected an np.ndarray with dtype=float16"
             )
@@ -446,7 +458,7 @@ def _convert_to_vector_bytes(field_value: Any, element_type: DataType) -> bytes:
     if element_type == DataType.BFLOAT16_VECTOR:
         if isinstance(field_value, np.ndarray):
             if field_value.dtype == "bfloat16":
-                return field_value.view(np.uint8).tobytes()
+                return _half_precision_vector_bytes(field_value)
             raise ParamError(
                 message="invalid input for bfloat16 vector. Expected an np.ndarray with dtype=bfloat16"
             )

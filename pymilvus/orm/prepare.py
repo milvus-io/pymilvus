@@ -118,7 +118,8 @@ class Prepare:
                                     field.name, "np.float16", ndarr.dtype
                                 )
                             )
-                        d.append(ndarr.view(np.uint8).tobytes())
+                        # view(uint8) rejects non-contiguous float16 slices and reversed views.
+                        d.append(np.ascontiguousarray(ndarr).view(np.uint8).tobytes())
                 else:
                     raise ParamError(
                         message=wrong_field_type.format(
@@ -138,7 +139,8 @@ class Prepare:
                                     field.name, "np.bfloat16", ndarr.dtype
                                 )
                             )
-                        d.append(ndarr.view(np.uint8).tobytes())
+                        # view(uint8) rejects non-contiguous bfloat16 slices and reversed views.
+                        d.append(np.ascontiguousarray(ndarr).view(np.uint8).tobytes())
                 else:
                     raise ParamError(
                         message=wrong_field_type.format(
