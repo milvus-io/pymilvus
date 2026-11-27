@@ -930,12 +930,40 @@ class TestVolumeBulkWriter:
     def test_upload_object(
         self, mock_upload_to_volume: Mock, volume_bulk_writer: VolumeBulkWriter
     ) -> None:
-        volume_bulk_writer._upload_object("local_file.parquet", "remote_file.parquet")
+        volume_bulk_writer._upload_object(
+            "local_file.parquet", "test/data/uuid/1/remote_file.parquet"
+        )
         volume_bulk_writer._volume_file_manager.upload_file_to_volume.assert_called_once_with(
             "local_file.parquet",
-            volume_bulk_writer._remote_path,
+            "test/data/uuid/1",
             upload_policy=UploadPolicy.OVERWRITE,
         )
+
+    def test_numpy_batches_upload_to_distinct_directories(
+        self, simple_schema: CollectionSchema
+    ) -> None:
+        with patch(
+            "pymilvus.bulk_writer.volume_bulk_writer.VolumeFileManager"
+        ) as mock_manager, VolumeBulkWriter(
+            schema=simple_schema,
+            remote_path="test/data",
+            cloud_endpoint="https://api.cloud.zilliz.com",
+            api_key="test_api_key",
+            volume_name="test_volume",
+            file_type=BulkFileType.NUMPY,
+        ) as writer:
+            for i in range(2):
+                writer.append_row({"id": i, "vector": [1.0] * 128, "text": "t"})
+                writer.commit()
+            targets = {
+                (Path(c.args[0]).name, c.args[1])
+                for c in mock_manager.return_value.upload_file_to_volume.call_args_list
+            }
+            assert len(targets) == len(writer.batch_files[0]) * 2
+            uploaded = [f for batch in writer.batch_files for f in batch]
+            assert {f"{t[1]}/{t[0]}" for t in targets} == set(uploaded)
+            root = writer._remote_path.rstrip("/")
+            assert {t[1] for t in targets} == {f"{root}/1", f"{root}/2"}
 
     def test_context_manager(self, simple_schema: CollectionSchema) -> None:
         with patch("pymilvus.bulk_writer.volume_bulk_writer.VolumeFileManager"), VolumeBulkWriter(
