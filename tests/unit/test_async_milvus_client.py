@@ -33,6 +33,7 @@ from pymilvus.client.types import (
 from pymilvus.exceptions import MilvusException, ParamError
 from pymilvus.grpc_gen import common_pb2, milvus_pb2
 from pymilvus.milvus_client.async_milvus_client import AsyncMilvusClientSession
+from pymilvus.orm.collection import Highlighter
 from pymilvus.orm.schema import StructFieldSchema
 
 
@@ -300,6 +301,26 @@ class TestAsyncMilvusClientNewFeatures:
         await client.search("test_collection", data=[[0.1, 0.2]], function_chains=chain)
 
         assert mock_handler.search.call_args.kwargs["function_chains"] is chain
+
+    @pytest.mark.asyncio
+    async def test_search_passes_highlighter(self, client_and_handler):
+        """Test search method accepts and forwards highlighter parameter"""
+        sig = inspect.signature(AsyncMilvusClient.search)
+        assert "highlighter" in sig.parameters
+        assert sig.parameters["highlighter"].default is None
+
+        client, mock_handler = client_and_handler
+        mock_handler.search = AsyncMock(return_value=[[{"id": 1, "distance": 0.1}]])
+        mock_highlighter = MagicMock(spec=Highlighter)
+
+        result = await client.search(
+            "test_collection",
+            data=[[0.1, 0.2]],
+            highlighter=mock_highlighter,
+        )
+
+        assert result == [[{"id": 1, "distance": 0.1}]]
+        assert mock_handler.search.call_args.kwargs["highlighter"] is mock_highlighter
 
     @pytest.mark.asyncio
     async def test_hybrid_search_with_function_ranker(self, client_and_handler):
