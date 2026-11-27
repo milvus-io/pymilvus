@@ -18,6 +18,7 @@ from pymilvus.exceptions import (
     DataTypeNotMatchException,
     DataTypeNotSupportException,
     IndexNotExistException,
+    MilvusException,
     PartitionAlreadyExistException,
     SchemaNotReadyException,
 )
@@ -121,7 +122,8 @@ def collection(mock_grpc_connect, mock_grpc_close, _schema):
         f"{GRPC_PREFIX}.has_collection", return_value=False
     ):
         coll = Collection("test_coll", schema=_schema)
-    yield coll
+    with mock.patch(f"{GRPC_PREFIX}.describe_collection", return_value=_schema.to_dict()):
+        yield coll
     connections.disconnect("default")
 
 
@@ -136,6 +138,89 @@ class TestCollectionProperties:
 
     def test_schema_property(self, collection):
         assert isinstance(collection.schema, CollectionSchema)
+
+    def test_schema_reflects_added_fields(self, collection, _schema):
+        original_fields = [field.name for field in collection.schema.fields]
+        updated = _schema.to_dict()
+        updated["fields"].append(
+            {
+                "name": "label",
+                "type": DataType.VARCHAR,
+                "params": {"max_length": 128},
+                "nullable": True,
+            }
+        )
+        with mock.patch(f"{GRPC_PREFIX}.describe_collection", return_value=updated):
+            refreshed = collection.schema
+
+        assert [field.name for field in refreshed.fields] == [*original_fields, "label"]
+        assert refreshed.fields[-1].params == {"max_length": 128}
+        assert refreshed.fields[-1].nullable is True
+        assert [field.name for field in _schema.fields] == original_fields
+
+    def test_schema_refreshes_on_each_access(self, collection, _schema):
+        initial = _schema.to_dict()
+        updated = _schema.to_dict()
+        updated["fields"].append({"name": "score", "type": DataType.FLOAT, "nullable": True})
+        with mock.patch(
+            f"{GRPC_PREFIX}.describe_collection", side_effect=[initial, updated]
+        ) as describe:
+            assert [field.name for field in collection.schema.fields] == ["pk", "vec"]
+            assert [field.name for field in collection.schema.fields] == ["pk", "vec", "score"]
+        assert describe.call_count == 2
+        assert describe.call_args.args == (collection.name,)
+        assert describe.call_args.kwargs["context"] is not None
+
+    def test_schema_refresh_updates_write_schema(self, collection, _schema):
+        updated = _schema.to_dict()
+        updated["fields"].append({"name": "score", "type": DataType.FLOAT, "nullable": True})
+        with mock.patch(f"{GRPC_PREFIX}.describe_collection", return_value=updated):
+            refreshed = collection.schema
+        with mock.patch(f"{GRPC_PREFIX}.insert_rows") as insert:
+            collection.insert([{"pk": 1, "vec": [0.1] * 128, "score": 1.0}])
+        request_schema = insert.call_args.kwargs["schema"]
+        assert [field["name"] for field in request_schema["fields"]] == ["pk", "vec", "score"]
+        assert request_schema["fields"] == refreshed.to_dict()["fields"]
+        assert request_schema["consistency_level"] == collection._consistency_level
+
+    def test_schema_refresh_preserves_metadata(self, collection, _schema):
+        updated = _schema.to_dict()
+        updated["description"] = "Updated collection"
+        updated["enable_dynamic_field"] = True
+        updated["fields"][0]["auto_id"] = True
+        with mock.patch(f"{GRPC_PREFIX}.describe_collection", return_value=updated):
+            refreshed = collection.schema
+        assert refreshed.description == "Updated collection"
+        assert refreshed.enable_dynamic_field is True
+        assert refreshed.primary_field.name == "pk"
+        assert refreshed.auto_id is True
+
+    def test_schema_refresh_propagates_server_error(self, collection):
+        original_schema = collection._schema
+        original_dict = collection._schema_dict
+        with mock.patch(
+            f"{GRPC_PREFIX}.describe_collection", side_effect=MilvusException(message="unavailable")
+        ), pytest.raises(MilvusException, match="unavailable"):
+            _ = collection.schema
+        assert collection._schema is original_schema
+        assert collection._schema_dict is original_dict
+
+    @pytest.mark.parametrize("method, rpc", [("insert", "batch_insert"), ("upsert", "upsert")])
+    def test_column_write_uses_one_refreshed_schema(self, collection, _schema, method, rpc):
+        updated = _schema.to_dict()
+        updated["fields"].append({"name": "score", "type": DataType.FLOAT, "nullable": True})
+        data = [[1], [[0.1] * 128], [1.0]]
+        with mock.patch(
+            f"{GRPC_PREFIX}.describe_collection", return_value=updated
+        ) as describe, mock.patch(f"{GRPC_PREFIX}.{rpc}") as write:
+            getattr(collection, method)(data)
+        describe.assert_called_once()
+        assert [field["name"] for field in write.call_args.args[1]] == ["pk", "vec", "score"]
+        assert [field["name"] for field in write.call_args.kwargs["schema"]["fields"]] == [
+            "pk",
+            "vec",
+            "score",
+        ]
 
     def test_description(self, collection):
         assert isinstance(collection.description, str)
@@ -674,7 +759,7 @@ class TestCollectionInitEdgeCases:
             f"{GRPC_PREFIX}.describe_collection", return_value=schema.to_dict()
         ):
             coll = Collection("test", schema=schema)
-        assert coll.schema == schema
+            assert coll.schema == schema
         connections.disconnect("default")
 
 
