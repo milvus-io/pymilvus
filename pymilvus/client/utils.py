@@ -164,9 +164,9 @@ def check_invalid_binary_vector(entities: List) -> bool:
                 return False
 
             for values in entity["values"]:
-                if len(values) * 8 != dim:
-                    return False
                 if not isinstance(values, bytes):
+                    return False
+                if len(values) * 8 != dim:
                     return False
     return True
 
