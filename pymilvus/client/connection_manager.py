@@ -321,54 +321,117 @@ class _GlobalStrategyMixin:
         self._refresher: Optional[TopologyRefresher] = None
         self._lock = threading.Lock()
 
+    def _accept_topology(self, new_topology: GlobalTopology) -> bool:
+        """Install new_topology only if it strictly advances the version.
+
+        Every write to the shared topology funnels through this compare-and-set
+        so no update path (initial fetch, background watcher, periodic refresh,
+        UNAVAILABLE recovery) can roll the version back, however the threads
+        interleave.
+        """
+        with self._lock:
+            current = self._topology
+            if current is None or new_topology.version > current.version:
+                self._topology = new_topology
+                return True
+            logger.debug(
+                f"Ignored stale topology version {new_topology.version} (current {current.version})"
+            )
+            return False
+
     def _fetch_and_start_refresher(self, config: ConnectionConfig) -> GlobalTopology:
         """Fetch initial topology and start background refresher.
 
         Returns:
-            The fetched GlobalTopology (caller uses it to connect to primary).
+            The accepted GlobalTopology (caller uses it to connect to primary).
         """
-        topology = fetch_topology(config.uri, config.token)
+        topology = fetch_topology(
+            config.uri, config.token, on_topology_change=self._on_topology_change
+        )
 
+        # The background watcher may already have installed a newer topology
+        # via the callback while fetch_topology was returning the first answer.
+        # Hand out the accepted cache, not the raw first answer, so the handler
+        # is always built on the topology the cache actually routes on.
+        self._accept_topology(topology)
+        accepted = self.get_topology()
         with self._lock:
-            self._topology = topology
             self._config = config
 
         self._refresher = TopologyRefresher(
             global_endpoint=config.uri,
             token=config.token,
-            topology=topology,
+            get_current=self.get_topology,
             on_topology_change=self._on_topology_change,
         )
         self._refresher.start()
-        return topology
+        return accepted
 
-    def _on_topology_change(self, new_topology: GlobalTopology) -> None:
-        """Callback when topology changes via background refresh."""
-        with self._lock:
-            self._topology = new_topology
+    def _on_topology_change(self, new_topology: GlobalTopology) -> bool:
+        """Callback when topology changes via background refresh.
+
+        Returns whether the compare-and-set accepted the new topology.
+        """
+        return self._accept_topology(new_topology)
+
+    @staticmethod
+    def _primary_host_port(topology: GlobalTopology) -> str:
+        """Normalize the primary endpoint for handlers and recovery comparisons."""
+        endpoint = topology.primary.endpoint.strip()
+        if "://" not in endpoint:
+            endpoint = f"https://{endpoint}"
+        parsed = urlparse(endpoint)
+        host = parsed.hostname or "localhost"
+        default_port = 443 if parsed.scheme.lower() == "https" else DEFAULT_PORT
+        port = parsed.port or default_port
+        # urlparse().hostname strips the brackets from an IPv6 literal, but a
+        # gRPC target needs them back, e.g. "[2001:db8::5]:443". Handlers use
+        # the address verbatim, and on_unavailable compares it with
+        # server_address, so one normalized form serves both.
+        host = f"[{host}]" if ":" in host else host
+        return f"{host}:{port}"
 
     def on_unavailable(self, managed: ManagedConnection) -> bool:
-        """Refresh topology and return True if primary changed."""
+        """Refresh topology; recover if the handler is not on the current primary."""
         if self._config is None:
             return True  # No config, trigger recovery
 
-        with self._lock:
-            old_primary = self._topology.primary.endpoint if self._topology else None
+        old_topology = self.get_topology()
 
         # Fetch fresh topology
         try:
-            new_topology = fetch_topology(self._config.uri, self._config.token)
+            new_topology = fetch_topology(
+                self._config.uri,
+                self._config.token,
+                cached_version=old_topology.version if old_topology else None,
+                on_topology_change=self._on_topology_change,
+            )
         except Exception:
             logger.warning("Failed to refresh topology on UNAVAILABLE", exc_info=True)
             return True  # Error fetching, trigger recovery anyway
 
-        with self._lock:
-            self._topology = new_topology
-            new_primary = new_topology.primary.endpoint
+        # None means no seed has anything newer; a stale answer is rejected by
+        # the compare-and-set either way, so the cached topology never regresses.
+        if new_topology is not None:
+            self._accept_topology(new_topology)
 
-        # Only recover if primary actually changed
-        if old_primary != new_primary:
-            logger.info(f"Primary changed: {old_primary} -> {new_primary}")
+        current = self.get_topology()
+        if current is None:
+            return True
+
+        # The cache may have advanced past the handler via the watcher or the
+        # refresher, so compare the current primary against the address the
+        # handler is actually connected to - not against a previously cached
+        # primary, which would leave a handler stuck on a demoted primary
+        # looking healthy and never recovering.
+        try:
+            primary_address = self._primary_host_port(current)
+        except ValueError:
+            return True  # No writable cluster right now; recover and let it re-fail
+
+        connected = managed.handler.server_address  # host:port, updated on reconnect
+        if primary_address != connected:
+            logger.info(f"Primary changed: {connected} -> {primary_address}")
             return True
 
         return False
@@ -381,11 +444,11 @@ class _GlobalStrategyMixin:
     def get_recovery_address(self, managed: ManagedConnection) -> Optional[str]:
         """Return the current primary's address for in-place reconnection."""
         topology = self.get_topology()
-        if topology and topology.primary:
-            parsed = urlparse(topology.primary.endpoint)
-            host = parsed.hostname or "localhost"
-            port = parsed.port or DEFAULT_PORT
-            return f"{host}:{port}"
+        if topology:
+            try:
+                return self._primary_host_port(topology)
+            except ValueError:
+                pass
         logger.warning("Global strategy has no topology; reconnecting to current address")
         return None
 
@@ -408,13 +471,18 @@ class GlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
         from pymilvus.client.grpc_handler import GrpcHandler  # noqa: PLC0415
 
         topology = self._fetch_and_start_refresher(config)
-        primary = topology.primary
-        return GrpcHandler(
-            uri=primary.endpoint,
-            token=config.token,
-            db_name=config.db_name,
-            **config.get_handler_kwargs(),
-        )
+        try:
+            primary = topology.primary
+            return GrpcHandler(
+                uri=primary.endpoint,
+                address=self._primary_host_port(topology),
+                token=config.token,
+                db_name=config.db_name,
+                **config.get_handler_kwargs(),
+            )
+        except Exception:
+            self._stop_refresher()
+            raise
 
     def close(self, managed: ManagedConnection) -> None:
         """Stop refresher and close handler."""
@@ -511,19 +579,23 @@ class ConnectionManager:
         """
         handler._on_rpc_error = lambda error: self.handle_error(handler, error)
 
-    def _create_shared(
+    def _open_connection(
         self,
         config: ConnectionConfig,
         client: Optional[Any],
         timeout: Optional[float],
-    ) -> "GrpcHandler":
-        """Create a new shared connection."""
+    ) -> ManagedConnection:
+        """Create and ready a new managed connection.
+
+        For global connections, if readiness fails while the background
+        topology watcher has already moved the cache to a different primary,
+        makes one bounded reconnect attempt against the updated primary.
+        Cleans up the strategy (stopping any refresher and closing the
+        handler) if the connection still cannot become ready.
+        """
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        # Wait for channel ready
-        handler._wait_for_channel_ready(timeout=timeout)
 
         managed = ManagedConnection(
             handler=handler,
@@ -531,11 +603,37 @@ class ConnectionManager:
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            try:
+                handler._wait_for_channel_ready(timeout=timeout)
+            except Exception:
+                new_address = strategy.get_recovery_address(managed)
+                if new_address is None or new_address == handler.server_address:
+                    raise
+                logger.info(
+                    f"Primary changed during initial connect: "
+                    f"{handler.server_address} -> {new_address}; retrying"
+                )
+                handler.reconnect(address=new_address, timeout=timeout)
+        except Exception:
+            with contextlib.suppress(Exception):
+                strategy.close(managed)
+            raise
+
         if client:
             managed.add_client(client)
+        return managed
 
+    def _create_shared(
+        self,
+        config: ConnectionConfig,
+        client: Optional[Any],
+        timeout: Optional[float],
+    ) -> "GrpcHandler":
+        """Create a new shared connection."""
+        managed = self._open_connection(config, client, timeout)
         self._registry[config.key] = managed
-        return handler
+        return managed.handler
 
     def _create_dedicated(
         self,
@@ -544,24 +642,9 @@ class ConnectionManager:
         timeout: Optional[float],
     ) -> "GrpcHandler":
         """Create a new dedicated connection."""
-        strategy = self._get_strategy(config)
-        handler = strategy.create_handler(config)
-        self._register_error_callback(handler)
-
-        # Wait for channel ready
-        handler._wait_for_channel_ready(timeout=timeout)
-
-        managed = ManagedConnection(
-            handler=handler,
-            config=config,
-            strategy=strategy,
-            connect_timeout=timeout,
-        )
-        if client:
-            managed.add_client(client)
-
-        self._dedicated[id(handler)] = managed
-        return handler
+        managed = self._open_connection(config, client, timeout)
+        self._dedicated[id(managed.handler)] = managed
+        return managed.handler
 
     def _get_strategy(self, config: ConnectionConfig) -> ConnectionStrategy:
         """Get appropriate strategy for config."""
@@ -717,12 +800,14 @@ class ConnectionManager:
         # Run strategy decision outside lock (may do network I/O)
         should_recover = managed.strategy.on_unavailable(managed)
 
-        if should_recover:
-            with self._lock:
-                # Re-verify no other thread has already recovered this
-                # connection while we were outside the lock.
-                if managed.recovery_gen != saved_gen:
-                    return True
+        with self._lock:
+            # Re-verify no other thread has already recovered this
+            # connection while we were outside the lock. The original RPC
+            # should retry after such a recovery even if this thread's
+            # strategy no longer sees a need to recover again.
+            if managed.recovery_gen != saved_gen:
+                return True
+            if should_recover:
                 self._recover(managed)
 
         return should_recover
@@ -821,13 +906,18 @@ class AsyncGlobalStrategy(_GlobalStrategyMixin, ConnectionStrategy):
         from pymilvus.client.async_grpc_handler import AsyncGrpcHandler  # noqa: PLC0415
 
         topology = self._fetch_and_start_refresher(config)
-        primary = topology.primary
-        return AsyncGrpcHandler(
-            uri=primary.endpoint,
-            token=config.token,
-            db_name=config.db_name,
-            **config.get_handler_kwargs(),
-        )
+        try:
+            primary = topology.primary
+            return AsyncGrpcHandler(
+                uri=primary.endpoint,
+                address=self._primary_host_port(topology),
+                token=config.token,
+                db_name=config.db_name,
+                **config.get_handler_kwargs(),
+            )
+        except Exception:
+            self._stop_refresher()
+            raise
 
     async def close_async(self, managed: ManagedConnection) -> None:
         """Stop refresher and close handler asynchronously."""
@@ -952,18 +1042,23 @@ class AsyncConnectionManager:
 
         handler._on_rpc_error = _on_rpc_error
 
-    async def _create_shared(
+    async def _open_connection(
         self,
         config: ConnectionConfig,
         client: Optional[Any],
         timeout: Optional[float],
-    ) -> "AsyncGrpcHandler":
-        """Create new shared async connection."""
+    ) -> ManagedConnection:
+        """Create and ready a new async managed connection.
+
+        For global connections, if readiness fails while the background
+        topology watcher has already moved the cache to a different primary,
+        makes one bounded reconnect attempt against the updated primary.
+        Cleans up the strategy (stopping any refresher and closing the
+        handler) if the connection still cannot become ready.
+        """
         strategy = self._get_strategy(config)
         handler = strategy.create_handler(config)
         self._register_error_callback(handler)
-
-        await handler.ensure_channel_ready(timeout=timeout)
 
         managed = ManagedConnection(
             handler=handler,
@@ -971,11 +1066,37 @@ class AsyncConnectionManager:
             strategy=strategy,
             connect_timeout=timeout,
         )
+        try:
+            try:
+                await handler.ensure_channel_ready(timeout=timeout)
+            except Exception:
+                new_address = strategy.get_recovery_address(managed)
+                if new_address is None or new_address == handler.server_address:
+                    raise
+                logger.info(
+                    f"Primary changed during initial async connect: "
+                    f"{handler.server_address} -> {new_address}; retrying"
+                )
+                await handler.reconnect(address=new_address, timeout=timeout)
+        except Exception:
+            with contextlib.suppress(Exception):
+                await strategy.close_async(managed)
+            raise
+
         if client:
             managed.add_client(client)
+        return managed
 
+    async def _create_shared(
+        self,
+        config: ConnectionConfig,
+        client: Optional[Any],
+        timeout: Optional[float],
+    ) -> "AsyncGrpcHandler":
+        """Create new shared async connection."""
+        managed = await self._open_connection(config, client, timeout)
         self._registry[config.key] = managed
-        return handler
+        return managed.handler
 
     async def _create_dedicated(
         self,
@@ -984,23 +1105,9 @@ class AsyncConnectionManager:
         timeout: Optional[float],
     ) -> "AsyncGrpcHandler":
         """Create new dedicated async connection."""
-        strategy = self._get_strategy(config)
-        handler = strategy.create_handler(config)
-        self._register_error_callback(handler)
-
-        await handler.ensure_channel_ready(timeout=timeout)
-
-        managed = ManagedConnection(
-            handler=handler,
-            config=config,
-            strategy=strategy,
-            connect_timeout=timeout,
-        )
-        if client:
-            managed.add_client(client)
-
-        self._dedicated[id(handler)] = managed
-        return handler
+        managed = await self._open_connection(config, client, timeout)
+        self._dedicated[id(managed.handler)] = managed
+        return managed.handler
 
     def _get_strategy(self, config: ConnectionConfig) -> ConnectionStrategy:
         """Get appropriate async strategy for config."""
