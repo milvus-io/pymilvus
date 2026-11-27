@@ -51,6 +51,10 @@ class BulkWriter:
         self._file_type = file_type
         self._buffer_lock = Lock()
         self._config = config
+        self._declared_fields = {field.name for field in self._schema.fields}
+        if hasattr(self._schema, "struct_fields") and self._schema.struct_fields:
+            self._declared_fields.update(field.name for field in self._schema.struct_fields)
+        self._warned_dropped_fields = set()
 
         # the old parameter segment_size is changed to chunk_size, compatible with the legacy code
         self._chunk_size = chunk_size
@@ -435,6 +439,18 @@ class BulkWriter:
     def _verify_row(self, row: dict):
         if not isinstance(row, dict):
             self._throw("The input row must be a dict object")
+
+        if not self._schema.enable_dynamic_field:
+            dropped_keys = [k for k in row if k not in self._declared_fields]
+            if dropped_keys:
+                with self._buffer_lock:
+                    new_dropped = [k for k in dropped_keys if k not in self._warned_dropped_fields]
+                    if new_dropped:
+                        self._warned_dropped_fields.update(new_dropped)
+                        logger.warning(
+                            f"The schema has 'enable_dynamic_field=False', but row contains undeclared field(s): {new_dropped}. "
+                            "These field(s) will be dropped."
+                        )
 
         normal_fields_size = self._verify_normal_field(row)
         struct_fields_size = self._verify_struct_field(row)
