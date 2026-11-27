@@ -190,6 +190,12 @@ class TestDatabaseRequests:
         req = Prepare.alter_database_properties_req("test_db", {"prop1": "value1"})
         assert req.db_name == "test_db"
 
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True, {}, None])
+    def test_alter_database_properties_invalid(self, invalid_properties):
+        """Test alter database properties with invalid/empty properties raises ParamError."""
+        with pytest.raises(ParamError):
+            Prepare.alter_database_properties_req("test_db", invalid_properties)
+
     def test_drop_database_properties(self):
         """Test drop database properties request."""
         req = Prepare.drop_database_properties_req("test_db", ["prop1", "prop2"])
@@ -249,6 +255,27 @@ class TestCreateDatabaseRequest:
         """Test create database with properties."""
         req = Prepare.create_database_req("test_db", {"replica.number": "2"})
         assert req.db_name == "test_db"
+        assert len(req.properties) == 1
+        assert req.properties[0].key == "replica.number"
+        assert req.properties[0].value == "2"
+
+    def test_create_database_without_properties(self):
+        """Test create database without properties."""
+        req = Prepare.create_database_req("test_db")
+        assert req.db_name == "test_db"
+        assert len(req.properties) == 0
+
+    def test_create_database_with_empty_properties(self):
+        """Test create database with empty dict properties."""
+        req = Prepare.create_database_req("test_db", {})
+        assert req.db_name == "test_db"
+        assert len(req.properties) == 0
+
+    @pytest.mark.parametrize("invalid_properties", ["hhh", [], [1, 2], 123, 1.11, True])
+    def test_create_database_with_invalid_properties(self, invalid_properties):
+        """Test create database with invalid properties raises ParamError."""
+        with pytest.raises(ParamError):
+            Prepare.create_database_req("test_db", invalid_properties)
 
 
 class TestDropDatabaseRequest:
