@@ -832,6 +832,7 @@ class AsyncGrpcHandler:
         check_status(response.status)
         return response.infos
 
+    @retry_on_rpc_failure()
     async def delete(
         self,
         collection_name: str,
