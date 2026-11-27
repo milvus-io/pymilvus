@@ -117,6 +117,46 @@ def reset_connection_managers():
 class TestConnectionConfig:
     """Tests for ConnectionConfig dataclass."""
 
+    @pytest.mark.parametrize("client_cls", [MilvusClient, AsyncMilvusClient])
+    @pytest.mark.parametrize("codec", ["deflate", "zstd"])
+    def test_unsupported_compression_fails_before_connecting(self, client_cls, codec):
+        with pytest.raises(
+            ConnectionConfigException, match=f"Unsupported grpc_compression '{codec}'"
+        ):
+            client_cls(uri="http://localhost:19530", grpc_compression=codec)
+
+    @pytest.mark.parametrize("client_cls", [MilvusClient, AsyncMilvusClient])
+    def test_explicit_compression_rejects_external_channel(self, client_cls):
+        with pytest.raises(ConnectionConfigException, match="externally supplied channel"):
+            client_cls(uri="http://localhost:19530", channel=Mock(), grpc_compression="gzip")
+
+    def test_compression_options_and_pooling(self):
+        algorithm = grpc.Compression.Gzip
+        uri = "http://localhost:19530"
+        default_key = "grpc.default_compression_algorithm"
+        enabled_key = "grpc.compression_enabled_algorithms_bitset"
+        options = {"grpc.keepalive_time_ms": 30000}
+        config = ConnectionConfig.from_uri(uri, grpc_compression="gzip", grpc_options=options)
+        assert config.get_handler_kwargs()["grpc_options"] == {**options, default_key: algorithm}
+        assert default_key not in options
+
+        raw_options = {default_key: int(algorithm)}
+        raw = ConnectionConfig.from_uri(uri, grpc_options=raw_options)
+        assert raw.pool_key == config.pool_key
+        assert config.pool_key != ConnectionConfig.from_uri(uri).pool_key
+        assert (
+            raw.pool_key
+            != ConnectionConfig.from_uri(uri, channel=Mock(), grpc_options=raw_options).pool_key
+        )
+        masked = ConnectionConfig.from_uri(uri, grpc_options={**raw_options, enabled_key: 7})
+        assert raw.pool_key != masked.pool_key
+        raw_options[default_key] = 0
+        assert raw.pool_key == config.pool_key
+
+        for conflicting in [{default_key: 0}, {enabled_key: 1}]:
+            with pytest.raises(ConnectionConfigException):
+                ConnectionConfig.from_uri(uri, grpc_compression="gzip", grpc_options=conflicting)
+
     @pytest.mark.parametrize(
         "uri,token,db_name,expected",
         [

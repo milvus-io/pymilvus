@@ -114,6 +114,21 @@ A8
 $ pip install "pymilvus[model]"
 ```
 
+### gRPC compression
+
+Set `grpc_compression="gzip"` on either client to compress outgoing gRPC
+messages using stock grpcio. Omitting the option uses grpcio's default.
+The server chooses its response encoding. The official Milvus 3.0.6 standalone
+image rejects DEFLATE. Both clients raise `ConnectionConfigException` before
+connecting if you pass `grpc_compression="deflate"`.
+
+```python
+from pymilvus import AsyncMilvusClient, MilvusClient
+
+client = MilvusClient(uri="http://localhost:19530", grpc_compression="gzip")
+async_client = AsyncMilvusClient(uri="http://localhost:19530", grpc_compression="gzip")
+```
+
 ## Documentation
 
 Documentation is available online: https://milvus.io/api-reference/pymilvus/v2.6.x/About.md

@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_PORT = 19530
+_DEFAULT_COMPRESSION = "grpc.default_compression_algorithm"
+_ENABLED_COMPRESSIONS = "grpc.compression_enabled_algorithms_bitset"
 
 
 @dataclass
@@ -63,6 +65,18 @@ class ConnectionConfig:
         return f"{self.address}|{self.token}"
 
     @property
+    def pool_key(self) -> Tuple[str, int, Optional[int], Optional[int]]:
+        kwargs = self.get_handler_kwargs()
+        options = kwargs.get("grpc_options", {})
+        channel = kwargs.get("channel")
+        return (
+            self.key,
+            options.get(_DEFAULT_COMPRESSION, 0),
+            options.get(_ENABLED_COMPRESSIONS),
+            id(channel) if channel is not None else None,
+        )
+
+    @property
     def is_global(self) -> bool:
         """Check if this is a global cluster endpoint."""
         return GLOBAL_CLUSTER_IDENTIFIER in self.uri.lower()
@@ -74,6 +88,7 @@ class ConnectionConfig:
         *,
         token: Optional[str] = None,
         db_name: Optional[str] = None,
+        grpc_compression: Optional[str] = None,
         **kwargs,
     ) -> "ConnectionConfig":
         """Create ConnectionConfig from URI with optional overrides.
@@ -82,6 +97,7 @@ class ConnectionConfig:
             uri: Connection URI (e.g., https://user:pass@host:19530/mydb)
             token: Override token (default: extracted from URI)
             db_name: Override database name (default: extracted from URI path)
+            grpc_compression: Set to "gzip" to compress outgoing gRPC messages.
             **kwargs: Additional keyword arguments forwarded to GrpcHandler
                 (e.g., secure, server_pem_path, grpc_options)
 
@@ -91,6 +107,31 @@ class ConnectionConfig:
         Raises:
             ConnectionConfigException: If the URI format is invalid
         """
+        if "grpc_options" in kwargs:
+            # Snapshot the options so the connection's pool key is stable.
+            kwargs["grpc_options"] = dict(kwargs["grpc_options"])
+        if grpc_compression is not None:
+            if grpc_compression != "gzip":
+                raise ConnectionConfigException(
+                    message=f"Unsupported grpc_compression {grpc_compression!r}. Use 'gzip' or None."
+                )
+            if kwargs.get("channel") is not None:
+                raise ConnectionConfigException(
+                    message="grpc_compression cannot configure an externally supplied channel"
+                )
+            algorithm = grpc.Compression.Gzip
+            options = kwargs.setdefault("grpc_options", {})
+            if options.get(_DEFAULT_COMPRESSION, algorithm) != algorithm:
+                raise ConnectionConfigException(
+                    message=f"{_DEFAULT_COMPRESSION} conflicts with grpc_compression"
+                )
+            mask = options.get(_ENABLED_COMPRESSIONS)
+            if mask is not None and not (int(mask) & (1 << algorithm)):
+                raise ConnectionConfigException(
+                    message="grpc_options disables the requested gzip codec"
+                )
+            options[_DEFAULT_COMPRESSION] = int(algorithm)
+
         # --- Milvus-Lite: rewrite .db URIs to a local gRPC endpoint ---
         if uri.endswith(".db"):
             parent = pathlib.Path(uri).parent
@@ -510,7 +551,7 @@ class ConnectionManager:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._registry: Dict[str, ManagedConnection] = {}  # key -> ManagedConnection
+        self._registry: Dict[Tuple[str, int, Optional[int], Optional[int]], ManagedConnection] = {}
         self._dedicated: Dict[int, ManagedConnection] = {}  # handler_id -> ManagedConnection
 
     @classmethod
@@ -553,7 +594,7 @@ class ConnectionManager:
                 return self._create_dedicated(config, client, timeout)
 
             # Check for existing shared connection
-            key = config.key
+            key = config.pool_key
             if key in self._registry:
                 managed = self._registry[key]
                 if client:
@@ -632,7 +673,7 @@ class ConnectionManager:
     ) -> "GrpcHandler":
         """Create a new shared connection."""
         managed = self._open_connection(config, client, timeout)
-        self._registry[config.key] = managed
+        self._registry[config.pool_key] = managed
         return managed.handler
 
     def _create_dedicated(
@@ -821,13 +862,13 @@ class ConnectionManager:
         with self._lock:
             shared = [
                 {
-                    "key": key,
+                    "key": m.config.key,
                     "address": m.config.address,
                     "idle_time": m.idle_time,
                     "client_count": len(m.clients),
                     "dedicated": False,
                 }
-                for key, m in self._registry.items()
+                for m in self._registry.values()
             ]
             dedicated = [
                 {
@@ -950,7 +991,7 @@ class AsyncConnectionManager:
         # the current thread. Deferring creation to the first async call avoids
         # RuntimeError when get_instance() is called from sync code.
         self._lock: Optional[asyncio.Lock] = None
-        self._registry: Dict[str, ManagedConnection] = {}
+        self._registry: Dict[Tuple[str, int, Optional[int], Optional[int]], ManagedConnection] = {}
         self._dedicated: Dict[int, ManagedConnection] = {}
 
     def _get_lock(self) -> asyncio.Lock:
@@ -1005,7 +1046,7 @@ class AsyncConnectionManager:
             if dedicated:
                 return await self._create_dedicated(config, client, timeout)
 
-            key = config.key
+            key = config.pool_key
             if key in self._registry:
                 managed = self._registry[key]
                 if client:
@@ -1095,7 +1136,7 @@ class AsyncConnectionManager:
     ) -> "AsyncGrpcHandler":
         """Create new shared async connection."""
         managed = await self._open_connection(config, client, timeout)
-        self._registry[config.key] = managed
+        self._registry[config.pool_key] = managed
         return managed.handler
 
     async def _create_dedicated(

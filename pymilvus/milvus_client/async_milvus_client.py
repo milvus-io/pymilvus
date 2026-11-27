@@ -61,8 +61,14 @@ class AsyncMilvusClient(BaseMilvusClient):
         db_name: str = "",
         token: str = "",
         timeout: Optional[float] = None,
+        *,
+        grpc_compression: Optional[str] = None,
         **kwargs,
     ) -> None:
+        """Connect to Milvus with optional outgoing gRPC message compression.
+
+        Set grpc_compression to "gzip" to compress outgoing gRPC messages.
+        """
         # Build token from user/password if not provided
         final_token = token
         if not token and user and password:
@@ -75,6 +81,7 @@ class AsyncMilvusClient(BaseMilvusClient):
             uri,
             token=final_token,
             db_name=db_name,
+            grpc_compression=grpc_compression,
             **kwargs,
         )
         self._timeout = timeout
