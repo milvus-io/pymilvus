@@ -77,6 +77,8 @@ class ClientCallDetailsTuple(NamedTuple):
     timeout: Any
     metadata: Any
     credentials: Any
+    wait_for_ready: Any = None
+    compression: Any = None
 
 
 class _ClientCallDetails(ClientCallDetailsTuple, grpc.ClientCallDetails):
@@ -98,6 +100,8 @@ def header_adder_interceptor(headers: List, values: List):
             client_call_details.timeout,
             metadata,
             client_call_details.credentials,
+            getattr(client_call_details, "wait_for_ready", None),
+            getattr(client_call_details, "compression", None),
         )
         return client_call_details, request_iterator, None
 

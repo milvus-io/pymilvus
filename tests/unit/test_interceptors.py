@@ -1,7 +1,10 @@
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
+import grpc
 import pytest
+from grpc._interceptor import _ClientCallDetails as GrpcClientCallDetails
 from pymilvus.client.async_interceptor import (
     _GenericAsyncClientInterceptor,
     async_header_adder_interceptor,
@@ -83,6 +86,62 @@ class TestHeaderAdderInterceptor:
         call_details = continuation.call_args[0][0]
         assert ("h1", "v1") in call_details.metadata
         assert ("h2", "v2") in call_details.metadata
+
+    def test_preserves_wait_for_ready_and_compression(self):
+        interceptor = header_adder_interceptor(["identifier"], ["12345"])
+        creds = MagicMock(name="call_credentials")
+        details = GrpcClientCallDetails(
+            method="/milvus.proto.milvus.MilvusService/Search",
+            timeout=15.0,
+            metadata=(("existing", "meta"),),
+            credentials=creds,
+            wait_for_ready=True,
+            compression=grpc.Compression.Gzip,
+        )
+        continuation = MagicMock(return_value="ok")
+        interceptor.intercept_unary_unary(continuation, details, "req")
+        call_details = continuation.call_args[0][0]
+        assert call_details.method == details.method
+        assert call_details.timeout == 15.0
+        assert call_details.credentials is creds
+        assert call_details.wait_for_ready is True
+        assert call_details.compression == grpc.Compression.Gzip
+        assert ("existing", "meta") in call_details.metadata
+        assert ("identifier", "12345") in call_details.metadata
+
+    def test_chained_interceptors_preserve_wait_for_ready_and_compression(self):
+        first = header_adder_interceptor(["identifier"], ["12345"])
+        second = header_adder_interceptor(["authorization"], ["Bearer tok"])
+        details = GrpcClientCallDetails(
+            method="/milvus.proto.milvus.MilvusService/Connect",
+            timeout=30.0,
+            metadata=None,
+            credentials=None,
+            wait_for_ready=True,
+            compression=grpc.Compression.Deflate,
+        )
+        final_continuation = MagicMock(return_value="ok")
+
+        def run_second(next_details, next_req):
+            return second.intercept_unary_unary(final_continuation, next_details, next_req)
+
+        first.intercept_unary_unary(run_second, details, "req")
+        call_details = final_continuation.call_args[0][0]
+        assert call_details.wait_for_ready is True
+        assert call_details.compression == grpc.Compression.Deflate
+        assert ("identifier", "12345") in call_details.metadata
+        assert ("authorization", "Bearer tok") in call_details.metadata
+
+    def test_four_field_call_details_defaults_optional_fields_to_none(self):
+        interceptor = header_adder_interceptor(["h1"], ["v1"])
+        details = SimpleNamespace(
+            method="TestMethod", timeout=None, metadata=None, credentials=None
+        )
+        continuation = MagicMock(return_value="ok")
+        interceptor.intercept_unary_unary(continuation, details, "req")
+        call_details = continuation.call_args[0][0]
+        assert call_details.wait_for_ready is None
+        assert call_details.compression is None
 
 
 class TestGenericAsyncClientInterceptor:
