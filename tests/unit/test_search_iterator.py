@@ -116,8 +116,7 @@ class TestSearchIteratorV2:
 
         mock_connection.describe_collection.assert_called_once_with("test_collection", context=ctx)
 
-    @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
-    def test_next_without_external_filter(self, mock_probe, mock_connection, search_data):
+    def test_next_without_external_filter(self, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
             handler=mock_connection,
@@ -131,8 +130,7 @@ class TestSearchIteratorV2:
         assert result is not None
         assert len(result) == 10  # Number of results from mock
 
-    @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
-    def test_next_with_limit(self, mock_probe, mock_connection, search_data):
+    def test_next_with_limit(self, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
         iterator = SearchIteratorV2(
             handler=mock_connection,
@@ -149,7 +147,6 @@ class TestSearchIteratorV2:
 
     def test_limit_spans_pages_then_exhausts(self, mock_connection, search_data):
         mock_connection.search.side_effect = [
-            self.create_mock_search_result(num_results=1),
             self.create_mock_search_result(num_results=2),
             self.create_mock_search_result(num_results=2),
         ]
@@ -167,13 +164,11 @@ class TestSearchIteratorV2:
         assert iterator.next() is None
 
     def test_token_stays_fixed_when_later_responses_change_it(self, mock_connection, search_data):
-        probe_result = self.create_mock_search_result(num_results=1)
         first_page = self.create_mock_search_result(num_results=1)
         later_page = self.create_mock_search_result(num_results=1)
-        probe_result._search_iterator_v2_results.token = "probe-token"
         first_page._search_iterator_v2_results.token = "page-token"
         later_page._search_iterator_v2_results.token = "changed-token"
-        mock_connection.search.side_effect = [probe_result, first_page, later_page]
+        mock_connection.search.side_effect = [first_page, later_page]
 
         iterator = SearchIteratorV2(
             handler=mock_connection,
@@ -186,11 +181,10 @@ class TestSearchIteratorV2:
         iterator.next()
         iterator.next()
 
-        assert mock_connection.search.call_args_list[2].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
+        assert mock_connection.search.call_args_list[1].kwargs[ITER_SEARCH_ID_KEY] == "page-token"
 
     def test_external_filter_surplus_is_cached_for_next_page(self, mock_connection, search_data):
         mock_connection.search.side_effect = [
-            self.create_mock_search_result(num_results=1),
             self.create_mock_search_result(num_results=3),
             self.create_mock_search_result(num_results=1),
         ]
@@ -208,7 +202,6 @@ class TestSearchIteratorV2:
 
     def test_empty_server_result_returns_empty_search_page(self, mock_connection, search_data):
         mock_connection.search.side_effect = [
-            self.create_mock_search_result(num_results=1),
             self.create_mock_search_result(num_results=0),
         ]
         iterator = SearchIteratorV2(
@@ -239,15 +232,17 @@ class TestSearchIteratorV2:
                 batch_size=100,
             )
 
-    def test_probe_pins_guarantee_timestamp_from_session_ts(self, mock_connection, search_data):
-        """Regression test for #3421: probe call must pin GUARANTEE_TIMESTAMP so the first
+    def test_first_page_pins_guarantee_timestamp_from_session_ts(
+        self, mock_connection, search_data
+    ):
+        """Regression test for #3421: first page must pin GUARANTEE_TIMESTAMP so the first
         next() call does not run with GUARANTEE_TIMESTAMP=0 (Bounded consistency).
-        Without the fix, a segment reload between probe and next() can cause 1-ULP distance
+        Without the fix, a segment reload between first and second pages can cause 1-ULP distance
         drift, which makes last_bound items pass the dist > last_bound filter again → duplicate PKs.
         """
-        probe_result = self.create_mock_search_result(num_results=1)
-        probe_result._session_ts = 12345678
-        mock_connection.search.return_value = probe_result
+        first_page_result = self.create_mock_search_result(num_results=1)
+        first_page_result._session_ts = 12345678
+        mock_connection.search.return_value = first_page_result
 
         iterator = SearchIteratorV2(
             handler=mock_connection,
@@ -263,16 +258,16 @@ class TestSearchIteratorV2:
             "duplicate PKs after segment reload (issue #3421)"
         )
 
-    def test_probe_pins_guarantee_timestamp_fallback_when_session_ts_zero(
+    def test_first_page_pins_guarantee_timestamp_fallback_when_session_ts_zero(
         self, mock_connection, search_data
     ):
-        """When the server returns session_ts=0, _probe_for_compability must fall back to the
+        """When a legacy server returns session_ts=0, initialization must fall back to the
         client-side timestamp (fall_back_to_latest_session_ts) rather than leaving
         GUARANTEE_TIMESTAMP=0.
         """
-        probe_result = self.create_mock_search_result(num_results=1)
-        probe_result._session_ts = 0  # server returns zero
-        mock_connection.search.return_value = probe_result
+        first_page_result = self.create_mock_search_result(num_results=1)
+        first_page_result._session_ts = 0  # server returns zero
+        mock_connection.search.return_value = first_page_result
 
         with patch(
             "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
@@ -291,11 +286,11 @@ class TestSearchIteratorV2:
             iterator._params[GUARANTEE_TIMESTAMP] == 99999
         ), "GUARANTEE_TIMESTAMP must be set to fallback ts when server session_ts is 0"
 
-    def test_probe_preserves_explicit_guarantee_timestamp(self, mock_connection, search_data):
+    def test_first_page_preserves_explicit_guarantee_timestamp(self, mock_connection, search_data):
         """Customized consistency callers can provide an explicit snapshot timestamp."""
-        probe_result = self.create_mock_search_result(num_results=1)
-        probe_result._session_ts = 12345678
-        mock_connection.search.return_value = probe_result
+        first_page_result = self.create_mock_search_result(num_results=1)
+        first_page_result._session_ts = 12345678
+        mock_connection.search.return_value = first_page_result
 
         with patch(
             "pymilvus.client.iterator.search_iterator.fall_back_to_latest_session_ts",
@@ -316,8 +311,7 @@ class TestSearchIteratorV2:
 
         assert iterator._params[GUARANTEE_TIMESTAMP] == 42
 
-    @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
-    def test_external_filter(self, mock_probe, mock_connection, search_data):
+    def test_external_filter(self, mock_connection, search_data):
         mock_connection.search.return_value = self.create_mock_search_result()
 
         def filter_func(hits):
@@ -336,8 +330,7 @@ class TestSearchIteratorV2:
         assert result is not None
         assert all(hit["distance"] < 5.0 for hit in result)
 
-    @patch("pymilvus.client.search_iterator.SearchIteratorV2._probe_for_compability")
-    def test_filter_and_external_filter(self, mock_probe, mock_connection, search_data):
+    def test_filter_and_external_filter(self, mock_connection, search_data):
         # Create mock search result with field values
         mock_result = self.create_mock_search_result()
         for hit in mock_result[0]:

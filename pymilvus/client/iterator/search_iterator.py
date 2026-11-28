@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import math
+import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
 
@@ -22,8 +24,11 @@ from pymilvus.client.constants import (
     GUARANTEE_TIMESTAMP,
     IS_PRIMARY,
     ITER_SEARCH_BATCH_SIZE_KEY,
+    ITER_SEARCH_CURSOR_VERSION_KEY,
     ITER_SEARCH_ID_KEY,
     ITER_SEARCH_LAST_BOUND_KEY,
+    ITER_SEARCH_LAST_PK_KEY,
+    ITER_SEARCH_LAST_PK_TYPE_KEY,
     ITER_SEARCH_V2_KEY,
     ITERATOR_FIELD,
     MAX_BATCH_SIZE,
@@ -48,7 +53,7 @@ from .query_iterator import NO_CACHE_ID, fall_back_to_latest_session_ts, iterato
 
 if TYPE_CHECKING:
     from pymilvus.client.call_context import CallContext
-    from pymilvus.client.search_result import Hit, Hits
+    from pymilvus.client.search_result import Hit, Hits, SearchResult
 
 log = logging.getLogger(__name__)
 
@@ -512,7 +517,33 @@ class SearchIteratorV2:
         rpc_options: Mapping[str, Any] | None = None,
     ):
         self._rpc_options = dict(rpc_options or {})
+        requested_versions = [
+            source[ITER_SEARCH_CURSOR_VERSION_KEY]
+            for source in (
+                self._rpc_options,
+                search_params or {},
+                (search_params or {}).get(PARAMS, {}),
+            )
+            if isinstance(source, dict)
+            and source.get(ITER_SEARCH_CURSOR_VERSION_KEY) not in (None, "")
+        ]
+        if any(str(version) != "2" for version in requested_versions):
+            raise ParamError(message="Unsupported search iterator cursor version")
+        self._request_pk_cursor = bool(requested_versions)
+        for key in (
+            ITER_SEARCH_CURSOR_VERSION_KEY,
+            ITER_SEARCH_LAST_PK_TYPE_KEY,
+            ITER_SEARCH_LAST_PK_KEY,
+        ):
+            self._rpc_options.pop(key, None)
         self._check_params(batch_size, data, self._rpc_options)
+        self._manual_legacy_cursor = self._rpc_options.get(
+            ITER_SEARCH_LAST_BOUND_KEY
+        ) is not None or bool(self._rpc_options.get(ITER_SEARCH_ID_KEY))
+        if self._manual_legacy_cursor and self._request_pk_cursor:
+            raise ParamError(
+                message="A legacy search iterator continuation cannot opt into a PK cursor"
+            )
 
         # for compatibility, support limit, deprecate in future
         if limit != UNLIMITED:
@@ -523,11 +554,20 @@ class SearchIteratorV2:
         self._set_up_collection_id(collection_name)
         search_options = self._rpc_options.copy()
         search_options[COLLECTION_ID] = self._collection_id
+        search_params = deepcopy(search_params) if search_params is not None else {}
+        for key in (
+            ITER_SEARCH_CURSOR_VERSION_KEY,
+            ITER_SEARCH_LAST_PK_TYPE_KEY,
+            ITER_SEARCH_LAST_PK_KEY,
+        ):
+            search_params.pop(key, None)
+            if isinstance(search_params.get(PARAMS), dict):
+                search_params[PARAMS].pop(key, None)
         self._params = {
             "collection_name": collection_name,
             "data": data,
             "anns_field": anns_field,
-            "param": deepcopy(search_params),
+            "param": search_params,
             "limit": batch_size,
             "expression": filter,
             "partition_names": partition_names,
@@ -542,8 +582,24 @@ class SearchIteratorV2:
         }
         self._external_filter_func = external_filter_func
         self._cache = []
+        self._seen_pks = set()
         self._batch_size = batch_size
-        self._probe_for_compability(self._params)
+        self._pending_response = None
+        self._pending_updates = None
+        self._exhausted = False
+        self._cursor_version = None
+        if self._request_pk_cursor:
+            self._params[ITER_SEARCH_CURSOR_VERSION_KEY] = "2"
+        # Detect support using the real first page and return that same page on next().
+        first_page = self._handler.search(context=self._context, **self._params)
+        updates, version = self._validate_page(first_page, initial=True)
+        self._cursor_version = version
+        if version is None:
+            # Existing V2 servers only support the distance cursor.
+            self._params.pop(ITER_SEARCH_CURSOR_VERSION_KEY, None)
+        self._params[GUARANTEE_TIMESTAMP] = updates[GUARANTEE_TIMESTAMP]
+        self._pending_response = first_page
+        self._pending_updates = updates
 
     def _set_up_collection_id(self, collection_name: str):
         res = self._handler.describe_collection(
@@ -552,6 +608,9 @@ class SearchIteratorV2:
             **self._rpc_options,
         )
         self._collection_id = res[COLLECTION_ID]
+        self._pk_type = next(
+            (field["type"] for field in res.get(FIELDS, []) if field.get(IS_PRIMARY)), None
+        )
 
     def _check_token_exists(self, token: str | None):
         if token is None or token == "":
@@ -559,58 +618,130 @@ class SearchIteratorV2:
                 message=ExceptionsMessage.SearchIteratorV2FallbackWarning
             )
 
-    # this detects whether the server supports search_iterator_v2 and is for compatibility only
-    # if the server holds iterator states, this implementation needs to be reconsidered
-    def _probe_for_compability(self, params: dict):
-        dummy_params = deepcopy(params)
-        dummy_batch_size = 1
-        dummy_params["limit"] = dummy_batch_size
-        dummy_params[ITER_SEARCH_BATCH_SIZE_KEY] = dummy_batch_size
-        probe_result = self._handler.search(context=self._context, **dummy_params)
-        iter_info = probe_result.get_search_iterator_v2_results_info()
-        self._check_token_exists(iter_info.token)
-        # Pin GUARANTEE_TIMESTAMP from probe call's session_ts so that all subsequent
-        # next() calls (including the very first) see a consistent MVCC snapshot.
-        # Without this, the first next() runs with GUARANTEE_TIMESTAMP=0 (latest available),
-        # which means a segment reload triggered by add_collection_field can shift distances
-        # by 1 ULP, causing last_bound items to pass the dist > last_bound filter again
-        # and produce duplicate PKs. See: https://github.com/milvus-io/pymilvus/issues/3421
-        if params[GUARANTEE_TIMESTAMP] <= 0:
-            session_ts = probe_result.get_session_ts()
-            if session_ts > 0:
-                params[GUARANTEE_TIMESTAMP] = session_ts
-            else:
-                log.warning("failed to set up mvccTs from probe call, use client-side ts instead")
-                params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
-
-    # internal next function, do not use this outside of this class
-    def _next(self):
-        res = self._handler.search(context=self._context, **self._params)
+    def _validate_page(self, res: SearchResult, *, initial: bool = False):
+        """Validate a whole response before committing any pagination state."""
         iter_info = res.get_search_iterator_v2_results_info()
-        self._check_token_exists(iter_info.token)
-        self._params[ITER_SEARCH_LAST_BOUND_KEY] = iter_info.last_bound
+        metadata, raw_pk_type, raw_pk = res.get_search_iterator_cursor_info()
+        version = metadata.get(ITER_SEARCH_CURSOR_VERSION_KEY)
+        if initial and not self._request_pk_cursor and version is not None:
+            raise MilvusException(
+                message="Search iterator returned a cursor version that was not requested"
+            )
+        if not iter_info.token:
+            if initial and version is None:
+                self._check_token_exists(iter_info.token)
+            raise MilvusException(message="Search iterator response is missing its token")
+        if len(res) != 1:
+            raise MilvusException(message="Search iterator response must contain exactly one query")
+        if version is not None and version != "2":
+            raise MilvusException(message="Unsupported search iterator cursor version")
+        if not initial and version != self._cursor_version:
+            raise MilvusException(message="Search iterator cursor version changed during iteration")
+        if (
+            version == "2"
+            and ITER_SEARCH_ID_KEY in self._params
+            and iter_info.token != self._params[ITER_SEARCH_ID_KEY]
+        ):
+            raise MilvusException(message="Search iterator token changed during iteration")
 
-        # patch token and guarantee timestamp for the first next() call
-        if ITER_SEARCH_ID_KEY not in self._params:
-            # the token should not change during the lifetime of the iterator
-            self._params[ITER_SEARCH_ID_KEY] = iter_info.token
-        if self._params[GUARANTEE_TIMESTAMP] <= 0:
-            if res.get_session_ts() > 0:
-                self._params[GUARANTEE_TIMESTAMP] = res.get_session_ts()
-            else:
+        if version == "2":
+            nq, topks, id_count, score_count, last_score, finite_scores = (
+                res.get_search_iterator_raw_shape()
+            )
+            if (
+                nq != 1
+                or len(topks) != 1
+                or topks[0] < 0
+                or topks[0] != id_count
+                or topks[0] != score_count
+                or topks[0] != len(res[0])
+                or not finite_scores
+                or (topks[0] > 0 and iter_info.last_bound != last_score)
+            ):
+                raise MilvusException(
+                    message="Search iterator cursor does not match the raw result shape or score"
+                )
+
+        updates = {}
+        timestamp = self._params[GUARANTEE_TIMESTAMP]
+        if timestamp <= 0:
+            timestamp = res.get_session_ts()
+            if timestamp <= 0:
+                if version == "2":
+                    raise MilvusException(
+                        message="PK search iterator requires a positive snapshot timestamp"
+                    )
                 log.warning(
                     "failed to set up mvccTs from milvus server, use client-side ts instead"
                 )
-                self._params[GUARANTEE_TIMESTAMP] = fall_back_to_latest_session_ts()
-        return res
+                timestamp = fall_back_to_latest_session_ts()
+        updates[GUARANTEE_TIMESTAMP] = timestamp
+
+        if len(res[0]) > 0:
+            if not math.isfinite(iter_info.last_bound):
+                raise MilvusException(
+                    message="Search iterator returned a non-finite distance bound"
+                )
+            updates[ITER_SEARCH_LAST_BOUND_KEY] = iter_info.last_bound
+            if version == "2":
+                pk_type = metadata.get(ITER_SEARCH_LAST_PK_TYPE_KEY)
+                pk_value = metadata.get(ITER_SEARCH_LAST_PK_KEY)
+                expected_type = {DataType.INT64: "int64", DataType.VARCHAR: "varchar"}.get(
+                    self._pk_type
+                )
+                if pk_type != expected_type or expected_type is None or pk_value is None:
+                    raise MilvusException(
+                        message="Search iterator PK cursor does not match the collection schema"
+                    )
+                if pk_type == "int64":
+                    if (
+                        raw_pk_type != "int_id"
+                        or re.fullmatch(r"-?(0|[1-9][0-9]*)", pk_value) is None
+                    ):
+                        raise MilvusException(
+                            message="Search iterator returned an invalid int64 PK cursor"
+                        )
+                    value = int(pk_value)
+                    if not -(1 << 63) <= value < (1 << 63) or value != raw_pk:
+                        raise MilvusException(
+                            message="Search iterator PK cursor does not match the response IDs"
+                        )
+                elif raw_pk_type != "str_id" or pk_value != raw_pk:
+                    raise MilvusException(
+                        message="Search iterator PK cursor does not match the response IDs"
+                    )
+                updates[ITER_SEARCH_LAST_PK_TYPE_KEY] = pk_type
+                updates[ITER_SEARCH_LAST_PK_KEY] = pk_value
+        if ITER_SEARCH_ID_KEY not in self._params:
+            updates[ITER_SEARCH_ID_KEY] = iter_info.token
+        return updates, version
+
+    # internal next function, do not use this outside of this class
+    def _next(self):
+        if self._pending_response is None:
+            res = self._handler.search(context=self._context, **self._params)
+            updates, _ = self._validate_page(res)
+            self._pending_response = res
+            self._pending_updates = updates
+        return self._pending_response
+
+    def _commit_next(self):
+        self._params.update(self._pending_updates)
+        self._exhausted = len(self._pending_response[0]) == 0
+        self._pending_response = None
+        self._pending_updates = None
 
     def next(self):
         if self._left_res_cnt is not None and self._left_res_cnt <= 0:
             return None
 
-        if self._external_filter_func is None:
+        if self._external_filter_func is None and self._cursor_version != "2":
             # return SearchPage for compability
-            return self._wrap_return_res(self._next()[0])
+            if self._exhausted:
+                return SearchPage(None)
+            result = self._wrap_return_res(self._next()[0])
+            self._commit_next()
+            return result
         # the length of the results should be `batch_size` if no limit is set,
         # otherwise it should be the number of results left if less than `batch_size`
         target_len = (
@@ -618,19 +749,35 @@ class SearchIteratorV2:
             if self._left_res_cnt is None
             else min(self._batch_size, self._left_res_cnt)
         )
-        while True:
-            hits = self._next()[0]
+        while len(self._cache) < target_len and not self._exhausted:
+            # A callback may mutate its input and then fail. Keep the pending raw
+            # response intact so a retry can process the same page without data loss.
+            raw_hits = self._next()[0]
+            hits = raw_hits if self._external_filter_func is None else deepcopy(raw_hits)
 
             # no more results from server
             if len(hits) == 0:
+                self._commit_next()
                 break
 
             # apply external filter
             if self._external_filter_func is not None:
                 hits = self._external_filter_func(hits)
 
-            self._cache.extend(hits)
-            if len(self._cache) >= target_len:
+            if self._cursor_version == "2":
+                accepted_hits = []
+                accepted_pks = set()
+                for hit in hits:
+                    pk = hit.id
+                    if pk not in self._seen_pks and pk not in accepted_pks:
+                        accepted_hits.append(hit)
+                        accepted_pks.add(pk)
+                self._cache.extend(accepted_hits)
+                self._seen_pks.update(accepted_pks)
+            else:
+                self._cache.extend(hits)
+            self._commit_next()
+            if self._external_filter_func is None and self._cache:
                 break
 
         # if the number of elements in cache is less than or equal to target_len,
@@ -638,9 +785,10 @@ class SearchIteratorV2:
         # if the number of elements in cache is more than target_len,
         #   return target_len results and keep the rest for next call
         ret = self._cache[:target_len]
-        del self._cache[:target_len]
         # return SearchPage for compability
-        return self._wrap_return_res(ret)
+        result = self._wrap_return_res(ret)
+        del self._cache[:target_len]
+        return result
 
     def close(self):
         pass
@@ -655,8 +803,8 @@ class SearchIteratorV2:
         # anns_field can be empty, deduced at server side
 
         # check batch size
-        if batch_size < 0:
-            raise ParamError(message="batch size cannot be less than zero")
+        if batch_size <= 0:
+            raise ParamError(message="batch size must be greater than zero")
         if batch_size > MAX_BATCH_SIZE:
             raise ParamError(message=f"batch size cannot be larger than {MAX_BATCH_SIZE}")
 
@@ -684,5 +832,5 @@ class SearchIteratorV2:
         cur_len = len(res)
         if cur_len > self._left_res_cnt:
             res = res[: self._left_res_cnt]
-        self._left_res_cnt -= cur_len
+        self._left_res_cnt -= len(res)
         return SearchPage(res)
